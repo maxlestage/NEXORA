@@ -1,0 +1,51 @@
+[package]
+name = "nexora-site"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Le site de NEXORA, écrit avec Paquets : pages SEO, PWA, scènes 3D en WebAssembly et animations."
+
+# Projet autonome : un seul crate, deux cibles. Le serveur (src/main.rs) et, compilés en
+# WebAssembly, les îlots et les scènes 3D (src/lib.rs).
+[workspace]
+
+[lib]
+name = "nexora_site"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "nexora-site"
+path = "src/main.rs"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+paquets = { git = "https://github.com/maxlestage/Paquets" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+paquets = { git = "https://github.com/maxlestage/Paquets", default-features = false, features = ["client"] }
+wasm-bindgen = "=0.2.129"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "AddEventListenerOptions", "CssStyleDeclaration", "Document", "DomRect", "DomTokenList",
+  "Element", "Event", "EventTarget", "HtmlElement", "IntersectionObserver",
+  "IntersectionObserverEntry", "IntersectionObserverInit", "KeyboardEvent", "MediaQueryList",
+  "MouseEvent", "MutationObserver", "MutationObserverInit", "NodeList", "Performance",
+  "PointerEvent", "ScrollBehavior", "ScrollToOptions", "Window", "Navigator", "Clipboard",
+] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# Le bundle du navigateur, le plus petit possible.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

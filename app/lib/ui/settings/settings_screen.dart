@@ -1,0 +1,293 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../services/storage.dart';
+import '../../state/agent_state.dart';
+import '../../state/chat_state.dart';
+import '../../state/github_state.dart';
+import '../../state/settings_state.dart';
+import '../theme.dart';
+import '../widgets/fx.dart';
+import '../widgets/nexus_orb.dart';
+
+const appVersion = '1.0.0';
+
+/// L'onglet Réglages.
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SettingsState>();
+    final gh = context.watch<GitHubState>();
+    final tt = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Réglages')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 40),
+        children: [
+          const SectionTitle('Apparence'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    icon: Icon(Icons.dark_mode),
+                    label: Text('Sombre'),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    icon: Icon(Icons.light_mode),
+                    label: Text('Clair'),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    icon: Icon(Icons.phone_iphone),
+                    label: Text('Auto'),
+                  ),
+                ],
+                selected: {s.themeMode},
+                onSelectionChanged: (v) => s.setTheme(v.first),
+              ),
+            ),
+          ),
+          const SectionTitle('Conversation'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Créativité (température)'),
+                  subtitle: Slider(
+                    value: s.temperature,
+                    min: 0,
+                    max: 1.5,
+                    divisions: 15,
+                    label: s.temperature.toStringAsFixed(1),
+                    onChanged: s.setTemperature,
+                  ),
+                  trailing: Text(
+                    s.temperature.toStringAsFixed(1),
+                    style: const TextStyle(fontFamily: Nx.mono),
+                  ),
+                ),
+                SwitchListTile(
+                  value: s.showThinking,
+                  onChanged: s.setShowThinking,
+                  title: const Text('Afficher le raisonnement'),
+                  subtitle: const Text('DeepSeek R1, Qwen3, gpt-oss…'),
+                ),
+                SwitchListTile(
+                  value: s.haptics,
+                  onChanged: s.setHaptics,
+                  title: const Text('Retour haptique'),
+                ),
+              ],
+            ),
+          ),
+          const SectionTitle('GitHub'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.account_circle_outlined),
+                  title: Text(
+                    gh.signedIn
+                        ? 'Connecté : @${gh.user?.login ?? '…'}'
+                        : 'Non connecté',
+                  ),
+                  trailing: gh.signedIn
+                      ? TextButton(
+                          onPressed: gh.signOut,
+                          child: const Text('Déconnexion'),
+                        )
+                      : null,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.apps_outlined),
+                  title: const Text('Client ID de l\'OAuth App'),
+                  subtitle: Text(
+                    s.githubClientId.isEmpty
+                        ? 'Pour « Se connecter avec GitHub » (flux device)'
+                        : s.githubClientId,
+                    style: const TextStyle(fontFamily: Nx.mono),
+                  ),
+                  onTap: () async {
+                    final c = TextEditingController(text: s.githubClientId);
+                    final v = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('OAuth App GitHub'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'GitHub → Settings → Developer settings → OAuth Apps → '
+                              'New. Cochez « Enable Device Flow », puis collez le '
+                              'Client ID (pas de secret nécessaire).',
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(controller: c, autofocus: true),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => launchUrl(
+                              Uri.parse(
+                                'https://github.com/settings/applications/new',
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            ),
+                            child: const Text('Créer l\'app'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, c.text),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (v != null) s.setGithubClientId(v);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SectionTitle('Données'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.ios_share),
+                  title: const Text('Exporter mes agents (.md)'),
+                  onTap: () {
+                    final agents = context.read<AgentState>().mine;
+                    if (agents.isEmpty) {
+                      toast(context, 'Aucun agent perso à exporter.');
+                      return;
+                    }
+                    copyText(
+                      context,
+                      agents
+                          .map((a) => a.toMarkdown())
+                          .join('\n\n<!-- --- -->\n\n'),
+                      message: '${agents.length} agent(s) copiés',
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_sweep_outlined),
+                  title: const Text('Effacer toutes les conversations'),
+                  onTap: () async {
+                    if (await _confirm(
+                      context,
+                      'Effacer toutes les conversations ?',
+                    )) {
+                      if (context.mounted) {
+                        context.read<ChatState>().deleteAll();
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.warning_amber, color: Nx.red),
+                  title: const Text(
+                    'Tout réinitialiser',
+                    style: TextStyle(color: Nx.red),
+                  ),
+                  subtitle: const Text(
+                    'Clés, jeton GitHub, agents, conversations',
+                  ),
+                  onTap: () async {
+                    if (await _confirm(
+                      context,
+                      'Tout effacer de cet appareil ? Action irréversible.',
+                    )) {
+                      if (!context.mounted) return;
+                      context.read<ChatState>().deleteAll();
+                      await context.read<GitHubState>().signOut();
+                      if (!context.mounted) return;
+                      await context.read<Storage>().clearAll();
+                      if (context.mounted) {
+                        toast(context, 'Réinitialisé. Relancez l\'app.');
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SectionTitle('À propos'),
+          Glass(
+            child: Column(
+              children: [
+                const NexusOrb(size: 120, satellites: 8, interactive: false),
+                const GradientText(
+                  'NEXORA',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 6,
+                  ),
+                ),
+                Text('Version $appVersion', style: tt.bodySmall),
+                const SizedBox(height: 8),
+                const Text(
+                  'Aucun serveur intermédiaire : l\'app parle directement aux '
+                  'fournisseurs et à GitHub. Vos clés restent sur l\'appareil.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse('https://github.com/maxlestage/NEXORA'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Icons.code),
+                      label: const Text('Code source'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => showLicensePage(
+                        context: context,
+                        applicationName: 'NEXORA',
+                        applicationVersion: appVersion,
+                      ),
+                      icon: const Icon(Icons.gavel_outlined),
+                      label: const Text('Licences'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<bool> _confirm(BuildContext context, String text) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      content: Text(text),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Nx.red),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Confirmer'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
