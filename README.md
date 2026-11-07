@@ -142,6 +142,45 @@ Détails, déploiement Docker et organisation du code : [`site/README.md`](site/
   build web à chaque mise à jour de `master` (artefacts téléchargeables). Un tag `v1.0.0`
   publie l'APK dans les **Releases**.
 
+## Version de test sur TestFlight (iPhone)
+
+Le workflow [`testflight.yml`](.github/workflows/testflight.yml) compile l'app iOS sur un Mac
+de GitHub, la signe et l'envoie sur TestFlight : pas besoin de Mac. Il se lance à chaque mise à
+jour de l'app sur `master` (donc après chaque fusion automatique), sur un tag `v*`, ou à la main
+(Actions → TestFlight → Run workflow). Tout se fait aussi depuis un iPhone, dans Safari.
+
+1. **Compte développeur Apple** (99 $/an) : <https://developer.apple.com/programs/enroll/>.
+   Notez votre **Team ID** (developer.apple.com → Account → Membership details).
+2. **Identifiant de l'app** : Certificates, Identifiers & Profiles → Identifiers → **+** →
+   App IDs → App → Bundle ID « Explicit » : `com.maxlestage.nexora`.
+3. **Fiche de l'app** : [App Store Connect](https://appstoreconnect.apple.com) → Apps → **+** →
+   New App → iOS, nom (par ex. « NEXORA », ou une variante s'il est pris), langue, le Bundle ID
+   ci-dessus, SKU `nexora`.
+4. **Clé d'API** : App Store Connect → Users and Access → Integrations → App Store Connect API
+   → Team Keys → **+**, rôle **Admin** (pour que les certificats soient créés automatiquement).
+   Téléchargez le fichier `AuthKey_XXXX.p8` (une seule fois possible), notez le **Key ID** et
+   l'**Issuer ID**.
+5. **Secrets GitHub** : dépôt → Settings → Secrets and variables → Actions → New repository
+   secret :
+
+   | Secret | Valeur |
+   |---|---|
+   | `APPLE_TEAM_ID` | le Team ID |
+   | `ASC_KEY_ID` | le Key ID |
+   | `ASC_ISSUER_ID` | l'Issuer ID |
+   | `ASC_PRIVATE_KEY` | tout le texte du fichier `.p8`, lignes `BEGIN`/`END` comprises |
+
+   Autre identifiant d'app : variable `IOS_BUNDLE_ID` (même page, onglet Variables).
+6. **Lancer** : Actions → TestFlight → Run workflow. Après le traitement par Apple (10 à
+   30 min), le build apparaît dans App Store Connect → TestFlight.
+7. **Installer** : TestFlight → Internal Testing → ajoutez-vous comme testeur, puis installez
+   l'app [TestFlight](https://apps.apple.com/app/testflight/id899247664) sur l'iPhone. Pour des
+   testeurs externes (jusqu'à 10 000, par lien public), Apple fait une courte vérification du
+   premier build.
+
+Chaque envoi prend le numéro de l'exécution comme numéro de build ; la version affichée vient
+de `version:` dans `app/pubspec.yaml`. Sans les secrets, le workflow s'arrête sans erreur.
+
 ## Confidentialité
 
 Aucun serveur intermédiaire et aucun compte NEXORA : l'application parle directement aux
