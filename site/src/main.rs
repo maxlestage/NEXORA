@@ -8,6 +8,7 @@
 
 use paquets::prelude::*;
 
+mod export;
 mod icones;
 
 use icones::icone;
@@ -1907,6 +1908,24 @@ fn app() -> App {
 }
 
 fn main() -> std::io::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("export") {
+        // `nexora-site export dist --base /NEXORA/` : le site en fichiers statiques.
+        let out = args.get(2).cloned().unwrap_or_else(|| "dist".into());
+        let base = args
+            .iter()
+            .position(|a| a == "--base")
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+            .unwrap_or_else(|| "/".into());
+        let n = tokio::runtime::Runtime::new()?.block_on(export::export(
+            app(),
+            std::path::Path::new(&out),
+            &base,
+        ))?;
+        println!("{n} fichiers écrits dans {out}");
+        return Ok(());
+    }
     app().run()
 }
 
