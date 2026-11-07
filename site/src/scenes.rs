@@ -1,0 +1,1054 @@
+//! Les scènes 3D, dans le navigateur : `paquets::three` (l'API de Three.js, en Rust)
+//! dessine avec WebGL 2, `paquets::three::Physics` fait tomber les objets.
+//!
+//! Chaque scène tourne dans une `animation_loop` qui s'arrête quand l'îlot disparaît,
+//! et ne dessine rien tant que son canvas est hors de l'écran.
+
+use std::cell::Cell;
+use std::f32::consts::{FRAC_PI_2, PI, TAU};
+use std::rc::Rc;
+
+use paquets::prelude::State;
+use paquets::three::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
+
+use crate::contenu::FOURNISSEURS;
+use crate::{PALETTE, Reglages, Scene3d, passe_le_filtre};
+
+const CYAN: u32 = 0x22d3ee;
+const VIOLET: u32 = 0x8b5cf6;
+const MAGENTA: u32 = 0xf472b6;
+
+/// Une scène qui tourne : la lâcher l'arrête.
+pub struct Running {
+    _loop: Option<AnimationLoop>,
+    _pointer: Option<Listener>,
+}
+
+/// Un écouteur d'événement sur la fenêtre, retiré quand on le lâche.
+struct Listener {
+    event: &'static str,
+    closure: Closure<dyn FnMut(web_sys::PointerEvent)>,
+}
+
+impl Drop for Listener {
+    fn drop(&mut self) {
+        if let Some(window) = web_sys::window() {
+            let _ = window.remove_event_listener_with_callback(
+                self.event,
+                self.closure.as_ref().unchecked_ref(),
+            );
+        }
+    }
+}
+
+/// Lance `scene` dans `canvas` ; `info` reçoit les images par seconde (ou un compte).
+pub fn start(
+    canvas: &paquets::active::Dom,
+    scene: Scene3d,
+    info: State<u32>,
+    reglages: Reglages,
+) -> Running {
+    let mut renderer = match WebGLRenderer::new(canvas) {
+        Ok(renderer) => renderer,
+        Err(_) => {
+            // Pas de WebGL 2 : la page garde son fond animé en CSS.
+            let _ = canvas.class_list().add_1("no-webgl");
+            return Running {
+                _loop: None,
+                _pointer: None,
+            };
+        }
+    };
+    renderer.set_pixel_ratio(device_pixel_ratio().min(2.0));
+    let _ = canvas.class_list().add_1("live");
+    let canvas = canvas.clone();
+    match scene {
+        Scene3d::Hero => hero(renderer, canvas, info),
+        Scene3d::Galaxie => galaxie(renderer, canvas, info, reglages),
+        Scene3d::Reseau => reseau(renderer, canvas, info, reglages),
+        Scene3d::Pluie => pluie(renderer, canvas, info, reglages),
+    }
+}
+
+/// Moins de mouvement quand le visiteur le demande.
+fn reduced_motion() -> bool {
+    web_sys::window()
+        .and_then(|w| {
+            w.match_media("(prefers-reduced-motion: reduce)")
+                .ok()
+                .flatten()
+        })
+        .is_some_and(|m| m.matches())
+}
+
+/// Si le canvas est au moins en partie à l'écran.
+fn visible(canvas: &web_sys::Element) -> bool {
+    let rect = canvas.get_bounding_client_rect();
+    let height = web_sys::window()
+        .and_then(|w| w.inner_height().ok())
+        .and_then(|h| h.as_f64())
+        .unwrap_or(1000.0);
+    rect.bottom() > 0.0 && rect.top() < height && rect.width() > 0.0
+}
+
+/// Compte les images et donne le résultat à `info` chaque seconde.
+struct Fps {
+    frames: u32,
+    since: f64,
+}
+
+impl Fps {
+    fn new() -> Fps {
+        Fps {
+            frames: 0,
+            since: 0.0,
+        }
+    }
+
+    fn tick(&mut self, time: f64, info: State<u32>) {
+        self.frames += 1;
+        if self.since == 0.0 {
+            self.since = time;
+        } else if time - self.since >= 1000.0 {
+            info.set((self.frames as f64 * 1000.0 / (time - self.since)).round() as u32);
+            self.frames = 0;
+            self.since = time;
+        }
+    }
+}
+
+/// Le temps écoulé depuis l'image précédente, en secondes, borné.
+struct Horloge(f64);
+
+impl Horloge {
+    fn dt(&mut self, time: f64, max: f32) -> f32 {
+        let dt = if self.0 == 0.0 {
+            0.016
+        } else {
+            ((time - self.0) / 1000.0) as f32
+        };
+        self.0 = time;
+        dt.clamp(0.0, max)
+    }
+}
+
+/// Des nombres au hasard, assez pour placer et colorer des objets (xorshift).
+struct Hasard(u64);
+
+impl Hasard {
+    fn new() -> Hasard {
+        Hasard((maintenant() as u64) | 1)
+    }
+
+    fn next(&mut self) -> f32 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        (self.0 >> 40) as f32 / (1u64 << 24) as f32
+    }
+
+    fn range(&mut self, min: f32, max: f32) -> f32 {
+        min + (max - min) * self.next()
+    }
+
+    fn pick<T: Copy>(&mut self, items: &[T]) -> T {
+        items[((self.next() * items.len() as f32) as usize).min(items.len() - 1)]
+    }
+}
+
+fn maintenant() -> f64 {
+    web_sys::window()
+        .and_then(|w| w.performance())
+        .map(|p| p.now() * 1000.0 + p.time_origin())
+        .unwrap_or(12345.0)
+}
+
+/// Le défilement vertical de la page.
+fn defilement() -> f32 {
+    web_sys::window()
+        .and_then(|w| w.scroll_y().ok())
+        .unwrap_or(0.0) as f32
+}
+
+/// Le pointeur, de -1 à 1 sur chaque axe, suivi sur toute la fenêtre.
+fn suivre_le_pointeur() -> (Rc<Cell<(f32, f32)>>, Option<Listener>) {
+    let pointeur = Rc::new(Cell::new((0.0f32, 0.0f32)));
+    let p = pointeur.clone();
+    let closure =
+        Closure::<dyn FnMut(web_sys::PointerEvent)>::new(move |event: web_sys::PointerEvent| {
+            if let Some(window) = web_sys::window() {
+                let w = window
+                    .inner_width()
+                    .ok()
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0);
+                let h = window
+                    .inner_height()
+                    .ok()
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0);
+                p.set((
+                    (event.client_x() as f64 / w * 2.0 - 1.0) as f32,
+                    (event.client_y() as f64 / h * 2.0 - 1.0) as f32,
+                ));
+            }
+        });
+    let listener = web_sys::window().map(|window| {
+        let _ = window
+            .add_event_listener_with_callback("pointermove", closure.as_ref().unchecked_ref());
+        Listener {
+            event: "pointermove",
+            closure,
+        }
+    });
+    (pointeur, listener)
+}
+
+/// Un trait lumineux : une boîte très fine, étirée entre deux points.
+fn trait_lumineux(couleur: u32, opacite: f32) -> Mesh {
+    Mesh::new(
+        BoxGeometry::new(0.018, 0.018, 1.0),
+        MeshBasicMaterial::new()
+            .color(couleur)
+            .transparent(true)
+            .opacity(opacite),
+    )
+}
+
+/// Place le trait `id` entre `a` et `b` (dans l'espace de son parent).
+fn relier(scene: &mut Scene, id: ObjectId, a: Vector3, b: Vector3) {
+    let o = &mut scene[id];
+    let d = b - a;
+    let longueur = (d.x * d.x + d.y * d.y + d.z * d.z).sqrt().max(0.0001);
+    o.position = (a + b) * 0.5;
+    o.scale.set(1.0, 1.0, longueur);
+    o.look_at(b);
+}
+
+/// Un champ d'étoiles autour de la scène.
+fn etoiles(scene: &mut Scene, hasard: &mut Hasard, nombre: usize, rayon: (f32, f32)) -> ObjectId {
+    let etoile = BoxGeometry::new(0.035, 0.035, 0.035);
+    let ciel = scene.add(Group::new());
+    for _ in 0..nombre {
+        let id = scene.add_to(
+            ciel,
+            Mesh::new(
+                etoile.clone(),
+                MeshBasicMaterial::new()
+                    .color(hasard.pick(&[0xffffff, 0xa5f3fc, 0xddd6fe, 0xfbcfe8])),
+            ),
+        );
+        let r = hasard.range(rayon.0, rayon.1);
+        let theta = hasard.range(0.0, TAU);
+        let phi = hasard.range(0.2, PI - 0.2);
+        scene[id].position.set(
+            r * phi.sin() * theta.cos(),
+            r * phi.cos(),
+            r * phi.sin() * theta.sin() - 6.0,
+        );
+    }
+    ciel
+}
+
+// ————————————————————————————————————————————————————————————————————————————
+// Le héros : le téléphone et ses fournisseurs
+// ————————————————————————————————————————————————————————————————————————————
+
+struct Noeud {
+    id: ObjectId,
+    lien: ObjectId,
+    rayon: f32,
+    angle: f32,
+    vitesse: f32,
+    hauteur: f32,
+    phase: f32,
+}
+
+fn hero(mut renderer: WebGLRenderer, canvas: web_sys::Element, info: State<u32>) -> Running {
+    let calme = if reduced_motion() { 0.15 } else { 1.0 };
+    let mut hasard = Hasard::new();
+    let mut scene = Scene::new();
+    let monde = scene.add(Group::new());
+
+    // Le téléphone : une coque, un écran qui luit, des bulles de conversation.
+    let telephone = scene.add_to(monde, Group::new());
+    scene.add_to(
+        telephone,
+        Mesh::new(
+            BoxGeometry::new(2.0, 4.1, 0.22),
+            MeshStandardMaterial::new()
+                .color(0x1b1b2e)
+                .metalness(0.9)
+                .roughness(0.25),
+        ),
+    );
+    let cadre = scene.add_to(
+        telephone,
+        Mesh::new(
+            BoxGeometry::new(2.06, 4.16, 0.16),
+            MeshBasicMaterial::new()
+                .color(VIOLET)
+                .wireframe(true)
+                .transparent(true)
+                .opacity(0.35),
+        ),
+    );
+    let ecran = scene.add_to(
+        telephone,
+        Mesh::new(
+            PlaneGeometry::new(1.82, 3.9),
+            MeshBasicMaterial::new().color(0x0a1022),
+        ),
+    );
+    scene[ecran].position.z = 0.115;
+    let encoche = scene.add_to(
+        telephone,
+        Mesh::new(
+            BoxGeometry::new(0.5, 0.1, 0.02),
+            MeshBasicMaterial::new().color(0x000000),
+        ),
+    );
+    scene[encoche].position.set(0.0, 1.8, 0.125);
+    // La barre du haut et le champ de saisie.
+    let barre = scene.add_to(
+        telephone,
+        Mesh::new(
+            BoxGeometry::new(1.6, 0.16, 0.01),
+            MeshBasicMaterial::new().color(0x1e293b),
+        ),
+    );
+    scene[barre].position.set(0.0, 1.5, 0.125);
+    let saisie = scene.add_to(
+        telephone,
+        Mesh::new(
+            BoxGeometry::new(1.5, 0.22, 0.01),
+            MeshBasicMaterial::new().color(0x1e1b4b),
+        ),
+    );
+    scene[saisie].position.set(-0.08, -1.62, 0.125);
+    let envoyer = scene.add_to(
+        telephone,
+        Mesh::new(
+            SphereGeometry::new(0.12, 16, 8),
+            MeshBasicMaterial::new().color(CYAN),
+        ),
+    );
+    scene[envoyer].position.set(0.74, -1.62, 0.14);
+    // Les bulles : gauche (IA) ou droite (vous), qui s'écrivent en boucle.
+    let mut bulles = Vec::new();
+    for i in 0..6 {
+        let moi = i % 2 == 0;
+        let largeur = if moi { 0.9 } else { 1.3 } - (i as f32 * 0.07) % 0.3;
+        let id = scene.add_to(
+            telephone,
+            Mesh::new(
+                BoxGeometry::new(1.0, 0.24, 0.012),
+                MeshBasicMaterial::new().color(if moi { VIOLET } else { 0x164e63 }),
+            ),
+        );
+        let x = if moi {
+            0.78 - largeur / 2.0
+        } else {
+            -0.78 + largeur / 2.0
+        };
+        scene[id].position.set(x, 1.15 - i as f32 * 0.42, 0.125);
+        bulles.push((id, largeur, moi, x));
+    }
+
+    // Les fournisseurs : des sphères en orbite, reliées au téléphone.
+    let sphere = SphereGeometry::new(0.2, 24, 12);
+    let mut noeuds = Vec::new();
+    for (i, f) in FOURNISSEURS.iter().take(14).enumerate() {
+        let couleur = if f.gratuit { f.couleur } else { MAGENTA };
+        let id = scene.add_to(
+            monde,
+            Mesh::new(
+                sphere.clone(),
+                MeshStandardMaterial::new()
+                    .color(couleur)
+                    .metalness(0.4)
+                    .roughness(0.3)
+                    .emissive(Color::from(couleur).scale(0.45)),
+            ),
+        );
+        let taille = hasard.range(0.7, 1.4);
+        scene[id].scale.set(taille, taille, taille);
+        let lien = scene.add_to(
+            monde,
+            trait_lumineux(if i % 3 == 0 { MAGENTA } else { CYAN }, 0.35),
+        );
+        noeuds.push(Noeud {
+            id,
+            lien,
+            rayon: hasard.range(2.8, 4.6),
+            angle: i as f32 / 14.0 * TAU,
+            vitesse: hasard.range(0.12, 0.3),
+            hauteur: hasard.range(-2.2, 2.2),
+            phase: hasard.range(0.0, TAU),
+        });
+    }
+    // Deux anneaux, comme des orbites.
+    let anneau_a = scene.add_to(
+        monde,
+        Mesh::new(
+            TorusGeometry::new(3.6, 0.02, 8, 160),
+            MeshBasicMaterial::new().color(CYAN),
+        ),
+    );
+    scene[anneau_a].rotation.x = FRAC_PI_2 * 0.85;
+    let anneau_b = scene.add_to(
+        monde,
+        Mesh::new(
+            TorusGeometry::new(4.4, 0.014, 8, 160),
+            MeshBasicMaterial::new()
+                .color(MAGENTA)
+                .transparent(true)
+                .opacity(0.7),
+        ),
+    );
+    scene[anneau_b].rotation.x = FRAC_PI_2 * 1.15;
+    scene[anneau_b].rotation.y = 0.4;
+    let ciel = etoiles(&mut scene, &mut hasard, 180, (9.0, 22.0));
+
+    scene.add(AmbientLight::new(0xa5b4fc, 0.6));
+    let soleil = scene.add(DirectionalLight::new(0xffffff, 2.4));
+    scene[soleil].position.set(3.0, 4.0, 6.0);
+    let lumiere_cyan = scene.add(PointLight::new(CYAN, 40.0));
+    scene[lumiere_cyan].position.set(-4.0, 1.5, 3.0);
+    let lumiere_rose = scene.add(PointLight::new(MAGENTA, 30.0));
+    scene[lumiere_rose].position.set(4.0, -2.0, 2.5);
+
+    let mut camera = PerspectiveCamera::new(46.0, 0.0, 0.1, 100.0);
+    camera.position.set(0.0, 0.0, 11.0);
+    let (pointeur, listener) = suivre_le_pointeur();
+
+    let mut fps = Fps::new();
+    let mut horloge = Horloge(0.0);
+    let mut lisse = (0.0f32, 0.0f32);
+    let mut defile = 0.0f32;
+    let mut place = (0.0f32, 0.0f32, 1.0f32);
+    let boucle = animation_loop(move |time| {
+        let dt = horloge.dt(time, 0.1);
+        if !visible(&canvas) {
+            return;
+        }
+        fps.tick(time, info);
+        let t = time as f32 / 1000.0 * calme;
+
+        let (px, py) = pointeur.get();
+        lisse.0 += (px - lisse.0) * (dt * 3.0).min(1.0);
+        lisse.1 += (py - lisse.1) * (dt * 3.0).min(1.0);
+        defile += (defilement() - defile) * (dt * 6.0).min(1.0);
+        let s = (defile / 900.0).min(1.5);
+
+        camera.position.x = lisse.0 * 1.4;
+        camera.position.y = -lisse.1 * 1.0 + s * 1.4;
+        camera.position.z = 11.0 + s * 4.0;
+        camera.look_at(Vector3::new(0.0, s * 0.8, 0.0));
+
+        // Sur un écran large, la scène se range à droite du titre ; sur un téléphone,
+        // sous le texte, un peu plus petite.
+        let aspect = renderer.aspect();
+        let cible = if aspect > 1.15 {
+            ((aspect - 1.0).min(0.9) * 6.2, 0.0, 0.92)
+        } else if aspect < 0.85 {
+            (0.0, -3.4, 0.78)
+        } else {
+            (0.0, -1.0, 0.9)
+        };
+        let k = (dt * 4.0).min(1.0);
+        place.0 += (cible.0 - place.0) * k;
+        place.1 += (cible.1 - place.1) * k;
+        place.2 += (cible.2 - place.2) * k;
+        scene[monde].position.set(place.0, place.1 + s * 1.2, 0.0);
+        scene[monde].scale.set(place.2, place.2, place.2);
+        scene[monde].rotation.y = lisse.0 * 0.3 + s * 0.9;
+        scene[monde].rotation.x = lisse.1 * 0.15;
+
+        // Le téléphone flotte et se tourne doucement.
+        scene[telephone].rotation.y = (t * 0.5).sin() * 0.45 - 0.25;
+        scene[telephone].rotation.x = (t * 0.7).cos() * 0.08;
+        scene[telephone].position.y = (t * 1.2).sin() * 0.12;
+        scene[cadre].scale.set(
+            1.0 + (t * 2.0).sin() * 0.01,
+            1.0 + (t * 2.0).sin() * 0.01,
+            1.0,
+        );
+        // Les bulles s'écrivent l'une après l'autre, puis tout recommence.
+        let cycle = (t * 0.55) % 4.0;
+        for (i, (id, largeur, moi, x)) in bulles.iter().enumerate() {
+            let debut = i as f32 * 0.5;
+            let p = ((cycle - debut) / 0.4).clamp(0.0, 1.0);
+            let w = largeur * p.max(0.001);
+            let o = &mut scene[*id];
+            o.scale.x = w;
+            o.position.x = if *moi {
+                x + (largeur - w) / 2.0
+            } else {
+                x - (largeur - w) / 2.0
+            };
+        }
+        let pulse = 1.0 + (t * 4.0).sin().abs() * 0.25;
+        scene[envoyer].scale.set(pulse, pulse, pulse);
+
+        let centre = scene[telephone].position;
+        for n in &noeuds {
+            let a = n.angle + t * n.vitesse;
+            let p = Vector3::new(
+                a.cos() * n.rayon,
+                n.hauteur + (t * 0.8 + n.phase).sin() * 0.35,
+                a.sin() * n.rayon,
+            );
+            scene[n.id].position = p;
+            relier(&mut scene, n.lien, centre, p);
+        }
+        scene[anneau_a].rotation.z = t * 0.35;
+        scene[anneau_b].rotation.z = -t * 0.25;
+        scene[ciel].rotation.y = t * 0.02;
+        scene[lumiere_cyan].position.x = (t * 0.7).cos() * 4.5;
+        scene[lumiere_cyan].position.z = (t * 0.7).sin() * 4.5;
+
+        renderer.render(&scene, &camera);
+    });
+    Running {
+        _loop: Some(boucle),
+        _pointer: listener,
+    }
+}
+
+// ————————————————————————————————————————————————————————————————————————————
+// La galaxie des modèles
+// ————————————————————————————————————————————————————————————————————————————
+
+struct Planete {
+    id: ObjectId,
+    rayon: f32,
+    angle: f32,
+    vitesse: f32,
+    inclinaison: f32,
+    taille: f32,
+    actuel: f32,
+}
+
+fn galaxie(
+    mut renderer: WebGLRenderer,
+    canvas: web_sys::Element,
+    info: State<u32>,
+    r: Reglages,
+) -> Running {
+    let calme = if reduced_motion() { 0.2 } else { 1.0 };
+    let mut hasard = Hasard::new();
+    let mut scene = Scene::new();
+
+    // L'étoile du centre : NEXORA.
+    let coeur = scene.add(Mesh::new(
+        SphereGeometry::new(0.9, 6, 4),
+        MeshStandardMaterial::new()
+            .color(VIOLET)
+            .metalness(0.6)
+            .roughness(0.2)
+            .emissive(0x3b1d8f)
+            .flat_shading(true),
+    ));
+    let halo = scene.add(Mesh::new(
+        SphereGeometry::new(1.35, 16, 12),
+        MeshBasicMaterial::new()
+            .color(CYAN)
+            .wireframe(true)
+            .transparent(true)
+            .opacity(0.25),
+    ));
+
+    // Une planète par fournisseur, sur des orbites de plus en plus larges.
+    let mut planetes = Vec::new();
+    let sphere = SphereGeometry::new(1.0, 32, 16);
+    for (i, f) in FOURNISSEURS.iter().enumerate() {
+        let groupe = scene.add(Group::new());
+        let couleur = f.couleur;
+        let taille = 0.22 + hasard.range(0.0, 0.18) + if f.gratuit { 0.06 } else { 0.0 };
+        scene.add_to(
+            groupe,
+            Mesh::new(
+                sphere.clone(),
+                MeshStandardMaterial::new()
+                    .color(couleur)
+                    .metalness(0.25)
+                    .roughness(0.45)
+                    .emissive(Color::from(couleur).scale(0.25)),
+            ),
+        );
+        // Les gratuits ont un anneau lumineux.
+        if f.gratuit {
+            let anneau = scene.add_to(
+                groupe,
+                Mesh::new(
+                    TorusGeometry::new(1.6, 0.07, 8, 64),
+                    MeshBasicMaterial::new().color(0x34d399),
+                ),
+            );
+            scene[anneau].rotation.x = FRAC_PI_2 * 0.75;
+        }
+        // Les locaux, une lune.
+        if f.local {
+            let lune = scene.add_to(
+                groupe,
+                Mesh::new(
+                    SphereGeometry::new(0.32, 16, 8),
+                    MeshBasicMaterial::new().color(0xffffff),
+                ),
+            );
+            scene[lune].position.set(2.1, 0.4, 0.0);
+        }
+        let rayon = 2.4 + i as f32 * 0.38;
+        // L'orbite, en filigrane.
+        let orbite = scene.add(Mesh::new(
+            TorusGeometry::new(rayon, 0.006, 4, 128),
+            MeshBasicMaterial::new()
+                .color(if f.gratuit { CYAN } else { MAGENTA })
+                .transparent(true)
+                .opacity(0.18),
+        ));
+        let inclinaison = hasard.range(-0.18, 0.18);
+        scene[orbite].rotation.x = FRAC_PI_2 + inclinaison;
+        planetes.push(Planete {
+            id: groupe,
+            rayon,
+            angle: hasard.range(0.0, TAU),
+            vitesse: 0.9 / rayon.powf(1.2),
+            inclinaison,
+            taille,
+            actuel: taille,
+        });
+    }
+    let ciel = etoiles(&mut scene, &mut hasard, 220, (16.0, 30.0));
+
+    scene.add(AmbientLight::new(0xc7d2fe, 0.35));
+    let centre = scene.add(PointLight::new(0xffffff, 140.0));
+    scene[centre].position.set(0.0, 0.0, 0.0);
+    let cle = scene.add(DirectionalLight::new(0xffffff, 1.2));
+    scene[cle].position.set(5.0, 8.0, 6.0);
+
+    let mut camera = PerspectiveCamera::new(45.0, 0.0, 0.1, 120.0);
+    camera.position.set(0.0, 7.5, 15.0);
+    camera.look_at(Vector3::ZERO);
+    let mut controls = OrbitControls::new(&canvas);
+    controls.enable_damping = true;
+    controls.enable_pan = false;
+    controls.enable_zoom = false;
+    controls.min_distance = 8.0;
+    controls.max_distance = 26.0;
+    controls.auto_rotate = !reduced_motion();
+    controls.auto_rotate_speed = 0.6;
+
+    let mut fps = Fps::new();
+    let mut horloge = Horloge(0.0);
+    let boucle = animation_loop(move |time| {
+        let dt = horloge.dt(time, 0.1);
+        if !visible(&canvas) {
+            return;
+        }
+        fps.tick(time, info);
+        let t = time as f32 / 1000.0 * calme;
+        let filtre = r.filtre.get();
+        for (i, p) in planetes.iter_mut().enumerate() {
+            let a = p.angle + t * p.vitesse;
+            let cible = if passe_le_filtre(i, filtre) {
+                p.taille * if filtre == 0 { 1.0 } else { 1.35 }
+            } else {
+                p.taille * 0.3
+            };
+            p.actuel += (cible - p.actuel) * (dt * 5.0).min(1.0);
+            let o = &mut scene[p.id];
+            o.position.set(
+                a.cos() * p.rayon,
+                a.sin() * p.rayon * p.inclinaison,
+                a.sin() * p.rayon,
+            );
+            o.scale.set(p.actuel, p.actuel, p.actuel);
+            o.rotation.y = t * 0.8;
+        }
+        scene[coeur].rotation.y = t * 0.4;
+        scene[coeur].rotation.x = t * 0.25;
+        let pulse = 1.0 + (t * 2.0).sin() * 0.05;
+        scene[halo].scale.set(pulse, pulse, pulse);
+        scene[halo].rotation.y = -t * 0.2;
+        scene[ciel].rotation.y = t * 0.01;
+        controls.update(&mut camera);
+        renderer.render(&scene, &camera);
+    });
+    Running {
+        _loop: Some(boucle),
+        _pointer: None,
+    }
+}
+
+// ————————————————————————————————————————————————————————————————————————————
+// Le réseau d'agents
+// ————————————————————————————————————————————————————————————————————————————
+
+/// Une tâche qui voyage le long d'un lien.
+struct Impulsion {
+    id: ObjectId,
+    de: usize,
+    vers: usize,
+    t: f32,
+    vitesse: f32,
+}
+
+fn reseau(
+    mut renderer: WebGLRenderer,
+    canvas: web_sys::Element,
+    info: State<u32>,
+    r: Reglages,
+) -> Running {
+    let calme = if reduced_motion() { 0.2 } else { 1.0 };
+    let mut hasard = Hasard::new();
+    let mut scene = Scene::new();
+    let monde = scene.add(Group::new());
+
+    // Le nœud 0 est le cœur (NEXORA), les autres sont les agents, répartis sur une sphère.
+    let mut positions = vec![Vector3::ZERO];
+    let n_agents = 12;
+    for i in 0..n_agents {
+        let y = 1.0 - (i as f32 + 0.5) / n_agents as f32 * 2.0;
+        let rayon = (1.0 - y * y).sqrt();
+        let theta = i as f32 * PI * (3.0 - 5f32.sqrt());
+        positions.push(Vector3::new(theta.cos() * rayon, y, theta.sin() * rayon) * 3.4);
+    }
+    let coeur = scene.add_to(
+        monde,
+        Mesh::new(
+            SphereGeometry::new(0.75, 5, 3),
+            MeshStandardMaterial::new()
+                .color(VIOLET)
+                .metalness(0.7)
+                .roughness(0.2)
+                .emissive(0x4c1d95)
+                .flat_shading(true),
+        ),
+    );
+    let coque = scene.add_to(
+        monde,
+        Mesh::new(
+            SphereGeometry::new(1.15, 10, 8),
+            MeshBasicMaterial::new()
+                .color(CYAN)
+                .wireframe(true)
+                .transparent(true)
+                .opacity(0.3),
+        ),
+    );
+    let mut agents = vec![coeur];
+    let cube = BoxGeometry::new(0.42, 0.42, 0.42);
+    for (i, p) in positions.iter().enumerate().skip(1) {
+        let couleur = PALETTE[i % PALETTE.len()];
+        let id = scene.add_to(
+            monde,
+            Mesh::new(
+                cube.clone(),
+                MeshStandardMaterial::new()
+                    .color(couleur)
+                    .metalness(0.35)
+                    .roughness(0.3)
+                    .emissive(Color::from(couleur).scale(0.35)),
+            ),
+        );
+        scene[id].position = *p;
+        agents.push(id);
+    }
+    // Les liens : chaque agent au cœur, et chacun à ses deux voisins.
+    let mut liens: Vec<(usize, usize)> = (1..=n_agents).map(|i| (0, i)).collect();
+    for i in 1..=n_agents {
+        let mut proches: Vec<usize> = (1..=n_agents).filter(|j| *j != i).collect();
+        proches.sort_by(|a, b| {
+            let da = positions[*a] - positions[i];
+            let db = positions[*b] - positions[i];
+            (da.x * da.x + da.y * da.y + da.z * da.z)
+                .partial_cmp(&(db.x * db.x + db.y * db.y + db.z * db.z))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        for j in proches.into_iter().take(2) {
+            if !liens.contains(&(j, i)) && !liens.contains(&(i, j)) {
+                liens.push((i, j));
+            }
+        }
+    }
+    for (a, b) in &liens {
+        let couleur = if *a == 0 { CYAN } else { VIOLET };
+        let id = scene.add_to(
+            monde,
+            trait_lumineux(couleur, if *a == 0 { 0.4 } else { 0.22 }),
+        );
+        relier(&mut scene, id, positions[*a], positions[*b]);
+    }
+    let ciel = etoiles(&mut scene, &mut hasard, 120, (10.0, 20.0));
+
+    scene.add(HemisphereLight::new(0xe0e7ff, 0x1e1b4b, 1.2));
+    let lumiere = scene.add(PointLight::new(0xffffff, 60.0));
+    scene[lumiere].position.set(0.0, 0.0, 0.0);
+    let cle = scene.add(DirectionalLight::new(0xffffff, 1.8));
+    scene[cle].position.set(4.0, 6.0, 5.0);
+
+    let mut camera = PerspectiveCamera::new(45.0, 0.0, 0.1, 100.0);
+    camera.position.set(0.0, 1.5, 10.5);
+    camera.look_at(Vector3::ZERO);
+    let mut controls = OrbitControls::new(&canvas);
+    controls.enable_damping = true;
+    controls.enable_pan = false;
+    controls.enable_zoom = false;
+    controls.auto_rotate = !reduced_motion();
+    controls.auto_rotate_speed = 1.0;
+
+    let bille = SphereGeometry::new(0.09, 12, 6);
+    let mut impulsions: Vec<Impulsion> = Vec::new();
+    let mut eclat = vec![0.0f32; agents.len()];
+    let mut demandes_vues = r.lacher.get();
+    let mut diffusions_vues = r.secousse.get();
+    let mut minuterie = 0.0f32;
+    let mut taches = 0u32;
+    let mut horloge = Horloge(0.0);
+    let boucle = animation_loop(move |time| {
+        let dt = horloge.dt(time, 0.05);
+        if !visible(&canvas) {
+            return;
+        }
+        let t = time as f32 / 1000.0 * calme;
+        let mut nouvelles: Vec<(usize, usize, f32)> = Vec::new();
+        // Une tâche de temps en temps, toute seule.
+        minuterie -= dt * calme;
+        if minuterie <= 0.0 {
+            minuterie = hasard.range(0.5, 1.2);
+            let (a, b) = liens[(hasard.next() * liens.len() as f32) as usize % liens.len()];
+            nouvelles.push((a, b, 0.7));
+        }
+        let demandes = r.lacher.get();
+        if demandes != demandes_vues {
+            for _ in demandes_vues..demandes {
+                let vers = 1 + (hasard.next() * n_agents as f32) as usize % n_agents;
+                nouvelles.push((0, vers, 1.1));
+                taches += 1;
+            }
+            demandes_vues = demandes;
+        }
+        let diffusions = r.secousse.get();
+        if diffusions != diffusions_vues {
+            diffusions_vues = diffusions;
+            for vers in 1..=n_agents {
+                nouvelles.push((0, vers, 0.9));
+            }
+            taches += n_agents as u32;
+        }
+        if info.get() != taches {
+            info.set(taches);
+        }
+        // Les tâches avancent ; à l'arrivée, l'agent s'illumine et répond parfois.
+        let mut arrivees = Vec::new();
+        impulsions.retain_mut(|imp| {
+            imp.t += dt * imp.vitesse;
+            let p = positions[imp.de] + (positions[imp.vers] - positions[imp.de]) * imp.t.min(1.0);
+            scene[imp.id].position = p;
+            if imp.t >= 1.0 {
+                scene.remove(imp.id);
+                arrivees.push((imp.vers, imp.de));
+                false
+            } else {
+                true
+            }
+        });
+        for (agent, source) in arrivees {
+            eclat[agent] = 1.0;
+            if source == 0 && hasard.next() > 0.5 {
+                nouvelles.push((agent, 0, 0.8));
+            }
+        }
+        for (de, vers, vitesse) in nouvelles {
+            let couleur = if de == 0 { CYAN } else { MAGENTA };
+            let id = scene.add_to(
+                monde,
+                Mesh::new(bille.clone(), MeshBasicMaterial::new().color(couleur)),
+            );
+            scene[id].position = positions[de];
+            impulsions.push(Impulsion {
+                id,
+                de,
+                vers,
+                t: 0.0,
+                vitesse,
+            });
+        }
+        for (i, id) in agents.iter().enumerate() {
+            eclat[i] = (eclat[i] - dt * 1.8).max(0.0);
+            let e = 1.0 + eclat[i] * 0.6;
+            let o = &mut scene[*id];
+            if i == 0 {
+                let p = 1.0 + (t * 2.0).sin() * 0.04 + eclat[0] * 0.2;
+                o.scale.set(p, p, p);
+                o.rotation.y = t * 0.5;
+            } else {
+                o.scale.set(e, e, e);
+                o.rotation.x = t * 0.6 + i as f32;
+                o.rotation.y = t * 0.4 + i as f32;
+            }
+        }
+        scene[coque].rotation.y = -t * 0.3;
+        scene[ciel].rotation.y = t * 0.015;
+        controls.update(&mut camera);
+        renderer.render(&scene, &camera);
+    });
+    Running {
+        _loop: Some(boucle),
+        _pointer: None,
+    }
+}
+
+// ————————————————————————————————————————————————————————————————————————————
+// La pluie de paquets
+// ————————————————————————————————————————————————————————————————————————————
+
+const MAX_PAQUETS: usize = 120;
+
+fn pluie(
+    mut renderer: WebGLRenderer,
+    canvas: web_sys::Element,
+    info: State<u32>,
+    r: Reglages,
+) -> Running {
+    let mut hasard = Hasard::new();
+    let mut scene = Scene::new();
+    let sol = scene.add(Mesh::new(
+        PlaneGeometry::new(14.0, 14.0),
+        MeshStandardMaterial::new()
+            .color(0x13132a)
+            .roughness(0.85)
+            .metalness(0.1),
+    ));
+    scene[sol].rotation.x = -FRAC_PI_2;
+    // Une grille lumineuse posée sur le sol : les enfants d'un groupe sont des corps
+    // cinématiques pour la physique, ils restent où ils sont.
+    let grille = scene.add(Group::new());
+    for i in -3..=3 {
+        let a = scene.add_to(grille, trait_lumineux(CYAN, 0.18));
+        relier(
+            &mut scene,
+            a,
+            Vector3::new(i as f32 * 2.0, 0.01, -7.0),
+            Vector3::new(i as f32 * 2.0, 0.01, 7.0),
+        );
+        let b = scene.add_to(grille, trait_lumineux(VIOLET, 0.18));
+        relier(
+            &mut scene,
+            b,
+            Vector3::new(-7.0, 0.01, i as f32 * 2.0),
+            Vector3::new(7.0, 0.01, i as f32 * 2.0),
+        );
+    }
+
+    scene.add(HemisphereLight::new(0xe0f2fe, 0x1e1b4b, 1.4));
+    let soleil = scene.add(DirectionalLight::new(0xffffff, 2.6));
+    scene[soleil].position.set(5.0, 10.0, 6.0);
+    let rose = scene.add(PointLight::new(MAGENTA, 40.0));
+    scene[rose].position.set(-5.0, 4.0, 3.0);
+
+    let mut camera = PerspectiveCamera::new(45.0, 0.0, 0.1, 100.0);
+    camera.position.set(9.0, 7.5, 11.0);
+    camera.look_at(Vector3::new(0.0, 1.0, 0.0));
+    let mut controls = OrbitControls::new(&canvas);
+    controls.target = Vector3::new(0.0, 1.0, 0.0);
+    controls.enable_damping = true;
+    controls.enable_pan = false;
+    controls.enable_zoom = false;
+    controls.max_polar_angle = FRAC_PI_2 * 0.92;
+    controls.auto_rotate = !reduced_motion();
+    controls.auto_rotate_speed = 0.8;
+
+    let tailles = [
+        BoxGeometry::new(0.6, 0.6, 0.6),
+        BoxGeometry::new(0.9, 0.6, 0.6),
+        BoxGeometry::new(0.8, 0.8, 0.8),
+        BoxGeometry::new(1.0, 0.5, 0.7),
+    ];
+    let mut physics = Physics::new();
+    let mut paquets: Vec<ObjectId> = Vec::new();
+    let mut a_lacher = 16u32;
+    let mut lache_vu = r.lacher.get();
+    let mut secousse_vue = r.secousse.get();
+    let mut minuterie = 0.0f32;
+    let mut horloge = Horloge(0.0);
+    let boucle = animation_loop(move |time| {
+        let dt = horloge.dt(time, 0.05);
+        if !visible(&canvas) {
+            return;
+        }
+        let demande = r.lacher.get();
+        if demande != lache_vu {
+            a_lacher += demande.saturating_sub(lache_vu);
+            lache_vu = demande;
+        }
+        minuterie -= dt;
+        if a_lacher > 0 && minuterie <= 0.0 {
+            minuterie = 0.06;
+            a_lacher -= 1;
+            let couleur = hasard.pick(&PALETTE);
+            let id = scene.add(Mesh::new(
+                tailles[(hasard.next() * tailles.len() as f32) as usize % tailles.len()].clone(),
+                MeshStandardMaterial::new()
+                    .color(couleur)
+                    .metalness(0.3)
+                    .roughness(0.35)
+                    .emissive(Color::from(couleur).scale(0.15)),
+            ));
+            let o = &mut scene[id];
+            o.position.set(
+                hasard.range(-2.5, 2.5),
+                hasard.range(7.0, 10.0),
+                hasard.range(-2.5, 2.5),
+            );
+            o.rotation.set(
+                hasard.range(0.0, TAU),
+                hasard.range(0.0, TAU),
+                hasard.range(0.0, TAU),
+            );
+            paquets.push(id);
+            if paquets.len() > MAX_PAQUETS {
+                let vieux = paquets.remove(0);
+                scene.remove(vieux);
+            }
+        }
+        physics.step(&mut scene, dt);
+        let secousse = r.secousse.get();
+        if secousse != secousse_vue {
+            secousse_vue = secousse;
+            for id in &paquets {
+                if let Some(body) = physics.body_mut(*id) {
+                    body.wake_up();
+                    let m = body.mass();
+                    body.apply_impulse(
+                        Vector3::new(
+                            hasard.range(-2.0, 2.0),
+                            hasard.range(5.0, 8.0),
+                            hasard.range(-2.0, 2.0),
+                        ) * m,
+                    );
+                }
+            }
+        }
+        paquets.retain(|id| {
+            let tombe = scene.get(*id).is_some_and(|o| o.position.y < -12.0);
+            if tombe {
+                scene.remove(*id);
+            }
+            !tombe
+        });
+        if info.get() != paquets.len() as u32 {
+            info.set(paquets.len() as u32);
+        }
+        controls.update(&mut camera);
+        renderer.render(&scene, &camera);
+    });
+    Running {
+        _loop: Some(boucle),
+        _pointer: None,
+    }
+}
