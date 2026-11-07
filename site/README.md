@@ -71,6 +71,17 @@ N'importe quel hébergeur de conteneurs convient (Heroku en pile « container »
 Railway, Cloud Run…). Si les dépôts de Paquets vous demandent une authentification, passez un
 jeton GitHub en secret BuildKit : `docker build --secret id=repos_token,env=REPOS_TOKEN .`
 
+## Export statique (GitHub Pages)
+
+```bash
+SITE_URL=https://maxlestage.github.io/NEXORA cargo run --release -- export ../dist --base /NEXORA/
+```
+
+Chaque page est demandée au serveur lui-même (client de test en mémoire) et écrite en
+fichier ; les liens deviennent relatifs, donc le dossier marche à la racine d'un domaine comme
+dans un sous-dossier. Le formulaire de la lettre mène alors à la page de remerciement (pas de
+serveur pour l'enregistrer). Le workflow `pages.yml` le fait à chaque mise à jour de `master`.
+
 ## Vérifier
 
 ```bash

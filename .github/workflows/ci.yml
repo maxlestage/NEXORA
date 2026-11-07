@@ -1,0 +1,103 @@
+# Vérifie chaque push et chaque pull request, puis fusionne automatiquement dans
+# master toute branche dont les vérifications passent (sauf master et les branches
+# `wip/...`). Une pull request ouverte depuis une branche du dépôt est donc fusionnée
+# dès qu'elle est verte ; GitHub la marque alors comme fusionnée.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  app:
+    name: App (format, analyse, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+
+  site:
+    name: Site (fmt, clippy, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: site
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --lib --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo test
+
+  merge:
+    name: Fusion dans master
+    needs: [app, site]
+    if: >-
+      github.event_name == 'push' && github.ref_name != 'master' &&
+      !startsWith(github.ref_name, 'wip/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    concurrency:
+      group: merge-into-master
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Fusionner
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$SHA"
+          if git merge-base --is-ancestor "$SHA" HEAD; then
+            echo "Déjà dans master."
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD "$SHA"; then
+            git merge --ff-only "$SHA"
+          else
+            subject="$(git log -1 --format=%s "$SHA")"
+            git merge --no-ff --no-edit "$SHA" -m "Fusion automatique : $subject"
+          fi
+          git push origin HEAD:master
+          echo "::notice title=Fusion automatique::fusionné dans master"
+      # Un push fait avec GITHUB_TOKEN ne lance aucun workflow : on lance à la main le
+      # déploiement du site et les builds de l'app.
+      - name: Déployer le site et construire l'app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --ref master --repo "$GITHUB_REPOSITORY"
+          gh workflow run app.yml --ref master --repo "$GITHUB_REPOSITORY"
