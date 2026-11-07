@@ -1,15 +1,14 @@
-# L'application Flutter : format, analyse et tests à chaque push, puis les builds
-# Android (APK installable), iOS (sans signature) et web. Un tag `v*` publie l'APK
-# dans les Releases GitHub.
+# Les builds de l'application Flutter : Android (APK installable), iOS (sans
+# signature) et web. Les vérifications (format, analyse, tests) sont dans ci.yml.
+# Un tag `v*` publie l'APK dans les Releases GitHub.
 
 name: App
 
 on:
   push:
+    branches: [master]
     paths: ["app/**", ".github/workflows/app.yml"]
     tags: ["v*"]
-  pull_request:
-    paths: ["app/**", ".github/workflows/app.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,23 +19,8 @@ defaults:
     working-directory: app
 
 jobs:
-  check:
-    name: Format, analyse, tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test
-      - run: flutter analyze
-      - run: flutter test
-
   android:
     name: Android (APK)
-    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +40,6 @@ jobs:
 
   ios:
     name: iOS (sans signature)
-    needs: check
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +51,6 @@ jobs:
 
   web:
     name: Web
-    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

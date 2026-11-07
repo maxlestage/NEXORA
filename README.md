@@ -9,6 +9,8 @@ dont des modèles **gratuits**, vos modèles **Ollama** locaux, des **agents** q
 GitHub, et un vrai **atelier GitHub** pour héberger et coder vos projets depuis le téléphone.
 Le site de présentation est écrit en Rust avec [Paquets 📦](https://github.com/maxlestage/Paquets).
 
+**🌐 Le site : <https://maxlestage.github.io/NEXORA/>**
+
 </div>
 
 ---
@@ -17,7 +19,7 @@ Le site de présentation est écrit en Rust avec [Paquets 📦](https://github.c
 |---|---|
 | [`app/`](app/) | L'application Flutter (iOS, Android, et aussi web et bureau) |
 | [`site/`](site/) | Le site de présentation : Paquets, 3D en WebAssembly, PWA, mobile d'abord ([README](site/README.md)) |
-| [`.github/workflows/`](.github/workflows/) | CI de l'app (tests, APK, iOS, web, releases) et du site |
+| [`.github/workflows/`](.github/workflows/) | Vérifications et fusion automatique dans master, builds de l'app, déploiement du site |
 
 ## L'application
 
@@ -126,12 +128,19 @@ cargo run --release              # http://localhost:3000
 
 Détails, déploiement Docker et organisation du code : [`site/README.md`](site/README.md).
 
-## CI et versions
+## CI, fusion automatique et versions
 
-- **App** : format, `flutter analyze`, tests, puis APK Android, build iOS sans signature et
-  build web (artefacts téléchargeables). Un tag `v1.0.0` publie l'APK dans les **Releases**.
-- **Site** : `cargo fmt`, clippy (serveur et WebAssembly), tests, bundle WebAssembly. Les dépôts
-  de Paquets étant privés, ajoutez le secret `REPOS_TOKEN` (un jeton qui peut les lire).
+- **Chaque push et chaque pull request** ([`ci.yml`](.github/workflows/ci.yml)) : format,
+  analyse et tests de l'app ; `cargo fmt`, clippy (serveur et WebAssembly) et tests du site.
+- **Fusion automatique** : dès que ces vérifications passent, la branche est fusionnée dans
+  `master` (sauf `master` et les branches `wip/...`). Une pull request ouverte depuis une branche
+  du dépôt est donc fusionnée dès qu'elle est verte.
+- **Site** ([`pages.yml`](.github/workflows/pages.yml)) : à chaque mise à jour de `master`, le
+  bundle WebAssembly est construit, chaque page exportée en fichier statique
+  (`nexora-site export`), puis publiée sur **GitHub Pages**.
+- **App** ([`app.yml`](.github/workflows/app.yml)) : APK Android, build iOS sans signature et
+  build web à chaque mise à jour de `master` (artefacts téléchargeables). Un tag `v1.0.0`
+  publie l'APK dans les **Releases**.
 
 ## Confidentialité
 
