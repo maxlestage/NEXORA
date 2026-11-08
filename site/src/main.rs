@@ -269,7 +269,7 @@ fn pied_de_page() -> Element {
                                 .attr("type", "button")
                                 .attr("hidden", "")
                                 .child(span().class("ico").html(icone("telecharger")))
-                                .text("Installer l'application web"),
+                                .text("Installer ce site"),
                         ),
                 )
                 .child(colonne("Produit", PIED_PRODUIT))
@@ -594,6 +594,29 @@ fn carte_fournisseur(i: usize, f: &Fournisseur) -> Element {
         )
 }
 
+/// Une version : numéro, date, résumé et ses nouveautés.
+fn carte_version(i: usize, v: &Version) -> Element {
+    article()
+        .class(if i == 0 {
+            "card release glow tilt"
+        } else {
+            "card release tilt"
+        })
+        .attr("data-reveal", "up")
+        .attr("style", format!("--d:{}ms", (i % 3) * 90))
+        .child(
+            div()
+                .class("release-head")
+                .child(span().class("release-ver").text(format!("v{}", v.numero)))
+                .child(span().class("release-date").text(v.date)),
+        )
+        .child(h3().text(v.titre))
+        .child(
+            ul().class("checks")
+                .children(v.points.iter().map(|p| li().text(*p))),
+        )
+}
+
 fn chiffres() -> Element {
     div()
         .class("stats")
@@ -674,6 +697,34 @@ fn appel_final() -> Node {
 // ————————————————————————————————————————————————————————————————————————————
 
 async fn accueil(_req: Request) -> Page {
+    let versions = versions();
+    let derniere = &versions[0];
+    let nouveautes = section().class("section").id("nouveautes").child(
+        div()
+            .class("container")
+            .child(titre_section(
+                "Nouveautés",
+                "Ça *bouge* *vite*",
+                "NEXORA s'améliore sans arrêt. Les dernières versions, en bref.",
+            ))
+            .child(
+                div().class("grid-3 releases").children(
+                    versions
+                        .iter()
+                        .take(3)
+                        .enumerate()
+                        .map(|(i, v)| carte_version(i, v)),
+                ),
+            )
+            .child(
+                div().class("actions center").child(
+                    a().class("btn btn-ghost magnetic")
+                        .href("/nouveautes")
+                        .text("Toutes les nouveautés")
+                        .child(fleche()),
+                ),
+            ),
+    );
     let hero = section()
         .class("hero")
         .child(div().class("aurora").attr("aria-hidden", "true"))
@@ -683,10 +734,10 @@ async fn accueil(_req: Request) -> Page {
                 .class("container hero-inner")
                 .child(
                     a().class("pill")
-                        .href("/modeles")
+                        .href("/nouveautes")
                         .attr("data-reveal", "down")
-                        .child(span().class("pill-tag").text("Nouveau"))
-                        .text("21 fournisseurs, dont 16 gratuits")
+                        .child(span().class("pill-tag").text(format!("v{}", derniere.numero)))
+                        .text(derniere.titre)
                         .child(fleche()),
                 )
                 .child(mots(
@@ -952,6 +1003,7 @@ async fn accueil(_req: Request) -> Page {
         vec![
             hero.into(),
             marques.into(),
+            nouveautes.into(),
             etapes.into(),
             fonctions.into(),
             demo.into(),
@@ -1055,8 +1107,13 @@ async fn fonctionnalites(_req: Request) -> Page {
                                         "✓",
                                     ),
                                     (
-                                        "Agent autonome",
-                                        "Outils fichiers, diff, commit, pull request",
+                                        "Sessions d'agent",
+                                        "Plusieurs dépôts, en arrière-plan, nouvelles instructions, diff, commit, pull request",
+                                        "✓",
+                                    ),
+                                    (
+                                        "Témoin de crédit",
+                                        "Coût par réponse, solde restant, limites, dépense du mois",
                                         "✓",
                                     ),
                                     ("GitHub", "Device flow, dépôts, fichiers, issues, PR", "✓"),
@@ -1066,7 +1123,7 @@ async fn fonctionnalites(_req: Request) -> Page {
                                         "✓",
                                     ),
                                     ("Sécurité", "Keychain / Keystore, aucun serveur", "✓"),
-                                    ("Plateformes", "Android, iOS, Web (PWA), ordinateur", "✓"),
+                                    ("Plateformes", "iPhone et Android, pensée pour le smartphone", "✓"),
                                 ]
                                 .into_iter()
                                 .map(|(a, b, c)| {
@@ -1082,7 +1139,7 @@ async fn fonctionnalites(_req: Request) -> Page {
     let mut contenu = vec![bandeau(
         "Fonctionnalités",
         "Tout pour *coder* avec l'IA, depuis votre téléphone",
-        "Chat multi-modèles, agents, GitHub, éditeur, workflows cloud et sécurité : le tour complet de NEXORA.",
+        "Sessions multi-dépôts, chat multi-modèles, témoin de crédit, agents, GitHub, éditeur et sécurité : le tour complet de NEXORA.",
     )];
     contenu.extend(blocs);
     contenu.push(capacites.into());
@@ -1092,6 +1149,37 @@ async fn fonctionnalites(_req: Request) -> Page {
         "Fonctionnalités",
         "Chat multi-modèles en streaming, agents installables, GitHub intégré, éditeur de code, GitHub Actions et clés dans le trousseau : toutes les fonctionnalités de NEXORA.",
         contenu,
+    )
+}
+
+async fn nouveautes(_req: Request) -> Page {
+    let versions = versions();
+    let liste = section().class("section").child(
+        div().class("container narrow").child(
+            div().class("releases releases-col").children(
+                versions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| carte_version(i, v)),
+            ),
+        ),
+    );
+    page(
+        "/nouveautes",
+        "Nouveautés",
+        &format!(
+            "Les nouveautés de NEXORA, version par version. Dernière : {} — {}.",
+            versions[0].numero, versions[0].titre
+        ),
+        vec![
+            bandeau(
+                "Nouveautés",
+                "Ce qui a *changé*",
+                "Chaque version de NEXORA, de la plus récente à la plus ancienne. Elles arrivent sur iPhone par TestFlight.",
+            ),
+            liste.into(),
+            appel_final(),
+        ],
     )
 }
 
@@ -1432,53 +1520,63 @@ async fn github(_req: Request) -> Page {
 }
 
 async fn telecharger(_req: Request) -> Page {
-    let plateformes = section().class("section").id("installer").child(
-        div()
-            .class("container")
-            .child(titre_section(
-                "Plateformes",
-                "Une app, *toutes* vos plateformes",
-                "NEXORA est écrite avec Flutter : le même code pour Android, iPhone, le Web et l'ordinateur.",
-            ))
-            .child(
-                div().class("grid-4 platforms").children(PLATEFORMES.iter().enumerate().map(
-                    |(i, (ico, nom, etat, texte, lien, libelle))| {
-                        let externe = lien.starts_with("http");
-                        let mut bouton = a()
-                            .class("btn btn-ghost btn-sm magnetic")
-                            .href(*lien)
-                            .text(*libelle)
-                            .child(fleche());
-                        if externe {
-                            bouton = bouton.attr("rel", "noopener");
-                        }
-                        article()
-                            .class("card platform tilt glow")
-                            .attr("data-reveal", "up")
-                            .attr("style", format!("--d:{}ms", i * 90))
-                            .child(div().class("card-ico big").html(icone(ico)))
-                            .child(h3().text(*nom))
-                            .child(badge(
-                                if etat.starts_with("Disponible") { "free" } else { "soon" },
-                                etat,
-                            ))
-                            .child(p().class("muted").text(*texte))
-                            .child(bouton)
-                    },
-                )),
-            )
-            .child(div().class("center stores-center").attr("data-reveal", "up").child(badges_stores()))
-            .child(
-                div().class("center").attr("data-reveal", "up").child(
-                    button()
-                        .class("btn btn-primary btn-lg install-app magnetic")
-                        .attr("type", "button")
-                        .attr("hidden", "")
-                        .child(span().class("ico").html(icone("telecharger")))
-                        .text("Installer l'application web"),
+    let plateformes =
+        section().class("section").id("installer").child(
+            div()
+                .class("container")
+                .child(titre_section(
+                    "Plateformes",
+                    "Pensée pour votre *smartphone*",
+                    "NEXORA est une application pour iPhone et Android, écrite avec Flutter.",
+                ))
+                .child(div().class("grid-2 platforms").children(
+                    PLATEFORMES.iter().enumerate().map(
+                        |(i, (ico, nom, etat, texte, lien, libelle))| {
+                            let externe = lien.starts_with("http");
+                            let mut bouton = a()
+                                .class("btn btn-ghost btn-sm magnetic")
+                                .href(*lien)
+                                .text(*libelle)
+                                .child(fleche());
+                            if externe {
+                                bouton = bouton.attr("rel", "noopener");
+                            }
+                            article()
+                                .class("card platform tilt glow")
+                                .attr("data-reveal", "up")
+                                .attr("style", format!("--d:{}ms", i * 90))
+                                .child(div().class("card-ico big").html(icone(ico)))
+                                .child(h3().text(*nom))
+                                .child(badge(
+                                    if etat.starts_with("Disponible") {
+                                        "free"
+                                    } else {
+                                        "soon"
+                                    },
+                                    etat,
+                                ))
+                                .child(p().class("muted").text(*texte))
+                                .child(bouton)
+                        },
+                    ),
+                ))
+                .child(
+                    div()
+                        .class("center stores-center")
+                        .attr("data-reveal", "up")
+                        .child(badges_stores()),
+                )
+                .child(
+                    div().class("center").attr("data-reveal", "up").child(
+                        button()
+                            .class("btn btn-primary btn-lg install-app magnetic")
+                            .attr("type", "button")
+                            .attr("hidden", "")
+                            .child(span().class("ico").html(icone("telecharger")))
+                            .text("Installer ce site"),
+                    ),
                 ),
-            ),
-    );
+        );
     let source = section().class("section section-alt").id("source").child(
         div()
             .class("container split-2")
@@ -1500,18 +1598,18 @@ async fn telecharger(_req: Request) -> Page {
             .child(div().attr("data-reveal", "right").child(bloc_code(
                 "cmd-build",
                 "Terminal",
-                "git clone https://github.com/maxlestage/NEXORA\ncd NEXORA/app\nflutter pub get\n\n# Android\nflutter build apk --release\n\n# iPhone (sur Mac)\nflutter build ipa\n\n# Web (PWA)\nflutter build web",
+                "git clone https://github.com/maxlestage/NEXORA\ncd NEXORA/app\nflutter pub get\n\n# Android\nflutter build apk --release\n\n# iPhone (sur Mac)\nflutter build ipa",
             ))),
     );
     page(
         "/telecharger",
         "Télécharger",
-        "Téléchargez NEXORA : APK Android, PWA installable, compilation iPhone et ordinateur avec Flutter. Gratuit et open source.",
+        "Téléchargez NEXORA pour iPhone (TestFlight) et Android (APK). Gratuit et open source.",
         vec![
             bandeau(
                 "Télécharger",
                 "NEXORA, *gratuitement*",
-                "APK Android dès maintenant, App Store et Google Play bientôt, et le code source pour tout le reste.",
+                "Version de test sur iPhone par TestFlight, APK Android dès maintenant, App Store et Google Play bientôt.",
             ),
             plateformes.into(),
             source.into(),
@@ -1700,6 +1798,7 @@ fn app() -> App {
     let mut app = App::new();
     app.get("/", accueil);
     app.get("/fonctionnalites", fonctionnalites);
+    app.get("/nouveautes", nouveautes);
     app.get("/modeles", modeles);
     app.get("/agents", agents);
     app.get("/github", github);
@@ -1768,6 +1867,10 @@ mod tests {
             assert!(html.contains("manifest.webmanifest"), "{chemin}");
             assert!(!html.contains("Orbite"), "{chemin}");
         }
+        let nouveautes = client.get("/nouveautes").await.text();
+        let v = &versions()[0];
+        assert!(nouveautes.contains(&format!("v{}", v.numero)));
+        assert!(client.get("/").await.text().contains(v.titre));
         assert_eq!(client.get("/nulle-part").await.status(), 404);
         assert_eq!(client.get("/manifest.webmanifest").await.status(), 200);
         assert_eq!(client.get("/sw.js").await.status(), 200);

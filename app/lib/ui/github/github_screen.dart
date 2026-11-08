@@ -12,6 +12,7 @@ import '../widgets/nexus_orb.dart';
 import '../../state/session_state.dart';
 import '../workspace/new_session_screen.dart';
 import '../workspace/sessions_list.dart';
+import 'create_repo.dart';
 import 'repo_screen.dart';
 
 const _tokenUrl =
@@ -62,6 +63,11 @@ class _CodeHomeState extends State<_CodeHome>
       appBar: AppBar(
         title: const Text('Code'),
         actions: [
+          IconButton(
+            tooltip: 'Nouveau dépôt',
+            icon: const Icon(Icons.create_new_folder_outlined),
+            onPressed: () => createRepo(context),
+          ),
           IconButton(
             tooltip: 'Actualiser',
             icon: const Icon(Icons.refresh),
@@ -444,99 +450,5 @@ class _ReposState extends State<_Repos> {
         ],
       ),
     );
-  }
-}
-
-/// Crée un dépôt sur GitHub.
-Future<void> createRepo(BuildContext context) async {
-  final name = TextEditingController();
-  final desc = TextEditingController();
-  var private = true;
-  var readme = true;
-  String? template;
-  final ok = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setS) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Nouveau dépôt',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: name,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nom (mon-projet)'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: desc,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-            SwitchListTile(
-              value: private,
-              onChanged: (v) => setS(() => private = v),
-              title: const Text('Privé'),
-            ),
-            SwitchListTile(
-              value: readme,
-              onChanged: (v) => setS(() => readme = v),
-              title: const Text('Ajouter un README'),
-            ),
-            DropdownButtonFormField<String?>(
-              initialValue: template,
-              decoration: const InputDecoration(labelText: '.gitignore'),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Aucun')),
-                DropdownMenuItem(value: 'Dart', child: Text('Flutter / Dart')),
-                DropdownMenuItem(value: 'Rust', child: Text('Rust')),
-                DropdownMenuItem(value: 'Node', child: Text('Node')),
-                DropdownMenuItem(value: 'Python', child: Text('Python')),
-              ],
-              onChanged: (v) => setS(() => template = v),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Créer'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
-  final gh = context.read<GitHubState>();
-  try {
-    final r = await gh.api.createRepo(
-      name: name.text.trim().replaceAll(' ', '-'),
-      description: desc.text.trim(),
-      private: private,
-      autoInit: readme,
-      gitignore: template,
-    );
-    gh.addRepo(r);
-    if (context.mounted) {
-      toast(context, '${r.fullName} créé 🎉');
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => RepoScreen(repo: r)));
-    }
-  } catch (e) {
-    if (context.mounted) toast(context, '$e', error: true);
   }
 }

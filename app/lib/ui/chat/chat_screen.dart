@@ -43,6 +43,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _focus = FocusNode();
   final List<(String, String)> _attachments = [];
   bool _stickToBottom = true;
+
+  /// Le bouton « ↓ » : affiché quand on est remonté dans la conversation.
+  bool _showDown = false;
   late final ChatState _chat;
 
   /// Les messages terminés déjà construits : pendant une réponse en flux, seul le
@@ -53,12 +56,27 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chat = context.read<ChatState>();
-    _chat.ensureLoaded(widget.conversationId);
+    // La conversation s'ouvre sur les derniers messages.
+    _chat.ensureLoaded(widget.conversationId).then((_) => _jumpToEnd());
     if (widget.initialPrompt != null) _input.text = widget.initialPrompt!;
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
       final p = _scroll.position;
       _stickToBottom = p.pixels >= p.maxScrollExtent - 80;
+      final down = p.maxScrollExtent - p.pixels > 300;
+      if (down != _showDown) setState(() => _showDown = down);
+    });
+  }
+
+  /// Va tout en bas, sur plusieurs images : la liste mesure ses messages au fur
+  /// et à mesure (Markdown, code), la fin peut encore s'éloigner.
+  void _jumpToEnd([int frames = 5]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+      if (frames > 0) _jumpToEnd(frames - 1);
     });
   }
 
@@ -216,82 +234,112 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           _CreditBar(conversation: c, providerId: ref.providerId),
           Expanded(
-            child: !c.loaded
-                ? const Center(child: CircularProgressIndicator())
-                : c.messages.isEmpty
-                ? _Empty(
-                    agent: agent,
-                    onPick: (t) {
-                      _input.text = t;
-                      _focus.requestFocus();
-                    },
-                  )
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    itemCount: c.messages.length,
-                    // Le contexte de l'écran (stable) et non celui de l'élément de
-                    // liste : les messages mis en cache gardent leurs actions.
-                    itemBuilder: (_, i) {
-                      final m = c.messages[i];
-                      final isLast = i == c.messages.length - 1;
-                      final signature = (
-                        m.content.length,
-                        m.thinking.length,
-                        m.error,
-                        m.tokensOut,
-                        isLast,
-                        running,
-                        settings.showThinking,
-                        agent?.id,
-                        ref.key,
-                        Theme.of(context).brightness,
-                        settings.accent,
-                        settings.bubbleStyle,
-                      );
-                      final cached = _tiles[m];
-                      if (cached != null && cached.$1 == signature) {
-                        return cached.$2;
-                      }
-                      final tile = _MessageTile(
-                        key: ValueKey('${c.id}-$i'),
-                        message: m,
-                        streaming: running && isLast,
-                        showThinking: settings.showThinking,
-                        onRegenerate:
-                            isLast && m.role == Role.assistant && !running
-                            ? () => chat.regenerate(c.id, agent: agent)
-                            : null,
-                        onChangeModel: () async {
-                          final r = await pickModel(context, current: ref);
-                          if (r == null) return;
-                          chat.setModel(c.id, r);
-                          // Un agent qui impose son modèle est retiré, pour que le
-                          // nouveau modèle soit bien utilisé.
-                          final keep = agent?.model == null ? agent : null;
-                          if (keep == null && agent != null) {
-                            chat.setAgent(c.id, null);
-                          }
-                          chat.regenerate(c.id, agent: keep);
-                        },
-                        onEdit: m.role == Role.user && !running
-                            ? () async {
-                                final t = await _rename(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: !c.loaded
+                      ? const Center(child: CircularProgressIndicator())
+                      : c.messages.isEmpty
+                      ? _Empty(
+                          agent: agent,
+                          onPick: (t) {
+                            _input.text = t;
+                            _focus.requestFocus();
+                          },
+                        )
+                      : ListView.builder(
+                          controller: _scroll,
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                          itemCount: c.messages.length,
+                          // Le contexte de l'écran (stable) et non celui de l'élément de
+                          // liste : les messages mis en cache gardent leurs actions.
+                          itemBuilder: (_, i) {
+                            final m = c.messages[i];
+                            final isLast = i == c.messages.length - 1;
+                            final signature = (
+                              m.content.length,
+                              m.thinking.length,
+                              m.error,
+                              m.tokensOut,
+                              isLast,
+                              running,
+                              settings.showThinking,
+                              agent?.id,
+                              ref.key,
+                              Theme.of(context).brightness,
+                              settings.accent,
+                              settings.bubbleStyle,
+                            );
+                            final cached = _tiles[m];
+                            if (cached != null && cached.$1 == signature) {
+                              return cached.$2;
+                            }
+                            final tile = _MessageTile(
+                              key: ValueKey('${c.id}-$i'),
+                              message: m,
+                              streaming: running && isLast,
+                              showThinking: settings.showThinking,
+                              onRegenerate:
+                                  isLast && m.role == Role.assistant && !running
+                                  ? () => chat.regenerate(c.id, agent: agent)
+                                  : null,
+                              onChangeModel: () async {
+                                final r = await pickModel(
                                   context,
-                                  m.content,
-                                  title: 'Modifier le message',
-                                  lines: 6,
+                                  current: ref,
                                 );
-                                if (t != null && t.isNotEmpty) {
-                                  chat.editAndResend(c.id, i, t, agent: agent);
+                                if (r == null) return;
+                                chat.setModel(c.id, r);
+                                // Un agent qui impose son modèle est retiré, pour que le
+                                // nouveau modèle soit bien utilisé.
+                                final keep = agent?.model == null
+                                    ? agent
+                                    : null;
+                                if (keep == null && agent != null) {
+                                  chat.setAgent(c.id, null);
                                 }
-                              }
-                            : null,
-                      );
-                      _tiles[m] = (signature, tile);
-                      return tile;
-                    },
+                                chat.regenerate(c.id, agent: keep);
+                              },
+                              onEdit: m.role == Role.user && !running
+                                  ? () async {
+                                      final t = await _rename(
+                                        context,
+                                        m.content,
+                                        title: 'Modifier le message',
+                                        lines: 6,
+                                      );
+                                      if (t != null && t.isNotEmpty) {
+                                        chat.editAndResend(
+                                          c.id,
+                                          i,
+                                          t,
+                                          agent: agent,
+                                        );
+                                      }
+                                    }
+                                  : null,
+                            );
+                            _tiles[m] = (signature, tile);
+                            return tile;
+                          },
+                        ),
+                ),
+                if (_showDown && c.loaded && c.messages.isNotEmpty)
+                  Positioned(
+                    right: 14,
+                    bottom: 12,
+                    child: FloatingActionButton.small(
+                      heroTag: null,
+                      tooltip: 'Aller en bas',
+                      onPressed: () {
+                        _stickToBottom = true;
+                        _toBottom(force: true);
+                      },
+                      child: const Icon(Icons.arrow_downward_rounded),
+                    ),
                   ),
+              ],
+            ),
           ),
           if (c.trimmed > 0)
             Padding(

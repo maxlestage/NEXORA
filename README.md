@@ -143,6 +143,11 @@ Touchez-le pour le détail, avec une jauge :
 
 ### 🧑‍💻 L'onglet Code : des sessions comme Claude Code
 
+- **Créer un dépôt** en un geste : bouton dans l'onglet Code, dans le choix des dépôts et dans
+  une nouvelle session (le dépôt créé est ajouté à la session).
+- Les conversations et les sessions **s'ouvrent sur les derniers messages** et suivent la
+  réponse en direct ; un bouton ↓ ramène en bas si vous êtes remonté.
+
 - **Sessions** : chaque mission de l'agent autonome est une session, avec **un ou plusieurs
   dépôts** (« Paquets, +1 autre »), son modèle, son niveau de réflexion et son agent.
 - **Liste d'état** façon Claude Code : en cours (roue), **en attente de votre validation**
@@ -216,6 +221,23 @@ cargo run --release              # http://localhost:3000
 ```
 
 Détails, déploiement Docker et organisation du code : [`site/README.md`](site/README.md).
+
+### Nouveautés : une seule source pour le site et l'app
+
+Les nouveautés de chaque version sont écrites **une fois**, dans
+[`site/src/nouveautes.md`](site/src/nouveautes.md) (`## version — date — résumé`, puis
+une ligne `- ` par nouveauté). Le site en tire la page **/nouveautes**, la section
+« Nouveautés » et le bandeau de l'accueil ; l'app les affiche dans **Réglages → Nouveautés**
+et dans une fenêtre « Quoi de neuf » après chaque mise à jour. Pour une nouvelle version :
+
+1. ajouter la version en tête de `site/src/nouveautes.md` et copier le fichier vers
+   `app/assets/nouveautes.md` ;
+2. monter la version dans `app/pubspec.yaml` et `currentVersion`
+   (`app/lib/state/settings_state.dart`).
+
+Les tests de l'app vérifient que les deux fichiers sont identiques et que la version en
+cours a ses nouveautés ; à la fusion sur master, le site (Pages et Heroku) et TestFlight
+partent tout seuls.
 
 ## CI, fusion automatique et versions
 

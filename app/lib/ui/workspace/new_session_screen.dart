@@ -11,6 +11,7 @@ import '../../state/github_state.dart';
 import '../../state/session_state.dart';
 import '../../state/settings_state.dart';
 import '../agents/agent_picker.dart';
+import '../github/create_repo.dart';
 import '../github/repo_picker.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
@@ -166,15 +167,31 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: signedIn ? _addRepo : null,
-              icon: const Icon(Icons.add),
-              label: Text(
-                _repos.isEmpty ? 'Ajouter un dépôt' : 'Ajouter un autre dépôt',
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: signedIn ? _addRepo : null,
+                icon: const Icon(Icons.add),
+                label: Text(
+                  _repos.isEmpty
+                      ? 'Ajouter un dépôt'
+                      : 'Ajouter un autre dépôt',
+                ),
               ),
-            ),
+              TextButton.icon(
+                onPressed: signedIn
+                    ? () async {
+                        final r = await createRepo(context, open: false);
+                        if (r == null || !mounted) return;
+                        setState(() => _repos.add((r, r.defaultBranch)));
+                      }
+                    : null,
+                icon: const Icon(Icons.create_new_folder_outlined),
+                label: const Text('Créer un dépôt'),
+              ),
+            ],
           ),
           if (_repos.length > 1)
             Padding(
