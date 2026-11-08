@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/github_api.dart';
 import '../../state/github_state.dart';
 import '../theme.dart';
+import 'create_repo.dart';
 
 /// Choisit un de mes dépôts.
 Future<Repo?> pickRepo(BuildContext context) {
@@ -49,6 +50,17 @@ class _RepoListState extends State<_RepoList> {
             ),
             onChanged: (v) => setState(() => _q = v),
           ),
+        ),
+        ListTile(
+          leading: Icon(
+            Icons.create_new_folder_outlined,
+            color: Nx.accent(context),
+          ),
+          title: const Text('Créer un nouveau dépôt'),
+          onTap: () async {
+            final r = await createRepo(context, open: false);
+            if (r != null && context.mounted) Navigator.pop(context, r);
+          },
         ),
         if (gh.loading) const LinearProgressIndicator(),
         Expanded(

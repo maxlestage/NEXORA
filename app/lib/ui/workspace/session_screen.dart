@@ -27,6 +27,39 @@ class _SessionScreenState extends State<SessionScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   int _seenSteps = 0;
+  bool _showDown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      if (!_scroll.hasClients) return;
+      final p = _scroll.position;
+      final down = p.maxScrollExtent - p.pixels > 300;
+      if (down != _showDown) setState(() => _showDown = down);
+    });
+    // La session s'ouvre sur ses dernières étapes.
+    _jumpToEnd();
+  }
+
+  void _jumpToEnd([int frames = 5]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+      if (frames > 0) _jumpToEnd(frames - 1);
+    });
+  }
+
+  void _toEnd() {
+    if (!_scroll.hasClients) return;
+    _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
 
   @override
   void dispose() {
@@ -40,6 +73,7 @@ class _SessionScreenState extends State<SessionScreen> {
     if (t.isEmpty) return;
     context.read<SessionState>().continueSession(run.id, t);
     _input.clear();
+    _jumpToEnd();
     FocusScope.of(context).unfocus();
   }
 
@@ -197,7 +231,7 @@ class _SessionScreenState extends State<SessionScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_scroll.hasClients) return;
         final p = _scroll.position;
-        if (p.maxScrollExtent - p.pixels < 400) {
+        if (!_showDown) {
           _scroll.animateTo(
             p.maxScrollExtent,
             duration: const Duration(milliseconds: 250),
@@ -239,167 +273,196 @@ class _SessionScreenState extends State<SessionScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+            child: Stack(
               children: [
-                Glass(
-                  glow: statusColor(context, run.status),
-                  child: Row(
+                Positioned.fill(
+                  child: ListView(
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                     children: [
-                      NexusOrb(
-                        size: 56,
-                        satellites: 6,
-                        pulse: run.running,
-                        interactive: false,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      Glass(
+                        glow: statusColor(context, run.status),
+                        child: Row(
                           children: [
-                            Text(
-                              run.task,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                            NexusOrb(
+                              size: 56,
+                              satellites: 6,
+                              pulse: run.running,
+                              interactive: false,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    run.task,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${statusLabel(run.status)} · '
+                                    '${run.steps.where((s) => s.kind == StepKind.tool).length} actions'
+                                    '${added + removed > 0 ? ' · +$added −$removed' : ''}',
+                                    style: tt.bodySmall,
+                                  ),
+                                  QuotaBadge(
+                                    providerId: run.provider.id,
+                                    dense: true,
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${statusLabel(run.status)} · '
-                              '${run.steps.where((s) => s.kind == StepKind.tool).length} actions'
-                              '${added + removed > 0 ? ' · +$added −$removed' : ''}',
-                              style: tt.bodySmall,
-                            ),
-                            QuotaBadge(
-                              providerId: run.provider.id,
-                              dense: true,
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in run.targets)
-                      Chip(
-                        visualDensity: VisualDensity.compact,
-                        avatar: const Icon(Icons.folder_outlined, size: 16),
-                        label: Text(
-                          '${t.fullName} · ${run.refOf(t)}',
-                          style: const TextStyle(
-                            fontFamily: Nx.mono,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ),
-                    for (final e in run.pulls.entries)
-                      ActionChip(
-                        visualDensity: VisualDensity.compact,
-                        avatar: const Icon(Icons.call_merge, size: 16),
-                        label: Text('PR ${e.key.split('/').last}'),
-                        onPressed: () => launchUrl(
-                          Uri.parse(e.value),
-                          mode: LaunchMode.externalApplication,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                for (final (i, step) in run.steps.indexed)
-                  Reveal(
-                    index: 0,
-                    key: ValueKey('${run.id}-$i'),
-                    child: _StepTile(step: step),
-                  ),
-                if (run.running)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                if (run.interrupted && !run.running)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Glass(
-                      glow: Nx.amber,
-                      onTap: () => sessions.continueSession(run.id, ''),
-                      child: const Row(
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          Icon(Icons.play_circle_outline, color: Nx.amber),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Session interrompue (app fermée). Touchez pour '
-                              'reprendre là où l\'agent s\'était arrêté.',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (run.changes.isNotEmpty) ...[
-                  const SectionTitle('Brouillons à valider'),
-                  Glass(
-                    glow: Nx.amber,
-                    onTap: run.running ? null : () => _review(run),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.fact_check_outlined, color: Nx.amber),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${run.changes.length} fichier(s) · +$added −$removed'
-                                '${run.rejected.isEmpty ? '' : ' · ${run.rejected.length} refusé(s)'}',
+                          for (final t in run.targets)
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(
+                                Icons.folder_outlined,
+                                size: 16,
+                              ),
+                              label: Text(
+                                '${t.fullName} · ${run.refOf(t)}',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
+                                  fontFamily: Nx.mono,
+                                  fontSize: 11.5,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                run.running
-                                    ? 'L\'agent travaille encore…'
-                                    : 'Relisez chaque fichier, acceptez ou refusez, '
-                                          'puis validez : rien ne part sans vous.',
-                                style: tt.bodySmall,
+                            ),
+                          for (final e in run.pulls.entries)
+                            ActionChip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(Icons.call_merge, size: 16),
+                              label: Text('PR ${e.key.split('/').last}'),
+                              onPressed: () => launchUrl(
+                                Uri.parse(e.value),
+                                mode: LaunchMode.externalApplication,
                               ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 4,
-                                children: [
-                                  for (final p in run.changes.keys.take(6))
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      for (final (i, step) in run.steps.indexed)
+                        Reveal(
+                          index: 0,
+                          key: ValueKey('${run.id}-$i'),
+                          child: _StepTile(step: step),
+                        ),
+                      if (run.running)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      if (run.interrupted && !run.running)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Glass(
+                            glow: Nx.amber,
+                            onTap: () => sessions.continueSession(run.id, ''),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.play_circle_outline,
+                                  color: Nx.amber,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Session interrompue (app fermée). Touchez pour '
+                                    'reprendre là où l\'agent s\'était arrêté.',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (run.changes.isNotEmpty) ...[
+                        const SectionTitle('Brouillons à valider'),
+                        Glass(
+                          glow: Nx.amber,
+                          onTap: run.running ? null : () => _review(run),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.fact_check_outlined,
+                                color: Nx.amber,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      p.split('/').last,
-                                      style: TextStyle(
-                                        fontFamily: Nx.mono,
-                                        fontSize: 11.5,
-                                        decoration: run.rejected.contains(p)
-                                            ? TextDecoration.lineThrough
-                                            : null,
+                                      '${run.changes.length} fichier(s) · +$added −$removed'
+                                      '${run.rejected.isEmpty ? '' : ' · ${run.rejected.length} refusé(s)'}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                  if (run.changes.length > 6)
-                                    Text('+${run.changes.length - 6}'),
-                                ],
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      run.running
+                                          ? 'L\'agent travaille encore…'
+                                          : 'Relisez chaque fichier, acceptez ou refusez, '
+                                                'puis validez : rien ne part sans vous.',
+                                      style: tt.bodySmall,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: [
+                                        for (final p in run.changes.keys.take(
+                                          6,
+                                        ))
+                                          Text(
+                                            p.split('/').last,
+                                            style: TextStyle(
+                                              fontFamily: Nx.mono,
+                                              fontSize: 11.5,
+                                              decoration:
+                                                  run.rejected.contains(p)
+                                                  ? TextDecoration.lineThrough
+                                                  : null,
+                                            ),
+                                          ),
+                                        if (run.changes.length > 6)
+                                          Text('+${run.changes.length - 6}'),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
+                              if (!run.running) const Icon(Icons.chevron_right),
                             ],
                           ),
                         ),
-                        if (!run.running) const Icon(Icons.chevron_right),
                       ],
+                    ],
+                  ),
+                ),
+                if (_showDown)
+                  Positioned(
+                    right: 14,
+                    bottom: 12,
+                    child: FloatingActionButton.small(
+                      heroTag: null,
+                      tooltip: 'Aller en bas',
+                      onPressed: _toEnd,
+                      child: const Icon(Icons.arrow_downward_rounded),
                     ),
                   ),
-                ],
               ],
             ),
           ),

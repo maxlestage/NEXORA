@@ -9,6 +9,7 @@ import 'chat/conversations_screen.dart';
 import 'github/github_screen.dart';
 import 'providers/providers_screen.dart';
 import 'settings/settings_screen.dart';
+import 'settings/whats_new_screen.dart';
 
 /// La navigation principale : cinq onglets.
 class HomeShell extends StatefulWidget {
@@ -30,6 +31,10 @@ class _HomeShellState extends State<HomeShell> {
     // L'accueil s'ouvre toujours sur le chat.
     homeTab.value = 0;
     homeTab.addListener(_onTab);
+    // Après une mise à jour : les nouveautés, une fois.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showWhatsNewOnce(context);
+    });
   }
 
   @override

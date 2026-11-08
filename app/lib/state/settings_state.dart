@@ -8,6 +8,9 @@ import '../services/llm_client.dart';
 import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
+/// La version de l'app (comme dans pubspec.yaml).
+const String currentVersion = '2.0.0';
+
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
     _load();
@@ -544,6 +547,10 @@ class SettingsState extends ChangeNotifier {
   Future<void> finishOnboarding() async {
     onboarded = true;
     await storage.setBool('onboarded', true);
+    // Nouvelle installation : pas de fenêtre « Quoi de neuf » au premier lancement.
+    if (storage.getString('seen_version') == null) {
+      await storage.setString('seen_version', currentVersion);
+    }
     notifyListeners();
   }
 }

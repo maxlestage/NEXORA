@@ -1,0 +1,45 @@
+# Nouveautés de NEXORA
+<!-- Source unique : le site (page /nouveautes et accueil) et l'app (Réglages → Nouveautés)
+     lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
+     La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
+
+## 2.0.0 — 8 novembre 2026 — Onglet Code, défilement automatique, création de dépôts
+- Les conversations et les sessions s'ouvrent sur les derniers messages et suivent la réponse en direct, avec un bouton ↓ pour revenir en bas.
+- Créez un dépôt GitHub depuis l'onglet Code, le choix des dépôts ou une nouvelle session, puis lancez l'agent dessus.
+- Les nouveautés de chaque version s'affichent dans l'app et sur le site, toujours à jour.
+
+## 1.9.0 — 8 novembre 2026 — Sessions multi-dépôts
+- L'onglet Code liste vos sessions d'agent, comme Claude Code : en cours, en attente de validation, envoyée, avec les lignes ajoutées et retirées.
+- Une session porte sur un ou plusieurs dépôts : l'agent lit l'un (un framework) et modifie l'autre.
+- Les sessions continuent quand vous quittez l'écran, restent enregistrées et reçoivent de nouvelles instructions.
+- Après la première pull request, les envois suivants mettent à jour la même branche.
+
+## 1.8.0 — 8 novembre 2026 — Le crédit dans chaque conversation
+- Coût et tokens sous chaque réponse, et le total en haut de la conversation.
+- Réglages → Crédits et consommation : dépense du mois et du jour, solde de chaque fournisseur.
+
+## 1.7.0 — 8 novembre 2026 — Solde prépayé
+- Anthropic, OpenAI ou Mistral ne donnent pas votre solde : indiquez-le une fois, NEXORA déduit chaque réponse.
+- Prix des modèles Claude intégrés, et dépenses de l'agent autonome comptées.
+
+## 1.6.0 — 8 novembre 2026 — Missions robustes
+- L'agent autonome travaille sur plusieurs dépôts à la fois.
+- Une coupure réseau ne termine plus la mission : l'étape est réessayée.
+- Les modèles qui réfléchissent longtemps ont jusqu'à 5 minutes avant d'écrire.
+
+## 1.5.0 — 8 novembre 2026 — Pensée pour l'usage intensif
+- Démarrage instantané : un fichier par conversation, messages chargés à l'ouverture.
+- Réponses plus fluides, mémoire envoyée au modèle réglable, nouvel essai automatique sur les erreurs passagères.
+
+## 1.4.0 — 8 novembre 2026 — Niveaux de réflexion et personnalisation
+- Choisissez le niveau de réflexion de chaque conversation et de chaque agent : rapide, équilibré, approfondi, maximum.
+- Couleurs, fond noir OLED, taille du texte, animations, style des messages, nom de l'assistant, onglets.
+
+## 1.3.0 — 8 novembre 2026 — Ollama Cloud
+- Ollama sans ordinateur, avec juste une clé : tous les modèles cloud, leur prix et votre dépense.
+
+## 1.2.0 — 8 novembre 2026 — Validation des brouillons
+- Relisez chaque fichier modifié par l'agent, ligne à ligne : acceptez, refusez ou corrigez avant d'envoyer.
+
+## 1.1.0 — 8 novembre 2026 — Témoin de crédit et aide
+- Un point coloré indique où vous en êtes chez chaque fournisseur, et une aide détaillée guide pas à pas.

@@ -911,3 +911,15 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
   [data-reveal], .step, .split .wi { opacity: 1 !important; transform: none !important; filter: none !important; }
   .marquee-track { animation: none !important; }
 }
+
+/* Nouveautés : une carte par version. */
+.releases { margin-top: 10px; }
+.releases-col { display: grid; gap: 18px; }
+.release { display: flex; flex-direction: column; gap: 6px; padding: 22px; }
+.release-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.release-ver { padding: 4px 11px; border-radius: 999px; background: var(--grad); background-size: 200%; color: #04121a; font: 700 0.78rem/1.4 var(--mono); animation: shine 5s linear infinite; }
+.release-date { color: var(--muted); font-size: 0.82rem; }
+.release h3 { margin: 4px 0 4px; }
+.release .checks { margin: 0; }
+.release .checks li { padding-top: 5px; padding-bottom: 5px; font-size: 0.92rem; }
+.pill-tag { white-space: nowrap; }

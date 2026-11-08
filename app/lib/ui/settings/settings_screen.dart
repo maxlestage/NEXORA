@@ -15,10 +15,11 @@ import '../theme.dart';
 import 'credits_screen.dart';
 import 'personalize_screen.dart';
 import 'usage_screen.dart';
+import 'whats_new_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.9.0';
+const appVersion = currentVersion;
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -251,6 +252,13 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 Text('Version $appVersion', style: tt.bodySmall),
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WhatsNewScreen()),
+                  ),
+                  icon: const Icon(Icons.auto_awesome, size: 18),
+                  label: const Text('Nouveautés'),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   'Conçu et développé par $appAuthor',

@@ -21,8 +21,9 @@ pub const PAQUETS: &str = "https://github.com/maxlestage/Paquets";
 pub const ANNEE: &str = "2026";
 
 /// Le menu principal : chemin et libellé.
-pub const MENU: [(&str, &str); 5] = [
+pub const MENU: [(&str, &str); 6] = [
     ("/fonctionnalites", "Fonctionnalités"),
+    ("/nouveautes", "Nouveautés"),
     ("/modeles", "Modèles"),
     ("/agents", "Agents"),
     ("/github", "GitHub"),
@@ -30,9 +31,10 @@ pub const MENU: [(&str, &str); 5] = [
 ];
 
 /// Toutes les pages, pour le plan du site et sitemap.xml.
-pub const PAGES: [(&str, &str); 10] = [
+pub const PAGES: [(&str, &str); 11] = [
     ("/", "Accueil"),
     ("/fonctionnalites", "Fonctionnalités"),
+    ("/nouveautes", "Nouveautés"),
     ("/modeles", "Modèles d'IA et fournisseurs"),
     ("/agents", "Agents"),
     ("/github", "GitHub"),
@@ -55,6 +57,9 @@ pub const RESEAUX: [(&str, &str, &str); 4] = [
 pub const PIED_PRODUIT: &[(&str, &str)] = &[
     ("/fonctionnalites", "Fonctionnalités"),
     ("/telecharger", "Télécharger"),
+    ("/nouveautes", "Nouveautés"),
+    ("/fonctionnalites#sessions", "Sessions multi-dépôts"),
+    ("/fonctionnalites#credit", "Témoin de crédit"),
     ("/fonctionnalites#chat", "Chat multi-modèles"),
     ("/fonctionnalites#editeur", "Éditeur de code"),
     ("/fonctionnalites#securite", "Sécurité des clés"),
@@ -84,7 +89,7 @@ pub const PIED_DEV: &[(&str, &str)] = &[
     (PAQUETS, "Paquets 📦 (ce site)"),
 ];
 pub const PIED_RESSOURCES: &[(&str, &str)] = &[
-    (RELEASES, "Notes de version"),
+    ("/nouveautes", "Notes de version"),
     (DISCUSSIONS, "Communauté"),
     (ISSUES, "Signaler un bug"),
     ("/plan-du-site", "Plan du site"),
@@ -448,7 +453,7 @@ pub struct Fonction {
     pub points: &'static [&'static str],
 }
 
-pub const FONCTIONS: [Fonction; 6] = [
+pub const FONCTIONS: [Fonction; 9] = [
     Fonction {
         id: "chat",
         icone: "bulle",
@@ -477,12 +482,36 @@ pub const FONCTIONS: [Fonction; 6] = [
         id: "github",
         icone: "github",
         titre: "GitHub intégré",
-        texte: "Connectez-vous, créez un dépôt, codez, commitez, ouvrez une pull request. Sans quitter votre téléphone.",
+        texte: "Connectez-vous, créez un dépôt en un geste, codez, commitez, ouvrez une pull request. Sans quitter votre téléphone.",
         points: &[
             "Connexion par code (device flow)",
             "Dépôts, branches, issues",
             "Commits multi-fichiers",
             "Pull requests",
+        ],
+    },
+    Fonction {
+        id: "sessions",
+        icone: "branche",
+        titre: "Sessions multi-dépôts",
+        texte: "Comme Claude Code, dans votre poche : chaque mission de l'agent est une session sur un ou plusieurs dépôts, qui travaille même quand vous fermez l'écran.",
+        points: &[
+            "Plusieurs dépôts par session",
+            "En cours, à valider, envoyée : l'état d'un coup d'œil",
+            "Nouvelles instructions dans la même session",
+            "La même pull request, mise à jour",
+        ],
+    },
+    Fonction {
+        id: "credit",
+        icone: "cpu",
+        titre: "Votre crédit sous contrôle",
+        texte: "Le coût de chaque réponse, le total de chaque conversation et le solde restant chez chaque fournisseur. Plus de mauvaise surprise.",
+        points: &[
+            "Coût et tokens sous chaque réponse",
+            "Solde prépayé (Anthropic, OpenAI…)",
+            "Limites de débit en direct",
+            "Dépense du jour et du mois",
         ],
     },
     Fonction {
@@ -507,6 +536,18 @@ pub const FONCTIONS: [Fonction; 6] = [
             "workflow_dispatch",
             "Suivi des exécutions",
             "Résultat en pull request",
+        ],
+    },
+    Fonction {
+        id: "intensif",
+        icone: "eclair",
+        titre: "Taillée pour l'usage intensif",
+        texte: "Des centaines de conversations, des journées entières de code : l'app reste instantanée, même sur un vieux téléphone.",
+        points: &[
+            "Démarrage instantané",
+            "Réponses fluides en streaming",
+            "Mémoire réglable : moins cher, plus rapide",
+            "Nouvel essai automatique si le réseau coupe",
         ],
     },
     Fonction {
@@ -563,7 +604,7 @@ pub const ETAPES: [(&str, &str, &str); 4] = [
     (
         "01",
         "Installez",
-        "Téléchargez l'APK Android, installez la PWA ou compilez pour iPhone avec Flutter.",
+        "Installez la version de test sur iPhone (TestFlight) ou l'APK sur Android.",
     ),
     (
         "02",
@@ -800,7 +841,7 @@ Classe tes remarques par gravité et propose un correctif
 pour chacune. Réponds en français.";
 
 /// La FAQ : question et réponse.
-pub const FAQ: [(&str, &str); 12] = [
+pub const FAQ: [(&str, &str); 13] = [
     (
         "NEXORA est-il vraiment gratuit ?",
         "Oui. L'application est gratuite et open source. Plus de la moitié des fournisseurs intégrés ont une offre gratuite (Pollinations, Ollama, OpenRouter, Groq, Gemini, Mistral, Cerebras, GitHub Models…). Vous ne payez que si vous choisissez un fournisseur payant, directement chez lui.",
@@ -831,7 +872,11 @@ pub const FAQ: [(&str, &str); 12] = [
     ),
     (
         "Que fait l'agent autonome ?",
-        "Vous lui donnez une tâche et un dépôt : il liste, lit et cherche dans les fichiers, propose des modifications, vous montre le diff, puis commit ou ouvre une pull request après votre accord.",
+        "Vous ouvrez une session : une mission, un ou plusieurs dépôts. L'agent lit et cherche dans les fichiers, prépare ses modifications en brouillon, vous montre le diff ligne à ligne, puis commit ou ouvre une pull request après votre accord. La session continue en arrière-plan, et vous pouvez lui donner de nouvelles instructions.",
+    ),
+    (
+        "Comment suivre mon crédit d'API ?",
+        "Sous chaque réponse : les tokens et le coût. En haut de chaque conversation : son total et le solde restant. Dans Réglages → Crédits et consommation : la dépense du mois et chaque fournisseur. Pour Anthropic ou OpenAI, qui ne donnent pas le solde, indiquez-le une fois : NEXORA déduit ensuite chaque réponse.",
     ),
     (
         "Comment lancer Claude Code ou Gemini CLI depuis mon téléphone ?",
@@ -839,7 +884,7 @@ pub const FAQ: [(&str, &str); 12] = [
     ),
     (
         "L'application existe-t-elle sur l'App Store et Google Play ?",
-        "Les fiches des stores arrivent. En attendant, l'APK Android est disponible dans les versions GitHub, la PWA s'installe depuis ce site, et l'app se compile pour iPhone avec Flutter.",
+        "NEXORA est conçue pour le smartphone : iPhone et Android. Sur iPhone, la version de test est distribuée par TestFlight ; sur Android, l'APK est dans les versions GitHub. Les fiches App Store et Google Play arrivent.",
     ),
     (
         "Puis-je ajouter un fournisseur qui n'est pas dans la liste ?",
@@ -851,8 +896,17 @@ pub const FAQ: [(&str, &str); 12] = [
     ),
 ];
 
-/// Les plateformes : icône, nom, état, texte, lien, libellé du lien.
-pub const PLATEFORMES: [(&str, &str, &str, &str, &str, &str); 4] = [
+/// Les plateformes : icône, nom, état, texte, lien, libellé du lien. NEXORA est une
+/// application pour smartphone uniquement.
+pub const PLATEFORMES: [(&str, &str, &str, &str, &str, &str); 2] = [
+    (
+        "apple",
+        "iPhone",
+        "Disponible en test",
+        "La version de test arrive par TestFlight à chaque nouveauté, en attendant l'App Store. iOS 13 ou plus.",
+        DISCUSSIONS,
+        "Demander une invitation",
+    ),
     (
         "android",
         "Android",
@@ -861,31 +915,38 @@ pub const PLATEFORMES: [(&str, &str, &str, &str, &str, &str); 4] = [
         RELEASES,
         "Télécharger l'APK",
     ),
-    (
-        "apple",
-        "iPhone & iPad",
-        "Bientôt sur l'App Store",
-        "Compilez-la vous-même avec Flutter et Xcode, ou attendez la version TestFlight.",
-        "/telecharger#source",
-        "Compiler pour iOS",
-    ),
-    (
-        "globe",
-        "Web (PWA)",
-        "Disponible",
-        "Installable depuis votre navigateur, sur mobile comme sur ordinateur.",
-        "#installer",
-        "Installer la PWA",
-    ),
-    (
-        "ecran",
-        "Windows, macOS, Linux",
-        "Depuis les sources",
-        "Le même code Flutter, compilé pour votre ordinateur.",
-        "/telecharger#source",
-        "Compiler pour ordinateur",
-    ),
 ];
+
+/// Une version de l'application, lue dans `nouveautes.md`.
+pub struct Version {
+    pub numero: &'static str,
+    pub date: &'static str,
+    pub titre: &'static str,
+    pub points: Vec<&'static str>,
+}
+
+/// Les nouveautés : le même fichier que l'app (app/assets/nouveautes.md, vérifié par
+/// ses tests). Ajouter une version ici met à jour le site et l'app.
+pub const NOUVEAUTES: &str = include_str!("nouveautes.md");
+
+/// Les versions, de la plus récente à la plus ancienne.
+pub fn versions() -> Vec<Version> {
+    let mut out: Vec<Version> = Vec::new();
+    for ligne in NOUVEAUTES.lines().map(str::trim) {
+        if let Some(entete) = ligne.strip_prefix("## ") {
+            let mut parts = entete.splitn(3, " — ");
+            out.push(Version {
+                numero: parts.next().unwrap_or("").trim(),
+                date: parts.next().unwrap_or("").trim(),
+                titre: parts.next().unwrap_or("").trim(),
+                points: Vec::new(),
+            });
+        } else if let (Some(point), Some(v)) = (ligne.strip_prefix("- "), out.last_mut()) {
+            v.points.push(point.trim());
+        }
+    }
+    out
+}
 
 /// Les pages légales.
 pub const MENTIONS: [(&str, &str, &str); 4] = [
