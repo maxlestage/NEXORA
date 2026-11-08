@@ -6,6 +6,7 @@ import '../data/model_prices.dart';
 import '../models/agent.dart';
 import '../models/chat.dart';
 import '../models/provider.dart';
+import '../services/background_work.dart';
 import '../services/conversation_store.dart';
 import '../services/llm_client.dart';
 import '../services/storage.dart';
@@ -291,6 +292,7 @@ class ChatState extends ChangeNotifier {
     final sub = _running.remove(id);
     if (sub == null) return;
     sub.cancel();
+    BackgroundWork.instance.release('chat:$id');
     final c = byId(id);
     if (c != null) _changed(c, now: true);
     notifyListeners();
@@ -336,6 +338,11 @@ class ChatState extends ChangeNotifier {
     c.updated = DateTime.now();
     notifyListeners();
 
+    BackgroundWork.instance.hold(
+      'chat:${c.id}',
+      title: 'Réponse en cours',
+      text: c.title,
+    );
     final level = levelFor(c, agent);
     final system = [
       if (agent != null) agent.systemPrompt,
@@ -398,6 +405,11 @@ class ChatState extends ChangeNotifier {
           },
           onDone: () {
             _running.remove(c.id);
+            BackgroundWork.instance.release(
+              'chat:${c.id}',
+              doneTitle: answer.error ? 'Réponse interrompue' : 'Réponse prête',
+              doneText: c.title,
+            );
             if (!answer.error) flush();
             if (!failed && answer.content.isNotEmpty) {
               final inputChars =
