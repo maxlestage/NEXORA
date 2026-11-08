@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexora/main.dart';
+import 'package:nexora/services/conversation_store.dart';
 import 'package:nexora/services/storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,7 +9,12 @@ void main() {
   testWidgets('premier lancement : accueil puis onglets', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final storage = (await tester.runAsync(Storage.open))!;
-    await tester.pumpWidget(NexoraApp(storage: storage));
+    await tester.pumpWidget(
+      NexoraApp(
+        storage: storage,
+        conversationStore: PrefsConversationStore(storage),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Passer'), findsOneWidget);
 
@@ -38,7 +44,12 @@ void main() {
       'conversations': '[{"id":"a","title":"Projet Flutter","messages":[{"role":"user","content":"Salut"}]}]',
     });
     final storage = (await tester.runAsync(Storage.open))!;
-    await tester.pumpWidget(NexoraApp(storage: storage));
+    await tester.pumpWidget(
+      NexoraApp(
+        storage: storage,
+        conversationStore: PrefsConversationStore(storage),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Projet Flutter'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());

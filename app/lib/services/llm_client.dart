@@ -114,10 +114,31 @@ Map<String, dynamic> reasoningParams(
 
 /// Parle à tous les fournisseurs : OpenAI et compatibles, Ollama, Anthropic.
 class LlmClient {
-  LlmClient({http.Client Function()? clientFactory})
-    : _factory = clientFactory ?? http.Client.new;
+  LlmClient({
+    http.Client Function()? clientFactory,
+    this.retryDelay = defaultRetryDelay,
+    this.idleTimeout = const Duration(seconds: 90),
+  }) : _factory = clientFactory ?? http.Client.new;
 
   final http.Client Function() _factory;
+
+  /// Attente avant de réessayer (fournisseur saturé, limite atteinte…), selon la
+  /// tentative (1, 2) et l'en-tête `Retry-After` en secondes s'il existe.
+  final Duration Function(int attempt, int? retryAfter) retryDelay;
+
+  /// Une réponse en flux qui n'envoie plus rien pendant ce temps est coupée.
+  final Duration idleTimeout;
+
+  /// Codes pour lesquels on réessaie tout seul, avant le début de la réponse.
+  static const retryStatuses = {408, 429, 500, 502, 503, 504, 529};
+  static const maxRetries = 2;
+
+  static Duration defaultRetryDelay(int attempt, int? retryAfter) {
+    if (retryAfter != null && retryAfter >= 0) {
+      return Duration(seconds: retryAfter.clamp(1, 20));
+    }
+    return Duration(seconds: 2 * attempt);
+  }
 
   static String _trim(String url) =>
       url.endsWith('/') ? url.substring(0, url.length - 1) : url;
@@ -235,6 +256,8 @@ class LlmClient {
     late final StreamController<ChatDelta> controller;
     http.Client? client;
     StreamSubscription<String>? sub;
+    Timer? idle;
+    var cancelled = false;
 
     Future<void> start() async {
       client = _factory();
@@ -257,12 +280,29 @@ class LlmClient {
         res = await client!
             .send(request(reasoning: true))
             .timeout(const Duration(seconds: 60));
+        var reasoning = true;
         // Le fournisseur refuse le réglage de réflexion : on réessaie sans.
         if ((res.statusCode == 400 || res.statusCode == 422) &&
             reasoningParams(provider, model, options.level).isNotEmpty) {
           await res.stream.drain<void>();
+          reasoning = false;
           res = await client!
               .send(request(reasoning: false))
+              .timeout(const Duration(seconds: 60));
+        }
+        // Fournisseur saturé ou limite de débit : on réessaie un peu plus tard.
+        for (
+          var attempt = 1;
+          attempt <= maxRetries && retryStatuses.contains(res.statusCode);
+          attempt++
+        ) {
+          onHeaders?.call(res.headers, res.statusCode);
+          await res.stream.drain<void>();
+          final after = int.tryParse(res.headers['retry-after'] ?? '');
+          await Future<void>.delayed(retryDelay(attempt, after));
+          if (cancelled) return;
+          res = await client!
+              .send(request(reasoning: reasoning))
               .timeout(const Duration(seconds: 60));
         }
       } on TimeoutException {
@@ -314,11 +354,32 @@ class LlmClient {
         await controller.close();
         return;
       }
+      if (cancelled) return;
+      void watchdog() {
+        idle?.cancel();
+        idle = Timer(idleTimeout, () async {
+          await sub?.cancel();
+          client?.close();
+          if (controller.isClosed) return;
+          final rest = splitter.flush();
+          if (!rest.isEmpty) controller.add(rest);
+          controller.addError(
+            LlmException(
+              '${provider.name} n\'envoie plus rien depuis '
+              '${idleTimeout.inSeconds} s : réponse interrompue. Réessayez.',
+            ),
+          );
+          await controller.close();
+        });
+      }
+
+      watchdog();
       sub = res.stream
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(
             (line) {
+              watchdog();
               try {
                 final d = parse(line);
                 if (d == null) return;
@@ -332,6 +393,8 @@ class LlmClient {
               controller.addError(LlmException(_networkHint(provider, e)));
             },
             onDone: () async {
+              idle?.cancel();
+              if (controller.isClosed) return;
               final rest = splitter.flush();
               if (!rest.isEmpty) controller.add(rest);
               await controller.close();
@@ -344,6 +407,8 @@ class LlmClient {
     controller = StreamController<ChatDelta>(
       onListen: start,
       onCancel: () async {
+        cancelled = true;
+        idle?.cancel();
         await sub?.cancel();
         client?.close();
       },

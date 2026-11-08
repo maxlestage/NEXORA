@@ -14,7 +14,7 @@ import 'personalize_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.4.0';
+const appVersion = '1.5.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -170,6 +170,7 @@ class SettingsScreen extends StatelessWidget {
           Card(
             child: Column(
               children: [
+                const _StorageTile(),
                 ListTile(
                   leading: const Icon(Icons.ios_share),
                   title: const Text('Exporter mes agents (.md)'),
@@ -317,4 +318,88 @@ Future<bool> _confirm(BuildContext context, String text) async {
     ),
   );
   return ok ?? false;
+}
+
+/// La place prise par les conversations, et le ménage des anciennes.
+class _StorageTile extends StatefulWidget {
+  const _StorageTile();
+
+  @override
+  State<_StorageTile> createState() => _StorageTileState();
+}
+
+class _StorageTileState extends State<_StorageTile> {
+  late Future<int> _size;
+
+  @override
+  void initState() {
+    super.initState();
+    _size = context.read<ChatState>().sizeOnDisk();
+  }
+
+  static String _format(int bytes) {
+    if (bytes < 1024) return '$bytes o';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+    return '${(bytes / 1024 / 1024).toStringAsFixed(1)} Mo';
+  }
+
+  Future<void> _clean() async {
+    final days = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Supprimer les conversations inactives depuis…'),
+        children: [
+          for (final d in const [30, 90, 180, 365])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, d),
+              child: Text(d == 365 ? '1 an' : '$d jours'),
+            ),
+        ],
+      ),
+    );
+    if (days == null || !mounted) return;
+    final chat = context.read<ChatState>();
+    final n = chat.deleteOlderThan(days);
+    toast(
+      context,
+      n == 0
+          ? 'Rien à supprimer (les épinglées sont gardées).'
+          : '$n conversation(s) supprimée(s)',
+    );
+    setState(() => _size = chat.sizeOnDisk());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chat = context.watch<ChatState>();
+    final count = chat.conversations.length;
+    return Column(
+      children: [
+        FutureBuilder<int>(
+          future: _size,
+          builder: (context, snap) => ListTile(
+            leading: const Icon(Icons.storage_rounded),
+            title: Text('$count conversation${count > 1 ? 's' : ''}'),
+            subtitle: Text(
+              snap.hasData
+                  ? '${_format(snap.data!)} sur l\'appareil · messages chargés '
+                        'seulement à l\'ouverture'
+                  : 'Calcul de la place…',
+            ),
+            trailing: IconButton(
+              tooltip: 'Recalculer',
+              icon: const Icon(Icons.refresh),
+              onPressed: () => setState(() => _size = chat.sizeOnDisk()),
+            ),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.cleaning_services_outlined),
+          title: const Text('Supprimer les anciennes conversations'),
+          subtitle: const Text('Les conversations épinglées sont gardées'),
+          onTap: _clean,
+        ),
+      ],
+    );
+  }
 }

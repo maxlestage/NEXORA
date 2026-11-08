@@ -59,9 +59,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           (c) =>
               _q.isEmpty ||
               c.title.toLowerCase().contains(_q.toLowerCase()) ||
-              c.messages.any(
-                (m) => m.content.toLowerCase().contains(_q.toLowerCase()),
-              ),
+              c.preview.toLowerCase().contains(_q.toLowerCase()),
         )
         .toList();
     final current = settings.resolve(settings.defaultModel);
@@ -213,7 +211,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     final c = list[i];
                     final agent = agents.byId(c.agentId);
                     final ref = ModelRef.parse(c.model);
-                    final last = c.messages.isEmpty ? null : c.messages.last;
+                    final preview = c.preview;
                     return Reveal(
                       index: i,
                       child: Padding(
@@ -283,12 +281,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        last == null
+                                        preview.isEmpty
                                             ? (ref?.model ?? '')
-                                            : last.content.replaceAll(
-                                                '\n',
-                                                ' ',
-                                              ),
+                                            : preview,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: tt.bodySmall?.copyWith(

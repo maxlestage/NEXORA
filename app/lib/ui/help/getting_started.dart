@@ -47,7 +47,7 @@ class _GettingStartedCardState extends State<GettingStartedCard> {
       (
         'Discuter gratuitement',
         'Pollinations répond sans clé : lancez un premier chat.',
-        chat.conversations.any((c) => c.messages.isNotEmpty),
+        chat.conversations.any((c) => !c.isEmpty),
         null,
       ),
       (

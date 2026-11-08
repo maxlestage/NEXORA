@@ -56,8 +56,13 @@ class Conversation {
     List<ChatMessage>? messages,
     DateTime? updated,
     this.pinned = false,
+    this.loaded = true,
+    String preview = '',
+    int messageCount = 0,
   }) : messages = messages ?? [],
-       updated = updated ?? DateTime.now();
+       updated = updated ?? DateTime.now(),
+       storedPreview = preview,
+       storedCount = messageCount;
 
   final String id;
   String title;
@@ -73,6 +78,52 @@ class Conversation {
   final List<ChatMessage> messages;
   DateTime updated;
   bool pinned;
+
+  /// Les messages sont-ils chargés ? La liste n'en garde qu'un résumé, pour démarrer
+  /// vite et économiser la mémoire même avec des centaines de conversations.
+  bool loaded;
+  final String storedPreview;
+  final int storedCount;
+
+  /// Les premiers messages qui n'ont pas été envoyés au modèle lors de la dernière
+  /// réponse (mémoire de la conversation limitée). Non enregistré.
+  int trimmed = 0;
+
+  int get messageCount => loaded ? messages.length : storedCount;
+  bool get isEmpty => messageCount == 0;
+
+  /// Le début du dernier message, pour la liste.
+  String get preview {
+    if (!loaded || messages.isEmpty) return storedPreview;
+    final t = messages.last.content.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return t.length > 140 ? t.substring(0, 140) : t;
+  }
+
+  /// Le résumé enregistré dans l'index (sans les messages).
+  Map<String, dynamic> toMeta() => {
+    'id': id,
+    'title': title,
+    'model': model,
+    'agentId': agentId,
+    'level': level,
+    'updated': updated.toIso8601String(),
+    'pinned': pinned,
+    'preview': preview,
+    'count': messageCount,
+  };
+
+  factory Conversation.fromMeta(Map<String, dynamic> j) => Conversation(
+    id: j['id'] as String,
+    title: j['title'] as String? ?? 'Conversation',
+    model: j['model'] as String?,
+    agentId: j['agentId'] as String?,
+    level: j['level'] as String?,
+    updated: DateTime.tryParse(j['updated'] as String? ?? ''),
+    pinned: j['pinned'] as bool? ?? false,
+    loaded: false,
+    preview: j['preview'] as String? ?? '',
+    messageCount: j['count'] as int? ?? 0,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,

@@ -53,6 +53,9 @@ class SettingsState extends ChangeNotifier {
   /// Touche Entrée pour envoyer (clavier physique, web, tablette).
   bool sendOnEnter = false;
 
+  /// Mémoire envoyée au modèle, en tokens (0 = toute la conversation).
+  int contextTokens = 32000;
+
   /// Le nom de l'assistant, utilisé dans sa consigne.
   String assistantName = 'NEXORA';
 
@@ -113,6 +116,7 @@ class SettingsState extends ChangeNotifier {
     bubbleStyle = storage.getString('bubble_style') ?? 'gradient';
     sendOnEnter = storage.getBool('send_on_enter');
     assistantName = storage.getString('assistant_name') ?? 'NEXORA';
+    contextTokens = storage.getInt('context_tokens', fallback: 32000);
     customInstructions = storage.getBool('custom_instructions');
     aboutMe = storage.getString('about_me') ?? '';
     responseStyle = storage.getString('response_style') ?? '';
@@ -353,6 +357,12 @@ class SettingsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setContextTokens(int v) async {
+    contextTokens = v < 0 ? 0 : v;
+    await storage.setInt('context_tokens', contextTokens);
+    notifyListeners();
+  }
+
   Future<void> setAccent(int i) async {
     accent = i;
     await storage.setInt('accent', i);
@@ -449,6 +459,7 @@ class SettingsState extends ChangeNotifier {
     'bubble_style': bubbleStyle,
     'send_on_enter': sendOnEnter,
     'assistant_name': assistantName,
+    'context_tokens': contextTokens,
     'custom_instructions': customInstructions,
     'about_me': aboutMe,
     'response_style': responseStyle,
@@ -490,6 +501,9 @@ class SettingsState extends ChangeNotifier {
     if (v<String>('assistant_name') != null) {
       await setAssistantName(v<String>('assistant_name')!);
     }
+    if (v<num>('context_tokens') != null) {
+      await setContextTokens(v<num>('context_tokens')!.toInt());
+    }
     await setCustomInstructions(
       enabled: v<bool>('custom_instructions'),
       about: v<String>('about_me'),
@@ -514,6 +528,7 @@ class SettingsState extends ChangeNotifier {
   Future<void> resetPersonalization() async {
     await setDefaultLevel(ThinkLevel.equilibre);
     await setAccent(0);
+    await setContextTokens(32000);
     await setOledBlack(false);
     await setTextScale(1);
     await setAnimations('full');
