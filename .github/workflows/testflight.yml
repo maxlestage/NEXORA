@@ -117,6 +117,14 @@ jobs:
           fi
           echo "KEY_PATH=$key" >> "$GITHUB_ENV"
 
+      - name: Vérifier App Store Connect (clé, identifiant, fiche de l'app)
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: .
+        run: |
+          # Avant 15 minutes de compilation : la clé est-elle acceptée, l'identifiant
+          # existe-t-il (il est enregistré s'il manque), la fiche de l'app existe-t-elle ?
+          python3 .github/scripts/asc_check.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$BUNDLE_ID" NEXORA
+
       - name: Équipe et identifiant de l'app dans le projet Xcode
         if: steps.secrets.outputs.ok == 'true'
         run: |
