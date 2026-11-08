@@ -135,12 +135,39 @@ Détails, déploiement Docker et organisation du code : [`site/README.md`](site/
 - **Fusion automatique** : dès que ces vérifications passent, la branche est fusionnée dans
   `master` (sauf `master` et les branches `wip/...`). Une pull request ouverte depuis une branche
   du dépôt est donc fusionnée dès qu'elle est verte.
+- **Heroku** ([`heroku.yml`](.github/workflows/heroku.yml)) : le site est redéployé à chaque
+  fusion dans `master`, une fois Heroku configuré (voir plus bas).
 - **Site** ([`pages.yml`](.github/workflows/pages.yml)) : à chaque mise à jour de `master`, le
   bundle WebAssembly est construit, chaque page exportée en fichier statique
   (`nexora-site export`), puis publiée sur **GitHub Pages**.
 - **App** ([`app.yml`](.github/workflows/app.yml)) : APK Android, build iOS sans signature et
   build web à chaque mise à jour de `master` (artefacts téléchargeables). Un tag `v1.0.0`
   publie l'APK dans les **Releases**.
+
+## Déployer le site sur Heroku depuis un téléphone
+
+Le site part sur Heroku avec le buildpack **emk/rust** sur la pile `heroku-26` :
+[`RustConfig`](RustConfig) installe Rust, [`heroku-build.sh`](heroku-build.sh) compile le
+serveur et le bundle WebAssembly (îlots et 3D), le [`Procfile`](Procfile) démarre le serveur.
+Heroku n'a pas d'offre gratuite (dyno Eco environ 5 $/mois, Basic environ 7 $/mois).
+
+**Le plus simple : le bouton Deploy.** Ouvrez sur le téléphone
+<https://heroku.com/deploy?template=https://github.com/maxlestage/NEXORA>, choisissez un nom
+d'app, la région, puis **Deploy app**. Heroku lit [`app.json`](app.json) et compile (la
+première fois, une dizaine de minutes). Ensuite : **View**.
+
+**Déploiement automatique à chaque fusion dans `master`** ([`heroku.yml`](.github/workflows/heroku.yml),
+sans CLI, par l'API de Heroku) :
+
+1. Heroku → Account settings → **API Key** → Reveal, copiez la clé.
+2. GitHub → dépôt NEXORA → Settings → Secrets and variables → Actions :
+   secret **`HEROKU_API_KEY`** (la clé), onglet Variables : **`HEROKU_APP_NAME`** (le nom de
+   l'app ; elle est créée si elle n'existe pas). Facultatif : `HEROKU_REGION` = `eu`.
+3. Actions → **Heroku** → Run workflow. L'adresse s'affiche dans le résumé de l'exécution.
+
+Le workflow règle lui-même le buildpack `emk/rust`, la pile et `SITE_URL` (URL canoniques et
+sitemap). Pour garder les inscrits à la lettre d'information : app Heroku → Resources →
+**Heroku Postgres** (sa `DATABASE_URL` est utilisée automatiquement ; sinon, base en mémoire).
 
 ## Version de test sur TestFlight (iPhone)
 

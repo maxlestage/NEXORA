@@ -1,0 +1,10 @@
+# Heroku avec le buildpack emk/rust
+# (https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust) : déploie le
+# site de NEXORA (site/), une application Paquets.
+#
+# Le buildpack lit ce fichier, installe Rust, puis lancerait `cargo build --release`
+# à la racine, où il n'y a pas de Cargo.toml. On saute donc sa compilation :
+# heroku-build.sh construit le serveur et les îlots (WebAssembly) une fois Rust installé.
+VERSION=stable
+RUST_SKIP_BUILD=1
+trap 'status=$?; if [ "$status" -eq 0 ]; then ENV_DIR="$ENV_DIR" bash "$BUILD_DIR/heroku-build.sh" || exit 1; fi' EXIT

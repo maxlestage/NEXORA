@@ -1,0 +1,3 @@
+# Inutile pour le site sur Heroku : l'app Flutter et la CI.
+/app
+/.github

@@ -1,0 +1,32 @@
+{
+  "name": "NEXORA",
+  "description": "Le site de NEXORA, l'app mobile qui réunit les modèles d'IA, vos agents et GitHub. Écrit en Rust avec Paquets : pages SEO, PWA et 3D en WebAssembly.",
+  "repository": "https://github.com/maxlestage/NEXORA",
+  "website": "https://maxlestage.github.io/NEXORA/",
+  "logo": "https://maxlestage.github.io/NEXORA/favicon.svg",
+  "keywords": [
+    "rust",
+    "paquets",
+    "wasm",
+    "flutter",
+    "ai"
+  ],
+  "stack": "heroku-26",
+  "buildpacks": [
+    {
+      "url": "emk/rust"
+    }
+  ],
+  "env": {
+    "SITE_URL": {
+      "description": "Adresse publique du site (URL canoniques, Open Graph, sitemap), par ex. https://mon-app.herokuapp.com",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "success_url": "/"
+}

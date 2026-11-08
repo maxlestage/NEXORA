@@ -100,5 +100,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh workflow run pages.yml --ref master --repo "$GITHUB_REPOSITORY"
+          gh workflow run heroku.yml --ref master --repo "$GITHUB_REPOSITORY"
           gh workflow run app.yml --ref master --repo "$GITHUB_REPOSITORY"
           gh workflow run testflight.yml --ref master --repo "$GITHUB_REPOSITORY"
