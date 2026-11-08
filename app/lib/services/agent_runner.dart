@@ -220,6 +220,30 @@ class AgentRun extends ChangeNotifier {
     ].join('\n\n');
   }
 
+  /// Résultats d'outils gardés en entier (les plus récents).
+  static const keepFullResults = 8;
+
+  /// Raccourcit les anciens résultats d'outils (fichiers lus, recherches) pour que
+  /// les longues tâches restent rapides et peu coûteuses : le modèle garde la trace
+  /// de ce qu'il a fait sans renvoyer tous les fichiers à chaque étape.
+  static void compactHistory(
+    List<LlmMessage> history, {
+    int keep = keepFullResults,
+  }) {
+    var seen = 0;
+    for (var i = history.length - 1; i >= 0; i--) {
+      final m = history[i];
+      if (m.role != 'user' || !m.content.startsWith('Résultat de ')) continue;
+      seen++;
+      if (seen <= keep || m.content.length <= 600) continue;
+      history[i] = LlmMessage(
+        'user',
+        '${m.content.substring(0, 400)}\n… (ancien résultat raccourci : '
+            '${m.content.length} caractères, relis le fichier si besoin)',
+      );
+    }
+  }
+
   Future<void> run() async {
     running = true;
     _stop = false;
@@ -283,6 +307,7 @@ class AgentRun extends ChangeNotifier {
           _add(AgentStep(StepKind.result, _short(result), tool: call.tool));
         }
         history.add(LlmMessage('user', 'Résultat de ${call.tool} :\n$result'));
+        compactHistory(history);
       }
       if (_stop) _add(AgentStep(StepKind.error, 'Arrêté.'));
       if (commitMessage.isEmpty) commitMessage = task;

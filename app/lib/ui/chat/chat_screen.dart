@@ -42,10 +42,17 @@ class _ChatScreenState extends State<ChatScreen> {
   final _focus = FocusNode();
   final List<(String, String)> _attachments = [];
   bool _stickToBottom = true;
+  late final ChatState _chat;
+
+  /// Les messages terminés déjà construits : pendant une réponse en flux, seul le
+  /// dernier message est reconstruit (pas de nouvelle analyse du Markdown des autres).
+  final _tiles = Expando<(Object, Widget)>();
 
   @override
   void initState() {
     super.initState();
+    _chat = context.read<ChatState>();
+    _chat.ensureLoaded(widget.conversationId);
     if (widget.initialPrompt != null) _input.text = widget.initialPrompt!;
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
@@ -56,6 +63,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Libère la mémoire de la conversation (elle reste enregistrée).
+    _chat.unload(widget.conversationId);
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
@@ -77,7 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _send(Conversation c, Agent? agent) {
     final text = _input.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || !c.loaded) return;
     if (context.read<SettingsState>().haptics) HapticFeedback.mediumImpact();
     final files = _attachments
         .map((a) => 'Fichier `${a.$1}` :\n```\n${a.$2}\n```')
@@ -207,7 +216,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           Expanded(
-            child: c.messages.isEmpty
+            child: !c.loaded
+                ? const Center(child: CircularProgressIndicator())
+                : c.messages.isEmpty
                 ? _Empty(
                     agent: agent,
                     onPick: (t) {
@@ -219,10 +230,29 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
                     itemCount: c.messages.length,
-                    itemBuilder: (context, i) {
+                    // Le contexte de l'écran (stable) et non celui de l'élément de
+                    // liste : les messages mis en cache gardent leurs actions.
+                    itemBuilder: (_, i) {
                       final m = c.messages[i];
                       final isLast = i == c.messages.length - 1;
-                      return _MessageTile(
+                      final signature = (
+                        m.content.length,
+                        m.thinking.length,
+                        m.error,
+                        isLast,
+                        running,
+                        settings.showThinking,
+                        agent?.id,
+                        ref.key,
+                        Theme.of(context).brightness,
+                        settings.accent,
+                        settings.bubbleStyle,
+                      );
+                      final cached = _tiles[m];
+                      if (cached != null && cached.$1 == signature) {
+                        return cached.$2;
+                      }
+                      final tile = _MessageTile(
                         key: ValueKey('${c.id}-$i'),
                         message: m,
                         streaming: running && isLast,
@@ -257,9 +287,34 @@ class _ChatScreenState extends State<ChatScreen> {
                               }
                             : null,
                       );
+                      _tiles[m] = (signature, tile);
+                      return tile;
                     },
                   ),
           ),
+          if (c.trimmed > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.memory,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Mémoire : les ${c.trimmed} premiers messages ne sont plus '
+                      'envoyés au modèle (réglable dans Personnaliser).',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_attachments.isNotEmpty)
             SizedBox(
               height: 44,

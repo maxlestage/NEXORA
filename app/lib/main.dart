@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'services/conversation_store.dart';
 import 'services/llm_client.dart';
 import 'services/storage.dart';
 import 'state/agent_state.dart';
@@ -27,10 +28,18 @@ Future<void> main() async {
 }
 
 class NexoraApp extends StatelessWidget {
-  const NexoraApp({super.key, required this.storage, this.llm});
+  const NexoraApp({
+    super.key,
+    required this.storage,
+    this.llm,
+    this.conversationStore,
+  });
 
   final Storage storage;
   final LlmClient? llm;
+
+  /// Où ranger les conversations (des fichiers par défaut).
+  final ConversationStore? conversationStore;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +61,7 @@ class NexoraApp extends StatelessWidget {
             c.read<SettingsState>(),
             client,
             usage: c.read<UsageState>(),
+            store: conversationStore,
           ),
           update: (_, s, chat) => chat!,
         ),

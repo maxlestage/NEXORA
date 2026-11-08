@@ -75,6 +75,18 @@ envoyer, niveau de réflexion par défaut, créativité, raisonnement visible, r
 **nom de l'assistant** et **instructions personnelles** (qui vous êtes, comment répondre),
 onglets visibles, et export / import des réglages (sans les clés).
 
+### ⚡ Pensée pour l'usage intensif
+
+Application **smartphone uniquement** (iPhone et Android), optimisée pour des centaines de conversations et des journées entières de chat :
+
+- **Démarrage instantané** : seul un index léger (titres, aperçus) est lu au lancement ; les messages d'une conversation sont chargés à son ouverture et libérés à sa fermeture.
+- **Un fichier par conversation**, écrit de façon atomique (rien ne se perd si l'app est coupée) ; les gros fichiers sont décodés hors du fil de l'interface. Les anciennes conversations sont migrées automatiquement.
+- **Réponses fluides** : pendant le flux, l'écran est rafraîchi ~15 fois par seconde au lieu d'à chaque morceau, seul le dernier message est reconstruit et la conversation est enregistrée par lots.
+- **Mémoire réglable** (Personnaliser → Mémoire envoyée au modèle : courte, normale, longue ou tout) : seuls les messages récents repartent, donc des réponses plus rapides et moins chères dans les longues conversations.
+- **Réseau robuste** : nouvel essai automatique sur 408/429/5xx/529 (en respectant `Retry-After`), et coupure propre d'une réponse muette depuis 90 s.
+- **Agents autonomes sobres** : les anciens résultats d'outils sont raccourcis pour les longues tâches.
+- **Réglages → Données** : nombre de conversations, place occupée, et ménage des conversations inactives (les épinglées restent).
+
 ### 📊 Le témoin de crédit
 
 Un point coloré à côté du modèle indique où vous en êtes chez chaque fournisseur :

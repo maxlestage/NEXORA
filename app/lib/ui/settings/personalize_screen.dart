@@ -221,6 +221,51 @@ class PersonalizeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Mémoire envoyée au modèle'),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Seuls les messages récents repartent à chaque question : '
+                        'réponses plus rapides et moins chères dans les longues '
+                        'conversations.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<int>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(value: 8000, label: Text('Courte')),
+                          ButtonSegment(value: 32000, label: Text('Normale')),
+                          ButtonSegment(value: 128000, label: Text('Longue')),
+                          ButtonSegment(value: 0, label: Text('Tout')),
+                        ],
+                        selected: {
+                          const [
+                                8000,
+                                32000,
+                                128000,
+                                0,
+                              ].contains(s.contextTokens)
+                              ? s.contextTokens
+                              : 32000,
+                        },
+                        onSelectionChanged: (v) => s.setContextTokens(v.first),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        s.contextTokens == 0
+                            ? 'Toute la conversation (peut devenir lent et cher).'
+                            : '≈ ${s.contextTokens ~/ 1000}k tokens · '
+                                  '≈ ${(s.contextTokens * 4 / 1000).round()}k caractères',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
                 ListTile(
                   title: const Text('Créativité (température)'),
                   subtitle: Slider(
