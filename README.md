@@ -141,6 +141,22 @@ Touchez-le pour le détail, avec une jauge :
   mission (l'étape est réessayée), et un modèle qui réfléchit longtemps (Claude, o3, R1…) a
   jusqu'à 5 minutes avant d'écrire.
 
+### 🧑‍💻 L'onglet Code : des sessions comme Claude Code
+
+- **Sessions** : chaque mission de l'agent autonome est une session, avec **un ou plusieurs
+  dépôts** (« Paquets, +1 autre »), son modèle, son niveau de réflexion et son agent.
+- **Liste d'état** façon Claude Code : en cours (roue), **en attente de votre validation**
+  (point bleu), envoyée (icône de fusion, pull request), arrêtée, avec les lignes **+ajoutées
+  −retirées** et l'heure de dernière activité. Glisser pour supprimer.
+- **En arrière-plan** : la session continue quand vous quittez l'écran ; plusieurs sessions
+  peuvent tourner en même temps. Tout est enregistré sur le téléphone (un fichier par session),
+  et une session interrompue par la fermeture de l'app se reprend d'un geste.
+- **Suite d'instructions** : ouvrez une session et donnez-lui une nouvelle consigne ; elle garde
+  son historique et ses brouillons. Une fois la pull request ouverte, les envois suivants se font
+  **sur la même branche** et mettent à jour la même pull request.
+- **Dépôts** : le second onglet garde la liste de vos dépôts, leur code, leurs branches et les
+  agents cloud.
+
 ### ☁️ Les agents cloud (GitHub Actions)
 
 Installez en un geste un workflow dans un dépôt, ajoutez la clé en secret, puis envoyez des

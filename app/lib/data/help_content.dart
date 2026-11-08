@@ -181,8 +181,19 @@ const List<HelpSection> helpSections = [
   ]),
   HelpSection('🐙', 'GitHub', [
     HelpTopic(
+      'Les sessions (plusieurs dépôts, comme Claude Code)',
+      'Onglet Code → **Sessions** → **Nouvelle session** : décrivez la mission, '
+          'ajoutez **un ou plusieurs dépôts** (chacun devient un dossier pour '
+          'l\'agent), choisissez le modèle et le niveau, lancez. La session '
+          'continue si vous quittez l\'écran et reste enregistrée. La liste montre '
+          'l\'état de chacune : en cours, **en attente de votre validation** '
+          '(point bleu), envoyée (pull request), avec les lignes ajoutées et '
+          'retirées. Ouvrez une session pour lui donner une **nouvelle '
+          'instruction** : les envois suivants mettent à jour la même pull request.',
+    ),
+    HelpTopic(
       'Comment connecter GitHub ?',
-      'Onglet GitHub → **Créer un jeton** (droits repo, workflow, read:user, '
+      'Onglet Code → **Créer un jeton** (droits repo, workflow, read:user, '
           'gist) → copiez-le → collez-le → Valider. Le bouton « Se connecter avec '
           'GitHub » marche aussi, une fois le Client ID d\'une OAuth App renseigné '
           'dans Réglages.',

@@ -107,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!gh.signedIn) {
       toast(
         context,
-        'Connectez GitHub (onglet GitHub) pour joindre des fichiers.',
+        'Connectez GitHub (onglet Code) pour joindre des fichiers.',
       );
       return;
     }

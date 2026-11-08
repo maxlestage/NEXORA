@@ -18,7 +18,7 @@ import 'usage_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.8.0';
+const appVersion = '1.9.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {

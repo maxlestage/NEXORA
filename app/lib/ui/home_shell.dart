@@ -58,7 +58,7 @@ class _HomeShellState extends State<HomeShell> {
     const all = [
       ('chat', Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
       ('agents', Icons.smart_toy_outlined, Icons.smart_toy, 'Agents'),
-      ('github', Icons.code_outlined, Icons.code, 'GitHub'),
+      ('github', Icons.code_outlined, Icons.code, 'Code'),
       ('models', Icons.hub_outlined, Icons.hub, 'Modèles'),
       ('settings', Icons.tune_outlined, Icons.tune, 'Réglages'),
     ];

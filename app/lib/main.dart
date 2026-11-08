@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 
 import 'services/conversation_store.dart';
 import 'services/llm_client.dart';
+import 'services/session_store.dart';
 import 'services/storage.dart';
 import 'state/agent_state.dart';
 import 'state/chat_state.dart';
 import 'state/github_state.dart';
+import 'state/session_state.dart';
 import 'state/settings_state.dart';
 import 'state/usage_state.dart';
 import 'ui/home_shell.dart';
@@ -33,6 +35,7 @@ class NexoraApp extends StatelessWidget {
     required this.storage,
     this.llm,
     this.conversationStore,
+    this.sessionStore,
   });
 
   final Storage storage;
@@ -40,6 +43,9 @@ class NexoraApp extends StatelessWidget {
 
   /// Où ranger les conversations (des fichiers par défaut).
   final ConversationStore? conversationStore;
+
+  /// Où ranger les sessions de l'agent (des fichiers par défaut).
+  final SessionStore? sessionStore;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +70,18 @@ class NexoraApp extends StatelessWidget {
             store: conversationStore,
           ),
           update: (_, s, chat) => chat!,
+        ),
+        ChangeNotifierProxyProvider<GitHubState, SessionState>(
+          create: (c) => SessionState(
+            storage: storage,
+            settings: c.read<SettingsState>(),
+            github: c.read<GitHubState>(),
+            agents: c.read<AgentState>(),
+            llm: client,
+            usage: c.read<UsageState>(),
+            store: sessionStore,
+          ),
+          update: (_, gh, sessions) => sessions!..githubChanged(),
         ),
       ],
       child: Consumer<SettingsState>(

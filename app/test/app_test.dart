@@ -23,7 +23,7 @@ void main() {
     expect(find.text('Nouveau chat'), findsOneWidget);
     expect(find.text('Premiers pas'), findsOneWidget);
 
-    for (final tab in ['Agents', 'GitHub', 'Modèles', 'Réglages']) {
+    for (final tab in ['Agents', 'Code', 'Modèles', 'Réglages']) {
       await tester.tap(find.text(tab).last);
       await tester.pump(const Duration(milliseconds: 500));
     }
