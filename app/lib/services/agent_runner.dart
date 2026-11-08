@@ -137,6 +137,49 @@ class AgentRun extends ChangeNotifier {
 
   /// Les changements en brouillon : chemin → contenu (`null` : supprimé).
   final Map<String, String?> changes = {};
+
+  /// La version d'origine des fichiers lus ou modifiés (`null` : fichier nouveau).
+  final Map<String, String?> originals = {};
+
+  /// Les brouillons refusés par l'utilisateur : ils ne sont pas envoyés.
+  final Set<String> rejected = {};
+
+  /// Les brouillons acceptés, ceux qui partiront sur GitHub.
+  Map<String, String?> get accepted => {
+    for (final e in changes.entries)
+      if (!rejected.contains(e.key)) e.key: e.value,
+  };
+
+  void setAccepted(String path, bool yes) {
+    yes ? rejected.remove(path) : rejected.add(path);
+    notifyListeners();
+  }
+
+  void setAllAccepted(bool yes) {
+    yes ? rejected.clear() : rejected.addAll(changes.keys);
+    notifyListeners();
+  }
+
+  /// Modifie un brouillon à la main avant de le valider.
+  void editDraft(String path, String content) {
+    changes[path] = content;
+    rejected.remove(path);
+    notifyListeners();
+  }
+
+  /// La version d'origine d'un fichier, lue sur GitHub au besoin.
+  Future<String?> original(String path) async {
+    if (originals.containsKey(path)) return originals[path];
+    try {
+      final f = await github.readFile(owner, repo, path, ref: branch);
+      originals[path] = f.binary ? null : f.text;
+    } on GitHubException catch (e) {
+      if (e.status != 404) rethrow;
+      originals[path] = null;
+    }
+    return originals[path];
+  }
+
   bool running = false;
   bool _stop = false;
   String summary = '';
@@ -279,6 +322,7 @@ class AgentRun extends ChangeNotifier {
         final f = await github.readFile(owner, repo, p, ref: branch);
         if (f.binary) return 'ERREUR : fichier binaire.';
         final t = f.text;
+        originals.putIfAbsent(p, () => t);
         return t.length > 24000
             ? '${t.substring(0, 24000)}\n… (tronqué, ${t.length} caractères)'
             : t;
@@ -325,7 +369,10 @@ class AgentRun extends ChangeNotifier {
     required String targetBranch,
     bool openPr = false,
   }) async {
-    if (changes.isEmpty) throw GitHubException('Aucun changement à envoyer.');
+    final toSend = accepted;
+    if (toSend.isEmpty) {
+      throw GitHubException('Aucun brouillon accepté à envoyer.');
+    }
     if (targetBranch != branch) {
       try {
         await github.createBranch(owner, repo, targetBranch, from: branch);
@@ -339,7 +386,7 @@ class AgentRun extends ChangeNotifier {
       branch: targetBranch,
       message: message,
       changes: [
-        for (final e in changes.entries)
+        for (final e in toSend.entries)
           e.value == null
               ? FileChange.remove(e.key)
               : FileChange.write(e.key, e.value!),

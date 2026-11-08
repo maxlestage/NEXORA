@@ -87,7 +87,9 @@ Touchez-le pour le détail, avec une jauge :
   `VoltAgent/awesome-claude-code-subagents`, ou n'importe quel dépôt, URL ou texte collé.
 - **Agents perso** : nom, emoji, consigne, modèle préféré, outils autorisés ; partage en `.md`.
 - **Agent autonome** : donnez une mission sur un dépôt ; l'agent explore, lit, cherche et
-  modifie des fichiers (en brouillon), puis vous validez un commit ou une **pull request**.
+  modifie des fichiers **en brouillon**. Vous **validez les brouillons** un par un : comparaison
+  ligne à ligne avec l'original (ajouts en vert, suppressions en rouge), accepter, refuser ou
+  modifier, puis commit ou **pull request** des seuls brouillons acceptés.
   Fonctionne avec n'importe quel modèle, y compris gratuit.
 
 ### ☁️ Les agents cloud (GitHub Actions)
@@ -241,6 +243,11 @@ Aucun serveur intermédiaire et aucun compte NEXORA : l'application parle direct
 fournisseurs que vous choisissez et à GitHub. Les clés et le jeton GitHub restent dans le
 trousseau de l'appareil ; les conversations et les agents, dans son stockage local.
 
+## Crédits
+
+Conception, design et développement : **Maxime Nathan Lestage**.
+Dans l'app : Réglages → À propos → Crédits.
+
 ## Licence
 
-© 2026 Maxime Lestage. Tous droits réservés.
+© 2026 Maxime Nathan Lestage. Tous droits réservés.

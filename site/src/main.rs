@@ -332,7 +332,7 @@ fn pied_de_page() -> Element {
                 )
                 .child(
                     p().class("made")
-                        .text("Fait avec ")
+                        .text(format!("Conçu et développé par {AUTEUR} · Fait avec "))
                         .child(a().class("u-link").href(PAQUETS).text("Paquets 📦"))
                         .text(" · Rust · WebAssembly"),
                 )

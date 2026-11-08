@@ -6,7 +6,7 @@ pub const APP: &str = "NEXORA";
 /// La promesse, en une phrase.
 pub const SLOGAN: &str = "Tous les modèles d'IA, tous vos agents, votre GitHub. Dans votre poche.";
 /// L'auteur.
-pub const AUTEUR: &str = "Maxime Lestage";
+pub const AUTEUR: &str = "Maxime Nathan Lestage";
 /// Le dépôt du code source.
 pub const DEPOT: &str = "https://github.com/maxlestage/NEXORA";
 /// Les versions publiées (APK Android).
@@ -886,7 +886,7 @@ pub const MENTIONS: [(&str, &str, &str); 4] = [
     (
         "editeur",
         "Éditeur",
-        "Ce site et l'application NEXORA sont édités par Maxime Lestage, à titre personnel. Contact : via les issues du dépôt GitHub maxlestage/NEXORA.",
+        "Ce site et l'application NEXORA sont édités par Maxime Nathan Lestage, à titre personnel. Contact : via les issues du dépôt GitHub maxlestage/NEXORA.",
     ),
     (
         "hebergement",
