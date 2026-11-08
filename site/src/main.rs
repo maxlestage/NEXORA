@@ -1,5 +1,5 @@
 //! NEXORA — le serveur du site : les pages (rendues sur le serveur, avec leurs balises
-//! SEO), la lettre d'information enregistrée en base, la PWA, le plan du site.
+//! SEO), la PWA, le plan du site.
 //!
 //!     cargo run        # http://localhost:3000 (PORT sur Heroku)
 //!
@@ -13,47 +13,6 @@ mod icones;
 
 use icones::icone;
 use nexora_site::contenu::*;
-
-// ————————————————————————————————————————————————————————————————————————————
-// Données
-// ————————————————————————————————————————————————————————————————————————————
-
-/// Une adresse inscrite à la lettre d'information.
-#[model]
-struct Abonne {
-    id: i64,
-    email: String,
-    inscrit_le: i64,
-}
-
-/// Le champ de la lettre d'information.
-#[data]
-struct FormulaireNewsletter {
-    email: String,
-    /// Un champ caché que seuls les robots remplissent.
-    #[serde(default)]
-    site_web: String,
-}
-
-fn maintenant() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
-
-fn email_valide(email: &str) -> bool {
-    let email = email.trim();
-    let Some((avant, apres)) = email.split_once('@') else {
-        return false;
-    };
-    !avant.is_empty()
-        && apres.contains('.')
-        && !apres.starts_with('.')
-        && !apres.ends_with('.')
-        && email.len() <= 254
-        && !email.contains(char::is_whitespace)
-}
 
 // ————————————————————————————————————————————————————————————————————————————
 // La mise en page commune : en-tête, contenu, pied de page
@@ -252,68 +211,10 @@ fn pied_de_page() -> Element {
     footer()
         .class("site-footer")
         .child(div().class("footer-glow").attr("aria-hidden", "true"))
-        // Le bandeau : lettre d'information et appel à l'action.
+        // Le bandeau : appel à l'action.
         .child(
             div()
                 .class("container footer-top")
-                .child(
-                    div()
-                        .class("newsletter card glow")
-                        .id("newsletter")
-                        .attr("data-reveal", "up")
-                        .child(span().class("eyebrow").text("Le signal NEXORA"))
-                        .child(h3().text("Les nouveaux modèles gratuits, chaque mois."))
-                        .child(p().class("muted").text(
-                            "Nouveaux fournisseurs, agents à installer, versions de l'app. Une lettre courte, zéro spam, désinscription en un clic.",
-                        ))
-                        .child(
-                            form()
-                                .class("newsletter-form")
-                                .attr("method", "post")
-                                .attr("action", "/newsletter")
-                                .child(
-                                    label()
-                                        .class("sr-only")
-                                        .attr("for", "nl-email")
-                                        .text("Adresse e-mail"),
-                                )
-                                .child(
-                                    input()
-                                        .id("nl-email")
-                                        .attr("type", "email")
-                                        .attr("name", "email")
-                                        .attr("autocomplete", "email")
-                                        .attr("placeholder", "vous@exemple.fr")
-                                        .attr("required", ""),
-                                )
-                                .child(
-                                    input()
-                                        .class("hp")
-                                        .attr("type", "text")
-                                        .attr("name", "site_web")
-                                        .attr("tabindex", "-1")
-                                        .attr("autocomplete", "off")
-                                        .attr("aria-hidden", "true"),
-                                )
-                                .child(
-                                    button()
-                                        .class("btn btn-primary magnetic")
-                                        .attr("type", "submit")
-                                        .text("S'abonner")
-                                        .child(fleche()),
-                                ),
-                        )
-                        .child(
-                            p().class("fine")
-                                .text("En vous abonnant, vous acceptez notre ")
-                                .child(
-                                    a().class("u-link")
-                                        .href("/confidentialite")
-                                        .text("politique de confidentialité"),
-                                )
-                                .text("."),
-                        ),
-                )
                 .child(
                     div()
                         .class("footer-cta")
@@ -1658,90 +1559,6 @@ async fn faq(_req: Request) -> Page {
     )
 }
 
-async fn inscrire(req: Request) -> Result<Redirect> {
-    let f: FormulaireNewsletter = req.form().await?;
-    if !f.site_web.is_empty() {
-        return Ok(Redirect::see_other("/merci?type=newsletter"));
-    }
-    if !email_valide(&f.email) {
-        return Ok(Redirect::see_other("/merci?type=erreur"));
-    }
-    let email: String = f
-        .email
-        .trim()
-        .chars()
-        .take(254)
-        .collect::<String>()
-        .to_lowercase();
-    let deja = Abonne::query()
-        .filter(Abonne::EMAIL.eq(email.clone()))
-        .all(req.db())
-        .await?;
-    if deja.is_empty() {
-        let mut abonne = Abonne {
-            id: 0,
-            email,
-            inscrit_le: maintenant(),
-        };
-        abonne.insert(req.db()).await?;
-    }
-    Ok(Redirect::see_other("/merci?type=newsletter"))
-}
-
-async fn merci(req: Request) -> Page {
-    let (titre, texte, ok) = match req.query("type").as_deref() {
-        Some("erreur") => (
-            "Adresse *invalide*",
-            "Cette adresse e-mail ne semble pas valide. Vous pouvez réessayer depuis le pied de page.",
-            false,
-        ),
-        _ => (
-            "Bienvenue *à* *bord* !",
-            "Votre inscription est confirmée. Prochain signal NEXORA : début du mois prochain.",
-            true,
-        ),
-    };
-    page(
-        "/merci",
-        "Merci",
-        "Merci pour votre inscription.",
-        vec![
-            section()
-                .class("page-hero thanks")
-                .child(div().class("aurora").attr("aria-hidden", "true"))
-                .child(
-                    div()
-                        .class("container center")
-                        .child(
-                            div()
-                                .class(if ok { "check-anim" } else { "check-anim bad" })
-                                .attr("aria-hidden", "true")
-                                .html(icone(if ok { "check" } else { "croix" })),
-                        )
-                        .child(mots(h1(), titre))
-                        .child(p().class("lead").attr("data-reveal", "up").text(texte))
-                        .child(
-                            div()
-                                .class("actions center")
-                                .attr("data-reveal", "up")
-                                .child(
-                                    a().class("btn btn-primary magnetic")
-                                        .href("/")
-                                        .text("Retour à l'accueil"),
-                                )
-                                .child(
-                                    a().class("btn btn-ghost magnetic")
-                                        .href("/telecharger")
-                                        .text("Télécharger l'app"),
-                                ),
-                        ),
-                )
-                .into(),
-        ],
-    )
-    .seo(Seo::new().noindex(true))
-}
-
 /// Une page de texte : mentions légales, confidentialité.
 fn page_texte(
     chemin: &str,
@@ -1863,7 +1680,7 @@ async fn sitemap(_req: Request) -> Response {
     let mut xml = String::from(
         r#"<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
     );
-    for (href, _) in PAGES.iter().filter(|(h, _)| *h != "/merci") {
+    for (href, _) in PAGES.iter() {
         xml.push_str(&format!("<url><loc>{base}{href}</loc></url>"));
     }
     xml.push_str("</urlset>");
@@ -1874,7 +1691,7 @@ async fn sitemap(_req: Request) -> Response {
 
 async fn robots(_req: Request) -> String {
     format!(
-        "User-agent: *\nAllow: /\nDisallow: /merci\nSitemap: {}/sitemap.xml\n",
+        "User-agent: *\nAllow: /\nSitemap: {}/sitemap.xml\n",
         site_url()
     )
 }
@@ -1888,14 +1705,11 @@ fn app() -> App {
     app.get("/github", github);
     app.get("/telecharger", telecharger);
     app.get("/faq", faq);
-    app.post("/newsletter", inscrire);
-    app.get("/merci", merci);
     app.get("/mentions-legales", mentions);
     app.get("/confidentialite", confidentialite);
     app.get("/plan-du-site", plan);
     app.get("/sitemap.xml", sitemap);
     app.get("/robots.txt", robots);
-    app.model::<Abonne>();
     app.health("/health");
     app.pwa(
         Pwa::new(APP)
@@ -1976,28 +1790,5 @@ mod tests {
         for f in FOURNISSEURS.iter() {
             assert!(modeles.contains(&format!("id=\"{}\"", f.id)), "{}", f.id);
         }
-    }
-
-    #[tokio::test]
-    async fn la_newsletter_enregistre() {
-        let client = app().test().await;
-        let res = client
-            .post("/newsletter")
-            .form(&[("email", "ada@exemple.fr"), ("site_web", "")])
-            .await;
-        assert_eq!(res.status(), 303);
-        let res = client
-            .post("/newsletter")
-            .form(&[("email", "pas-une-adresse"), ("site_web", "")])
-            .await;
-        assert_eq!(res.status(), 303);
-    }
-
-    #[test]
-    fn emails() {
-        assert!(email_valide("ada@exemple.fr"));
-        assert!(!email_valide("ada"));
-        assert!(!email_valide("ada@exemple"));
-        assert!(!email_valide("a b@exemple.fr"));
     }
 }

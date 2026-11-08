@@ -122,20 +122,12 @@ pub async fn export(mut app: App, out: &Path, base: &str) -> io::Result<usize> {
         }
     };
 
-    // Pas de serveur pour recevoir le formulaire : il mène à la page de remerciement.
-    let statique = |html: String| {
-        html.replace(
-            r#"method="post" action="/newsletter""#,
-            r#"method="get" action="/merci""#,
-        )
-    };
-
     for (route, _) in PAGES {
-        let html = statique(get(route, 200).await?);
+        let html = get(route, 200).await?;
         let (file, depth) = page_file(route);
         write(&file, relativise(&html, depth, None).as_bytes())?;
     }
-    let missing = statique(get("/page-introuvable", 404).await?);
+    let missing = get("/page-introuvable", 404).await?;
     write("404.html", relativise(&missing, 0, Some(base)).as_bytes())?;
 
     for file in ["/manifest.webmanifest", "/sw.js"] {
