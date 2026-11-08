@@ -2,13 +2,47 @@ import 'dart:convert';
 
 /// Un morceau de réponse reçu en flux.
 class ChatDelta {
-  const ChatDelta({this.text = '', this.thinking = '', this.done = false});
+  const ChatDelta({
+    this.text = '',
+    this.thinking = '',
+    this.done = false,
+    this.usage,
+  });
 
   final String text;
   final String thinking;
   final bool done;
 
-  bool get isEmpty => text.isEmpty && thinking.isEmpty && !done;
+  /// Les tokens consommés, quand le fournisseur les indique (souvent à la fin).
+  final TokenUsage? usage;
+
+  bool get isEmpty =>
+      text.isEmpty && thinking.isEmpty && !done && usage == null;
+}
+
+/// Les tokens d'une réponse : envoyés (question, historique) et reçus.
+class TokenUsage {
+  const TokenUsage(this.input, this.output);
+
+  final int input;
+  final int output;
+
+  int get total => input + output;
+
+  TokenUsage operator +(TokenUsage o) =>
+      TokenUsage(input + o.input, output + o.output);
+
+  static int _int(Object? v) => v is num ? v.toInt() : 0;
+
+  /// `usage` au format OpenAI (`prompt_tokens`, `completion_tokens`) ou Anthropic
+  /// (`input_tokens`, `output_tokens`).
+  static TokenUsage? fromJson(Object? u) {
+    if (u is! Map) return null;
+    final input = _int(u['prompt_tokens'] ?? u['input_tokens']);
+    final output = _int(u['completion_tokens'] ?? u['output_tokens']);
+    if (input == 0 && output == 0) return null;
+    return TokenUsage(input, output);
+  }
 }
 
 /// Une ligne d'un flux SSE OpenAI (`data: {...}`), ou `null` si elle ne porte rien.
@@ -28,16 +62,22 @@ ChatDelta? parseOpenAiSseLine(String line) {
   if (j['error'] != null) {
     throw LlmException(_errorMessage(j['error']));
   }
+  final usage =
+      TokenUsage.fromJson(j['usage']) ??
+      TokenUsage.fromJson((j['x_groq'] as Map?)?['usage']);
   final choices = j['choices'];
-  if (choices is! List || choices.isEmpty) return null;
+  if (choices is! List || choices.isEmpty) {
+    return usage == null ? null : ChatDelta(usage: usage);
+  }
   final c = choices.first;
-  if (c is! Map) return null;
+  if (c is! Map) return usage == null ? null : ChatDelta(usage: usage);
   final delta = (c['delta'] ?? c['message']) as Map?;
   final text = delta?['content'];
   final thinking = delta?['reasoning_content'] ?? delta?['reasoning'];
   final out = ChatDelta(
     text: text is String ? text : '',
     thinking: thinking is String ? thinking : '',
+    usage: usage,
   );
   return out.isEmpty ? null : out;
 }
@@ -57,10 +97,17 @@ ChatDelta? parseOllamaLine(String line) {
   final msg = j['message'];
   final text = msg is Map ? msg['content'] : null;
   final thinking = msg is Map ? msg['thinking'] : null;
+  final done = j['done'] == true;
   return ChatDelta(
     text: text is String ? text : '',
     thinking: thinking is String ? thinking : '',
-    done: j['done'] == true,
+    done: done,
+    usage: done
+        ? TokenUsage.fromJson({
+            'prompt_tokens': j['prompt_eval_count'],
+            'completion_tokens': j['eval_count'],
+          })
+        : null,
   );
 }
 
@@ -86,6 +133,12 @@ ChatDelta? parseAnthropicSseLine(String line) {
         return ChatDelta(thinking: d['thinking'] as String? ?? '');
       }
       return null;
+    case 'message_start':
+      final u = TokenUsage.fromJson((j['message'] as Map?)?['usage']);
+      return u == null ? null : ChatDelta(usage: TokenUsage(u.input, 0));
+    case 'message_delta':
+      final u = TokenUsage.fromJson(j['usage']);
+      return u == null ? null : ChatDelta(usage: TokenUsage(0, u.output));
     case 'message_stop':
       return const ChatDelta(done: true);
     case 'error':
@@ -134,6 +187,7 @@ class ThinkSplitter {
       text: text.toString(),
       thinking: thinking.toString(),
       done: d.done,
+      usage: d.usage,
     );
   }
 

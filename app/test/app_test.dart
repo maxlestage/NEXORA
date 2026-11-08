@@ -15,6 +15,7 @@ void main() {
     await tester.tap(find.text('Passer'));
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Nouveau chat'), findsOneWidget);
+    expect(find.text('Premiers pas'), findsOneWidget);
 
     for (final tab in ['Agents', 'GitHub', 'Modèles', 'Réglages']) {
       await tester.tap(find.text(tab).last);
@@ -33,6 +34,7 @@ void main() {
   testWidgets('les conversations persistent', (tester) async {
     SharedPreferences.setMockInitialValues({
       'onboarded': true,
+      'getting_started_hidden': true,
       'conversations': '[{"id":"a","title":"Projet Flutter","messages":[{"role":"user","content":"Salut"}]}]',
     });
     final storage = (await tester.runAsync(Storage.open))!;

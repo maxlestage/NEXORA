@@ -7,11 +7,12 @@ import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/github_state.dart';
 import '../../state/settings_state.dart';
+import '../help/help_screen.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.0.0';
+const appVersion = '1.1.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -27,6 +28,31 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 40),
         children: [
+          const SizedBox(height: 4),
+          Glass(
+            glow: Nx.cyan,
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const HelpScreen())),
+            child: const Row(
+              children: [
+                Text('🧭', style: TextStyle(fontSize: 26)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Aide et guides',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text('Clés gratuites, crédit, Ollama, agents, GitHub…'),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
           const SectionTitle('Apparence'),
           Card(
             child: Padding(

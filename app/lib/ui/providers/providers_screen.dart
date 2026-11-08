@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../models/provider.dart';
 import '../../state/settings_state.dart';
+import '../help/help_screen.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
+import '../widgets/quota_badge.dart';
 import 'provider_detail_screen.dart';
 
 /// L'onglet Modèles : tous les fournisseurs, leur état et leurs offres gratuites.
@@ -32,7 +34,21 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
     }).toList();
     final def = s.resolve(s.defaultModel);
     return Scaffold(
-      appBar: AppBar(title: const Text('Modèles & fournisseurs')),
+      appBar: AppBar(
+        title: const Text('Modèles & fournisseurs'),
+        actions: [
+          IconButton(
+            tooltip: 'Aide',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    const HelpScreen(initialSection: 'Clés et modèles'),
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add-provider',
         onPressed: () => _addCustom(context),
@@ -170,6 +186,14 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                                     ),
                                 ],
                               ),
+                              if (s.isReady(p))
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: QuotaBadge(
+                                    providerId: p.id,
+                                    dense: true,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
