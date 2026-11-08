@@ -62,7 +62,15 @@ fn email_valide(email: &str) -> bool {
 /// L'adresse publique du site, pour les URL canoniques et Open Graph.
 fn site_url() -> String {
     std::env::var("SITE_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".into())
+        .ok()
+        .filter(|u| !u.trim().is_empty())
+        // Heroku (avec les métadonnées de dyno) donne le domaine de l'app.
+        .or_else(|| {
+            std::env::var("HEROKU_APP_DEFAULT_DOMAIN_NAME")
+                .ok()
+                .map(|d| format!("https://{d}"))
+        })
+        .unwrap_or_else(|| "http://localhost:3000".into())
         .trim_end_matches('/')
         .to_owned()
 }
