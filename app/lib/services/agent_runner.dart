@@ -104,7 +104,28 @@ Map<String, dynamic>? _tryJson(String s) {
   }
 }
 
-/// Un agent qui travaille seul sur un dépôt GitHub : il explore, lit, modifie des
+/// Un dépôt sur lequel l'agent travaille.
+class RepoTarget {
+  const RepoTarget(this.owner, this.name, this.branch);
+
+  final String owner;
+  final String name;
+  final String branch;
+
+  String get fullName => '$owner/$name';
+}
+
+/// Le résultat de l'envoi sur un dépôt : un commit (sha) ou une pull request (url).
+class ShipResult {
+  ShipResult(this.repo, this.result);
+
+  final RepoTarget repo;
+  final String result;
+
+  bool get isPull => result.startsWith('http');
+}
+
+/// Un agent qui travaille seul sur un ou plusieurs dépôts GitHub : il explore, lit, modifie des
 /// fichiers (en brouillon), puis propose un commit que l'utilisateur valide.
 class AgentRun extends ChangeNotifier {
   AgentRun({
@@ -120,7 +141,48 @@ class AgentRun extends ChangeNotifier {
     this.agent,
     this.level,
     this.maxSteps = 24,
-  });
+    List<RepoTarget> extraRepos = const [],
+  }) {
+    targets = [
+      RepoTarget(owner, repo, branch),
+      for (final r in extraRepos)
+        if (r.fullName != '$owner/$repo') r,
+    ];
+    // Chaque dépôt est un dossier de l'espace de travail (son nom, ou
+    // propriétaire-nom si deux dépôts portent le même nom).
+    final names = targets.map((t) => t.name).toList();
+    _mounts = {
+      for (final t in targets)
+        names.where((n) => n == t.name).length > 1
+                ? '${t.owner}-${t.name}'
+                : t.name:
+            t,
+    };
+  }
+
+  /// Les dépôts de la mission (le premier est le principal).
+  late final List<RepoTarget> targets;
+  late final Map<String, RepoTarget> _mounts;
+
+  /// Plusieurs dépôts : les chemins commencent par le nom du dépôt.
+  bool get multi => targets.length > 1;
+
+  /// Le dossier d'un dépôt dans l'espace de travail.
+  String mountOf(RepoTarget t) =>
+      _mounts.entries.firstWhere((e) => e.value == t).key;
+
+  /// Le dépôt et le chemin réel d'un chemin de l'espace de travail.
+  (RepoTarget, String)? resolve(String path) {
+    if (!multi) return (targets.first, path);
+    final i = path.indexOf('/');
+    final head = i < 0 ? path : path.substring(0, i);
+    final t = _mounts[head];
+    if (t == null) return null;
+    return (t, i < 0 ? '' : path.substring(i + 1));
+  }
+
+  /// Nouveaux essais d'une étape après une coupure réseau ou un délai dépassé.
+  static const stepRetries = 2;
 
   final LlmClient llm;
   final GitHubApi github;
@@ -174,8 +236,11 @@ class AgentRun extends ChangeNotifier {
   /// La version d'origine d'un fichier, lue sur GitHub au besoin.
   Future<String?> original(String path) async {
     if (originals.containsKey(path)) return originals[path];
+    final where = resolve(path);
+    if (where == null) return null;
+    final (t, inner) = where;
     try {
-      final f = await github.readFile(owner, repo, path, ref: branch);
+      final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
       originals[path] = f.binary ? null : f.text;
     } on GitHubException catch (e) {
       if (e.status != 404) rethrow;
@@ -207,8 +272,15 @@ class AgentRun extends ChangeNotifier {
     final tools = allowed.map((t) => '- $t : ${agentTools[t]}').join('\n');
     return [
       if (agent != null) agent!.systemPrompt,
-      'Tu es un agent de code autonome qui travaille dans le dépôt GitHub '
-          '$owner/$repo (branche $branch).',
+      if (!multi)
+        'Tu es un agent de code autonome qui travaille dans le dépôt GitHub '
+            '$owner/$repo (branche $branch).'
+      else
+        'Tu es un agent de code autonome qui travaille sur ${targets.length} '
+            'dépôts GitHub, chacun étant un dossier de ton espace de travail :\n'
+            '${targets.map((t) => '- ${mountOf(t)}/ → ${t.fullName} (branche ${t.branch})${t == targets.first ? ' : dépôt principal' : ''}').join('\n')}\n'
+            'Tous les chemins commencent par ce dossier (ex. ${mountOf(targets.first)}/README.md). '
+            'Tu peux lire un dépôt pour t\'en inspirer et en modifier un autre.',
       'Outils disponibles :\n$tools',
       'À CHAQUE tour, réponds avec UNE seule action, sous la forme d\'un bloc :\n'
           '```json\n{"thought": "ce que tu fais et pourquoi", "tool": "nom", '
@@ -253,21 +325,8 @@ class AgentRun extends ChangeNotifier {
     ];
     try {
       for (var i = 0; i < maxSteps && !_stop; i++) {
-        final reply = await llm.complete(
-          provider: provider,
-          apiKey: apiKey,
-          model: model,
-          messages: history,
-          system: _system,
-          options: LlmOptions(
-            temperature: 0.2,
-            maxTokens: level == null || level!.maxTokens < 16000
-                ? 16000
-                : level!.maxTokens,
-            level: level,
-          ),
-        );
-        if (_stop) break;
+        final reply = await _ask(history);
+        if (reply == null || _stop) break;
         history.add(LlmMessage('assistant', reply));
         final call = parseToolCall(reply);
         if (call == null) {
@@ -319,8 +378,60 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
+  /// Une étape : la réponse du modèle, avec de nouveaux essais si le réseau
+  /// coupe ou si le fournisseur tarde (la mission ne s'arrête pas pour si peu).
+  Future<String?> _ask(List<LlmMessage> history) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await llm.complete(
+          provider: provider,
+          apiKey: apiKey,
+          model: model,
+          messages: history,
+          system: _system,
+          options: LlmOptions(
+            temperature: 0.2,
+            maxTokens: level == null || level!.maxTokens < 16000
+                ? 16000
+                : level!.maxTokens,
+            level: level,
+          ),
+        );
+      } on LlmException catch (e) {
+        if (!e.retryable || attempt >= stepRetries || _stop) rethrow;
+        _add(
+          AgentStep(
+            StepKind.error,
+            '$e\n\nNouvel essai (${attempt + 1}/$stepRetries)…',
+          ),
+        );
+        await Future<void>.delayed(retryPause * (attempt + 1));
+        if (_stop) return null;
+      }
+    }
+  }
+
+  /// Attente avant de réessayer une étape (réglable pour les tests).
+  Duration retryPause = const Duration(seconds: 3);
+
   static String _short(String s) =>
       s.length > 600 ? '${s.substring(0, 600)}…' : s;
+
+  /// Les fichiers de chaque dépôt (lus une fois), avec le préfixe de son dossier
+  /// quand il y a plusieurs dépôts.
+  Future<List<String>> _files() async {
+    if (_tree != null) return _tree!;
+    final all = <String>[];
+    for (final t in targets) {
+      final files = await github.tree(t.owner, t.name, t.branch);
+      all.addAll(multi ? files.map((f) => '${mountOf(t)}/$f') : files);
+    }
+    return _tree = all;
+  }
+
+  String get _mountHint =>
+      'ERREUR : commence le chemin par le dossier du dépôt '
+      '(${_mounts.keys.map((m) => '$m/').join(', ')}).';
 
   Future<String> _exec(ToolCall call) async {
     String path() {
@@ -330,13 +441,11 @@ class AgentRun extends ChangeNotifier {
 
     switch (call.tool) {
       case 'list_files':
-        _tree ??= await github.tree(owner, repo, branch);
+        final tree = await _files();
         final prefix = path();
         final files =
             {
-                  ..._tree!.where(
-                    (f) => prefix.isEmpty || f.startsWith(prefix),
-                  ),
+                  ...tree.where((f) => prefix.isEmpty || f.startsWith(prefix)),
                   ...changes.entries
                       .where((e) => e.value != null && e.key.startsWith(prefix))
                       .map((e) => e.key),
@@ -344,7 +453,11 @@ class AgentRun extends ChangeNotifier {
                 .where((f) => changes[f] != null || !changes.containsKey(f))
                 .toList()
               ..sort();
-        if (files.isEmpty) return 'Aucun fichier.';
+        if (files.isEmpty) {
+          return multi
+              ? 'Aucun fichier. Dossiers : ${_mounts.keys.join(', ')}'
+              : 'Aucun fichier.';
+        }
         final shown = files.take(300).join('\n');
         return files.length > 300
             ? '$shown\n… (${files.length - 300} de plus, précise un dossier)'
@@ -354,22 +467,28 @@ class AgentRun extends ChangeNotifier {
         if (changes.containsKey(p)) {
           return changes[p] ?? 'ERREUR : ce fichier a été supprimé.';
         }
-        final f = await github.readFile(owner, repo, p, ref: branch);
+        final where = resolve(p);
+        if (where == null) return _mountHint;
+        final (t, inner) = where;
+        final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
         if (f.binary) return 'ERREUR : fichier binaire.';
-        final t = f.text;
-        originals.putIfAbsent(p, () => t);
-        return t.length > 24000
-            ? '${t.substring(0, 24000)}\n… (tronqué, ${t.length} caractères)'
-            : t;
+        final text = f.text;
+        originals.putIfAbsent(p, () => text);
+        return text.length > 24000
+            ? '${text.substring(0, 24000)}\n… (tronqué, ${text.length} caractères)'
+            : text;
       case 'search_code':
         final q = (call.args['query'] ?? '').toString();
         if (q.isEmpty) return 'ERREUR : query vide.';
         try {
-          final hits = await github.searchCode(owner, repo, q);
+          final hits = <String>[];
+          for (final t in targets) {
+            final found = await github.searchCode(t.owner, t.name, q);
+            hits.addAll(multi ? found.map((f) => '${mountOf(t)}/$f') : found);
+          }
           return hits.isEmpty ? 'Aucun résultat.' : hits.join('\n');
         } catch (_) {
-          _tree ??= await github.tree(owner, repo, branch);
-          final hits = _tree!
+          final hits = (await _files())
               .where((f) => f.toLowerCase().contains(q.toLowerCase()))
               .take(50)
               .toList();
@@ -384,11 +503,15 @@ class AgentRun extends ChangeNotifier {
         if (p.isEmpty || content == null) {
           return 'ERREUR : il faut path et le contenu dans un bloc de code.';
         }
+        final where = resolve(p);
+        if (where == null || where.$2.isEmpty) return _mountHint;
         changes[p] = content.endsWith('\n') ? content : '$content\n';
         notifyListeners();
         return 'OK, $p enregistré en brouillon (${content.length} caractères).';
       case 'delete_file':
         final p = path();
+        final where = resolve(p);
+        if (where == null || where.$2.isEmpty) return _mountHint;
         changes[p] = null;
         notifyListeners();
         return 'OK, $p sera supprimé.';
@@ -397,47 +520,83 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
-  /// Envoie les changements : sur `targetBranch` (créée depuis la branche de
-  /// travail si besoin), puis ouvre éventuellement une pull request.
+  /// Les brouillons acceptés, rangés par dépôt (chemins réels dans le dépôt).
+  Map<RepoTarget, Map<String, String?>> get acceptedByRepo {
+    final out = <RepoTarget, Map<String, String?>>{};
+    for (final e in accepted.entries) {
+      final where = resolve(e.key);
+      if (where == null || where.$2.isEmpty) continue;
+      out.putIfAbsent(where.$1, () => {})[where.$2] = e.value;
+    }
+    return out;
+  }
+
+  /// Envoie les changements de chaque dépôt : sur `targetBranch` (créée depuis la
+  /// branche de travail si besoin), puis ouvre éventuellement une pull request.
+  Future<List<ShipResult>> commitAll({
+    required String message,
+    String? targetBranch,
+    bool openPr = false,
+  }) async {
+    final groups = acceptedByRepo;
+    if (groups.isEmpty) {
+      throw GitHubException('Aucun brouillon accepté à envoyer.');
+    }
+    final results = <ShipResult>[];
+    for (final g in groups.entries) {
+      final t = g.key;
+      final target = targetBranch ?? t.branch;
+      if (target != t.branch) {
+        try {
+          await github.createBranch(t.owner, t.name, target, from: t.branch);
+        } on GitHubException catch (e) {
+          if (e.status != 422) rethrow; // 422 : la branche existe déjà
+        }
+      }
+      final sha = await github.commitFiles(
+        t.owner,
+        t.name,
+        branch: target,
+        message: message,
+        changes: [
+          for (final e in g.value.entries)
+            e.value == null
+                ? FileChange.remove(e.key)
+                : FileChange.write(e.key, e.value!),
+        ],
+      );
+      if (openPr && target != t.branch) {
+        final others = groups.keys.where((x) => x != t).map((x) => x.fullName);
+        final pr = await github.createPull(
+          t.owner,
+          t.name,
+          title: message,
+          head: target,
+          base: t.branch,
+          body:
+              '$summary\n\n> $task\n\n'
+              '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
+              '_Proposé par un agent NEXORA._',
+        );
+        results.add(ShipResult(t, pr.htmlUrl));
+      } else {
+        results.add(ShipResult(t, sha));
+      }
+    }
+    return results;
+  }
+
+  /// Envoi sur le dépôt principal (une seule mission, un seul dépôt).
   Future<String> commit({
     required String message,
     required String targetBranch,
     bool openPr = false,
   }) async {
-    final toSend = accepted;
-    if (toSend.isEmpty) {
-      throw GitHubException('Aucun brouillon accepté à envoyer.');
-    }
-    if (targetBranch != branch) {
-      try {
-        await github.createBranch(owner, repo, targetBranch, from: branch);
-      } on GitHubException catch (e) {
-        if (e.status != 422) rethrow; // 422 : la branche existe déjà
-      }
-    }
-    final sha = await github.commitFiles(
-      owner,
-      repo,
-      branch: targetBranch,
+    final r = await commitAll(
       message: message,
-      changes: [
-        for (final e in toSend.entries)
-          e.value == null
-              ? FileChange.remove(e.key)
-              : FileChange.write(e.key, e.value!),
-      ],
+      targetBranch: targetBranch == branch ? null : targetBranch,
+      openPr: openPr,
     );
-    if (openPr && targetBranch != branch) {
-      final pr = await github.createPull(
-        owner,
-        repo,
-        title: message,
-        head: targetBranch,
-        base: branch,
-        body: '$summary\n\n> $task\n\n_Proposé par un agent NEXORA._',
-      );
-      return pr.htmlUrl;
-    }
-    return sha;
+    return r.first.result;
   }
 }

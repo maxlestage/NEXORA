@@ -200,10 +200,17 @@ class ThinkSplitter {
 }
 
 class LlmException implements Exception {
-  LlmException(this.message, {this.status});
+  LlmException(this.message, {this.status, this.transient = false});
 
   final String message;
   final int? status;
+
+  /// Coupure réseau ou délai dépassé : réessayer a des chances de marcher.
+  final bool transient;
+
+  /// Vaut-il la peine de réessayer (réseau, délai, saturation, limite de débit) ?
+  bool get retryable =>
+      transient || const {408, 429, 500, 502, 503, 504, 529}.contains(status);
 
   @override
   String toString() => status == null ? message : 'HTTP $status · $message';
