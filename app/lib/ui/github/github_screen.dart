@@ -125,7 +125,7 @@ class _SignInState extends State<_SignIn> {
             const SizedBox(height: 24),
             if (_code != null)
               Glass(
-                glow: Nx.cyan,
+                glow: Nx.accent(context),
                 child: Column(
                   children: [
                     const Text('Saisissez ce code sur GitHub :'),
@@ -330,7 +330,7 @@ class _ReposState extends State<_Repos> {
                             Icon(
                               r.private ? Icons.lock_outline : Icons.public,
                               size: 16,
-                              color: Nx.cyan,
+                              color: Nx.accent(context),
                             ),
                             const SizedBox(width: 6),
                             Expanded(

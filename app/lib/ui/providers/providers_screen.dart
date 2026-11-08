@@ -89,7 +89,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                       '${s.readyProviders.length}',
                       style: tt.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
-                        color: Nx.cyan,
+                        color: Nx.accent(context),
                       ),
                     ),
                     Text('prêts', style: tt.labelSmall),
@@ -170,7 +170,10 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                                 children: [
                                   if (p.free) const Badge2('gratuit'),
                                   if (!p.needsKey)
-                                    const Badge2('sans clé', color: Nx.cyan),
+                                    Badge2(
+                                      'sans clé',
+                                      color: Nx.accent(context),
+                                    ),
                                   if (p.local)
                                     const Badge2('local', color: Nx.amber),
                                   if (s.isReady(p))

@@ -34,7 +34,7 @@ class MarkdownView extends StatelessWidget {
         code: TextStyle(
           fontFamily: Nx.mono,
           fontSize: 13.5,
-          color: dark ? Nx.cyan : const Color(0xFF0E7490),
+          color: Nx.accent(context),
           backgroundColor: dark
               ? Colors.white.withValues(alpha: 0.07)
               : Colors.black.withValues(alpha: 0.05),
@@ -108,9 +108,9 @@ class CodeBlock extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: Nx.gradient,
+                    gradient: Nx.gradientOf(context),
                   ),
                 ),
                 const SizedBox(width: 8),

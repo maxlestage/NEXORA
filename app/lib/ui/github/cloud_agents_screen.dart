@@ -293,7 +293,7 @@ class _AgentCard extends StatelessWidget {
                           const Badge2('non installé', color: Colors.grey),
                         if (agent.free) ...[
                           const SizedBox(width: 6),
-                          const Badge2('gratuit', color: Nx.cyan),
+                          Badge2('gratuit', color: Nx.accent(context)),
                         ],
                       ],
                     ),
@@ -307,7 +307,10 @@ class _AgentCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Secrets : ${agent.secrets.join(' · ')}',
-            style: tt.labelSmall?.copyWith(fontFamily: Nx.mono, color: Nx.cyan),
+            style: tt.labelSmall?.copyWith(
+              fontFamily: Nx.mono,
+              color: Nx.accent(context),
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(

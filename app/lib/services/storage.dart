@@ -77,6 +77,9 @@ class Storage {
       _prefs.getBool(key) ?? fallback;
   Future<void> setBool(String key, bool value) => _prefs.setBool(key, value);
 
+  int getInt(String key, {int fallback = 0}) => _prefs.getInt(key) ?? fallback;
+  Future<void> setInt(String key, int value) => _prefs.setInt(key, value);
+
   double getDouble(String key, {double fallback = 0}) =>
       _prefs.getDouble(key) ?? fallback;
   Future<void> setDouble(String key, double value) =>

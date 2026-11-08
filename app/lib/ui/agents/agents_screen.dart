@@ -145,7 +145,7 @@ class _Cloud extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
       children: [
         Glass(
-          glow: Nx.cyan,
+          glow: Nx.accent(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -222,7 +222,7 @@ class _Cloud extends StatelessWidget {
                               'Secret : ${a.secrets.join(', ')}',
                               style: tt.labelSmall?.copyWith(
                                 fontFamily: Nx.mono,
-                                color: Nx.cyan,
+                                color: Nx.accent(context),
                               ),
                             ),
                           ],
@@ -258,7 +258,7 @@ class AgentCard extends StatelessWidget {
           children: [
             EmojiAvatar(
               agent.emoji,
-              color: agent.builtin ? Nx.violet : Nx.cyan,
+              color: agent.builtin ? Nx.violet : Nx.accent(context),
             ),
             const Spacer(),
             Text(

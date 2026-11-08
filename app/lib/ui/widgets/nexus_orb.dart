@@ -24,9 +24,11 @@ class _V3 {
 
 /// Un nœud qui orbite autour du cœur (un fournisseur, un agent…).
 class _Sat {
-  _Sat(this.radius, this.speed, this.tilt, this.phase, this.color, this.size);
+  _Sat(this.radius, this.speed, this.tilt, this.phase, this.slot, this.size);
   final double radius, speed, tilt, phase, size;
-  final Color color;
+
+  /// Place dans la palette : 0 à 2 jeu de couleurs, 3 vert, 4 ambre.
+  final int slot;
 }
 
 /// Le logo vivant de NEXORA : un icosaèdre en 3D (projection perspective réelle),
@@ -67,7 +69,7 @@ class _NexusOrbState extends State<NexusOrb>
   void initState() {
     super.initState();
     final r = math.Random(7);
-    const colors = [Nx.cyan, Nx.violet, Nx.magenta, Nx.green, Nx.amber];
+    const colors = [0, 1, 2, 3, 4];
     _sats = List.generate(
       widget.satellites,
       (i) => _Sat(
@@ -87,8 +89,9 @@ class _NexusOrbState extends State<NexusOrb>
     _last = elapsed;
     final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     setState(() {
-      _t += dt * widget.speed * (reduce ? 0.15 : 1);
-      _yaw += (0.25 * widget.speed * (reduce ? 0.1 : 1)) * dt + _vyaw * dt;
+      final m = Nx.motionSpeed * (reduce ? 0.15 : 1);
+      _t += dt * widget.speed * m;
+      _yaw += (0.25 * widget.speed * m) * dt + _vyaw * dt;
       _pitch = (_pitch + _vpitch * dt).clamp(-1.2, 1.2);
       _vyaw *= math.pow(0.04, dt).toDouble();
       _vpitch *= math.pow(0.04, dt).toDouble();
@@ -103,9 +106,25 @@ class _NexusOrbState extends State<NexusOrb>
 
   @override
   Widget build(BuildContext context) {
+    // Animations coupées : une image fixe ; rétablies : on repart.
+    if (Nx.animationsOff && _ticker.isActive && _t > 0) {
+      _ticker.stop();
+    } else if (!Nx.animationsOff && !_ticker.isActive) {
+      _last = Duration.zero;
+      _ticker.start();
+    }
+    final pal =
+        Theme.of(context).extension<NxPalette>()?.colors ??
+        const [Nx.cyan, Nx.violet, Nx.magenta];
     final painter = CustomPaint(
       size: Size.square(widget.size),
-      painter: _OrbPainter(_t, _yaw, _pitch, _sats, widget.pulse),
+      painter: _OrbPainter(_t, _yaw, _pitch, _sats, widget.pulse, [
+        pal[0],
+        pal[1],
+        pal[2],
+        Nx.green,
+        Nx.amber,
+      ]),
     );
     if (!widget.interactive) return RepaintBoundary(child: painter);
     return GestureDetector(
@@ -123,9 +142,15 @@ class _NexusOrbState extends State<NexusOrb>
 }
 
 class _OrbPainter extends CustomPainter {
-  _OrbPainter(this.t, this.yaw, this.pitch, this.sats, this.pulse);
+  _OrbPainter(this.t, this.yaw, this.pitch, this.sats, this.pulse, this.pal);
 
   final double t, yaw, pitch;
+
+  /// Jeu de couleurs (0 principale, 1 et 2 dégradé) puis vert et ambre.
+  final List<Color> pal;
+  Color get c0 => pal[0];
+  Color get c1 => pal[1];
+  Color get c2 => pal[2];
   final List<_Sat> sats;
   final bool pulse;
 
@@ -187,8 +212,8 @@ class _OrbPainter extends CustomPainter {
       Paint()
         ..shader = RadialGradient(
           colors: [
-            Nx.violet.withValues(alpha: 0.35),
-            Nx.cyan.withValues(alpha: 0.08),
+            c1.withValues(alpha: 0.35),
+            c0.withValues(alpha: 0.08),
             Colors.transparent,
           ],
         ).createShader(Rect.fromCircle(center: c, radius: size.width * 0.45)),
@@ -210,7 +235,7 @@ class _OrbPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2
-          ..color = (r == 0 ? Nx.magenta : Nx.cyan).withValues(alpha: 0.45),
+          ..color = (r == 0 ? c2 : c0).withValues(alpha: 0.45),
       );
     }
 
@@ -242,8 +267,8 @@ class _OrbPainter extends CustomPainter {
     for (final (o, z, s) in sorted) {
       linePaint.shader = LinearGradient(
         colors: [
-          s.color.withValues(alpha: 0.0),
-          s.color.withValues(alpha: 0.18 + (z + 2.5) * 0.06),
+          pal[s.slot].withValues(alpha: 0.0),
+          pal[s.slot].withValues(alpha: 0.18 + (z + 2.5) * 0.06),
         ],
       ).createShader(Rect.fromPoints(c, o));
       canvas.drawLine(c, o, linePaint);
@@ -261,16 +286,8 @@ class _OrbPainter extends CustomPainter {
         ..strokeWidth = 0.8 + depth * 1.6
         ..shader = LinearGradient(
           colors: [
-            Color.lerp(
-              Nx.violet,
-              Nx.cyan,
-              depth,
-            )!.withValues(alpha: 0.35 + depth * 0.6),
-            Color.lerp(
-              Nx.magenta,
-              Nx.violet,
-              depth,
-            )!.withValues(alpha: 0.35 + depth * 0.6),
+            Color.lerp(c1, c0, depth)!.withValues(alpha: 0.35 + depth * 0.6),
+            Color.lerp(c2, c1, depth)!.withValues(alpha: 0.35 + depth * 0.6),
           ],
         ).createShader(Rect.fromPoints(pts[i].$1, pts[j].$1));
       canvas.drawLine(pts[i].$1, pts[j].$1, edgePaint);
@@ -284,18 +301,17 @@ class _OrbPainter extends CustomPainter {
       c,
       scale * 0.42 * beat,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [Colors.white, Nx.cyan, Nx.violet],
-        ).createShader(Rect.fromCircle(center: c, radius: scale * 0.42)),
+        ..shader = RadialGradient(colors: [Colors.white, c0, c1])
+            .createShader(Rect.fromCircle(center: c, radius: scale * 0.42)),
     );
 
     // Les satellites devant le cœur.
     final satPaint = Paint();
     for (final (o, z, s) in sorted) {
       final k = (z + 2.5) / 5;
-      satPaint.color = s.color.withValues(alpha: 0.25);
+      satPaint.color = pal[s.slot].withValues(alpha: 0.25);
       canvas.drawCircle(o, s.size * (0.8 + k) * 2.2, satPaint);
-      satPaint.color = s.color;
+      satPaint.color = pal[s.slot];
       canvas.drawCircle(o, s.size * (0.6 + k * 0.8), satPaint);
     }
   }

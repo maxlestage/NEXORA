@@ -32,6 +32,14 @@ class _AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    if (Nx.animationsOff) {
+      if (_c.isAnimating) _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+    final pal =
+        Theme.of(context).extension<NxPalette>()?.colors ??
+        const [Nx.cyan, Nx.violet, Nx.magenta];
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -39,7 +47,7 @@ class _AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
           child: AnimatedBuilder(
             animation: _c,
             builder: (context, _) => CustomPaint(
-              painter: _AuroraPainter(_c.value, dark, widget.intensity),
+              painter: _AuroraPainter(_c.value, dark, widget.intensity, pal),
             ),
           ),
         ),
@@ -50,25 +58,23 @@ class _AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
 }
 
 class _AuroraPainter extends CustomPainter {
-  _AuroraPainter(this.v, this.dark, this.intensity);
+  _AuroraPainter(this.v, this.dark, this.intensity, this.pal);
 
   final double v;
   final bool dark;
   final double intensity;
+  final List<Color> pal;
 
   @override
   void paint(Canvas canvas, Size size) {
     final a = v * math.pi * 2;
     final blobs = [
-      (Nx.violet, Offset(0.2 + 0.15 * math.sin(a), 0.15 + 0.1 * math.cos(a))),
+      (pal[1], Offset(0.2 + 0.15 * math.sin(a), 0.15 + 0.1 * math.cos(a))),
       (
-        Nx.cyan,
+        pal[0],
         Offset(0.85 + 0.1 * math.cos(a * 1.3), 0.3 + 0.12 * math.sin(a)),
       ),
-      (
-        Nx.magenta,
-        Offset(0.5 + 0.2 * math.sin(a * 0.7), 0.9 + 0.08 * math.cos(a)),
-      ),
+      (pal[2], Offset(0.5 + 0.2 * math.sin(a * 0.7), 0.9 + 0.08 * math.cos(a))),
     ];
     for (final (color, pos) in blobs) {
       final center = Offset(pos.dx * size.width, pos.dy * size.height);
@@ -88,7 +94,8 @@ class _AuroraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AuroraPainter old) => old.v != v || old.dark != dark;
+  bool shouldRepaint(_AuroraPainter old) =>
+      old.v != v || old.dark != dark || old.pal != pal;
 }
 
 /// Un texte rempli du dégradé NEXORA.
@@ -101,7 +108,7 @@ class GradientText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShaderMask(
-      shaderCallback: (r) => Nx.gradient.createShader(r),
+      shaderCallback: (r) => Nx.gradientOf(context).createShader(r),
       blendMode: BlendMode.srcIn,
       child: Text(text, style: style),
     );
@@ -177,6 +184,7 @@ class _Tilt3DState extends State<Tilt3D> {
 
   @override
   Widget build(BuildContext context) {
+    if (Nx.animationsOff) return widget.child;
     return LayoutBuilder(
       builder: (context, c) {
         final size = Size(c.maxWidth.isFinite ? c.maxWidth : 300, 200);
@@ -215,6 +223,7 @@ class Reveal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (Nx.animationsOff) return child;
     final delay = (index.clamp(0, 12)) * 45;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),

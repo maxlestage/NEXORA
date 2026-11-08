@@ -54,7 +54,7 @@ class _HelpScreenState extends State<HelpScreen> {
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 40),
         children: [
           Glass(
-            glow: Nx.cyan,
+            glow: Nx.accent(context),
             child: Row(
               children: [
                 const Text('🧭', style: TextStyle(fontSize: 30)),

@@ -30,6 +30,39 @@ class SettingsState extends ChangeNotifier {
   bool onboarded = false;
   bool showThinking = true;
   bool haptics = true;
+
+  // —— Personnalisation ——————————————————————————————————————
+  /// Le niveau de réflexion par défaut des conversations.
+  ThinkLevel defaultLevel = ThinkLevel.equilibre;
+
+  /// Le jeu de couleurs (index dans `accentPalettes`).
+  int accent = 0;
+
+  /// Fond noir pur (écrans OLED).
+  bool oledBlack = false;
+
+  /// Taille du texte (1 = normale).
+  double textScale = 1;
+
+  /// `full`, `reduced` ou `off`.
+  String animations = 'full';
+
+  /// Style des messages envoyés : `gradient`, `filled` ou `minimal`.
+  String bubbleStyle = 'gradient';
+
+  /// Touche Entrée pour envoyer (clavier physique, web, tablette).
+  bool sendOnEnter = false;
+
+  /// Le nom de l'assistant, utilisé dans sa consigne.
+  String assistantName = 'NEXORA';
+
+  /// Instructions personnelles ajoutées à chaque conversation.
+  bool customInstructions = false;
+  String aboutMe = '';
+  String responseStyle = '';
+
+  /// Onglets masqués (agents, github).
+  Set<String> hiddenTabs = {};
   String githubClientId = const String.fromEnvironment('GITHUB_CLIENT_ID');
 
   void _load() {
@@ -70,6 +103,21 @@ class SettingsState extends ChangeNotifier {
     onboarded = storage.getBool('onboarded');
     showThinking = storage.getBool('show_thinking', fallback: true);
     haptics = storage.getBool('haptics', fallback: true);
+    defaultLevel =
+        ThinkLevel.parse(storage.getString('default_level')) ??
+        ThinkLevel.equilibre;
+    accent = storage.getInt('accent');
+    oledBlack = storage.getBool('oled_black');
+    textScale = storage.getDouble('text_scale', fallback: 1);
+    animations = storage.getString('animations') ?? 'full';
+    bubbleStyle = storage.getString('bubble_style') ?? 'gradient';
+    sendOnEnter = storage.getBool('send_on_enter');
+    assistantName = storage.getString('assistant_name') ?? 'NEXORA';
+    customInstructions = storage.getBool('custom_instructions');
+    aboutMe = storage.getString('about_me') ?? '';
+    responseStyle = storage.getString('response_style') ?? '';
+    final ht = storage.readJson('hidden_tabs');
+    if (ht is List) hiddenTabs = ht.cast<String>().toSet();
     final cid = storage.getString('github_client_id');
     if (cid != null && cid.isNotEmpty) githubClientId = cid;
   }
@@ -294,6 +342,187 @@ class SettingsState extends ChangeNotifier {
   Future<void> setGithubClientId(String id) async {
     githubClientId = id.trim();
     await storage.setString('github_client_id', githubClientId);
+    notifyListeners();
+  }
+
+  // —— Personnalisation ——————————————————————————————————————
+
+  Future<void> setDefaultLevel(ThinkLevel l) async {
+    defaultLevel = l;
+    await storage.setString('default_level', l.name);
+    notifyListeners();
+  }
+
+  Future<void> setAccent(int i) async {
+    accent = i;
+    await storage.setInt('accent', i);
+    notifyListeners();
+  }
+
+  Future<void> setOledBlack(bool v) async {
+    oledBlack = v;
+    await storage.setBool('oled_black', v);
+    notifyListeners();
+  }
+
+  Future<void> setTextScale(double v) async {
+    textScale = v;
+    await storage.setDouble('text_scale', v);
+    notifyListeners();
+  }
+
+  Future<void> setAnimations(String v) async {
+    animations = v;
+    await storage.setString('animations', v);
+    notifyListeners();
+  }
+
+  Future<void> setBubbleStyle(String v) async {
+    bubbleStyle = v;
+    await storage.setString('bubble_style', v);
+    notifyListeners();
+  }
+
+  Future<void> setSendOnEnter(bool v) async {
+    sendOnEnter = v;
+    await storage.setBool('send_on_enter', v);
+    notifyListeners();
+  }
+
+  Future<void> setAssistantName(String v) async {
+    assistantName = v.trim().isEmpty ? 'NEXORA' : v.trim();
+    await storage.setString('assistant_name', assistantName);
+    notifyListeners();
+  }
+
+  Future<void> setCustomInstructions({
+    bool? enabled,
+    String? about,
+    String? style,
+  }) async {
+    if (enabled != null) customInstructions = enabled;
+    if (about != null) aboutMe = about;
+    if (style != null) responseStyle = style;
+    await storage.setBool('custom_instructions', customInstructions);
+    await storage.setString('about_me', aboutMe);
+    await storage.setString('response_style', responseStyle);
+    notifyListeners();
+  }
+
+  Future<void> setTabHidden(String tab, bool hidden) async {
+    hidden ? hiddenTabs.add(tab) : hiddenTabs.remove(tab);
+    await storage.writeJson('hidden_tabs', hiddenTabs.toList());
+    notifyListeners();
+  }
+
+  /// La consigne commune à toutes les conversations : le nom de l'assistant et
+  /// les instructions personnelles.
+  String personalSystem() {
+    final b = StringBuffer(
+      'Tu es $assistantName, un assistant utile et précis. Réponds dans la langue '
+      'de l\'utilisateur, en Markdown.',
+    );
+    if (customInstructions && aboutMe.trim().isNotEmpty) {
+      b.write('\n\nCe que l\'utilisateur dit de lui :\n${aboutMe.trim()}');
+    }
+    if (customInstructions && responseStyle.trim().isNotEmpty) {
+      b.write(
+        '\n\nComment l\'utilisateur veut que tu répondes :\n${responseStyle.trim()}',
+      );
+    }
+    return b.toString();
+  }
+
+  /// Tous les réglages (sans les clés ni le jeton), pour les sauvegarder ou les
+  /// copier sur un autre appareil.
+  Map<String, dynamic> exportPreferences() => {
+    'theme': themeMode.name,
+    'default_model': defaultModel,
+    'temperature': temperature,
+    'show_thinking': showThinking,
+    'haptics': haptics,
+    'default_level': defaultLevel.name,
+    'accent': accent,
+    'oled_black': oledBlack,
+    'text_scale': textScale,
+    'animations': animations,
+    'bubble_style': bubbleStyle,
+    'send_on_enter': sendOnEnter,
+    'assistant_name': assistantName,
+    'custom_instructions': customInstructions,
+    'about_me': aboutMe,
+    'response_style': responseStyle,
+    'hidden_tabs': hiddenTabs.toList(),
+    'favorite_models': _favorites.toList(),
+  };
+
+  Future<void> importPreferences(Map<String, dynamic> j) async {
+    T? v<T>(String k) => j[k] is T ? j[k] as T : null;
+    final theme = ThemeMode.values.where((t) => t.name == j['theme']);
+    if (theme.isNotEmpty) await setTheme(theme.first);
+    final model = ModelRef.parse(v<String>('default_model'));
+    if (model != null) await setDefaultModel(model);
+    if (v<num>('temperature') != null) {
+      await setTemperature(v<num>('temperature')!.toDouble());
+    }
+    if (v<bool>('show_thinking') != null) {
+      await setShowThinking(v<bool>('show_thinking')!);
+    }
+    if (v<bool>('haptics') != null) await setHaptics(v<bool>('haptics')!);
+    final level = ThinkLevel.parse(v<String>('default_level'));
+    if (level != null) await setDefaultLevel(level);
+    if (v<num>('accent') != null) await setAccent(v<num>('accent')!.toInt());
+    if (v<bool>('oled_black') != null) {
+      await setOledBlack(v<bool>('oled_black')!);
+    }
+    if (v<num>('text_scale') != null) {
+      await setTextScale(v<num>('text_scale')!.toDouble().clamp(0.8, 1.4));
+    }
+    if (v<String>('animations') != null) {
+      await setAnimations(v<String>('animations')!);
+    }
+    if (v<String>('bubble_style') != null) {
+      await setBubbleStyle(v<String>('bubble_style')!);
+    }
+    if (v<bool>('send_on_enter') != null) {
+      await setSendOnEnter(v<bool>('send_on_enter')!);
+    }
+    if (v<String>('assistant_name') != null) {
+      await setAssistantName(v<String>('assistant_name')!);
+    }
+    await setCustomInstructions(
+      enabled: v<bool>('custom_instructions'),
+      about: v<String>('about_me'),
+      style: v<String>('response_style'),
+    );
+    final tabs = j['hidden_tabs'];
+    if (tabs is List) {
+      hiddenTabs = tabs.whereType<String>().toSet();
+      await storage.writeJson('hidden_tabs', hiddenTabs.toList());
+    }
+    final fav = j['favorite_models'];
+    if (fav is List) {
+      _favorites
+        ..clear()
+        ..addAll(fav.whereType<String>());
+      await storage.writeJson('favorite_models', _favorites.toList());
+    }
+    notifyListeners();
+  }
+
+  /// Remet l'apparence et l'assistant par défaut (pas les clés ni les modèles).
+  Future<void> resetPersonalization() async {
+    await setDefaultLevel(ThinkLevel.equilibre);
+    await setAccent(0);
+    await setOledBlack(false);
+    await setTextScale(1);
+    await setAnimations('full');
+    await setBubbleStyle('gradient');
+    await setSendOnEnter(false);
+    await setAssistantName('NEXORA');
+    await setCustomInstructions(enabled: false, about: '', style: '');
+    hiddenTabs.clear();
+    await storage.writeJson('hidden_tabs', <String>[]);
     notifyListeners();
   }
 

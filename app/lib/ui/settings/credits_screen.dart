@@ -67,7 +67,7 @@ class CreditsScreen extends StatelessWidget {
                       'Conception, design et développement',
                       textAlign: TextAlign.center,
                       style: tt.labelLarge?.copyWith(
-                        color: Nx.cyan,
+                        color: Nx.accent(context),
                         letterSpacing: 1.2,
                         fontWeight: FontWeight.w800,
                       ),

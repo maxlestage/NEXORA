@@ -482,7 +482,7 @@ class _AiDialogState extends State<_AiDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.auto_fix_high, color: Nx.cyan),
+          Icon(Icons.auto_fix_high, color: Nx.accent(context)),
           const SizedBox(width: 8),
           Text(_done ? 'Résultat' : 'Génération…'),
         ],

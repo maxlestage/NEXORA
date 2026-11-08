@@ -56,6 +56,25 @@ clés sont rangées dans le **trousseau sécurisé** (Keychain sur iOS, Keystore
 **Ollama sur votre ordinateur** : lancez `OLLAMA_HOST=0.0.0.0 ollama serve`, puis saisissez
 l'adresse IP de la machine dans l'app (ex. `http://192.168.1.20:11434`).
 
+### 🧠 Le niveau de réflexion
+
+Comme l'effort de Claude : choisissez pour chaque conversation, chaque agent, l'agent autonome
+ou par défaut, entre **⚡ Rapide**, **⚖️ Équilibré**, **🧠 Approfondi** et **🚀 Maximum**.
+NEXORA le traduit pour chaque fournisseur : `effort` et réflexion adaptative de Claude,
+`reasoning_effort` d'OpenAI, Gemini, Groq et gpt-oss, `reasoning` d'OpenRouter, `think`
+d'Ollama ; sinon, le niveau ajuste la consigne et la longueur de réponse. Le niveau fixe aussi
+le nombre d'actions de l'agent autonome (12 à 64). Si un modèle refuse le réglage, la requête
+repart automatiquement sans lui.
+
+### 🎨 Personnalisable de A à Z
+
+Réglages → **Personnaliser**, avec un aperçu en direct : 8 jeux de couleurs (Néon, Océan,
+Aurore, Coucher de soleil, Rubis, Forêt, Or, Monochrome), thème sombre, clair ou auto, noir pur
+OLED, taille du texte, animations (toutes, douces, aucune), style des messages, Entrée pour
+envoyer, niveau de réflexion par défaut, créativité, raisonnement visible, retour haptique,
+**nom de l'assistant** et **instructions personnelles** (qui vous êtes, comment répondre),
+onglets visibles, et export / import des réglages (sans les clés).
+
 ### 📊 Le témoin de crédit
 
 Un point coloré à côté du modèle indique où vous en êtes chez chaque fournisseur :

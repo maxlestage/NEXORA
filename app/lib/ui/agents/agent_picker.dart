@@ -40,7 +40,7 @@ Future<String?> pickAgent(BuildContext context, {String? current}) {
                 leading: EmojiAvatar(
                   a.emoji,
                   size: 40,
-                  color: a.builtin ? Nx.violet : Nx.cyan,
+                  color: a.builtin ? Nx.violet : Nx.accent(context),
                 ),
                 title: Text(a.name),
                 subtitle: Text(
@@ -49,7 +49,7 @@ Future<String?> pickAgent(BuildContext context, {String? current}) {
                   overflow: TextOverflow.ellipsis,
                 ),
                 selected: current == a.id,
-                selectedTileColor: Nx.cyan.withValues(alpha: 0.08),
+                selectedTileColor: Nx.accent(context).withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

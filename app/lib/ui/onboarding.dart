@@ -149,7 +149,7 @@ class _OnboardingState extends State<Onboarding> {
                             Text(
                               p.eyebrow.toUpperCase(),
                               style: tt.labelLarge?.copyWith(
-                                color: Nx.cyan,
+                                color: Nx.accent(context),
                                 letterSpacing: 2,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -215,7 +215,9 @@ class _OnboardingState extends State<Onboarding> {
                         height: 8,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          gradient: _page.round() == i ? Nx.gradient : null,
+                          gradient: _page.round() == i
+                              ? Nx.gradientOf(context)
+                              : null,
                           color: _page.round() == i
                               ? null
                               : Colors.white.withValues(alpha: 0.2),

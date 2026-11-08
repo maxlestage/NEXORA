@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../data/model_prices.dart';
+import '../models/level.dart';
 import '../models/provider.dart';
 import 'llm_parsers.dart';
 
+export '../models/level.dart';
 export 'llm_parsers.dart';
 
 /// Un message envoyé au modèle.
@@ -31,10 +33,83 @@ class ModelInfo {
 
 /// Options d'un appel.
 class LlmOptions {
-  const LlmOptions({this.temperature, this.maxTokens = 8192});
+  const LlmOptions({this.temperature, this.maxTokens = 8192, this.level});
 
   final double? temperature;
   final int maxTokens;
+
+  /// Le niveau de réflexion, traduit pour chaque fournisseur (voir [reasoningParams]).
+  final ThinkLevel? level;
+}
+
+/// Les paramètres de réflexion d'un niveau, pour un fournisseur et un modèle.
+/// Vide quand le modèle n'a pas de réglage natif (le niveau joue alors sur la
+/// longueur de réponse et la consigne).
+Map<String, dynamic> reasoningParams(
+  ProviderDef p,
+  String model,
+  ThinkLevel? l,
+) {
+  if (l == null) return const {};
+  final m = model.toLowerCase();
+  switch (p.kind) {
+    case ApiKind.anthropic:
+      final v = RegExp(
+        r'claude-(?:opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?',
+      ).firstMatch(m);
+      if (v == null) return const {};
+      final major = int.parse(v.group(1)!);
+      final minor = int.tryParse(v.group(2) ?? '') ?? 0;
+      // Effort et réflexion adaptative : Claude 4.6 et suivants.
+      if (major < 4 || (major == 4 && minor < 6)) return const {};
+      return {
+        'thinking': {'type': 'adaptive', 'display': 'summarized'},
+        'output_config': {'effort': l.anthropic},
+      };
+    case ApiKind.ollama:
+      if (m.contains('gpt-oss')) return {'think': l.openai};
+      final thinks = RegExp(
+        r'qwen3|deepseek-r1|deepseek-v3\.[1-9]|deepseek-v4|magistral|glm-5|'
+        r'kimi-k2\.[6-9]|kimi-k3|minimax-m3|mimo|nemotron-3|muse|beam|'
+        r'mistral-large-4|gemma4',
+      );
+      if (!thinks.hasMatch(m)) return const {};
+      return {'think': l != ThinkLevel.rapide};
+    case ApiKind.openai:
+      if (p.id == 'openrouter') {
+        return {
+          'reasoning': {'effort': l.openai},
+        };
+      }
+      if (m.contains('gpt-oss')) return {'reasoning_effort': l.openai};
+      switch (p.id) {
+        case 'openai':
+          return RegExp(r'^(gpt-5|o[134])').hasMatch(m)
+              ? {'reasoning_effort': l.openai}
+              : const {};
+        case 'gemini':
+          return RegExp(r'gemini-(2\.5|[3-9])').hasMatch(m)
+              ? {'reasoning_effort': l.openai}
+              : const {};
+        case 'groq':
+          return m.contains('qwen3')
+              ? {
+                  'reasoning_effort': l == ThinkLevel.rapide
+                      ? 'none'
+                      : 'default',
+                }
+              : const {};
+        case 'xai':
+          return m.contains('grok-3-mini')
+              ? {
+                  'reasoning_effort': l.index >= ThinkLevel.approfondi.index
+                      ? 'high'
+                      : 'low',
+                }
+              : const {};
+      }
+      return const {};
+  }
 }
 
 /// Parle à tous les fournisseurs : OpenAI et compatibles, Ollama, Anthropic.
@@ -83,11 +158,16 @@ class LlmClient {
     List<LlmMessage> messages,
     String? system,
     LlmOptions o,
-    bool stream,
-  ) {
+    bool stream, {
+    bool reasoning = true,
+  }) {
+    final extra = reasoning
+        ? reasoningParams(p, model, o.level)
+        : const <String, dynamic>{};
     switch (p.kind) {
       case ApiKind.anthropic:
         return {
+          ...extra,
           'model': model,
           'max_tokens': o.maxTokens < 1024 ? 1024 : o.maxTokens,
           if (system != null && system.isNotEmpty) 'system': system,
@@ -104,6 +184,7 @@ class LlmClient {
           ],
           'stream': stream,
           if (o.temperature != null) 'options': {'temperature': o.temperature},
+          ...extra,
         };
       case ApiKind.openai:
         return {
@@ -118,6 +199,7 @@ class LlmClient {
           if (stream && _streamUsage.contains(p.id))
             'stream_options': {'include_usage': true},
           if (p.id == 'openrouter') 'usage': {'include': true},
+          ...extra,
         };
     }
   }
@@ -156,14 +238,33 @@ class LlmClient {
 
     Future<void> start() async {
       client = _factory();
-      final req = http.Request('POST', _chatUri(provider))
-        ..headers.addAll(_headers(provider, apiKey))
-        ..body = jsonEncode(
-          _body(provider, model, messages, system, options, true),
-        );
-      final http.StreamedResponse res;
+      http.Request request({required bool reasoning}) =>
+          http.Request('POST', _chatUri(provider))
+            ..headers.addAll(_headers(provider, apiKey))
+            ..body = jsonEncode(
+              _body(
+                provider,
+                model,
+                messages,
+                system,
+                options,
+                true,
+                reasoning: reasoning,
+              ),
+            );
+      http.StreamedResponse res;
       try {
-        res = await client!.send(req).timeout(const Duration(seconds: 60));
+        res = await client!
+            .send(request(reasoning: true))
+            .timeout(const Duration(seconds: 60));
+        // Le fournisseur refuse le réglage de réflexion : on réessaie sans.
+        if ((res.statusCode == 400 || res.statusCode == 422) &&
+            reasoningParams(provider, model, options.level).isNotEmpty) {
+          await res.stream.drain<void>();
+          res = await client!
+              .send(request(reasoning: false))
+              .timeout(const Duration(seconds: 60));
+        }
       } on TimeoutException {
         controller.addError(
           LlmException(

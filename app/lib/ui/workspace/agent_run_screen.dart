@@ -13,6 +13,7 @@ import '../agents/agent_picker.dart';
 import '../../state/agent_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
+import '../widgets/level_picker.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
@@ -40,6 +41,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
   final _task = TextEditingController();
   late Agent? _agent = widget.agent;
   ModelRef? _model;
+  ThinkLevel? _level;
   AgentRun? _run;
 
   @override
@@ -57,6 +59,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
     final s = context.read<SettingsState>();
     final ref = _model ?? s.resolve(_agent?.model ?? s.defaultModel);
     final provider = s.provider(ref.providerId)!;
+    final level = _level ?? ThinkLevel.parse(_agent?.level) ?? s.defaultLevel;
     final run = AgentRun(
       llm: context.read<LlmClient>(),
       github: context.read<GitHubState>().api,
@@ -68,6 +71,8 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
       branch: widget.branch ?? widget.repo.defaultBranch,
       task: _task.text.trim(),
       agent: _agent,
+      level: level,
+      maxSteps: level.agentSteps,
     );
     setState(() => _run = run);
     run.run();
@@ -231,6 +236,15 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                       current: ref,
                       onPicked: (r) => setState(() => _model = r),
                     ),
+                    LevelChip(
+                      level:
+                          _level ??
+                          ThinkLevel.parse(_agent?.level) ??
+                          s.defaultLevel,
+                      provider: s.provider(ref.providerId),
+                      model: ref.model,
+                      onPicked: (l) => setState(() => _level = l),
+                    ),
                     ActionChip(
                       avatar: Text(_agent?.emoji ?? '🤖'),
                       label: Text(_agent?.name ?? 'Agent généraliste'),
@@ -273,7 +287,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
                 children: [
                   Glass(
-                    glow: run.running ? Nx.cyan : Nx.green,
+                    glow: run.running ? Nx.accent(context) : Nx.green,
                     child: Row(
                       children: [
                         NexusOrb(
@@ -404,7 +418,7 @@ class _StepTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color) = switch (step.kind) {
       StepKind.thought => (Icons.psychology_outlined, Nx.violet),
-      StepKind.tool => (Icons.build_circle_outlined, Nx.cyan),
+      StepKind.tool => (Icons.build_circle_outlined, Nx.accent(context)),
       StepKind.result => (Icons.subdirectory_arrow_right, Colors.grey),
       StepKind.error => (Icons.error_outline, Nx.red),
       StepKind.done => (Icons.flag_circle, Nx.green),

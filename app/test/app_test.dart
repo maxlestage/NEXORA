@@ -21,7 +21,7 @@ void main() {
       await tester.tap(find.text(tab).last);
       await tester.pump(const Duration(milliseconds: 500));
     }
-    expect(find.text('Apparence'.toUpperCase()), findsOneWidget);
+    expect(find.text('Personnaliser'), findsOneWidget);
 
     await tester.tap(find.text('Modèles').last);
     await tester.pump(const Duration(milliseconds: 500));

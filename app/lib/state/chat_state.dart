@@ -126,6 +126,19 @@ class ChatState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Le niveau de réflexion : celui de la conversation, sinon celui de l'agent,
+  /// sinon celui des réglages.
+  ThinkLevel levelFor(Conversation c, [Agent? agent]) =>
+      ThinkLevel.parse(c.level) ??
+      ThinkLevel.parse(agent?.level) ??
+      settings.defaultLevel;
+
+  void setLevel(String id, ThinkLevel? level) {
+    byId(id)?.level = level?.name;
+    _save(now: true);
+    notifyListeners();
+  }
+
   void setAgent(String id, String? agentId) {
     byId(id)?.agentId = agentId;
     _save(now: true);
@@ -185,13 +198,18 @@ class ChatState extends ChangeNotifier {
     c.updated = DateTime.now();
     notifyListeners();
 
+    final level = levelFor(c, agent);
     final system = [
       if (agent != null) agent.systemPrompt,
-      if (agent == null)
-        'Tu es NEXORA, un assistant utile et précis. Réponds dans la langue de '
-            'l\'utilisateur, en Markdown.',
+      if (agent == null) settings.personalSystem(),
+      if (agent != null &&
+          settings.customInstructions &&
+          (settings.aboutMe.trim().isNotEmpty ||
+              settings.responseStyle.trim().isNotEmpty))
+        settings.personalSystem().split('\n\n').skip(1).join('\n\n'),
+      if (level.hint.isNotEmpty) level.hint,
       if (context != null && context.isNotEmpty) context,
-    ].join('\n\n');
+    ].where((p) => p.trim().isNotEmpty).join('\n\n');
     var tokens = const TokenUsage(0, 0);
     var failed = false;
 
@@ -202,7 +220,11 @@ class ChatState extends ChangeNotifier {
           model: ref.model,
           messages: history,
           system: system,
-          options: LlmOptions(temperature: settings.temperature),
+          options: LlmOptions(
+            temperature: settings.temperature,
+            maxTokens: level.maxTokens,
+            level: level,
+          ),
           onHeaders: (h, _) => usage?.recordHeaders(provider.id, h),
         )
         .listen(

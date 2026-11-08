@@ -10,10 +10,11 @@ import '../../state/settings_state.dart';
 import '../help/help_screen.dart';
 import '../theme.dart';
 import 'credits_screen.dart';
+import 'personalize_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.3.0';
+const appVersion = '1.4.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -31,7 +32,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const SizedBox(height: 4),
           Glass(
-            glow: Nx.cyan,
+            glow: Nx.accent(context),
             onTap: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const HelpScreen())),
             child: const Row(
@@ -54,63 +55,46 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SectionTitle('Apparence'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: Icon(Icons.dark_mode),
-                    label: Text('Sombre'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: Icon(Icons.light_mode),
-                    label: Text('Clair'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    icon: Icon(Icons.phone_iphone),
-                    label: Text('Auto'),
-                  ),
-                ],
-                selected: {s.themeMode},
-                onSelectionChanged: (v) => s.setTheme(v.first),
-              ),
+          const SizedBox(height: 10),
+          Glass(
+            glow: Theme.of(context).colorScheme.primary,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PersonalizeScreen()),
             ),
-          ),
-          const SectionTitle('Conversation'),
-          Card(
-            child: Column(
+            child: Row(
               children: [
-                ListTile(
-                  title: const Text('Créativité (température)'),
-                  subtitle: Slider(
-                    value: s.temperature,
-                    min: 0,
-                    max: 1.5,
-                    divisions: 15,
-                    label: s.temperature.toStringAsFixed(1),
-                    onChanged: s.setTemperature,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: Nx.gradientOf(context),
                   ),
-                  trailing: Text(
-                    s.temperature.toStringAsFixed(1),
-                    style: const TextStyle(fontFamily: Nx.mono),
+                  child: const Icon(
+                    Icons.palette_outlined,
+                    color: Colors.white,
                   ),
                 ),
-                SwitchListTile(
-                  value: s.showThinking,
-                  onChanged: s.setShowThinking,
-                  title: const Text('Afficher le raisonnement'),
-                  subtitle: const Text('DeepSeek R1, Qwen3, gpt-oss…'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Personnaliser',
+                        style: tt.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Couleurs, thème, texte, animations, niveau de réflexion, '
+                        'messages, assistant, onglets…',
+                        style: tt.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
-                SwitchListTile(
-                  value: s.haptics,
-                  onChanged: s.setHaptics,
-                  title: const Text('Retour haptique'),
-                ),
+                const Icon(Icons.chevron_right),
               ],
             ),
           ),

@@ -203,7 +203,7 @@ class _ModelPickerState extends State<_ModelPicker> {
       child: ListTile(
         dense: true,
         selected: selected,
-        selectedTileColor: Nx.cyan.withValues(alpha: 0.1),
+        selectedTileColor: Nx.accent(context).withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Text(p.emoji, style: const TextStyle(fontSize: 20)),
         title: Text(
@@ -220,7 +220,7 @@ class _ModelPickerState extends State<_ModelPicker> {
             if (free || p.free) const Badge2('gratuit'),
             if (p.local) ...[
               const SizedBox(width: 4),
-              const Badge2('local', color: Nx.cyan),
+              Badge2('local', color: Nx.accent(context)),
             ],
             IconButton(
               visualDensity: VisualDensity.compact,

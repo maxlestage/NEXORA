@@ -248,7 +248,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                 EmojiAvatar(
                                   agent?.emoji ?? '💬',
                                   color: chat.isRunning(c.id)
-                                      ? Nx.cyan
+                                      ? Nx.accent(context)
                                       : Nx.violet,
                                 ),
                                 const SizedBox(width: 12),

@@ -264,9 +264,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             width: 24,
                             height: 24,
                             alignment: Alignment.center,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: Nx.gradient,
+                              gradient: Nx.gradientOf(context),
                             ),
                             child: Text(
                               '${i + 1}',
@@ -301,10 +301,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.lightbulb_outline,
                             size: 18,
-                            color: Nx.cyan,
+                            color: Nx.accent(context),
                           ),
                           const SizedBox(width: 8),
                           Expanded(child: Text(tip)),
@@ -444,7 +444,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add_circle, color: Nx.cyan),
+                icon: Icon(Icons.add_circle, color: Nx.accent(context)),
                 onPressed: () {
                   s.addManualModel(p.id, _manual.text);
                   _manual.clear();
