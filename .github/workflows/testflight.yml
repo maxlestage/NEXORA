@@ -71,6 +71,21 @@ jobs:
             printf -v "$v" '%s' "$clean"
             echo "$v=$clean" >> "$GITHUB_ENV"
           done
+          # L'Issuer ID est un UUID : on le retrouve même entouré de texte ou avec des
+          # tirets typographiques (correction automatique de l'iPhone).
+          issuer=$(python3 -c '
+          import os, re
+          v = re.sub("[\u2010-\u2015\u2212]", "-", os.environ["ASC_ISSUER_ID"]).lower()
+          m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", v)
+          print(m.group(0) if m else "")')
+          if [ -n "$issuer" ]; then
+            echo "::add-mask::$issuer"
+            ASC_ISSUER_ID="$issuer"
+            echo "ASC_ISSUER_ID=$issuer" >> "$GITHUB_ENV"
+          else
+            echo "::error title=ASC_ISSUER_ID incorrect::Le secret ASC_ISSUER_ID ne contient pas d'Issuer ID (format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Il est affiché dans App Store Connect → Utilisateurs et accès → Intégrations → API App Store Connect, au-dessus du tableau des clés (Issuer ID / ID de l'émetteur). Ce n'est ni le Team ID ni le Key ID."
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/keys"
           key="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
           # Une clé collée depuis un téléphone perd souvent ses retours à la ligne, ses
