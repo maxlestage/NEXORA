@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../data/model_prices.dart';
 import '../models/provider.dart';
 import 'llm_parsers.dart';
 
@@ -344,16 +345,21 @@ class LlmClient {
               .timeout(const Duration(seconds: 15));
           _check(res);
           final j = jsonDecode(res.body) as Map;
-          return ((j['models'] as List?) ?? const [])
+          final list = ((j['models'] as List?) ?? const [])
               .whereType<Map>()
-              .map(
-                (m) => ModelInfo(
-                  (m['name'] ?? m['model']).toString(),
-                  free: true,
-                  detail: _size(m['size']),
-                ),
-              )
+              .map((m) {
+                final name = (m['name'] ?? m['model']).toString();
+                // En local : la taille du téléchargement ; dans le cloud : le prix.
+                final price = priceOf(p.id, name);
+                return ModelInfo(
+                  name,
+                  free: p.free,
+                  detail: p.local ? _size(m['size']) : price?.label,
+                );
+              })
               .toList();
+          if (!p.local) list.sort((a, b) => a.id.compareTo(b.id));
+          return list;
         case ModelsListing.githubCatalog:
           final res = await client
               .get(

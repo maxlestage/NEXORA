@@ -227,6 +227,7 @@ class ChatState extends ChangeNotifier {
             if (!failed && answer.content.isNotEmpty) {
               usage?.recordUsage(
                 provider.id,
+                model: ref.model,
                 usage: tokens.total > 0 ? tokens : null,
                 inputChars:
                     system.length +

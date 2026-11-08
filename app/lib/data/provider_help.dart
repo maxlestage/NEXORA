@@ -56,14 +56,29 @@ const Map<String, ProviderHelp> providerHelp = {
   ),
   'ollama-cloud': ProviderHelp(
     steps: [
-      'Créez un compte sur ollama.com.',
-      'Ouvrez Settings → Keys → Add API key, donnez un nom, puis copiez la clé.',
-      'Collez-la ici, puis « Charger la liste » pour voir les modèles cloud.',
+      'Créez un compte sur ollama.com (aucun ordinateur ni installation).',
+      'Choisissez une offre sur ollama.com/pricing : au token (sans '
+          'abonnement), Pro (20 \$/mois, 60 \$ de crédit) ou Max (100 \$/mois, '
+          '300 \$ de crédit).',
+      'Ouvrez ollama.com/settings/keys → Add API key, donnez un nom, puis '
+          'copiez la clé.',
+      'Collez-la ici, « Enregistrer et tester », puis « Charger la liste » : '
+          'tous les modèles cloud apparaissent, avec leur prix.',
+      'Dans le témoin (point coloré), réglez le crédit mensuel de votre offre '
+          'pour suivre ce qu\'il vous reste.',
     ],
     freeTier:
-        'Offre gratuite avec des limites horaires et hebdomadaires (non '
-        'publiées) ; l\'offre Pro (environ 20 \$/mois) les augmente.',
+        'Plus d\'offre gratuite : paiement au token, ou crédit mensuel inclus dans '
+        'Pro (60 \$) et Max (300 \$). Prix par modèle de 0,06 \$ à 3 \$ par '
+        'million de tokens envoyés, moitié moins hors heures de pointe '
+        '(12 h–18 h UTC en semaine) pour certains.',
     usageUrl: 'https://ollama.com/settings',
+    tips: [
+      'Bon rapport qualité-prix : gpt-oss:120b, deepseek-v4.1-flash, '
+          'minimax-m3.1-flash, glm-5.3-flash.',
+      'Pour coder : kimi-k2.7-code, glm-5.3. Le plus puissant : kimi-k3.1-pro.',
+      'NEXORA estime la dépense de chaque réponse avec les prix publics d\'Ollama.',
+    ],
   ),
   'openrouter': ProviderHelp(
     steps: [

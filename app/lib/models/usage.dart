@@ -191,6 +191,19 @@ class ProviderUsage {
   /// Au moins une réponse sans décompte officiel : tokens estimés (≈ 4 caractères).
   bool estimated = false;
 
+  /// Dépense estimée en dollars (prix publics × tokens), du jour et du mois.
+  double costToday = 0;
+  String month = '';
+  double costMonth = 0;
+
+  /// Le crédit mensuel de votre offre (ex. 60 \$ pour Ollama Pro), pour la jauge.
+  double? monthlyBudget;
+
+  /// Part du crédit mensuel restante, de 0 à 1.
+  double? get budgetRatio => monthlyBudget == null || monthlyBudget! <= 0
+      ? null
+      : (1 - costMonth / monthlyBudget!).clamp(0.0, 1.0);
+
   /// La dernière erreur de quota ou de clé (401, 402, 403, 429).
   int? lastErrorStatus;
   String? lastErrorMessage;
@@ -205,6 +218,12 @@ class ProviderUsage {
       requestsToday = 0;
       tokensInToday = 0;
       tokensOutToday = 0;
+      costToday = 0;
+    }
+    final m = d.substring(0, 7);
+    if (m != month) {
+      month = m;
+      costMonth = 0;
     }
   }
 
@@ -221,6 +240,7 @@ class ProviderUsage {
     if (balance?.remaining != null && balance!.remaining! <= 0) {
       return UsageLevel.blocked;
     }
+    if (budgetRatio == 0) return UsageLevel.blocked;
     final fresh =
         windowsAt != null && now.difference(windowsAt!).inMinutes < 10;
     if (fresh && windows.any((w) => w.remaining == 0)) {
@@ -229,6 +249,7 @@ class ProviderUsage {
     if (err && lastErrorStatus == 429) return UsageLevel.low;
     final ratios = [
       if (balance?.ratio != null) balance!.ratio!,
+      ?budgetRatio,
       if (fresh) ...windows.map((w) => w.ratio).whereType<double>(),
     ];
     if (ratios.any((r) => r < 0.2)) return UsageLevel.low;
@@ -250,6 +271,10 @@ class ProviderUsage {
     'requestsTotal': requestsTotal,
     'tokensTotal': tokensTotal,
     'estimated': estimated,
+    'costToday': costToday,
+    'month': month,
+    'costMonth': costMonth,
+    'monthlyBudget': monthlyBudget,
     'lastErrorStatus': lastErrorStatus,
     'lastErrorMessage': lastErrorMessage,
     'lastErrorAt': lastErrorAt?.toIso8601String(),
@@ -273,6 +298,10 @@ class ProviderUsage {
       ..requestsTotal = j['requestsTotal'] as int? ?? 0
       ..tokensTotal = j['tokensTotal'] as int? ?? 0
       ..estimated = j['estimated'] as bool? ?? false
+      ..costToday = (j['costToday'] as num?)?.toDouble() ?? 0
+      ..month = j['month'] as String? ?? ''
+      ..costMonth = (j['costMonth'] as num?)?.toDouble() ?? 0
+      ..monthlyBudget = (j['monthlyBudget'] as num?)?.toDouble()
       ..lastErrorStatus = j['lastErrorStatus'] as int?
       ..lastErrorMessage = j['lastErrorMessage'] as String?
       ..lastErrorAt = date(j['lastErrorAt']);
@@ -290,3 +319,7 @@ String compact(int n) {
   }
   return '$n';
 }
+
+/// `3.2` → `3,20 \$`.
+String dollars(double v) =>
+    '${v.toStringAsFixed(v < 10 ? 2 : 1).replaceAll('.', ',')} \$';

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/model_prices.dart';
 import '../models/provider.dart';
 import '../models/usage.dart';
 import '../services/llm_client.dart';
@@ -60,6 +61,7 @@ class UsageState extends ChangeNotifier {
   /// Une réponse terminée : tokens réels, ou estimés à partir du texte.
   void recordUsage(
     String providerId, {
+    String? model,
     TokenUsage? usage,
     int inputChars = 0,
     int outputChars = 0,
@@ -74,6 +76,13 @@ class UsageState extends ChangeNotifier {
       ..tokensInToday += t.input
       ..tokensOutToday += t.output
       ..tokensTotal += t.total;
+    final price = model == null ? null : priceOf(providerId, model);
+    if (price != null) {
+      final c = price.cost(t.input, t.output);
+      u
+        ..costToday += c
+        ..costMonth += c;
+    }
     if (u.lastErrorStatus != null &&
         const [401, 402, 429].contains(u.lastErrorStatus)) {
       u.lastErrorStatus = null;
@@ -115,6 +124,12 @@ class UsageState extends ChangeNotifier {
       _refreshing.remove(p.id);
       _changed();
     }
+  }
+
+  /// Le crédit mensuel de l'offre (`null` pour l'enlever).
+  void setBudget(String providerId, double? dollars) {
+    of(providerId).monthlyBudget = dollars;
+    _changed();
   }
 
   void reset(String providerId) {

@@ -97,7 +97,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         apiKey: s.key(p.id),
         model: models.first.id,
         onHeaders: (h, _) => usage.recordHeaders(p.id, h),
-        onUsage: (t) => usage.recordUsage(p.id, usage: t),
+        onUsage: (t) =>
+            usage.recordUsage(p.id, model: models.first.id, usage: t),
         messages: const [
           LlmMessage(
             'user',
@@ -388,7 +389,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 child: SelectableText(_testResult!),
               ),
             ),
-          if (isOllama) ...[
+          if (isOllama && p.local) ...[
             const SectionTitle('Télécharger un modèle'),
             if (_pulling != null)
               Glass(

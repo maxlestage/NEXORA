@@ -38,7 +38,7 @@ Le site de présentation est écrit en Rust avec [Paquets 📦](https://github.c
 |---|---|---|
 | 🌸 Pollinations | OpenAI | ✅ sans clé ni compte (prêt au premier lancement) |
 | 🦙 Ollama (local, via le Wi-Fi) | Ollama natif | ✅ téléchargement et suppression de modèles depuis l'app |
-| ☁️ Ollama Cloud | Ollama natif | ✅ offre gratuite |
+| ☁️ Ollama Cloud | Ollama natif | sans ordinateur, juste une clé : au token, ou crédit mensuel Pro (60 $) / Max (300 $) ; prix affiché pour chacun des 26 modèles |
 | 🔀 OpenRouter | OpenAI | ✅ modèles `:free` |
 | ⚡ Groq · 🧠 Cerebras · 🚀 SambaNova | OpenAI | ✅ |
 | ✨ Google Gemini (AI Studio) | OpenAI | ✅ |
@@ -65,6 +65,8 @@ Touchez-le pour le détail, avec une jauge :
 - **solde lu en direct** chez OpenRouter et DeepSeek ;
 - **limites de débit** (requêtes et tokens par minute ou par jour) lues dans chaque réponse
   (Groq, OpenAI, Anthropic, Cerebras, Mistral, GitHub Models…) ;
+- **dépense estimée** du jour et du mois (tokens × prix publics, pour Ollama Cloud), comparée
+  au crédit mensuel de votre offre (Pro 60 $, Max 300 $, ou un montant libre) ;
 - **consommation du jour** comptée par l'app (tokens réels, ou estimés si le fournisseur ne les
   donne pas), dernier incident (401, 402, 429) et lien vers la page de consommation officielle.
 
