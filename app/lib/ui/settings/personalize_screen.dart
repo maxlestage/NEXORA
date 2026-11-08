@@ -311,7 +311,7 @@ class PersonalizeScreen extends StatelessWidget {
               children: [
                 for (final (id, label, icon) in const [
                   ('agents', 'Agents', Icons.smart_toy_outlined),
-                  ('github', 'GitHub', Icons.code),
+                  ('github', 'Code (GitHub)', Icons.code),
                 ])
                   SwitchListTile(
                     secondary: Icon(icon),

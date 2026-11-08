@@ -7,7 +7,7 @@ import '../../state/github_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
-import '../workspace/agent_run_screen.dart';
+import '../workspace/new_session_screen.dart';
 import 'cloud_agents_screen.dart';
 import 'file_editor_screen.dart';
 
@@ -83,7 +83,7 @@ class _RepoScreenState extends State<RepoScreen> {
               icon: const Icon(Icons.rocket_launch_outlined),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => AgentRunScreen(repo: repo, branch: _branch),
+                  builder: (_) => NewSessionScreen(repo: repo, branch: _branch),
                 ),
               ),
             ),

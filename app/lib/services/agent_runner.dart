@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/agent.dart';
 import '../models/provider.dart';
+import 'diff.dart';
 import 'github_api.dart';
 import 'llm_client.dart';
 
@@ -19,7 +20,7 @@ const Map<String, String> agentTools = {
   'finish': 'Termine. args: {"summary": "ce qui a été fait", "commit_message": "..."}',
 };
 
-enum StepKind { thought, tool, result, error, done }
+enum StepKind { thought, tool, result, error, done, user }
 
 class AgentStep {
   AgentStep(this.kind, this.text, {this.tool});
@@ -27,6 +28,39 @@ class AgentStep {
   final StepKind kind;
   final String text;
   final String? tool;
+
+  Map<String, dynamic> toJson() => {
+    'k': kind.name,
+    't': text.length > 4000 ? '${text.substring(0, 4000)}…' : text,
+    if (tool != null) 'tool': tool,
+  };
+
+  factory AgentStep.fromJson(Map j) => AgentStep(
+    StepKind.values.firstWhere(
+      (k) => k.name == j['k'],
+      orElse: () => StepKind.thought,
+    ),
+    j['t'] as String? ?? '',
+    tool: j['tool'] as String?,
+  );
+}
+
+/// Où en est une session.
+enum SessionStatus {
+  /// L'agent travaille.
+  running,
+
+  /// Des brouillons attendent votre validation.
+  review,
+
+  /// Envoyé : pull request ouverte ou commit fait.
+  shipped,
+
+  /// Terminé sans changement à valider.
+  done,
+
+  /// Arrêté par une erreur, par vous, ou par la fermeture de l'app.
+  stopped,
 }
 
 /// Une action demandée par le modèle.
@@ -113,6 +147,11 @@ class RepoTarget {
   final String branch;
 
   String get fullName => '$owner/$name';
+
+  Map<String, dynamic> toJson() => {'o': owner, 'n': name, 'b': branch};
+
+  factory RepoTarget.fromJson(Map j) =>
+      RepoTarget(j['o'] as String, j['n'] as String, j['b'] as String);
 }
 
 /// Le résultat de l'envoi sur un dépôt : un commit (sha) ou une pull request (url).
@@ -145,7 +184,11 @@ class AgentRun extends ChangeNotifier {
     this.onHeaders,
     this.onUsage,
     this.onError,
-  }) {
+    String? id,
+    DateTime? createdAt,
+  }) : id = id ?? 's${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}',
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = createdAt ?? DateTime.now() {
     targets = [
       RepoTarget(owner, repo, branch),
       for (final r in extraRepos)
@@ -161,6 +204,40 @@ class AgentRun extends ChangeNotifier {
                 : t.name:
             t,
     };
+  }
+
+  /// L'identifiant de la session, sa création et sa dernière activité.
+  final String id;
+  final DateTime createdAt;
+  DateTime updatedAt;
+
+  /// La conversation avec le modèle, gardée pour pouvoir continuer la session.
+  final List<LlmMessage> history = [];
+
+  /// Branche de travail par dépôt, une fois une pull request ouverte : les
+  /// lectures et les envois suivants s'y font (la pull request se met à jour).
+  final Map<String, String> heads = {};
+
+  /// La pull request ouverte pour chaque dépôt (`owner/nom` → url).
+  final Map<String, String> pulls = {};
+
+  /// Commits envoyés (`owner/nom@sha`).
+  final List<String> commits = [];
+
+  /// L'app a été fermée pendant que l'agent travaillait.
+  bool interrupted = false;
+
+  /// Change à chaque modification (pour les caches de l'interface).
+  int version = 0;
+
+  /// La branche à lire pour un dépôt.
+  String refOf(RepoTarget t) => heads[t.fullName] ?? t.branch;
+
+  @override
+  void notifyListeners() {
+    version++;
+    updatedAt = DateTime.now();
+    super.notifyListeners();
   }
 
   /// Pour le témoin de crédit : limites de débit, tokens de chaque étape, erreurs
@@ -194,9 +271,11 @@ class AgentRun extends ChangeNotifier {
   static const stepRetries = 2;
 
   final LlmClient llm;
-  final GitHubApi github;
-  final ProviderDef provider;
-  final String? apiKey;
+
+  /// Mis à jour par les sessions quand le compte GitHub ou la clé change.
+  GitHubApi github;
+  ProviderDef provider;
+  String? apiKey;
   final String model;
   final String owner;
   final String repo;
@@ -249,7 +328,7 @@ class AgentRun extends ChangeNotifier {
     if (where == null) return null;
     final (t, inner) = where;
     try {
-      final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
+      final f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
       originals[path] = f.binary ? null : f.text;
     } on GitHubException catch (e) {
       if (e.status != 404) rethrow;
@@ -325,13 +404,32 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
-  Future<void> run() async {
+  /// Lance la session, ou la continue avec une nouvelle instruction.
+  Future<void> run({String? followUp}) async {
+    if (running) return;
     running = true;
+    interrupted = false;
     _stop = false;
+    if (history.isEmpty) {
+      history.add(
+        LlmMessage('user', 'Tâche : $task\n\nCommence par explorer le dépôt.'),
+      );
+    } else if (followUp != null && followUp.trim().isNotEmpty) {
+      _add(AgentStep(StepKind.user, followUp.trim()));
+      final note =
+          'Nouvelle instruction de l\'utilisateur (même session, les brouillons '
+          'en cours sont gardés) : ${followUp.trim()}';
+      // Deux messages de l'utilisateur de suite : on les réunit.
+      if (history.last.role == 'user') {
+        final last = history.removeLast();
+        history.add(LlmMessage('user', '${last.content}\n\n$note'));
+      } else {
+        history.add(LlmMessage('user', note));
+      }
+    } else if (history.last.role != 'user') {
+      history.add(const LlmMessage('user', 'Continue la tâche.'));
+    }
     notifyListeners();
-    final history = <LlmMessage>[
-      LlmMessage('user', 'Tâche : $task\n\nCommence par explorer le dépôt.'),
-    ];
     try {
       for (var i = 0; i < maxSteps && !_stop; i++) {
         final reply = await _ask(history);
@@ -435,7 +533,7 @@ class AgentRun extends ChangeNotifier {
     if (_tree != null) return _tree!;
     final all = <String>[];
     for (final t in targets) {
-      final files = await github.tree(t.owner, t.name, t.branch);
+      final files = await github.tree(t.owner, t.name, refOf(t));
       all.addAll(multi ? files.map((f) => '${mountOf(t)}/$f') : files);
     }
     return _tree = all;
@@ -482,7 +580,7 @@ class AgentRun extends ChangeNotifier {
         final where = resolve(p);
         if (where == null) return _mountHint;
         final (t, inner) = where;
-        final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
+        final f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
         if (f.binary) return 'ERREUR : fichier binaire.';
         final text = f.text;
         originals.putIfAbsent(p, () => text);
@@ -543,8 +641,13 @@ class AgentRun extends ChangeNotifier {
     return out;
   }
 
-  /// Envoie les changements de chaque dépôt : sur `targetBranch` (créée depuis la
-  /// branche de travail si besoin), puis ouvre éventuellement une pull request.
+  /// Envoie les changements de chaque dépôt.
+  ///
+  /// - `targetBranch` : nouvelle branche (créée depuis la branche de travail) ;
+  ///   `null` : directement sur la branche de travail du dépôt (celle de la pull
+  ///   request déjà ouverte par cette session, s'il y en a une).
+  /// - `openPr` : ouvre une pull request si la session n'en a pas déjà une pour
+  ///   ce dépôt ; sinon le commit s'ajoute à la pull request existante.
   Future<List<ShipResult>> commitAll({
     required String message,
     String? targetBranch,
@@ -557,10 +660,11 @@ class AgentRun extends ChangeNotifier {
     final results = <ShipResult>[];
     for (final g in groups.entries) {
       final t = g.key;
-      final target = targetBranch ?? t.branch;
-      if (target != t.branch) {
+      final from = refOf(t);
+      final target = heads[t.fullName] ?? targetBranch ?? from;
+      if (target != from) {
         try {
-          await github.createBranch(t.owner, t.name, target, from: t.branch);
+          await github.createBranch(t.owner, t.name, target, from: from);
         } on GitHubException catch (e) {
           if (e.status != 422) rethrow; // 422 : la branche existe déjà
         }
@@ -577,7 +681,12 @@ class AgentRun extends ChangeNotifier {
                 : FileChange.write(e.key, e.value!),
         ],
       );
-      if (openPr && target != t.branch) {
+      commits.add('${t.fullName}@$sha');
+      if (target != t.branch) heads[t.fullName] = target;
+      final existing = pulls[t.fullName];
+      if (existing != null) {
+        results.add(ShipResult(t, existing));
+      } else if (openPr && target != t.branch) {
         final others = groups.keys.where((x) => x != t).map((x) => x.fullName);
         final pr = await github.createPull(
           t.owner,
@@ -590,12 +699,157 @@ class AgentRun extends ChangeNotifier {
               '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
               '_Proposé par un agent NEXORA._',
         );
+        pulls[t.fullName] = pr.htmlUrl;
         results.add(ShipResult(t, pr.htmlUrl));
       } else {
         results.add(ShipResult(t, sha));
       }
     }
+    // Les brouillons envoyés deviennent la nouvelle version des fichiers.
+    for (final path in accepted.keys.toList()) {
+      originals[path] = changes.remove(path);
+    }
+    rejected.removeWhere((p) => !changes.containsKey(p));
+    _tree = null;
+    notifyListeners();
     return results;
+  }
+
+  /// Lignes ajoutées et retirées par les brouillons (comparées aux originaux
+  /// connus).
+  (int, int) get stats {
+    if (_statsVersion == version) return _stats;
+    var added = 0, removed = 0;
+    for (final e in changes.entries) {
+      final known = originals.containsKey(e.key);
+      if (!known && e.value == null) continue;
+      final d = lineDiff(known ? originals[e.key] : null, e.value);
+      added += d.added;
+      removed += d.removed;
+    }
+    _statsVersion = version;
+    return _stats = (added, removed);
+  }
+
+  (int, int) _stats = (0, 0);
+  int _statsVersion = -1;
+
+  SessionStatus get status {
+    if (running) return SessionStatus.running;
+    if (changes.isNotEmpty) return SessionStatus.review;
+    if (pulls.isNotEmpty || commits.isNotEmpty) return SessionStatus.shipped;
+    if (interrupted ||
+        (steps.isNotEmpty &&
+            steps.last.kind == StepKind.error &&
+            summary.isEmpty)) {
+      return SessionStatus.stopped;
+    }
+    return SessionStatus.done;
+  }
+
+  /// « Paquets », « Paquets, +1 autre ».
+  String get reposLabel {
+    final first = targets.first.name;
+    final n = targets.length - 1;
+    return n == 0 ? first : '$first, +$n autre${n > 1 ? 's' : ''}';
+  }
+
+  /// Ce qui est gardé sur l'appareil.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'task': task,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'repos': targets.map((t) => t.toJson()).toList(),
+    'provider': provider.id,
+    'model': model,
+    if (level != null) 'level': level!.name,
+    if (agent != null) 'agent': agent!.id,
+    'maxSteps': maxSteps,
+    'steps': steps.map((st) => st.toJson()).toList(),
+    'history': [
+      for (final m in history) {'r': m.role, 'c': m.content},
+    ],
+    'changes': changes,
+    'originals': {
+      for (final p in changes.keys)
+        if (originals.containsKey(p)) p: originals[p],
+    },
+    'rejected': rejected.toList(),
+    'summary': summary,
+    'commitMessage': commitMessage,
+    'heads': heads,
+    'pulls': pulls,
+    'commits': commits,
+    'interrupted': running || interrupted,
+  };
+
+  /// Recrée une session enregistrée (à l'arrêt : elle peut être continuée).
+  static AgentRun restore(
+    Map j, {
+    required LlmClient llm,
+    required GitHubApi github,
+    required ProviderDef provider,
+    required String? apiKey,
+    Agent? agent,
+    void Function(Map<String, String> headers)? onHeaders,
+    void Function(TokenUsage usage)? onUsage,
+    void Function(Object error)? onError,
+  }) {
+    final repos = ((j['repos'] as List?) ?? const [])
+        .map((r) => RepoTarget.fromJson(r as Map))
+        .toList();
+    final first = repos.first;
+    final run = AgentRun(
+      llm: llm,
+      github: github,
+      provider: provider,
+      apiKey: apiKey,
+      model: j['model'] as String? ?? '',
+      owner: first.owner,
+      repo: first.name,
+      branch: first.branch,
+      task: j['task'] as String? ?? '',
+      agent: agent,
+      level: ThinkLevel.parse(j['level'] as String?),
+      maxSteps: j['maxSteps'] as int? ?? 24,
+      extraRepos: repos.skip(1).toList(),
+      onHeaders: onHeaders,
+      onUsage: onUsage,
+      onError: onError,
+      id: j['id'] as String?,
+      createdAt: DateTime.tryParse(j['createdAt'] as String? ?? ''),
+    );
+    run.steps.addAll(
+      ((j['steps'] as List?) ?? const []).map(
+        (st) => AgentStep.fromJson(st as Map),
+      ),
+    );
+    run.history.addAll(
+      ((j['history'] as List?) ?? const []).map(
+        (m) => LlmMessage((m as Map)['r'] as String, m['c'] as String),
+      ),
+    );
+    (j['changes'] as Map?)?.forEach(
+      (k, v) => run.changes[k as String] = v as String?,
+    );
+    (j['originals'] as Map?)?.forEach(
+      (k, v) => run.originals[k as String] = v as String?,
+    );
+    run.rejected.addAll(((j['rejected'] as List?) ?? const []).cast<String>());
+    run.summary = j['summary'] as String? ?? '';
+    run.commitMessage = j['commitMessage'] as String? ?? '';
+    (j['heads'] as Map?)?.forEach(
+      (k, v) => run.heads[k as String] = v as String,
+    );
+    (j['pulls'] as Map?)?.forEach(
+      (k, v) => run.pulls[k as String] = v as String,
+    );
+    run.commits.addAll(((j['commits'] as List?) ?? const []).cast<String>());
+    run.interrupted = j['interrupted'] as bool? ?? false;
+    run.updatedAt =
+        DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? run.createdAt;
+    return run;
   }
 
   /// Envoi sur le dépôt principal (une seule mission, un seul dépôt).

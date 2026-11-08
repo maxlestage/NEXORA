@@ -12,7 +12,7 @@ import '../github/repo_picker.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
-import '../workspace/agent_run_screen.dart';
+import '../workspace/new_session_screen.dart';
 import 'agent_editor.dart';
 import 'install_agents_screen.dart';
 
@@ -176,7 +176,7 @@ class _Cloud extends StatelessWidget {
                     if (!gh.signedIn) {
                       toast(
                         context,
-                        'Connectez GitHub d\'abord (onglet GitHub).',
+                        'Connectez GitHub d\'abord (onglet Code).',
                       );
                       return;
                     }
@@ -358,12 +358,12 @@ Future<void> showAgentSheet(BuildContext context, Agent agent) {
                     Navigator.of(sheet).push(
                       MaterialPageRoute(
                         builder: (_) =>
-                            AgentRunScreen(repo: repo, agent: agent),
+                            NewSessionScreen(repo: repo, agent: agent),
                       ),
                     );
                   },
                   icon: const Icon(Icons.rocket_launch_outlined),
-                  label: const Text('Lancer sur un dépôt'),
+                  label: const Text('Nouvelle session'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => copyText(

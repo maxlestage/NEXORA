@@ -9,19 +9,106 @@ import '../../state/settings_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
+import '../../state/session_state.dart';
+import '../workspace/new_session_screen.dart';
+import '../workspace/sessions_list.dart';
 import 'repo_screen.dart';
 
 const _tokenUrl =
     'https://github.com/settings/tokens/new?scopes=repo,workflow,read:user,gist&description=NEXORA';
 
-/// L'onglet GitHub : connexion, puis mes dépôts.
+/// L'onglet Code : connexion à GitHub, puis les sessions et les dépôts.
 class GitHubScreen extends StatelessWidget {
   const GitHubScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final gh = context.watch<GitHubState>();
-    return gh.signedIn ? const _Repos() : const _SignIn();
+    return gh.signedIn ? const _CodeHome() : const _SignIn();
+  }
+}
+
+/// L'onglet Code : les sessions de l'agent (comme Claude Code) et les dépôts.
+class _CodeHome extends StatefulWidget {
+  const _CodeHome();
+
+  @override
+  State<_CodeHome> createState() => _CodeHomeState();
+}
+
+class _CodeHomeState extends State<_CodeHome>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this)
+    ..addListener(() {
+      if (mounted) setState(() {});
+    });
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  void _newSession() =>
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const NewSessionScreen()));
+
+  @override
+  Widget build(BuildContext context) {
+    final gh = context.watch<GitHubState>();
+    final sessions = context.watch<SessionState>();
+    final running = sessions.runningCount;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Code'),
+        actions: [
+          IconButton(
+            tooltip: 'Actualiser',
+            icon: const Icon(Icons.refresh),
+            onPressed: gh.refresh,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'out') gh.signOut();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'out', child: Text('Se déconnecter')),
+            ],
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: [
+            Tab(
+              text: running > 0
+                  ? 'Sessions ($running en cours)'
+                  : 'Sessions (${sessions.sessions.length})',
+            ),
+            Tab(text: 'Dépôts (${gh.repos.length})'),
+          ],
+        ),
+      ),
+      floatingActionButton: _tabs.index == 0
+          ? FloatingActionButton.extended(
+              heroTag: 'new-session',
+              onPressed: _newSession,
+              icon: const Icon(Icons.add),
+              label: const Text('Nouvelle session'),
+            )
+          : FloatingActionButton.extended(
+              heroTag: 'new-repo',
+              onPressed: () => createRepo(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Nouveau dépôt'),
+            ),
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          SessionsList(onNew: _newSession),
+          const _Repos(),
+        ],
+      ),
+    );
   }
 }
 
@@ -236,250 +323,220 @@ class _ReposState extends State<_Repos> {
               r.description.toLowerCase().contains(_q.toLowerCase()),
         )
         .toList();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('GitHub'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualiser',
-            icon: const Icon(Icons.refresh),
-            onPressed: gh.refresh,
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'out') gh.signOut();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'out', child: Text('Se déconnecter')),
-            ],
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'new-repo',
-        onPressed: () => _createRepo(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau dépôt'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: gh.refresh,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
-          children: [
-            if (user != null)
-              Glass(
-                glow: Nx.violet,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: user.avatarUrl.isEmpty
-                          ? null
-                          : NetworkImage(user.avatarUrl),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name ?? user.login,
-                            style: tt.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            '@${user.login} · ${gh.repos.length} dépôts',
-                            style: tt.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Rechercher un dépôt',
-              ),
-              onChanged: (v) => setState(() => _q = v),
-            ),
-            if (gh.loading) const LinearProgressIndicator(),
-            if (gh.error != null)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(gh.error!, style: const TextStyle(color: Nx.red)),
-              ),
-            const SizedBox(height: 8),
-            for (final (i, r) in repos.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Reveal(
-                  index: i,
-                  child: Glass(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => RepoScreen(repo: r)),
-                    ),
+    return RefreshIndicator(
+      onRefresh: gh.refresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
+        children: [
+          if (user != null)
+            Glass(
+              glow: Nx.violet,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundImage: user.avatarUrl.isEmpty
+                        ? null
+                        : NetworkImage(user.avatarUrl),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              r.private ? Icons.lock_outline : Icons.public,
-                              size: 16,
-                              color: Nx.accent(context),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                r.name,
-                                style: tt.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            if (r.owner != user?.login)
-                              Text(r.owner, style: tt.labelSmall),
-                          ],
-                        ),
-                        if (r.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            r.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: tt.bodySmall,
+                        Text(
+                          user.name ?? user.login,
+                          style: tt.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (r.language != null) ...[
-                              const Icon(
-                                Icons.circle,
-                                size: 10,
-                                color: Nx.magenta,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(r.language!, style: tt.labelSmall),
-                              const SizedBox(width: 12),
-                            ],
-                            const Icon(Icons.star_outline, size: 14),
-                            Text(' ${r.stars}', style: tt.labelSmall),
-                            const SizedBox(width: 12),
-                            const Icon(Icons.adjust, size: 14),
-                            Text(' ${r.openIssues}', style: tt.labelSmall),
-                          ],
+                        ),
+                        Text(
+                          '@${user.login} · ${gh.repos.length} dépôts',
+                          style: tt.bodySmall,
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Rechercher un dépôt',
+            ),
+            onChanged: (v) => setState(() => _q = v),
+          ),
+          if (gh.loading) const LinearProgressIndicator(),
+          if (gh.error != null)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(gh.error!, style: const TextStyle(color: Nx.red)),
+            ),
+          const SizedBox(height: 8),
+          for (final (i, r) in repos.indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Reveal(
+                index: i,
+                child: Glass(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => RepoScreen(repo: r)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            r.private ? Icons.lock_outline : Icons.public,
+                            size: 16,
+                            color: Nx.accent(context),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              r.name,
+                              style: tt.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (r.owner != user?.login)
+                            Text(r.owner, style: tt.labelSmall),
+                        ],
+                      ),
+                      if (r.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          r.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: tt.bodySmall,
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (r.language != null) ...[
+                            const Icon(
+                              Icons.circle,
+                              size: 10,
+                              color: Nx.magenta,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(r.language!, style: tt.labelSmall),
+                            const SizedBox(width: 12),
+                          ],
+                          const Icon(Icons.star_outline, size: 14),
+                          Text(' ${r.stars}', style: tt.labelSmall),
+                          const SizedBox(width: 12),
+                          const Icon(Icons.adjust, size: 14),
+                          Text(' ${r.openIssues}', style: tt.labelSmall),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
+}
 
-  Future<void> _createRepo(BuildContext context) async {
-    final name = TextEditingController();
-    final desc = TextEditingController();
-    var private = true;
-    var readme = true;
-    String? template;
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setS) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            0,
-            20,
-            MediaQuery.viewInsetsOf(context).bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Nouveau dépôt',
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
+/// Crée un dépôt sur GitHub.
+Future<void> createRepo(BuildContext context) async {
+  final name = TextEditingController();
+  final desc = TextEditingController();
+  var private = true;
+  var readme = true;
+  String? template;
+  final ok = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setS) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          MediaQuery.viewInsetsOf(context).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Nouveau dépôt',
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Nom (mon-projet)'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: desc,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            SwitchListTile(
+              value: private,
+              onChanged: (v) => setS(() => private = v),
+              title: const Text('Privé'),
+            ),
+            SwitchListTile(
+              value: readme,
+              onChanged: (v) => setS(() => readme = v),
+              title: const Text('Ajouter un README'),
+            ),
+            DropdownButtonFormField<String?>(
+              initialValue: template,
+              decoration: const InputDecoration(labelText: '.gitignore'),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Aucun')),
+                DropdownMenuItem(value: 'Dart', child: Text('Flutter / Dart')),
+                DropdownMenuItem(value: 'Rust', child: Text('Rust')),
+                DropdownMenuItem(value: 'Node', child: Text('Node')),
+                DropdownMenuItem(value: 'Python', child: Text('Python')),
+              ],
+              onChanged: (v) => setS(() => template = v),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Créer'),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nom (mon-projet)',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: desc,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              SwitchListTile(
-                value: private,
-                onChanged: (v) => setS(() => private = v),
-                title: const Text('Privé'),
-              ),
-              SwitchListTile(
-                value: readme,
-                onChanged: (v) => setS(() => readme = v),
-                title: const Text('Ajouter un README'),
-              ),
-              DropdownButtonFormField<String?>(
-                initialValue: template,
-                decoration: const InputDecoration(labelText: '.gitignore'),
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('Aucun')),
-                  DropdownMenuItem(
-                    value: 'Dart',
-                    child: Text('Flutter / Dart'),
-                  ),
-                  DropdownMenuItem(value: 'Rust', child: Text('Rust')),
-                  DropdownMenuItem(value: 'Node', child: Text('Node')),
-                  DropdownMenuItem(value: 'Python', child: Text('Python')),
-                ],
-                onChanged: (v) => setS(() => template = v),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Créer'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    ),
+  );
+  if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
+  final gh = context.read<GitHubState>();
+  try {
+    final r = await gh.api.createRepo(
+      name: name.text.trim().replaceAll(' ', '-'),
+      description: desc.text.trim(),
+      private: private,
+      autoInit: readme,
+      gitignore: template,
     );
-    if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
-    final gh = context.read<GitHubState>();
-    try {
-      final r = await gh.api.createRepo(
-        name: name.text.trim().replaceAll(' ', '-'),
-        description: desc.text.trim(),
-        private: private,
-        autoInit: readme,
-        gitignore: template,
-      );
-      gh.addRepo(r);
-      if (context.mounted) {
-        toast(context, '${r.fullName} créé 🎉');
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => RepoScreen(repo: r)));
-      }
-    } catch (e) {
-      if (context.mounted) toast(context, '$e', error: true);
+    gh.addRepo(r);
+    if (context.mounted) {
+      toast(context, '${r.fullName} créé 🎉');
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => RepoScreen(repo: r)));
     }
+  } catch (e) {
+    if (context.mounted) toast(context, '$e', error: true);
   }
 }

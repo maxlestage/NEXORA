@@ -161,7 +161,7 @@ const Map<String, ProviderHelp> providerHelp = {
   ),
   'github-models': ProviderHelp(
     steps: [
-      'Connectez GitHub dans l\'onglet GitHub : son jeton est utilisé '
+      'Connectez GitHub dans l\'onglet Code : son jeton est utilisé '
           'automatiquement.',
       'Ou collez ici un jeton GitHub ayant la permission « Models : read ».',
     ],
