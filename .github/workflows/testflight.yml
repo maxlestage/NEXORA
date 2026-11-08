@@ -85,8 +85,25 @@ jobs:
           pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
           open(sys.argv[1], "w").write(pem)
           PY
-          if ! openssl pkey -in "$key" -noout 2>/dev/null; then
-            echo "::error title=Clé .p8 illisible::Le secret ASC_KEY (ou ASC_PRIVATE_KEY) ne contient pas une clé .p8 valide. Ouvrez le fichier AuthKey_XXXX.p8 dans l'app Fichiers, copiez TOUT son texte (lignes BEGIN et END comprises) et collez-le dans le secret."
+          # Diagnostic sans rien révéler de la clé : longueurs et format seulement.
+          python3 - "$key" <<'PY'
+          import base64, os, sys
+          raw = os.environ["ASC_PRIVATE_KEY"]
+          pem = open(sys.argv[1]).read()
+          body = "".join(pem.splitlines()[1:-1])
+          try:
+              n = len(base64.b64decode(body + "=" * (-len(body) % 4)))
+          except Exception:
+              n = -1
+          print(f"Secret : {len(raw)} caractères, {raw.count(chr(10)) + 1} ligne(s), "
+                f"BEGIN {'présent' if 'BEGIN' in raw else 'absent'}, "
+                f"END {'présent' if 'END' in raw else 'absent'} ; "
+                f"corps base64 : {len(body)} caractères, {n} octets "
+                "(une clé Apple .p8 fait environ 200 caractères, 138 octets).")
+          PY
+          openssl version
+          if ! openssl pkey -in "$key" -noout; then
+            echo "::error title=Clé .p8 illisible::Le secret ASC_KEY (ou ASC_PRIVATE_KEY) ne contient pas une clé .p8 valide. Sur iPhone : dans l'app Fichiers, renommez AuthKey_XXXX.p8 en AuthKey_XXXX.txt, ouvrez-le, copiez TOUT le texte (lignes BEGIN et END comprises) et collez-le dans le secret ASC_KEY."
             exit 1
           fi
           echo "KEY_PATH=$key" >> "$GITHUB_ENV"
