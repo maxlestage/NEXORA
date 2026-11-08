@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../state/settings_state.dart';
 
 import 'agents/agents_screen.dart';
 import 'chat/conversations_screen.dart';
@@ -52,12 +55,22 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    const destinations = [
-      (Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-      (Icons.smart_toy_outlined, Icons.smart_toy, 'Agents'),
-      (Icons.code_outlined, Icons.code, 'GitHub'),
-      (Icons.hub_outlined, Icons.hub, 'Modèles'),
-      (Icons.tune_outlined, Icons.tune, 'Réglages'),
+    const all = [
+      ('chat', Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
+      ('agents', Icons.smart_toy_outlined, Icons.smart_toy, 'Agents'),
+      ('github', Icons.code_outlined, Icons.code, 'GitHub'),
+      ('models', Icons.hub_outlined, Icons.hub, 'Modèles'),
+      ('settings', Icons.tune_outlined, Icons.tune, 'Réglages'),
+    ];
+    final settings = context.watch<SettingsState>();
+    // Les onglets masqués dans Personnaliser (Agents, GitHub).
+    final visible = [
+      for (var i = 0; i < all.length; i++)
+        if (!settings.hiddenTabs.contains(all[i].$1)) i,
+    ];
+    final current = visible.contains(_index) ? _index : 0;
+    final destinations = [
+      for (final i in visible) (all[i].$2, all[i].$3, all[i].$4),
     ];
     final body = AnimatedSwitcher(
       duration: const Duration(milliseconds: 280),
@@ -68,10 +81,11 @@ class _HomeShellState extends State<HomeShell> {
           child: child,
         ),
       ),
-      child: KeyedSubtree(key: ValueKey(_index), child: _pages[_index]),
+      child: KeyedSubtree(key: ValueKey(current), child: _pages[current]),
     );
-    void select(int i) {
-      HapticFeedback.selectionClick();
+    void select(int vi) {
+      if (settings.haptics) HapticFeedback.selectionClick();
+      final i = visible[vi];
       homeTab.value = i;
       setState(() => _index = i);
     }
@@ -81,7 +95,7 @@ class _HomeShellState extends State<HomeShell> {
         body: Row(
           children: [
             NavigationRail(
-              selectedIndex: _index,
+              selectedIndex: visible.indexOf(current),
               onDestinationSelected: select,
               labelType: NavigationRailLabelType.all,
               destinations: [
@@ -102,7 +116,7 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
+        selectedIndex: visible.indexOf(current),
         onDestinationSelected: select,
         destinations: [
           for (final (icon, sel, label) in destinations)

@@ -118,6 +118,7 @@ class AgentRun extends ChangeNotifier {
     required this.branch,
     required this.task,
     this.agent,
+    this.level,
     this.maxSteps = 24,
   });
 
@@ -131,6 +132,9 @@ class AgentRun extends ChangeNotifier {
   final String branch;
   final String task;
   final Agent? agent;
+
+  /// Le niveau de réflexion de l'agent (effort du modèle et nombre d'actions).
+  final ThinkLevel? level;
   final int maxSteps;
 
   final List<AgentStep> steps = [];
@@ -231,7 +235,13 @@ class AgentRun extends ChangeNotifier {
           model: model,
           messages: history,
           system: _system,
-          options: const LlmOptions(temperature: 0.2, maxTokens: 16000),
+          options: LlmOptions(
+            temperature: 0.2,
+            maxTokens: level == null || level!.maxTokens < 16000
+                ? 16000
+                : level!.maxTokens,
+            level: level,
+          ),
         );
         if (_stop) break;
         history.add(LlmMessage('assistant', reply));

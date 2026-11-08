@@ -302,7 +302,7 @@ class _CodeTabState extends State<_CodeTab> {
               ListTile(
                 leading: Icon(
                   it.isDir ? Icons.folder_rounded : _iconFor(it.name),
-                  color: it.isDir ? Nx.cyan : null,
+                  color: it.isDir ? Nx.accent(context) : null,
                 ),
                 title: Text(it.name),
                 trailing: it.isDir
@@ -939,7 +939,7 @@ class _ActionsTabState extends State<_ActionsTab> {
                 style: const TextStyle(fontFamily: Nx.mono, fontSize: 12),
               ),
               trailing: IconButton(
-                icon: const Icon(Icons.play_circle_fill, color: Nx.cyan),
+                icon: Icon(Icons.play_circle_fill, color: Nx.accent(context)),
                 onPressed: () => _dispatch(w),
               ),
             ),

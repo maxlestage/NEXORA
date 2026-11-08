@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/agent.dart';
 import '../../models/chat.dart';
+import '../../models/level.dart';
 import '../../models/provider.dart';
 import '../../services/agent_runner.dart';
 import '../../state/agent_state.dart';
@@ -30,6 +31,7 @@ class _AgentEditorState extends State<AgentEditor> {
     text: widget.agent?.systemPrompt ?? '',
   );
   late String? _model = widget.agent?.model;
+  late ThinkLevel? _level = ThinkLevel.parse(widget.agent?.level);
   late final Set<String> _tools = {...?widget.agent?.tools};
 
   @override
@@ -53,6 +55,7 @@ class _AgentEditorState extends State<AgentEditor> {
       emoji: _emoji.text.trim().isEmpty ? '🤖' : _emoji.text.trim(),
       systemPrompt: _prompt.text.trim(),
       model: _model,
+      level: _level?.name,
       tools: _tools.toList(),
       source: widget.agent?.source ?? 'custom',
       category: widget.agent?.category ?? 'Perso',
@@ -140,6 +143,31 @@ class _AgentEditorState extends State<AgentEditor> {
                   icon: const Icon(Icons.close),
                 ),
             ],
+          ),
+          const SectionTitle('Niveau de réflexion'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Celui du chat'),
+                selected: _level == null,
+                onSelected: (_) => setState(() => _level = null),
+              ),
+              for (final l in ThinkLevel.values)
+                ChoiceChip(
+                  avatar: Text(l.emoji),
+                  label: Text(l.label),
+                  selected: _level == l,
+                  onSelected: (_) => setState(() => _level = l),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _level?.description ??
+                'L\'agent utilise le niveau choisi dans la conversation.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SectionTitle('Outils en mode autonome'),
           Wrap(

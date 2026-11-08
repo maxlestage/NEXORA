@@ -22,6 +22,7 @@ class Agent {
     this.description = '',
     this.emoji = '🤖',
     this.model,
+    this.level,
     this.tools = const [],
     this.source = 'custom',
     this.builtin = false,
@@ -36,6 +37,9 @@ class Agent {
 
   /// `fournisseur::modèle` préféré (facultatif).
   String? model;
+
+  /// Niveau de réflexion préféré (`rapide`, `equilibre`, `approfondi`, `maximum`).
+  String? level;
 
   /// Outils autorisés en mode autonome (vide : tous).
   List<String> tools;
@@ -52,6 +56,7 @@ class Agent {
     'emoji': emoji,
     'systemPrompt': systemPrompt,
     'model': model,
+    'level': level,
     'tools': tools,
     'source': source,
     'category': category,
@@ -64,6 +69,7 @@ class Agent {
     emoji: j['emoji'] as String? ?? '🤖',
     systemPrompt: j['systemPrompt'] as String? ?? '',
     model: j['model'] as String?,
+    level: j['level'] as String?,
     tools: (j['tools'] as List?)?.cast<String>() ?? const [],
     source: j['source'] as String? ?? 'custom',
     category: j['category'] as String? ?? 'Perso',
@@ -78,6 +84,7 @@ class Agent {
     }
     if (tools.isNotEmpty) b.writeln('tools: ${tools.join(', ')}');
     if (model != null && model!.isNotEmpty) b.writeln('model: $model');
+    if (level != null && level!.isNotEmpty) b.writeln('level: $level');
     b.writeln('emoji: $emoji');
     b.writeln('---');
     b.writeln(systemPrompt.trim());
@@ -139,6 +146,7 @@ class Agent {
       // Les alias de Claude Code (sonnet, opus, haiku, inherit) ne désignent pas un
       // fournisseur : on garde le modèle de la conversation.
       model: model != null && model.contains('::') ? model : null,
+      level: meta['level'],
       tools: tools,
       source: source ?? 'custom',
       category: 'Installés',

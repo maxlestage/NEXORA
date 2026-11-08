@@ -52,6 +52,7 @@ class Conversation {
     this.title = 'Nouvelle conversation',
     this.model,
     this.agentId,
+    this.level,
     List<ChatMessage>? messages,
     DateTime? updated,
     this.pinned = false,
@@ -66,6 +67,9 @@ class Conversation {
 
   /// L'agent (prompt système) utilisé.
   String? agentId;
+
+  /// Le niveau de réflexion choisi pour cette conversation (`ThinkLevel.name`).
+  String? level;
   final List<ChatMessage> messages;
   DateTime updated;
   bool pinned;
@@ -75,6 +79,7 @@ class Conversation {
     'title': title,
     'model': model,
     'agentId': agentId,
+    'level': level,
     'updated': updated.toIso8601String(),
     'pinned': pinned,
     'messages': messages.map((m) => m.toJson()).toList(),
@@ -85,6 +90,7 @@ class Conversation {
     title: j['title'] as String? ?? 'Conversation',
     model: j['model'] as String?,
     agentId: j['agentId'] as String?,
+    level: j['level'] as String?,
     updated: DateTime.tryParse(j['updated'] as String? ?? ''),
     pinned: j['pinned'] as bool? ?? false,
     messages: ((j['messages'] as List?) ?? const [])

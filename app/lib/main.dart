@@ -57,14 +57,26 @@ class NexoraApp extends StatelessWidget {
         ),
       ],
       child: Consumer<SettingsState>(
-        builder: (context, settings, _) => MaterialApp(
-          title: 'NEXORA',
-          debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light),
-          darkTheme: buildTheme(Brightness.dark),
-          themeMode: settings.themeMode,
-          home: settings.onboarded ? const HomeShell() : const Onboarding(),
-        ),
+        builder: (context, settings, _) {
+          Nx.motion = settings.animations;
+          return MaterialApp(
+            title: 'NEXORA',
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(Brightness.light, accent: settings.accent),
+            darkTheme: buildTheme(
+              Brightness.dark,
+              accent: settings.accent,
+              oled: settings.oledBlack,
+            ),
+            themeMode: settings.themeMode,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(settings.textScale)),
+              child: child!,
+            ),
+            home: settings.onboarded ? const HomeShell() : const Onboarding(),
+          );
+        },
       ),
     );
   }

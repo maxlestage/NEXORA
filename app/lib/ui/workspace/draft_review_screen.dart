@@ -80,7 +80,7 @@ class DraftReviewScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                   children: [
                     Glass(
-                      glow: Nx.cyan,
+                      glow: Nx.accent(context),
                       child: Text(
                         'Touchez un fichier pour voir ce qui change. Décochez ceux '
                         'que vous ne voulez pas : seuls les brouillons acceptés '

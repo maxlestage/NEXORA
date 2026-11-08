@@ -15,6 +15,7 @@ import '../github/repo_file_picker.dart';
 import '../providers/provider_detail_screen.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
+import '../widgets/level_picker.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
@@ -180,6 +181,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(width: 8),
                 QuotaBadge(providerId: ref.providerId),
+                const SizedBox(width: 8),
+                LevelChip(
+                  level: chat.levelFor(c, agent),
+                  provider: settings.provider(ref.providerId),
+                  model: ref.model,
+                  onPicked: (l) => chat.setLevel(c.id, l),
+                ),
                 const SizedBox(width: 8),
                 ActionChip(
                   avatar: Text(agent?.emoji ?? '💬'),
@@ -386,7 +394,11 @@ class _Empty extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.auto_awesome, size: 18, color: Nx.cyan),
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 18,
+                      color: Nx.accent(context),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(child: Text(idea)),
                   ],
@@ -427,26 +439,11 @@ class _MessageTile extends StatelessWidget {
         child: GestureDetector(
           onLongPress: () => copyText(context, m.content),
           onDoubleTap: onEdit,
-          child: Container(
-            margin: const EdgeInsets.only(left: 48, top: 6, bottom: 6),
-            padding: const EdgeInsets.all(1.4),
-            decoration: BoxDecoration(
-              gradient: Nx.gradient,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF161627) : Colors.white,
-                borderRadius: BorderRadius.circular(19),
-              ),
-              child: SelectableText(
-                m.content.length > 4000
-                    ? '${m.content.substring(0, 4000)}…'
-                    : m.content,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
+          child: _UserBubble(
+            dark: dark,
+            text: m.content.length > 4000
+                ? '${m.content.substring(0, 4000)}…'
+                : m.content,
           ),
         ),
       );
@@ -462,9 +459,9 @@ class _MessageTile extends StatelessWidget {
               Container(
                 width: 26,
                 height: 26,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: Nx.gradient,
+                  gradient: Nx.gradientOf(context),
                 ),
                 child: const Icon(Icons.blur_on, size: 16, color: Colors.white),
               ),
@@ -584,7 +581,7 @@ class _TypingDotsState extends State<_TypingDots>
             height: 6 * s,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: [Nx.cyan, Nx.violet, Nx.magenta][i],
+              color: Nx.gradientOf(context).colors[i],
             ),
           );
         }),
@@ -644,7 +641,12 @@ class _Composer extends StatelessWidget {
                 focusNode: focus,
                 minLines: 1,
                 maxLines: 8,
-                textInputAction: TextInputAction.newline,
+                textInputAction: context.watch<SettingsState>().sendOnEnter
+                    ? TextInputAction.send
+                    : TextInputAction.newline,
+                onSubmitted: context.read<SettingsState>().sendOnEnter
+                    ? (_) => onSend()
+                    : null,
                 decoration: const InputDecoration(
                   hintText: 'Écrivez une instruction…',
                   filled: false,
@@ -672,9 +674,9 @@ class _Composer extends StatelessWidget {
                       )
                     : DecoratedBox(
                         key: const ValueKey('send'),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: Nx.gradient,
+                          gradient: Nx.gradientOf(context),
                         ),
                         child: IconButton(
                           icon: const Icon(
@@ -798,5 +800,65 @@ class _ErrorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Un message envoyé, dans le style choisi (Réglages → Personnaliser).
+class _UserBubble extends StatelessWidget {
+  const _UserBubble({required this.dark, required this.text});
+
+  final bool dark;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = context.watch<SettingsState>().bubbleStyle;
+    final scheme = Theme.of(context).colorScheme;
+    final textWidget = SelectableText(
+      text,
+      style: Theme.of(context).textTheme.bodyLarge
+          ?.copyWith(color: style == 'filled' ? scheme.onPrimary : null),
+    );
+    const margin = EdgeInsets.only(left: 48, top: 6, bottom: 6);
+    const inner = EdgeInsets.symmetric(horizontal: 14, vertical: 10);
+    switch (style) {
+      case 'filled':
+        return Container(
+          margin: margin,
+          padding: inner,
+          decoration: BoxDecoration(
+            gradient: Nx.gradientOf(context),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: textWidget,
+        );
+      case 'minimal':
+        return Container(
+          margin: margin,
+          padding: inner,
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: textWidget,
+        );
+      default:
+        return Container(
+          margin: margin,
+          padding: const EdgeInsets.all(1.4),
+          decoration: BoxDecoration(
+            gradient: Nx.gradientOf(context),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: inner,
+            decoration: BoxDecoration(
+              color: dark ? scheme.surfaceContainerHigh : Colors.white,
+              borderRadius: BorderRadius.circular(19),
+            ),
+            child: textWidget,
+          ),
+        );
+    }
   }
 }

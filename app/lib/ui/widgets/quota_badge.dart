@@ -369,7 +369,9 @@ class _QuotaSheet extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: w.ratio,
                       minHeight: 8,
-                      color: (w.ratio ?? 1) < 0.2 ? Nx.amber : Nx.cyan,
+                      color: (w.ratio ?? 1) < 0.2
+                          ? Nx.amber
+                          : Nx.accent(context),
                     ),
                   ),
                   if (w.reset != null)

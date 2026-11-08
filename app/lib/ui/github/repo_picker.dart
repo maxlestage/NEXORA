@@ -60,7 +60,7 @@ class _RepoListState extends State<_RepoList> {
               return ListTile(
                 leading: Icon(
                   r.private ? Icons.lock_outline : Icons.public,
-                  color: Nx.cyan,
+                  color: Nx.accent(context),
                 ),
                 title: Text(r.fullName),
                 subtitle: r.description.isEmpty
