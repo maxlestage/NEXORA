@@ -7,14 +7,18 @@ import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/github_state.dart';
 import '../../state/settings_state.dart';
+import '../../state/usage_state.dart';
+import '../../models/usage.dart';
+import '../widgets/quota_badge.dart';
 import '../help/help_screen.dart';
 import '../theme.dart';
 import 'credits_screen.dart';
 import 'personalize_screen.dart';
+import 'usage_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.7.0';
+const appVersion = '1.8.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -55,6 +59,8 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+          const _CreditsCard(),
           const SizedBox(height: 10),
           Glass(
             glow: Theme.of(context).colorScheme.primary,
@@ -400,6 +406,53 @@ class _StorageTileState extends State<_StorageTile> {
           onTap: _clean,
         ),
       ],
+    );
+  }
+}
+
+/// Réglages : le résumé du crédit, qui ouvre « Crédits et consommation ».
+class _CreditsCard extends StatelessWidget {
+  const _CreditsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SettingsState>();
+    final usage = context.watch<UsageState>();
+    final tt = Theme.of(context).textTheme;
+    final list = trackedProviders(s, usage);
+    final month = list.fold(0.0, (t, p) => t + usage.of(p.id).costMonth);
+    return Glass(
+      glow: Nx.green,
+      onTap: () =>
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const UsageScreen())),
+      child: Row(
+        children: [
+          const Text('💳', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Crédits et consommation',
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  list.isEmpty
+                      ? 'Le crédit de vos fournisseurs apparaîtra ici'
+                      : '≈ ${costLabel(month)} ce mois · '
+                            '${list.take(2).map((p) => '${p.name} : ${usageSummary(p, usage.of(p.id))}').join(' · ')}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: tt.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
     );
   }
 }

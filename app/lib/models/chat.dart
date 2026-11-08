@@ -11,6 +11,10 @@ class ChatMessage {
     DateTime? at,
     this.model,
     this.error = false,
+    this.tokensIn = 0,
+    this.tokensOut = 0,
+    this.cost,
+    this.estimated = false,
   }) : at = at ?? DateTime.now();
 
   final Role role;
@@ -24,6 +28,13 @@ class ChatMessage {
   final String? model;
   bool error;
 
+  /// Ce qu'a coûté la réponse : tokens envoyés et reçus, et dollars (si le prix
+  /// du modèle est connu). `estimated` : décompte estimé (~4 caractères / token).
+  int tokensIn;
+  int tokensOut;
+  double? cost;
+  bool estimated;
+
   Map<String, dynamic> toJson() => {
     'role': role.name,
     'content': content,
@@ -31,6 +42,10 @@ class ChatMessage {
     'at': at.toIso8601String(),
     if (model != null) 'model': model,
     if (error) 'error': true,
+    if (tokensIn > 0) 'tin': tokensIn,
+    if (tokensOut > 0) 'tout': tokensOut,
+    if (cost != null) 'cost': cost,
+    if (estimated) 'est': true,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
@@ -43,6 +58,10 @@ class ChatMessage {
     at: DateTime.tryParse(j['at'] as String? ?? ''),
     model: j['model'] as String?,
     error: j['error'] as bool? ?? false,
+    tokensIn: j['tin'] as int? ?? 0,
+    tokensOut: j['tout'] as int? ?? 0,
+    cost: (j['cost'] as num?)?.toDouble(),
+    estimated: j['est'] as bool? ?? false,
   );
 }
 
@@ -90,6 +109,12 @@ class Conversation {
   int trimmed = 0;
 
   int get messageCount => loaded ? messages.length : storedCount;
+
+  /// Le coût total de la conversation (messages chargés), en dollars.
+  double get cost => messages.fold(0.0, (t, m) => t + (m.cost ?? 0));
+
+  /// Les tokens de la conversation (envoyés + reçus).
+  int get tokens => messages.fold(0, (t, m) => t + m.tokensIn + m.tokensOut);
   bool get isEmpty => messageCount == 0;
 
   /// Le début du dernier message, pour la liste.

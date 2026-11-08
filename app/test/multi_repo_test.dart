@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nexora/data/providers_catalog.dart';
+import 'package:nexora/models/chat.dart';
 import 'package:nexora/models/provider.dart';
 import 'package:nexora/services/agent_runner.dart';
 import 'package:nexora/services/github_api.dart';
@@ -228,5 +229,24 @@ void main() {
     await run.run();
     expect(seen, hasLength(1));
     expect(seen.single.total, greaterThan(0));
+  });
+
+  test('coût enregistré dans le message', () {
+    final m = ChatMessage.fromJson(
+      ChatMessage(
+        role: Role.assistant,
+        content: 'ok',
+        tokensIn: 1840,
+        tokensOut: 620,
+        cost: 0.01976,
+      ).toJson(),
+    );
+    expect(m.cost, 0.01976);
+    expect(
+      Conversation(id: 'x', messages: [m, m]).cost,
+      closeTo(0.03952, 1e-9),
+    );
+    expect(costLabel(0.01976), '0,020 \$');
+    expect(costLabel(0.00042), '0,0004 \$');
   });
 }

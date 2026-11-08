@@ -89,6 +89,11 @@ Application **smartphone uniquement** (iPhone et Android), optimisée pour des c
 
 ### 📊 Le témoin de crédit
 
+Le crédit se suit partout : **sous chaque réponse** (tokens et coût, ex. « 1,8k → 620 tokens ·
+≈ 0,020 $ »), **en haut de chaque conversation** (son coût total et le crédit restant chez le
+fournisseur) et dans **Réglages → Crédits et consommation** (dépense du mois et du jour, et le
+solde de chaque fournisseur avec sa jauge).
+
 Un point coloré à côté du modèle indique où vous en êtes chez chaque fournisseur :
 🟢 tout va bien, 🟠 moins de 20 % restants ou limite atteinte, 🔴 crédit épuisé ou clé refusée.
 Touchez-le pour le détail, avec une jauge :
