@@ -165,6 +165,12 @@ sans CLI, par l'API de Heroku) :
    l'app ; elle est créée si elle n'existe pas). Facultatif : `HEROKU_REGION` = `eu`.
 3. Actions → **Heroku** → Run workflow. L'adresse s'affiche dans le résumé de l'exécution.
 
+**App créée à la main dans le tableau de bord Heroku** (onglet Deploy → GitHub, ou `git push`) :
+Heroku ne reconnaît pas tout seul le buildpack `emk/rust` (« No default language could be
+detected »). Réglez-le une fois : app → **Settings** → Buildpacks → **Add buildpack** → saisissez
+`emk/rust` → Save changes, puis **Deploy** → Manual deploy → **Deploy Branch** (`master`).
+La pile `heroku-24` comme `heroku-26` convient.
+
 Le workflow règle lui-même le buildpack `emk/rust`, la pile et `SITE_URL` (URL canoniques et
 sitemap).
 
