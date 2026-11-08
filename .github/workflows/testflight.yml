@@ -102,7 +102,12 @@ jobs:
                 "(une clé Apple .p8 fait environ 200 caractères, 138 octets).")
           PY
           openssl version
-          if ! openssl pkey -in "$key" -noout; then
+          if ! openssl pkey -in "$key" -noout -passin pass: 2> "$RUNNER_TEMP/keys/err"; then
+            cat "$RUNNER_TEMP/keys/err"
+            if grep -q EncryptedPrivateKeyInfo "$RUNNER_TEMP/keys/err"; then
+              echo "::error title=Ce n'est pas une clé App Store Connect::Le secret contient une clé privée protégée par mot de passe. Une clé d'API App Store Connect (.p8) ne l'est jamais : créez-en une dans App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → +, rôle Admin, puis Download."
+              exit 1
+            fi
             echo "::error title=Clé .p8 illisible::Le secret ASC_KEY (ou ASC_PRIVATE_KEY) ne contient pas une clé .p8 valide. Sur iPhone : dans l'app Fichiers, renommez AuthKey_XXXX.p8 en AuthKey_XXXX.txt, ouvrez-le, copiez TOUT le texte (lignes BEGIN et END comprises) et collez-le dans le secret ASC_KEY."
             exit 1
           fi
