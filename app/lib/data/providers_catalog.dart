@@ -51,15 +51,18 @@ const List<ProviderDef> providersCatalog = [
     baseUrl: 'https://ollama.com',
     kind: ApiKind.ollama,
     listing: ModelsListing.ollama,
-    free: true,
     keyUrl: 'https://ollama.com/settings/keys',
-    docsUrl: 'https://docs.ollama.com/cloud',
-    description: 'Les gros modèles ouverts hébergés par Ollama, avec une offre gratuite.',
+    docsUrl: 'https://ollama.com/search?c=cloud',
+    description:
+        'Les grands modèles ouverts d\'Ollama, sans ordinateur : juste une clé. '
+        'Au token, ou avec le crédit mensuel des offres Pro et Max.',
     defaultModels: [
       'gpt-oss:120b',
-      'qwen3-coder:480b',
-      'deepseek-v3.1:671b',
-      'kimi-k2:1t',
+      'deepseek-v4.1-flash',
+      'kimi-k2.7-code',
+      'glm-5.3',
+      'minimax-m3.1-flash',
+      'kimi-k3.1-pro',
     ],
   ),
   ProviderDef(

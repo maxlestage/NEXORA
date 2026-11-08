@@ -686,7 +686,7 @@ async fn accueil(_req: Request) -> Page {
                         .href("/modeles")
                         .attr("data-reveal", "down")
                         .child(span().class("pill-tag").text("Nouveau"))
-                        .text("21 fournisseurs, dont 17 gratuits")
+                        .text("21 fournisseurs, dont 16 gratuits")
                         .child(fleche()),
                 )
                 .child(mots(
@@ -808,7 +808,7 @@ async fn accueil(_req: Request) -> Page {
             .class("container")
             .child(titre_section(
                 "La galaxie des modèles",
-                "21 fournisseurs, *17* *gratuits*",
+                "21 fournisseurs, *16* *gratuits*",
                 "Chaque planète est un fournisseur : un anneau vert pour les offres gratuites, une lune pour ceux qui tournent chez vous. Faites tourner la galaxie du doigt.",
             ))
             .child(island("galaxie", "", nexora_site::galaxie))
@@ -1166,7 +1166,7 @@ async fn modeles(_req: Request) -> Page {
             bandeau(
                 "Modèles",
                 "Tous les modèles, *surtout* *les* *gratuits*",
-                "21 fournisseurs intégrés, dont 17 gratuits ou locaux. La liste des modèles est récupérée en direct chez chacun.",
+                "21 fournisseurs intégrés, dont 16 gratuits ou locaux. La liste des modèles est récupérée en direct chez chacun.",
             ),
             section()
                 .class("section section-tight")

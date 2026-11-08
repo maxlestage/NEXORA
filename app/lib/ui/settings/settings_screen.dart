@@ -13,7 +13,7 @@ import 'credits_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.2.0';
+const appVersion = '1.3.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/model_prices.dart';
 import '../data/providers_catalog.dart';
 import '../models/chat.dart';
 import '../models/provider.dart';
@@ -206,12 +207,16 @@ class SettingsState extends ChangeNotifier {
       final p = provider(providerId);
       final extra = (p?.defaultModels ?? const <String>[])
           .where((m) => !cached.any((c) => c.id == m))
-          .map((m) => ModelInfo(m, free: p!.free));
+          .map(
+            (m) => ModelInfo(m, free: p!.free, detail: priceOf(p.id, m)?.label),
+          );
       return [...extra, ...cached];
     }
     final p = provider(providerId);
     return (p?.defaultModels ?? const <String>[])
-        .map((m) => ModelInfo(m, free: p!.free))
+        .map(
+          (m) => ModelInfo(m, free: p!.free, detail: priceOf(p.id, m)?.label),
+        )
         .toList();
   }
 

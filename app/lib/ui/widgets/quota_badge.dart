@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/model_prices.dart';
 import '../../data/provider_help.dart';
 import '../../models/provider.dart';
 import '../../models/usage.dart';
@@ -38,6 +39,9 @@ String usageSummary(ProviderDef p, ProviderUsage u) {
         return 'Limite atteinte';
     }
   }
+  if (u.monthlyBudget != null) {
+    return '≈ ${dollars(u.costMonth)} / ${dollars(u.monthlyBudget!)} ce mois';
+  }
   if (u.balance != null && u.balance!.label.isNotEmpty) {
     final b = u.balance!;
     if (b.remaining == null && b.freeTier == true) return 'Offre gratuite';
@@ -45,6 +49,7 @@ String usageSummary(ProviderDef p, ProviderUsage u) {
   }
   if (u.windows.isNotEmpty) return u.windows.first.label;
   if (p.local) return 'Local · illimité';
+  if (u.costMonth > 0) return '≈ ${dollars(u.costMonth)} ce mois';
   if (u.requestsToday > 0) {
     return '${u.requestsToday} req · ${compact(u.tokensToday)} tokens auj.';
   }
@@ -237,7 +242,9 @@ class _QuotaSheet extends StatelessWidget {
     final now = DateTime.now();
     final level = u.level(now);
     final tt = Theme.of(context).textTheme;
-    final ratio = u.balance?.ratio ?? u.windows.firstOrNull?.ratio;
+    final ratio =
+        u.budgetRatio ?? u.balance?.ratio ?? u.windows.firstOrNull?.ratio;
+    final priced = modelPrices.containsKey(p.id);
     final canFetch = QuotaService.canFetch(p);
 
     return ListView(
@@ -377,6 +384,62 @@ class _QuotaSheet extends StatelessWidget {
               ),
             ),
         ],
+        if (priced || u.monthlyBudget != null) ...[
+          const SectionTitle('Dépense estimée'),
+          Glass(
+            glow: u.monthlyBudget == null ? null : levelColor(level),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _row('Ce mois-ci', '≈ ${dollars(u.costMonth)}'),
+                _row('Aujourd\'hui', '≈ ${dollars(u.costToday)}'),
+                if (u.monthlyBudget != null)
+                  _row(
+                    'Crédit restant',
+                    '≈ ${dollars((u.monthlyBudget! - u.costMonth).clamp(0, double.infinity))}'
+                        ' sur ${dollars(u.monthlyBudget!)}',
+                  ),
+                const SizedBox(height: 8),
+                Text('Crédit mensuel de votre offre', style: tt.labelLarge),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final (name, amount)
+                        in monthlyPlans[p.id] ?? const <(String, double)>[])
+                      ChoiceChip(
+                        label: Text('$name · ${dollars(amount)}'),
+                        selected: u.monthlyBudget == amount,
+                        onSelected: (_) => usageState.setBudget(p.id, amount),
+                      ),
+                    ActionChip(
+                      avatar: const Icon(Icons.edit, size: 16),
+                      label: const Text('Autre montant'),
+                      onPressed: () async {
+                        final v = await _askBudget(context, u.monthlyBudget);
+                        if (v != null) {
+                          usageState.setBudget(p.id, v > 0 ? v : null);
+                        }
+                      },
+                    ),
+                    if (u.monthlyBudget != null)
+                      ActionChip(
+                        label: const Text('Aucun'),
+                        onPressed: () => usageState.setBudget(p.id, null),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Estimation : tokens × prix publics du $pricesDate (tarif de '
+                  'journée). La page « Consommation » de ${p.name} fait foi.',
+                  style: tt.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
         const SectionTitle('Compté par NEXORA'),
         Glass(
           child: Column(
@@ -514,6 +577,37 @@ class _QuotaSheet extends StatelessWidget {
     if (d.inHours < 24) return 'il y a ${d.inHours} h';
     return 'il y a ${d.inDays} j';
   }
+}
+
+Future<double?> _askBudget(BuildContext context, double? current) {
+  final c = TextEditingController(
+    text: current == null ? '' : current.toStringAsFixed(0),
+  );
+  return showDialog<double>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Crédit mensuel'),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(suffixText: r'$ par mois'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            double.tryParse(c.text.replaceAll(',', '.').trim()) ?? 0,
+          ),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Une jauge circulaire animée.

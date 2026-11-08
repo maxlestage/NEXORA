@@ -143,7 +143,7 @@ pub const FOURNISSEURS: [Fournisseur; 21] = [
         sans_cle: true,
         base_url: "https://text.pollinations.ai/openai",
         cle: "https://pollinations.ai",
-        modeles: &["openai", "mistral", "qwen-coder", "llama"],
+        modeles: &["openai", "openai-fast"],
         note: "Aucune clé, aucun compte : c'est le fournisseur par défaut, pour discuter dès la première seconde.",
         couleur: 0x22d3ee,
     },
@@ -168,13 +168,19 @@ pub const FOURNISSEURS: [Fournisseur; 21] = [
     Fournisseur {
         id: "ollama-cloud",
         nom: "Ollama Cloud",
-        gratuit: true,
+        gratuit: false,
         local: false,
         sans_cle: false,
-        base_url: "https://ollama.com/api",
+        base_url: "https://ollama.com",
         cle: "https://ollama.com/settings/keys",
-        modeles: &["gpt-oss:120b", "qwen3-coder:480b", "deepseek-v3.1:671b"],
-        note: "Les très grands modèles ouverts, hébergés par Ollama. Offre gratuite avec une limite d'usage.",
+        modeles: &[
+            "gpt-oss:120b",
+            "deepseek-v4.1-flash",
+            "kimi-k2.7-code",
+            "glm-5.3",
+            "kimi-k3.1-pro",
+        ],
+        note: "Ollama sans ordinateur : juste une clé. 26 grands modèles ouverts (Kimi, GLM, DeepSeek, MiniMax, Mistral Large, gpt-oss…), au token ou avec le crédit mensuel des offres Pro (60 $) et Max (300 $). NEXORA affiche le prix de chaque modèle et estime votre dépense.",
         couleur: 0xe5e7eb,
     },
     Fournisseur {
@@ -520,7 +526,7 @@ pub const FONCTIONS: [Fonction; 6] = [
 /// Les chiffres : valeur, suffixe, libellé.
 pub const CHIFFRES: [(u32, &str, &str); 4] = [
     (21, "", "fournisseurs d'IA intégrés"),
-    (17, "", "offres gratuites ou locales"),
+    (16, "", "offres gratuites ou locales"),
     (12, "", "agents prêts à l'emploi"),
     (0, " €", "pour tout utiliser"),
 ];
