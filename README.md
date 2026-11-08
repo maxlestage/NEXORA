@@ -200,7 +200,7 @@ jour de l'app sur `master` (donc après chaque fusion automatique), sur un tag `
    | `APPLE_TEAM_ID` | le Team ID |
    | `ASC_KEY_ID` | le Key ID |
    | `ASC_ISSUER_ID` | l'Issuer ID |
-   | `ASC_PRIVATE_KEY` | tout le texte du fichier `.p8`, lignes `BEGIN`/`END` comprises |
+   | `ASC_PRIVATE_KEY` (ou `ASC_KEY`) | tout le texte du fichier `.p8`, lignes `BEGIN`/`END` comprises |
 
    Autre identifiant d'app : variable `IOS_BUNDLE_ID` (même page, onglet Variables).
 6. **Lancer** : Actions → TestFlight → Run workflow. Après le traitement par Apple (10 à
