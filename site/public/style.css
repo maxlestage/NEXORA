@@ -712,11 +712,11 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .gen-form { display: grid; gap: 12px; align-content: start; }
 .gen-form .muted.small { margin: 6px 0 0; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .field { display: grid; gap: 6px; font-size: 0.84rem; color: var(--muted); }
-.field input, .field textarea, .newsletter-form input {
+.field input, .field textarea {
   width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(5, 5, 13, 0.7);
   color: var(--text); font: 400 16px/1.4 var(--font); transition: border-color 0.3s, box-shadow 0.3s; resize: vertical;
 }
-.field input:focus, .field textarea:focus, .newsletter-form input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.15); }
+.field input:focus, .field textarea:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.15); }
 .gen-out pre { min-height: 220px; }
 
 .device-card { text-align: center; display: flex; flex-direction: column; align-items: center; padding: 34px 20px; }
@@ -775,9 +775,6 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .site-footer { position: relative; overflow: hidden; padding-top: 70px; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--bg), #030309); isolation: isolate; }
 .footer-glow { position: absolute; left: 50%; top: -260px; width: 900px; height: 520px; margin-left: -450px; z-index: -1; background: radial-gradient(ellipse, rgba(139, 92, 246, 0.25), transparent 65%); filter: blur(30px); pointer-events: none; }
 .footer-top { display: grid; grid-template-columns: 1fr; gap: 26px; margin-bottom: 56px; }
-.newsletter { padding: 26px 20px; }
-.newsletter h3 { font-size: clamp(1.3rem, 5vw, 1.7rem); }
-.newsletter-form { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
 .footer-cta { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 22px; }
 .footer-cta .big { font: 700 clamp(1.6rem, 6.5vw, 2.6rem)/1.1 var(--display); letter-spacing: -0.03em; margin: 0; max-width: 16ch; }
 .cta-orb {
@@ -840,9 +837,7 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 @media (min-width: 480px) {
   :root { --gutter: 20px; }
   .actions .btn { flex: 0 0 auto; }
-  .newsletter-form { flex-direction: row; }
-  .newsletter-form input { flex: 1; }
-  .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .agents-grid { gap: 14px; }
 }
 
@@ -872,7 +867,6 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .demo { grid-template-columns: 1fr 1fr; gap: 60px; }
   .generateur { grid-template-columns: 0.9fr 1.1fr; }
-  .footer-top { grid-template-columns: 1.2fr 1fr; gap: 40px; }
   .footer-grid { grid-template-columns: 1.6fr repeat(6, minmax(0, 1fr)); gap: 30px; }
   .footer-brand { grid-column: auto; }
   .visual-3d { height: 380px; }

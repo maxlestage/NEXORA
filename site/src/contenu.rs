@@ -30,7 +30,7 @@ pub const MENU: [(&str, &str); 5] = [
 ];
 
 /// Toutes les pages, pour le plan du site et sitemap.xml.
-pub const PAGES: [(&str, &str); 11] = [
+pub const PAGES: [(&str, &str); 10] = [
     ("/", "Accueil"),
     ("/fonctionnalites", "Fonctionnalités"),
     ("/modeles", "Modèles d'IA et fournisseurs"),
@@ -41,7 +41,6 @@ pub const PAGES: [(&str, &str); 11] = [
     ("/confidentialite", "Confidentialité"),
     ("/mentions-legales", "Mentions légales"),
     ("/plan-du-site", "Plan du site"),
-    ("/merci", "Merci"),
 ];
 
 /// Les réseaux : nom, lien, icône.
@@ -925,11 +924,11 @@ pub const CONFIDENTIALITE: [(&str, &str, &str); 5] = [
     (
         "site",
         "Ce site",
-        "Il ne dépose aucun cookie publicitaire. Seule l'adresse e-mail donnée pour la lettre d'information est enregistrée, pour l'envoyer ; elle n'est jamais partagée.",
+        "Il ne dépose aucun cookie, ne demande aucune donnée personnelle et n'enregistre rien sur vous.",
     ),
     (
         "droits",
         "Vos droits",
-        "Vous pouvez demander l'accès ou la suppression de votre adresse e-mail à tout moment, via une issue sur le dépôt GitHub ou le lien présent dans chaque lettre.",
+        "Le site ne collecte aucune donnée vous concernant. Pour toute question, ouvrez une issue sur le dépôt GitHub.",
     ),
 ];

@@ -166,8 +166,7 @@ sans CLI, par l'API de Heroku) :
 3. Actions → **Heroku** → Run workflow. L'adresse s'affiche dans le résumé de l'exécution.
 
 Le workflow règle lui-même le buildpack `emk/rust`, la pile et `SITE_URL` (URL canoniques et
-sitemap). Pour garder les inscrits à la lettre d'information : app Heroku → Resources →
-**Heroku Postgres** (sa `DATABASE_URL` est utilisée automatiquement ; sinon, base en mémoire).
+sitemap).
 
 ## Version de test sur TestFlight (iPhone)
 
