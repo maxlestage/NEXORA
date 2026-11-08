@@ -39,6 +39,7 @@ String usageSummary(ProviderDef p, ProviderUsage u) {
         return 'Limite atteinte';
     }
   }
+  if (u.prepaidLeft != null) return '≈ ${dollars(u.prepaidLeft!)} restants';
   if (u.monthlyBudget != null) {
     return '≈ ${dollars(u.costMonth)} / ${dollars(u.monthlyBudget!)} ce mois';
   }
@@ -243,7 +244,10 @@ class _QuotaSheet extends StatelessWidget {
     final level = u.level(now);
     final tt = Theme.of(context).textTheme;
     final ratio =
-        u.budgetRatio ?? u.balance?.ratio ?? u.windows.firstOrNull?.ratio;
+        u.prepaidRatio ??
+        u.budgetRatio ??
+        u.balance?.ratio ??
+        u.windows.firstOrNull?.ratio;
     final priced = modelPrices.containsKey(p.id);
     final canFetch = QuotaService.canFetch(p);
 
@@ -301,6 +305,9 @@ class _QuotaSheet extends StatelessWidget {
                       '${u.balanceAt != null ? ' · ${_ago(u.balanceAt!, now)}' : ''}'
                 : p.local
                 ? 'Sur votre machine : pas de crédit à surveiller'
+                : u.prepaid != null
+                ? 'Solde indiqué ${_ago(u.prepaidAt!, now)}, moins les réponses '
+                      'envoyées depuis'
                 : u.windowsAt != null
                 ? 'Limites lues dans la dernière réponse · ${_ago(u.windowsAt!, now)}'
                 : '${p.name} ne publie pas de solde : les limites apparaissent '
@@ -333,6 +340,76 @@ class _QuotaSheet extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(u.balance!.note!, style: tt.bodySmall),
                   ),
+              ],
+            ),
+          ),
+        ],
+        if (!canFetch && !p.local && (p.needsKey || !p.free)) ...[
+          const SectionTitle('Crédit prépayé'),
+          Glass(
+            glow: u.prepaid == null ? null : levelColor(level),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (u.prepaid != null) ...[
+                  _row('Restant (estimé)', '≈ ${dollars(u.prepaidLeft!)}'),
+                  _row('Solde indiqué', dollars(u.prepaid!)),
+                  _row(
+                    'Dépensé depuis',
+                    '≈ ${dollars(u.prepaidSpent)}${priced ? '' : ' (prix inconnus)'}',
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Text(
+                  u.prepaid == null
+                      ? '${p.name} ne donne pas votre solde par l\'API. Recopiez-le '
+                            'une fois depuis sa page de facturation : NEXORA déduit '
+                            'ensuite chaque réponse (chat et agents autonomes).'
+                      : 'Recalez le solde de temps en temps avec celui de la page '
+                            'de facturation : l\'estimation peut dériver (cache, '
+                            'outils, autres appareils).',
+                  style: tt.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        final v = await _askAmount(
+                          context,
+                          title: 'Solde chez ${p.name}',
+                          hint: 'Ex. : 18.40',
+                          initial: u.prepaidLeft,
+                        );
+                        if (v != null) {
+                          usageState.setPrepaid(p.id, v > 0 ? v : null);
+                        }
+                      },
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: Text(
+                        u.prepaid == null
+                            ? 'Indiquer mon solde'
+                            : 'Mettre à jour le solde',
+                      ),
+                    ),
+                    if (billingUrls[p.id] ?? help?.usageUrl case final url?)
+                      OutlinedButton.icon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(url),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const Text('Voir ma facturation'),
+                      ),
+                    if (u.prepaid != null)
+                      TextButton(
+                        onPressed: () => usageState.setPrepaid(p.id, null),
+                        child: const Text('Retirer'),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -604,6 +681,45 @@ Future<double?> _askBudget(BuildContext context, double? current) {
           onPressed: () => Navigator.pop(
             context,
             double.tryParse(c.text.replaceAll(',', '.').trim()) ?? 0,
+          ),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<double?> _askAmount(
+  BuildContext context, {
+  required String title,
+  String? hint,
+  double? initial,
+}) {
+  final c = TextEditingController(
+    text: initial == null ? '' : initial.toStringAsFixed(2),
+  );
+  return showDialog<double>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(hintText: hint, suffixText: r'$'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            double.tryParse(
+                  c.text.replaceAll(',', '.').replaceAll(r'$', '').trim(),
+                ) ??
+                0,
           ),
           child: const Text('OK'),
         ),

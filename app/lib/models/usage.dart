@@ -199,6 +199,21 @@ class ProviderUsage {
   /// Le crédit mensuel de votre offre (ex. 60 \$ pour Ollama Pro), pour la jauge.
   double? monthlyBudget;
 
+  /// Le solde prépayé indiqué par l'utilisateur (Anthropic, OpenAI… ne le donnent
+  /// pas par l'API), et ce qui a été dépensé depuis.
+  double? prepaid;
+  double prepaidSpent = 0;
+  DateTime? prepaidAt;
+
+  /// Le solde prépayé restant estimé.
+  double? get prepaidLeft => prepaid == null
+      ? null
+      : (prepaid! - prepaidSpent).clamp(0.0, double.infinity);
+
+  double? get prepaidRatio => prepaid == null || prepaid! <= 0
+      ? null
+      : (prepaidLeft! / prepaid!).clamp(0.0, 1.0);
+
   /// Part du crédit mensuel restante, de 0 à 1.
   double? get budgetRatio => monthlyBudget == null || monthlyBudget! <= 0
       ? null
@@ -240,7 +255,7 @@ class ProviderUsage {
     if (balance?.remaining != null && balance!.remaining! <= 0) {
       return UsageLevel.blocked;
     }
-    if (budgetRatio == 0) return UsageLevel.blocked;
+    if (budgetRatio == 0 || prepaidRatio == 0) return UsageLevel.blocked;
     final fresh =
         windowsAt != null && now.difference(windowsAt!).inMinutes < 10;
     if (fresh && windows.any((w) => w.remaining == 0)) {
@@ -250,6 +265,7 @@ class ProviderUsage {
     final ratios = [
       if (balance?.ratio != null) balance!.ratio!,
       ?budgetRatio,
+      ?prepaidRatio,
       if (fresh) ...windows.map((w) => w.ratio).whereType<double>(),
     ];
     if (ratios.any((r) => r < 0.2)) return UsageLevel.low;
@@ -275,6 +291,9 @@ class ProviderUsage {
     'month': month,
     'costMonth': costMonth,
     'monthlyBudget': monthlyBudget,
+    'prepaid': prepaid,
+    'prepaidSpent': prepaidSpent,
+    'prepaidAt': prepaidAt?.toIso8601String(),
     'lastErrorStatus': lastErrorStatus,
     'lastErrorMessage': lastErrorMessage,
     'lastErrorAt': lastErrorAt?.toIso8601String(),
@@ -302,6 +321,9 @@ class ProviderUsage {
       ..month = j['month'] as String? ?? ''
       ..costMonth = (j['costMonth'] as num?)?.toDouble() ?? 0
       ..monthlyBudget = (j['monthlyBudget'] as num?)?.toDouble()
+      ..prepaid = (j['prepaid'] as num?)?.toDouble()
+      ..prepaidSpent = (j['prepaidSpent'] as num?)?.toDouble() ?? 0
+      ..prepaidAt = date(j['prepaidAt'])
       ..lastErrorStatus = j['lastErrorStatus'] as int?
       ..lastErrorMessage = j['lastErrorMessage'] as String?
       ..lastErrorAt = date(j['lastErrorAt']);

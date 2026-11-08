@@ -81,7 +81,8 @@ class UsageState extends ChangeNotifier {
       final c = price.cost(t.input, t.output);
       u
         ..costToday += c
-        ..costMonth += c;
+        ..costMonth += c
+        ..prepaidSpent += c;
     }
     if (u.lastErrorStatus != null &&
         const [401, 402, 429].contains(u.lastErrorStatus)) {
@@ -129,6 +130,16 @@ class UsageState extends ChangeNotifier {
   /// Le crédit mensuel de l'offre (`null` pour l'enlever).
   void setBudget(String providerId, double? dollars) {
     of(providerId).monthlyBudget = dollars;
+    _changed();
+  }
+
+  /// Le solde prépayé lu sur la page de facturation (`null` pour l'enlever) :
+  /// chaque réponse est ensuite déduite.
+  void setPrepaid(String providerId, double? dollars) {
+    of(providerId)
+      ..prepaid = dollars
+      ..prepaidSpent = 0
+      ..prepaidAt = dollars == null ? null : DateTime.now();
     _changed();
   }
 

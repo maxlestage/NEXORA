@@ -142,6 +142,9 @@ class AgentRun extends ChangeNotifier {
     this.level,
     this.maxSteps = 24,
     List<RepoTarget> extraRepos = const [],
+    this.onHeaders,
+    this.onUsage,
+    this.onError,
   }) {
     targets = [
       RepoTarget(owner, repo, branch),
@@ -159,6 +162,12 @@ class AgentRun extends ChangeNotifier {
             t,
     };
   }
+
+  /// Pour le témoin de crédit : limites de débit, tokens de chaque étape, erreurs
+  /// de clé ou de quota.
+  final void Function(Map<String, String> headers)? onHeaders;
+  final void Function(TokenUsage usage)? onUsage;
+  final void Function(Object error)? onError;
 
   /// Les dépôts de la mission (le premier est le principal).
   late final List<RepoTarget> targets;
@@ -396,8 +405,11 @@ class AgentRun extends ChangeNotifier {
                 : level!.maxTokens,
             level: level,
           ),
+          onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
+          onUsage: onUsage,
         );
       } on LlmException catch (e) {
+        onError?.call(e);
         if (!e.retryable || attempt >= stepRetries || _stop) rethrow;
         _add(
           AgentStep(

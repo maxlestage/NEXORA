@@ -8,7 +8,12 @@ import 'package:nexora/data/providers_catalog.dart';
 import 'package:nexora/models/provider.dart';
 import 'package:nexora/services/agent_runner.dart';
 import 'package:nexora/services/github_api.dart';
+import 'package:nexora/data/model_prices.dart';
+import 'package:nexora/models/usage.dart';
 import 'package:nexora/services/llm_client.dart';
+import 'package:nexora/services/storage.dart';
+import 'package:nexora/state/usage_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 ProviderDef P(String id) => providersCatalog.firstWhere((p) => p.id == id);
 
@@ -182,5 +187,46 @@ void main() {
     expect(LlmException('x', status: 529).retryable, isTrue);
     expect(LlmException('x', transient: true).retryable, isTrue);
     expect(LlmException('clé invalide', status: 401).retryable, isFalse);
+  });
+
+  test('solde prépayé : chaque réponse est déduite', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    final storage = await Storage.open();
+    final usage = UsageState(storage);
+    expect(priceOf('anthropic', 'claude-opus-5-5')!.output, 20);
+    usage.setPrepaid('anthropic', 10);
+    usage.recordUsage(
+      'anthropic',
+      model: 'claude-opus-5-5',
+      usage: const TokenUsage(100000, 50000), // 0,40 $ + 1 $
+    );
+    final u = usage.of('anthropic');
+    expect(u.prepaidLeft, closeTo(8.6, 1e-9));
+    expect(u.level(DateTime.now()), UsageLevel.ok);
+    // Enregistré, puis relu au prochain lancement.
+    await Future<void>.delayed(const Duration(seconds: 1));
+    expect(UsageState(storage).of('anthropic').prepaidLeft, closeTo(8.6, 1e-9));
+  });
+
+  test('l\'agent compte ses dépenses', () async {
+    final seen = <TokenUsage>[];
+    final run = AgentRun(
+      llm: scripted([
+        act('finish', {'summary': 'ok'}),
+      ]),
+      github: fakeGitHub(),
+      provider: P('groq'),
+      apiKey: 'k',
+      model: 'm',
+      owner: 'max',
+      repo: 'galerie',
+      branch: 'main',
+      task: 't',
+      onUsage: seen.add,
+    );
+    await run.run();
+    expect(seen, hasLength(1));
+    expect(seen.single.total, greaterThan(0));
   });
 }
