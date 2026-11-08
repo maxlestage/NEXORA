@@ -4,7 +4,7 @@
 #   APPLE_TEAM_ID    l'identifiant d'équipe Apple (10 caractères)
 #   ASC_KEY_ID       l'identifiant de la clé d'API App Store Connect
 #   ASC_ISSUER_ID    l'« Issuer ID » de ces clés
-#   ASC_PRIVATE_KEY  le contenu du fichier AuthKey_XXXX.p8
+#   ASC_PRIVATE_KEY  le contenu du fichier AuthKey_XXXX.p8 (ou ASC_KEY)
 # Variable facultative : IOS_BUNDLE_ID (com.maxlestage.nexora par défaut).
 #
 # La clé (rôle Admin) permet à Xcode de créer lui-même certificats et profils : aucun
@@ -34,7 +34,7 @@ jobs:
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY || secrets.ASC_KEY }}
       BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.maxlestage.nexora' }}
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
@@ -46,7 +46,7 @@ jobs:
         working-directory: .
         run: |
           if [ -z "$TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
-            echo "::notice title=TestFlight::Ajoutez APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID et ASC_PRIVATE_KEY dans les secrets du dépôt (voir README)."
+            echo "::notice title=TestFlight::Ajoutez APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID et ASC_PRIVATE_KEY (ou ASC_KEY) dans les secrets du dépôt (voir README)."
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
