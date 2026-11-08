@@ -345,3 +345,15 @@ String compact(int n) {
 /// `3.2` → `3,20 \$`.
 String dollars(double v) =>
     '${v.toStringAsFixed(v < 10 ? 2 : 1).replaceAll('.', ',')} \$';
+
+/// Un petit montant lisible : `0.00042` → `0,0004 \$`, `0.0123` → `0,012 \$`.
+String costLabel(double v) {
+  if (v == 0) return '0 \$';
+  if (v < 0.0001) return '< 0,0001 \$';
+  final digits = v < 0.01
+      ? 4
+      : v < 1
+      ? 3
+      : 2;
+  return '${v.toStringAsFixed(digits).replaceAll('.', ',')} \$';
+}

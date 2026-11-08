@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/model_prices.dart';
 import '../models/agent.dart';
 import '../models/chat.dart';
 import '../models/provider.dart';
@@ -399,14 +400,32 @@ class ChatState extends ChangeNotifier {
             _running.remove(c.id);
             if (!answer.error) flush();
             if (!failed && answer.content.isNotEmpty) {
+              final inputChars =
+                  system.length +
+                  history.fold<int>(0, (n, m) => n + m.content.length);
+              final outputChars =
+                  answer.content.length + answer.thinking.length;
+              final real = tokens.total > 0;
+              final t = real
+                  ? tokens
+                  : TokenUsage(
+                      (inputChars / 4).ceil(),
+                      (outputChars / 4).ceil(),
+                    );
+              answer
+                ..tokensIn = t.input
+                ..tokensOut = t.output
+                ..estimated = !real
+                ..cost = priceOf(
+                  provider.id,
+                  ref.model,
+                )?.cost(t.input, t.output);
               usage?.recordUsage(
                 provider.id,
                 model: ref.model,
-                usage: tokens.total > 0 ? tokens : null,
-                inputChars:
-                    system.length +
-                    history.fold<int>(0, (n, m) => n + m.content.length),
-                outputChars: answer.content.length + answer.thinking.length,
+                usage: real ? tokens : null,
+                inputChars: inputChars,
+                outputChars: outputChars,
               );
             }
             if (answer.content.trim().isEmpty && !answer.error) {

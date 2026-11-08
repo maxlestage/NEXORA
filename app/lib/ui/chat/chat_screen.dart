@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/agent.dart';
 import '../../models/chat.dart';
 import '../../models/provider.dart';
+import '../../models/usage.dart';
 import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/github_state.dart';
@@ -189,8 +190,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPicked: (r) => chat.setModel(c.id, r),
                 ),
                 const SizedBox(width: 8),
-                QuotaBadge(providerId: ref.providerId),
-                const SizedBox(width: 8),
                 LevelChip(
                   level: chat.levelFor(c, agent),
                   provider: settings.provider(ref.providerId),
@@ -215,6 +214,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+          _CreditBar(conversation: c, providerId: ref.providerId),
           Expanded(
             child: !c.loaded
                 ? const Center(child: CircularProgressIndicator())
@@ -239,6 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         m.content.length,
                         m.thinking.length,
                         m.error,
+                        m.tokensOut,
                         isLast,
                         running,
                         settings.showThinking,
@@ -593,9 +594,91 @@ class _MessageTile extends StatelessWidget {
                     icon: const Icon(Icons.refresh_rounded, size: 18),
                     onPressed: onRegenerate,
                   ),
+                if (m.tokensIn + m.tokensOut > 0)
+                  Expanded(child: _CostLine(message: m)),
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Sous une réponse : tokens et coût (« 1,2k → 540 tokens · ≈ 0,012 $ »).
+class _CostLine extends StatelessWidget {
+  const _CostLine({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = message;
+    final ref = ModelRef.parse(m.model);
+    final p = ref == null
+        ? null
+        : context.read<SettingsState>().provider(ref.providerId);
+    final free = p != null && (p.local || (p.free && !p.needsKey));
+    final cost = m.cost != null
+        ? '≈ ${costLabel(m.cost!)}'
+        : free
+        ? 'gratuit'
+        : null;
+    return Text(
+      '${m.estimated ? '≈ ' : ''}${compact(m.tokensIn)} → ${compact(m.tokensOut)} tokens'
+      '${cost == null ? '' : ' · $cost'}',
+      textAlign: TextAlign.end,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        fontFamily: Nx.mono,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+/// En haut de la conversation : ce qu'elle a coûté et le crédit restant chez le
+/// fournisseur (touchez pour le détail et pour indiquer votre solde).
+class _CreditBar extends StatelessWidget {
+  const _CreditBar({required this.conversation, required this.providerId});
+
+  final Conversation conversation;
+  final String providerId;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conversation;
+    final tt = Theme.of(context).textTheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final tokens = c.tokens;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => showQuotaSheet(context, providerId),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 10, 4),
+          child: Row(
+            children: [
+              Icon(Icons.receipt_long_outlined, size: 15, color: muted),
+              const SizedBox(width: 6),
+              Text(
+                tokens == 0
+                    ? 'Aucune dépense'
+                    : '${c.cost > 0 ? '≈ ${costLabel(c.cost)} · ' : ''}'
+                          '${compact(tokens)} tokens',
+                style: tt.labelSmall?.copyWith(
+                  color: muted,
+                  fontFamily: Nx.mono,
+                ),
+              ),
+              const Spacer(),
+              Flexible(
+                flex: 3,
+                child: QuotaBadge(providerId: providerId, dense: true),
+              ),
+              Icon(Icons.chevron_right, size: 16, color: muted),
+            ],
+          ),
+        ),
       ),
     );
   }
