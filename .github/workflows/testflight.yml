@@ -92,9 +92,14 @@ jobs:
           pem = open(sys.argv[1]).read()
           body = "".join(pem.splitlines()[1:-1])
           try:
-              n = len(base64.b64decode(body + "=" * (-len(body) % 4)))
+              der = base64.b64decode(body + "=" * (-len(body) % 4))
           except Exception:
-              n = -1
+              der = b""
+          n = len(der)
+          # PKCS#8 : SEQUENCE { INTEGER version, ... } ; chiffrée : SEQUENCE { SEQUENCE ... }.
+          i = 2 + (der[1] & 0x7F if len(der) > 1 and der[1] & 0x80 else 0)
+          if len(der) > i and der[0] == 0x30 and der[i] == 0x30:
+              open(sys.argv[1] + ".encrypted", "w").write("1")
           print(f"Secret : {len(raw)} caractères, {raw.count(chr(10)) + 1} ligne(s), "
                 f"BEGIN {'présent' if 'BEGIN' in raw else 'absent'}, "
                 f"END {'présent' if 'END' in raw else 'absent'} ; "
@@ -102,9 +107,8 @@ jobs:
                 "(une clé Apple .p8 fait environ 200 caractères, 138 octets).")
           PY
           openssl version
-          if ! openssl pkey -in "$key" -noout -passin pass: 2> "$RUNNER_TEMP/keys/err"; then
-            cat "$RUNNER_TEMP/keys/err"
-            if grep -q EncryptedPrivateKeyInfo "$RUNNER_TEMP/keys/err"; then
+          if [ -f "$key.encrypted" ] || ! openssl pkey -in "$key" -noout -passin pass: < /dev/null; then
+            if [ -f "$key.encrypted" ]; then
               echo "::error title=Ce n'est pas une clé App Store Connect::Le secret contient une clé privée protégée par mot de passe. Une clé d'API App Store Connect (.p8) ne l'est jamais : créez-en une dans App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → +, rôle Admin, puis Download."
               exit 1
             fi
