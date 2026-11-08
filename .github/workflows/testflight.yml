@@ -81,6 +81,21 @@ jobs:
                   pass
           body = re.sub(r"-----(BEGIN|END)[A-Z ]*-----", "", raw)
           body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+          # Une clé Apple (PKCS#8, courbe P-256) commence toujours par le même en-tête,
+          # qui donne aussi sa longueur : on l'extrait du texte collé autour (nom du
+          # fichier, Key ID, mots en trop…).
+          m = re.search(r"MIG[A-Za-z0-9+/]AgEAMBMGByqGSM49", body)
+          if m:
+              total = base64.b64decode(body[m.start():m.start() + 4])[2] + 3
+              size = -(-total // 3) * 4
+              start = m.start()
+              if len(body) - start >= size and len(body) != size:
+                  print(f"Clé Apple extraite : {start} caractère(s) en trop avant, "
+                        f"{len(body) - start - size} après (ignorés).")
+                  body = body[start:start + size]
+          else:
+              print("En-tête d'une clé Apple (MIG…AgEAMBMGByqGSM49) introuvable : ce n'est "
+                    "pas le fichier AuthKey_XXXX.p8 téléchargé dans App Store Connect.")
           lines = [body[i:i + 64] for i in range(0, len(body), 64)]
           pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
           open(sys.argv[1], "w").write(pem)
