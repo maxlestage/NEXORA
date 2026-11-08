@@ -16,6 +16,7 @@ import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
+import 'draft_review_screen.dart';
 
 /// Lance un agent autonome sur un dépôt, montre son travail pas à pas, puis
 /// propose d'envoyer ses changements (commit ou pull request).
@@ -72,6 +73,15 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
     run.run();
   }
 
+  void _review(AgentRun run) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            DraftReviewScreen(run: run, onValidate: () => _ship(run)),
+      ),
+    );
+  }
+
   Future<void> _ship(AgentRun run) async {
     final msg = TextEditingController(text: run.commitMessage);
     final branch = TextEditingController(
@@ -94,7 +104,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Envoyer ${run.changes.length} changement(s)',
+                'Valider ${run.accepted.length} brouillon(s)',
                 style: Theme.of(context).textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
@@ -149,7 +159,10 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
       } else {
         toast(context, 'Commit ${result.substring(0, 7)} envoyé ✅');
       }
-      run.changes.clear();
+      // Les brouillons envoyés quittent la liste ; les refusés restent.
+      for (final p in run.accepted.keys.toList()) {
+        run.changes.remove(p);
+      }
       setState(() {});
     } catch (e) {
       if (mounted) toast(context, '$e', error: true);
@@ -177,9 +190,9 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
           run != null && !run.running && run.changes.isNotEmpty
           ? FloatingActionButton.extended(
               heroTag: 'ship',
-              onPressed: () => _ship(run),
-              icon: const Icon(Icons.cloud_upload),
-              label: Text('Envoyer (${run.changes.length})'),
+              onPressed: () => _review(run),
+              icon: const Icon(Icons.fact_check_outlined),
+              label: Text('Valider (${run.changes.length})'),
             )
           : null,
       body: run == null
@@ -308,37 +321,63 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   if (run.changes.isNotEmpty) ...[
-                    const SectionTitle('Changements en brouillon'),
-                    for (final e in run.changes.entries)
-                      Card(
-                        child: ExpansionTile(
-                          leading: Icon(
-                            e.value == null
-                                ? Icons.remove_circle_outline
-                                : Icons.edit_note,
-                            color: e.value == null ? Nx.red : Nx.green,
+                    const SectionTitle('Brouillons à valider'),
+                    Glass(
+                      glow: Nx.amber,
+                      onTap: run.running ? null : () => _review(run),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.fact_check_outlined,
+                            color: Nx.amber,
                           ),
-                          title: Text(
-                            e.key,
-                            style: const TextStyle(
-                              fontFamily: Nx.mono,
-                              fontSize: 13,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${run.changes.length} fichier(s) en brouillon'
+                                  '${run.rejected.isEmpty ? '' : ' · ${run.rejected.length} refusé(s)'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  run.running
+                                      ? 'L\'agent travaille encore…'
+                                      : 'Relisez chaque fichier, acceptez ou refusez, '
+                                            'puis validez : rien ne part sans vous.',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    for (final p in run.changes.keys.take(6))
+                                      Text(
+                                        p.split('/').last,
+                                        style: TextStyle(
+                                          fontFamily: Nx.mono,
+                                          fontSize: 11.5,
+                                          decoration: run.rejected.contains(p)
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                    if (run.changes.length > 6)
+                                      Text('+${run.changes.length - 6}'),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          children: [
-                            if (e.value != null)
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: CodeBlock(
-                                  code: e.value!.length > 8000
-                                      ? '${e.value!.substring(0, 8000)}\n…'
-                                      : e.value!,
-                                  language: e.key.split('.').last,
-                                ),
-                              ),
-                          ],
-                        ),
+                          if (!run.running) const Icon(Icons.chevron_right),
+                        ],
                       ),
+                    ),
                   ],
                   if (!run.running)
                     Padding(

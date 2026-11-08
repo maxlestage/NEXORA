@@ -9,10 +9,11 @@ import '../../state/github_state.dart';
 import '../../state/settings_state.dart';
 import '../help/help_screen.dart';
 import '../theme.dart';
+import 'credits_screen.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 
-const appVersion = '1.1.0';
+const appVersion = '1.2.0';
 
 /// L'onglet Réglages.
 class SettingsScreen extends StatelessWidget {
@@ -259,6 +260,12 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 Text('Version $appVersion', style: tt.bodySmall),
+                const SizedBox(height: 6),
+                Text(
+                  'Conçu et développé par $appAuthor',
+                  textAlign: TextAlign.center,
+                  style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 8),
                 const Text(
                   'Aucun serveur intermédiaire : l\'app parle directement aux '
@@ -278,10 +285,20 @@ class SettingsScreen extends StatelessWidget {
                       label: const Text('Code source'),
                     ),
                     TextButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CreditsScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.favorite_outline),
+                      label: const Text('Crédits'),
+                    ),
+                    TextButton.icon(
                       onPressed: () => showLicensePage(
                         context: context,
                         applicationName: 'NEXORA',
                         applicationVersion: appVersion,
+                        applicationLegalese: '© 2026 $appAuthor',
                       ),
                       icon: const Icon(Icons.gavel_outlined),
                       label: const Text('Licences'),
