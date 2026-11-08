@@ -11,6 +11,7 @@ Usage : asc_check.py <clé.p8> <key_id> <issuer_id> <bundle_id> <nom>
 
 import base64
 import json
+import re
 import subprocess
 import sys
 import time
@@ -38,14 +39,13 @@ def der_to_raw(sig: bytes) -> bytes:
     return out
 
 
-def jwt(key_path: str, key_id: str, issuer: str) -> str:
+def jwt(key_path: str, key_id: str, issuer: str, individual: bool = False) -> str:
     now = int(time.time())
     header = b64url(json.dumps({"alg": "ES256", "kid": key_id, "typ": "JWT"}).encode())
-    payload = b64url(
-        json.dumps(
-            {"iss": issuer, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
-        ).encode()
-    )
+    claims = {"iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    # Clé d'équipe : `iss` = Issuer ID ; clé individuelle : `sub` = "user".
+    claims.update({"sub": "user"} if individual else {"iss": issuer})
+    payload = b64url(json.dumps(claims).encode())
     signing_input = f"{header}.{payload}".encode()
     sig = subprocess.run(
         ["openssl", "dgst", "-sha256", "-sign", key_path],
@@ -79,17 +79,35 @@ def error(title: str, message: str) -> None:
 
 
 def main() -> None:
-    key_path, key_id, issuer, bundle_id, name = sys.argv[1:6]
+    key_path, key_id, issuer, bundle_id, name = (a.strip() for a in sys.argv[1:6])
+    # Diagnostic sans rien révéler : la forme des identifiants.
+    uuid = re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", issuer.lower())
+    print(f"ASC_KEY_ID : {len(key_id)} caractère(s) "
+          f"({'format attendu' if re.fullmatch(r'[A-Z0-9]{10}', key_id) else 'attendu : 10 lettres majuscules ou chiffres'}) ; "
+          f"ASC_ISSUER_ID : {'format UUID attendu' if uuid else 'pas au format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'}.")
     token = jwt(key_path, key_id, issuer)
     q = urllib.parse.quote(bundle_id)
 
     status, data = call(token, "GET", f"/bundleIds?filter[identifier]={q}&limit=200")
     if status == 401:
+        # Une clé « individuelle » (Users and Access → Integrations → Individual Keys)
+        # s'utilise sans Issuer ID ; Xcode demande une clé d'équipe.
+        st2, _ = call(jwt(key_path, key_id, issuer, individual=True), "GET", "/bundleIds?limit=1")
+        if st2 == 200:
+            error(
+                "Clé individuelle",
+                "Cette clé est une clé individuelle. Créez une clé d'équipe : App Store Connect → "
+                "Users and Access → Integrations → App Store Connect API → onglet Team Keys → +, "
+                "accès Admin. Mettez à jour ASC_KEY, ASC_KEY_ID et ASC_ISSUER_ID.",
+            )
         error(
             "Clé d'API refusée par Apple",
-            "Vérifiez que ASC_KEY_ID est le Key ID de cette clé (les caractères après "
-            "AuthKey_ dans le nom du fichier) et que ASC_ISSUER_ID est l'Issuer ID affiché "
-            "au-dessus du tableau des clés (Users and Access → Integrations → App Store Connect API).",
+            "La clé, ASC_KEY_ID et ASC_ISSUER_ID ne vont pas ensemble. 1) ASC_KEY_ID = les 10 "
+            "caractères après AuthKey_ dans le nom du fichier. 2) ASC_ISSUER_ID = l'Issuer ID "
+            "(format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) affiché au-dessus du tableau Team Keys "
+            "(Users and Access → Integrations → App Store Connect API). 3) La clé doit venir de ce "
+            "tableau, pas de Certificates, Identifiers & Profiles → Keys (notifications push), et "
+            "ne pas avoir été révoquée.",
         )
     if status == 403:
         error(

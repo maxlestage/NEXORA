@@ -64,6 +64,13 @@ jobs:
       - name: Clé d'API App Store Connect
         if: steps.secrets.outputs.ok == 'true'
         run: |
+          # Espaces et retours à la ligne collés autour des identifiants : retirés.
+          for v in TEAM_ID ASC_KEY_ID ASC_ISSUER_ID; do
+            clean=$(printf '%s' "${!v}" | tr -d '[:space:]')
+            echo "::add-mask::$clean"
+            printf -v "$v" '%s' "$clean"
+            echo "$v=$clean" >> "$GITHUB_ENV"
+          done
           mkdir -p "$RUNNER_TEMP/keys"
           key="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
           # Une clé collée depuis un téléphone perd souvent ses retours à la ligne, ses
