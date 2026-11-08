@@ -22,6 +22,13 @@ class ProviderHelp {
   final List<String> tips;
 }
 
+/// La page où lire son solde prépayé, quand elle diffère de la page de consommation.
+const Map<String, String> billingUrls = {
+  'anthropic': 'https://platform.claude.com/settings/billing',
+  'openai':
+      'https://platform.openai.com/settings/organization/billing/overview',
+};
+
 const Map<String, ProviderHelp> providerHelp = {
   'pollinations': ProviderHelp(
     steps: ['Rien à faire : Pollinations marche sans clé ni compte.'],
@@ -237,7 +244,10 @@ const Map<String, ProviderHelp> providerHelp = {
     freeTier: 'Payant : il faut acheter du crédit.',
     usageUrl: 'https://platform.claude.com/usage',
     tips: [
-      'Le témoin affiche les limites renvoyées par Anthropic à chaque réponse.',
+      'Anthropic ne donne pas le solde restant par l\'API : touchez le témoin, '
+          '« Indiquer mon solde », recopiez celui de Settings → Billing, et '
+          'NEXORA déduit chaque réponse (chat et agents).',
+      'Le témoin affiche aussi les limites renvoyées par Anthropic à chaque réponse.',
     ],
   ),
   'openai': ProviderHelp(

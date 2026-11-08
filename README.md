@@ -96,7 +96,10 @@ Touchez-le pour le détail, avec une jauge :
 - **solde lu en direct** chez OpenRouter et DeepSeek ;
 - **limites de débit** (requêtes et tokens par minute ou par jour) lues dans chaque réponse
   (Groq, OpenAI, Anthropic, Cerebras, Mistral, GitHub Models…) ;
-- **dépense estimée** du jour et du mois (tokens × prix publics, pour Ollama Cloud), comparée
+- **solde prépayé** pour les fournisseurs qui ne le donnent pas par l'API (Anthropic, OpenAI,
+  Mistral…) : recopiez une fois le solde de la page de facturation, NEXORA déduit ensuite chaque
+  réponse (chat **et** agents autonomes) et affiche « ≈ 8,60 $ restants » ;
+- **dépense estimée** du jour et du mois (tokens × prix publics, pour Ollama Cloud et Claude), comparée
   au crédit mensuel de votre offre (Pro 60 $, Max 300 $, ou un montant libre) ;
 - **consommation du jour** comptée par l'app (tokens réels, ou estimés si le fournisseur ne les
   donne pas), dernier incident (401, 402, 429) et lien vers la page de consommation officielle.
@@ -128,6 +131,7 @@ Touchez-le pour le détail, avec une jauge :
   un dossier de l'espace de travail de l'agent (`galerie/…`, `paquets/…`). Il peut lire l'un
   (un framework, une bibliothèque) pour en modifier un autre, et vous recevez un commit ou une
   pull request par dépôt modifié.
+- **Le témoin de crédit** est affiché dans l'agent autonome, et ses dépenses y sont comptées.
 - **Missions robustes** : une coupure réseau ou un fournisseur saturé ne terminent plus la
   mission (l'étape est réessayée), et un modèle qui réfléchit longtemps (Claude, o3, R1…) a
   jusqu'à 5 minutes avant d'écrire.

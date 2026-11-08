@@ -4,6 +4,8 @@
 /// Ollama Cloud : https://ollama.com/pricing, relevé le 8 novembre 2026 (tarif de
 /// journée ; hors heures de pointe, 12 h–18 h UTC en semaine, certains modèles
 /// coûtent moitié moins).
+///
+/// Anthropic : tarifs publics de l'API Claude (cache 0,20 \$ pour Opus/Sonnet 5.5).
 library;
 
 class ModelPrice {
@@ -35,6 +37,20 @@ class ModelPrice {
 const String pricesDate = '8 novembre 2026';
 
 const Map<String, Map<String, ModelPrice>> modelPrices = {
+  'anthropic': {
+    'claude-fable-5-1': ModelPrice(10, 50, cachedInput: 0.25),
+    'claude-fable-5': ModelPrice(10, 50),
+    'claude-opus-5-5': ModelPrice(4, 20, cachedInput: 0.20),
+    'claude-opus-5': ModelPrice(5, 25),
+    'claude-opus-4-8': ModelPrice(5, 25),
+    'claude-opus-4-7': ModelPrice(5, 25),
+    'claude-opus-4-6': ModelPrice(5, 25),
+    'claude-sonnet-5-5': ModelPrice(2, 10, cachedInput: 0.20),
+    'claude-sonnet-5': ModelPrice(2, 10),
+    'claude-sonnet-4-6': ModelPrice(3, 15),
+    'claude-haiku-5-5': ModelPrice(0.10, 0.50),
+    'claude-haiku-4-5': ModelPrice(1, 5),
+  },
   'ollama-cloud': {
     'beam': ModelPrice(0.125, 0.40, cachedInput: 0.015),
     'clef': ModelPrice(0.24, 0),

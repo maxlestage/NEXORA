@@ -9,6 +9,7 @@ import '../../services/github_api.dart';
 import '../../services/llm_client.dart';
 import '../../state/github_state.dart';
 import '../../state/settings_state.dart';
+import '../../state/usage_state.dart';
 import '../agents/agent_picker.dart';
 import '../github/repo_picker.dart';
 import '../../state/agent_state.dart';
@@ -18,6 +19,7 @@ import '../widgets/level_picker.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
+import '../widgets/quota_badge.dart';
 import 'draft_review_screen.dart';
 
 /// Lance un agent autonome sur un dépôt, montre son travail pas à pas, puis
@@ -75,6 +77,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
     final ref = _model ?? s.resolve(_agent?.model ?? s.defaultModel);
     final provider = s.provider(ref.providerId)!;
     final level = _level ?? ThinkLevel.parse(_agent?.level) ?? s.defaultLevel;
+    final usage = context.read<UsageState>();
     final run = AgentRun(
       llm: context.read<LlmClient>(),
       github: context.read<GitHubState>().api,
@@ -91,6 +94,11 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
       extraRepos: [
         for (final r in _extra) RepoTarget(r.owner, r.name, r.defaultBranch),
       ],
+      // Les dépenses de l'agent comptent dans le témoin de crédit.
+      onHeaders: (h) => usage.recordHeaders(provider.id, h),
+      onUsage: (t) =>
+          usage.recordUsage(provider.id, model: ref.model, usage: t),
+      onError: (e) => usage.recordError(provider.id, e),
     );
     setState(() => _run = run);
     run.run();
@@ -327,6 +335,7 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                       current: ref,
                       onPicked: (r) => setState(() => _model = r),
                     ),
+                    QuotaBadge(providerId: ref.providerId),
                     LevelChip(
                       level:
                           _level ??
@@ -401,6 +410,10 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                                 ),
                               ),
                               const SizedBox(height: 4),
+                              QuotaBadge(
+                                providerId: run.provider.id,
+                                dense: true,
+                              ),
                               Text(
                                 '${run.running ? 'En cours' : 'Terminé'} · '
                                 '${run.steps.where((s) => s.kind == StepKind.tool).length} actions · '
