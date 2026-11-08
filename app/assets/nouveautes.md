@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.1.0 — 8 novembre 2026 — Le travail continue en arrière-plan
+- Les sessions d'agent et les réponses continuent quand vous quittez l'app ou verrouillez le téléphone.
+- Sur iPhone (iOS 26), la progression s'affiche dans le système ; sur Android, une notification « NEXORA travaille… » suit l'avancement.
+- Une notification vous prévient quand une session a fini ou que des brouillons attendent votre validation.
+
 ## 2.0.0 — 8 novembre 2026 — Onglet Code, défilement automatique, création de dépôts
 - Les conversations et les sessions s'ouvrent sur les derniers messages et suivent la réponse en direct, avec un bouton ↓ pour revenir en bas.
 - Créez un dépôt GitHub depuis l'onglet Code, le choix des dépôts ou une nouvelle session, puis lancez l'agent dessus.

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/agent.dart';
 import '../models/provider.dart';
 import '../services/agent_runner.dart';
+import '../services/background_work.dart';
 import '../services/llm_client.dart';
 import '../services/session_store.dart';
 import '../services/storage.dart';
@@ -26,7 +27,8 @@ class SessionState extends ChangeNotifier {
     required this.llm,
     this.usage,
     SessionStore? store,
-  }) {
+    BackgroundWork? background,
+  }) : background = background ?? BackgroundWork.instance {
     _ready = _init(store);
   }
 
@@ -36,6 +38,9 @@ class SessionState extends ChangeNotifier {
   final AgentState agents;
   final LlmClient llm;
   final UsageState? usage;
+
+  /// Garde l'app en vie en arrière-plan pendant le travail.
+  final BackgroundWork background;
 
   late final SessionStore _store;
   late final Future<void> _ready;
@@ -96,6 +101,7 @@ class SessionState extends ChangeNotifier {
 
   void _changed(AgentRun run) {
     notifyListeners();
+    _background(run);
     // Enregistrée au plus toutes les 1,5 s pendant le travail, tout de suite après.
     _saveTimers.remove(run.id)?.cancel();
     if (!run.running) {
@@ -105,6 +111,40 @@ class SessionState extends ChangeNotifier {
         _saveTimers.remove(run.id);
         _store.save(run.id, run.toJson());
       });
+    }
+  }
+
+  /// En arrière-plan, l'app reste en vie tant qu'une session travaille, et prévient
+  /// quand elle a fini.
+  void _background(AgentRun run) {
+    final key = 'session:${run.id}';
+    final task = run.task.length > 60
+        ? '${run.task.substring(0, 60)}…'
+        : run.task;
+    if (run.running) {
+      final last = run.steps.isEmpty ? null : run.steps.last;
+      final text = last == null
+          ? 'Démarrage…'
+          : last.kind == StepKind.tool
+          ? '${last.tool} ${last.text}'
+          : last.text.split('\n').first;
+      background.hold(
+        key,
+        title: 'Session : $task',
+        text: text.length > 120 ? '${text.substring(0, 120)}…' : text,
+        done: run.steps.where((s) => s.kind == StepKind.tool).length,
+        total: run.maxSteps,
+      );
+    } else {
+      background.release(
+        key,
+        doneTitle: switch (run.status) {
+          SessionStatus.review => 'Brouillons à valider',
+          SessionStatus.stopped => 'Session arrêtée',
+          _ => 'Session terminée',
+        },
+        doneText: task,
+      );
     }
   }
 

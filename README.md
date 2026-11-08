@@ -156,6 +156,10 @@ Touchez-le pour le détail, avec une jauge :
 - **En arrière-plan** : la session continue quand vous quittez l'écran ; plusieurs sessions
   peuvent tourner en même temps. Tout est enregistré sur le téléphone (un fichier par session),
   et une session interrompue par la fermeture de l'app se reprend d'un geste.
+- **Vraiment en arrière-plan** : sur Android, un service de premier plan (notification « NEXORA
+  travaille… » avec la progression) garde l'app en vie ; sur iPhone, une tâche de fond iOS 26
+  (`BGContinuedProcessingTask`, progression dans le système), ou les ~30 s accordées par les iOS
+  plus anciens. Une notification prévient quand une session ou une réponse est prête.
 - **Suite d'instructions** : ouvrez une session et donnez-lui une nouvelle consigne ; elle garde
   son historique et ses brouillons. Une fois la pull request ouverte, les envois suivants se font
   **sur la même branche** et mettent à jour la même pull request.
