@@ -162,6 +162,14 @@ jobs:
           # existe-t-il (il est enregistré s'il manque), la fiche de l'app existe-t-elle ?
           python3 .github/scripts/asc_check.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$BUNDLE_ID" NEXORA
 
+      - name: Faire de la place dans les certificats
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: .
+        run: |
+          # Xcode crée des certificats à chaque build ; Apple en limite le nombre.
+          # Ceux des builds précédents (« Created via API ») sont révoqués.
+          python3 .github/scripts/asc_certs.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID"
+
       - name: Équipe et identifiant de l'app dans le projet Xcode
         if: steps.secrets.outputs.ok == 'true'
         run: |
