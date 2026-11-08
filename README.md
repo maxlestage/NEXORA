@@ -124,6 +124,13 @@ Touchez-le pour le détail, avec une jauge :
   ligne à ligne avec l'original (ajouts en vert, suppressions en rouge), accepter, refuser ou
   modifier, puis commit ou **pull request** des seuls brouillons acceptés.
   Fonctionne avec n'importe quel modèle, y compris gratuit.
+- **Plusieurs dépôts par mission** : ajoutez autant de dépôts que vous voulez ; chacun devient
+  un dossier de l'espace de travail de l'agent (`galerie/…`, `paquets/…`). Il peut lire l'un
+  (un framework, une bibliothèque) pour en modifier un autre, et vous recevez un commit ou une
+  pull request par dépôt modifié.
+- **Missions robustes** : une coupure réseau ou un fournisseur saturé ne terminent plus la
+  mission (l'étape est réessayée), et un modèle qui réfléchit longtemps (Claude, o3, R1…) a
+  jusqu'à 5 minutes avant d'écrire.
 
 ### ☁️ Les agents cloud (GitHub Actions)
 

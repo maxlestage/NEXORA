@@ -10,6 +10,7 @@ import '../../services/llm_client.dart';
 import '../../state/github_state.dart';
 import '../../state/settings_state.dart';
 import '../agents/agent_picker.dart';
+import '../github/repo_picker.dart';
 import '../../state/agent_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
@@ -44,6 +45,20 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
   ThinkLevel? _level;
   AgentRun? _run;
 
+  /// Les autres dépôts de la mission (à lire, ou à modifier aussi).
+  final List<Repo> _extra = [];
+
+  Future<void> _addRepo() async {
+    final r = await pickRepo(context);
+    if (r == null || !mounted) return;
+    if (r.fullName == widget.repo.fullName ||
+        _extra.any((x) => x.fullName == r.fullName)) {
+      toast(context, '${r.fullName} est déjà dans la mission.');
+      return;
+    }
+    setState(() => _extra.add(r));
+  }
+
   @override
   void dispose() {
     _run?.stop();
@@ -73,6 +88,9 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
       agent: _agent,
       level: level,
       maxSteps: level.agentSteps,
+      extraRepos: [
+        for (final r in _extra) RepoTarget(r.owner, r.name, r.defaultBranch),
+      ],
     );
     setState(() => _run = run);
     run.run();
@@ -113,6 +131,16 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                 style: Theme.of(context).textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
+              if (run.acceptedByRepo.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Un commit par dépôt : '
+                    '${run.acceptedByRepo.entries.map((e) => '${e.key.fullName} (${e.value.length})').join(', ')}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               const SizedBox(height: 12),
               TextField(
                 controller: msg,
@@ -127,6 +155,8 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                 subtitle: Text(
                   pr
                       ? 'Recommandé : vous relisez avant de fusionner'
+                      : run.multi
+                      ? 'Commit direct sur la branche de chaque dépôt'
                       : 'Commit direct sur ${run.branch}',
                 ),
               ),
@@ -142,7 +172,11 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                 child: FilledButton.icon(
                   onPressed: () => Navigator.pop(context, true),
                   icon: const Icon(Icons.cloud_upload),
-                  label: Text(pr ? 'Ouvrir la pull request' : 'Commit'),
+                  label: Text(
+                    run.acceptedByRepo.length > 1
+                        ? (pr ? 'Ouvrir les pull requests' : 'Commits')
+                        : (pr ? 'Ouvrir la pull request' : 'Commit'),
+                  ),
                 ),
               ),
             ],
@@ -152,17 +186,31 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
     );
     if (go != true || !mounted) return;
     try {
-      final result = await run.commit(
+      final results = await run.commitAll(
         message: msg.text.trim().isEmpty ? run.task : msg.text.trim(),
-        targetBranch: pr ? branch.text.trim() : run.branch,
+        targetBranch: pr ? branch.text.trim() : null,
         openPr: pr,
       );
       if (!mounted) return;
-      if (result.startsWith('http')) {
-        toast(context, 'Pull request ouverte 🎉');
-        launchUrl(Uri.parse(result), mode: LaunchMode.externalApplication);
+      final pulls = results.where((r) => r.isPull).toList();
+      if (pulls.isNotEmpty) {
+        toast(
+          context,
+          pulls.length == 1
+              ? 'Pull request ouverte 🎉'
+              : '${pulls.length} pull requests ouvertes 🎉',
+        );
+        launchUrl(
+          Uri.parse(pulls.first.result),
+          mode: LaunchMode.externalApplication,
+        );
+      } else if (results.length == 1) {
+        toast(
+          context,
+          'Commit ${results.first.result.substring(0, 7)} envoyé ✅',
+        );
       } else {
-        toast(context, 'Commit ${result.substring(0, 7)} envoyé ✅');
+        toast(context, '${results.length} commits envoyés ✅');
       }
       // Les brouillons envoyés quittent la liste ; les refusés restent.
       for (final p in run.accepted.keys.toList()) {
@@ -215,6 +263,49 @@ class _AgentRunScreenState extends State<AgentRunScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final r in _extra)
+                      InputChip(
+                        avatar: Icon(
+                          r.private ? Icons.lock_outline : Icons.public,
+                          size: 16,
+                        ),
+                        label: Text(
+                          r.fullName,
+                          style: const TextStyle(
+                            fontFamily: Nx.mono,
+                            fontSize: 12,
+                          ),
+                        ),
+                        onDeleted: () => setState(() => _extra.remove(r)),
+                      ),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 18),
+                      label: Text(
+                        _extra.isEmpty
+                            ? 'Ajouter un dépôt'
+                            : 'Ajouter un autre dépôt',
+                      ),
+                      onPressed: _addRepo,
+                    ),
+                  ],
+                ),
+                if (_extra.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'L\'agent voit chaque dépôt comme un dossier : il peut lire '
+                      'l\'un (ex. un framework) et modifier l\'autre. Un commit '
+                      'ou une pull request par dépôt modifié.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _task,

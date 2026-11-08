@@ -129,6 +129,9 @@ class LlmClient {
   /// Une réponse en flux qui n'envoie plus rien pendant ce temps est coupée.
   final Duration idleTimeout;
 
+  /// Le même délai quand le modèle réfléchit (niveau de réflexion activé).
+  static const reasoningIdleTimeout = Duration(minutes: 5);
+
   /// Codes pour lesquels on réessaie tout seul, avant le début de la réponse.
   static const retryStatuses = {408, 429, 500, 502, 503, 504, 529};
   static const maxRetries = 2;
@@ -310,12 +313,15 @@ class LlmClient {
           LlmException(
             'Pas de réponse de ${provider.name} après 60 s. Vérifiez l\'adresse '
             '(${provider.baseUrl}) et le réseau.',
+            transient: true,
           ),
         );
         await controller.close();
         return;
       } catch (e) {
-        controller.addError(LlmException(_networkHint(provider, e)));
+        controller.addError(
+          LlmException(_networkHint(provider, e), transient: true),
+        );
         await controller.close();
         return;
       }
@@ -355,9 +361,24 @@ class LlmClient {
         return;
       }
       if (cancelled) return;
+      // Un modèle qui réfléchit (Claude, o3, DeepSeek R1…) peut rester silencieux
+      // plusieurs minutes avant d'écrire : on lui laisse plus de temps.
+      final thinks = reasoningParams(provider, model, options.level).isNotEmpty;
+      final limit = thinks && idleTimeout < reasoningIdleTimeout
+          ? reasoningIdleTimeout
+          : idleTimeout;
+      Future<void> finish() async {
+        idle?.cancel();
+        if (controller.isClosed) return;
+        final rest = splitter.flush();
+        if (!rest.isEmpty) controller.add(rest);
+        await controller.close();
+        client?.close();
+      }
+
       void watchdog() {
         idle?.cancel();
-        idle = Timer(idleTimeout, () async {
+        idle = Timer(limit, () async {
           await sub?.cancel();
           client?.close();
           if (controller.isClosed) return;
@@ -366,7 +387,9 @@ class LlmClient {
           controller.addError(
             LlmException(
               '${provider.name} n\'envoie plus rien depuis '
-              '${idleTimeout.inSeconds} s : réponse interrompue. Réessayez.',
+              '${limit.inSeconds} s : réponse interrompue. Réessayez.',
+              status: 408,
+              transient: true,
             ),
           );
           await controller.close();
@@ -385,21 +408,22 @@ class LlmClient {
                 if (d == null) return;
                 final out = splitter.feed(d);
                 if (!out.isEmpty) controller.add(out);
+                // Fin annoncée par le fournisseur : on n'attend pas qu'il ferme
+                // la connexion.
+                if (d.done) {
+                  sub?.cancel();
+                  finish();
+                }
               } on LlmException catch (e) {
                 controller.addError(e);
               }
             },
             onError: (Object e) {
-              controller.addError(LlmException(_networkHint(provider, e)));
+              controller.addError(
+                LlmException(_networkHint(provider, e), transient: true),
+              );
             },
-            onDone: () async {
-              idle?.cancel();
-              if (controller.isClosed) return;
-              final rest = splitter.flush();
-              if (!rest.isEmpty) controller.add(rest);
-              await controller.close();
-              client?.close();
-            },
+            onDone: finish,
             cancelOnError: false,
           );
     }
