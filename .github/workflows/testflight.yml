@@ -65,8 +65,31 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
-          printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
-          echo "KEY_PATH=$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" >> "$GITHUB_ENV"
+          key="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          # Une clé collée depuis un téléphone perd souvent ses retours à la ligne, ses
+          # lignes BEGIN/END, ou gagne des espaces et des guillemets : on la reconstruit
+          # au format PEM. Une clé encodée en base64 en entier marche aussi.
+          python3 - "$key" <<'PY'
+          import base64, os, re, sys
+          raw = os.environ["ASC_PRIVATE_KEY"].replace("\\n", "\n").replace("\r", "").strip().strip('"').strip("'")
+          if "BEGIN" not in raw:
+              try:
+                  decoded = base64.b64decode(re.sub(r"\s+", "", raw), validate=True).decode()
+                  if "BEGIN" in decoded:
+                      raw = decoded
+              except Exception:
+                  pass
+          body = re.sub(r"-----(BEGIN|END)[A-Z ]*-----", "", raw)
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+          lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+          pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
+          open(sys.argv[1], "w").write(pem)
+          PY
+          if ! openssl pkey -in "$key" -noout 2>/dev/null; then
+            echo "::error title=Clé .p8 illisible::Le secret ASC_KEY (ou ASC_PRIVATE_KEY) ne contient pas une clé .p8 valide. Ouvrez le fichier AuthKey_XXXX.p8 dans l'app Fichiers, copiez TOUT son texte (lignes BEGIN et END comprises) et collez-le dans le secret."
+            exit 1
+          fi
+          echo "KEY_PATH=$key" >> "$GITHUB_ENV"
 
       - name: Équipe et identifiant de l'app dans le projet Xcode
         if: steps.secrets.outputs.ok == 'true'
