@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/provider_help.dart';
 import '../../data/providers_catalog.dart';
 import '../../models/provider.dart';
 import '../../services/llm_client.dart';
+import '../../services/error_help.dart';
 import '../../state/settings_state.dart';
+import '../../state/usage_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
+import '../widgets/quota_badge.dart';
 
 const _ollamaSuggestions = [
   'llama3.2',
@@ -87,10 +91,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     });
     final sw = Stopwatch()..start();
     try {
+      final usage = context.read<UsageState>();
       final answer = await context.read<LlmClient>().complete(
         provider: p,
         apiKey: s.key(p.id),
         model: models.first.id,
+        onHeaders: (h, _) => usage.recordHeaders(p.id, h),
+        onUsage: (t) => usage.recordUsage(p.id, usage: t),
         messages: const [
           LlmMessage(
             'user',
@@ -99,6 +106,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         ],
         options: const LlmOptions(maxTokens: 1024),
       );
+      usage.refresh(p, s.key(p.id));
       setState(() {
         _testOk = true;
         _testResult =
@@ -106,9 +114,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             '« ${answer.length > 80 ? '${answer.substring(0, 80)}…' : answer} »';
       });
     } catch (e) {
+      if (mounted) context.read<UsageState>().recordError(p.id, e);
       setState(() {
         _testOk = false;
-        _testResult = '❌ $e';
+        _testResult = '❌ ${explainError(e.toString(), p).title}\n$e';
       });
     } finally {
       if (mounted) setState(() => _testing = false);
@@ -168,6 +177,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     final models = s.models(p.id);
     final def = s.resolve(s.defaultModel);
     final isOllama = p.kind == ApiKind.ollama;
+    final help = providerHelp[p.id] ?? (p.custom ? customProviderHelp : null);
     return Scaffold(
       appBar: AppBar(
         title: Text(p.name),
@@ -226,6 +236,84 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 ),
             ],
           ),
+          const SectionTitle('Crédit et quotas'),
+          Row(
+            children: [
+              Flexible(child: QuotaBadge(providerId: p.id)),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => showQuotaSheet(context, p.id),
+                child: const Text('Détails'),
+              ),
+            ],
+          ),
+          if (help != null) ...[
+            const SectionTitle('Comment faire'),
+            Glass(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final (i, step) in help.steps.indexed)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: Nx.gradient,
+                            ),
+                            child: Text(
+                              '${i + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: SelectableText(step)),
+                        ],
+                      ),
+                    ),
+                  const Divider(),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        p.free ? Icons.card_giftcard : Icons.payments_outlined,
+                        size: 18,
+                        color: p.free ? Nx.green : Nx.amber,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(help.freeTier)),
+                    ],
+                  ),
+                  for (final tip in help.tips)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.lightbulb_outline,
+                            size: 18,
+                            color: Nx.cyan,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(tip)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           if (p.needsKey || p.usesGitHubToken || p.id == 'ollama-cloud') ...[
             const SectionTitle('Clé d\'API'),
             TextField(

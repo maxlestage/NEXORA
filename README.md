@@ -56,6 +56,28 @@ clés sont rangées dans le **trousseau sécurisé** (Keychain sur iOS, Keystore
 **Ollama sur votre ordinateur** : lancez `OLLAMA_HOST=0.0.0.0 ollama serve`, puis saisissez
 l'adresse IP de la machine dans l'app (ex. `http://192.168.1.20:11434`).
 
+### 📊 Le témoin de crédit
+
+Un point coloré à côté du modèle indique où vous en êtes chez chaque fournisseur :
+🟢 tout va bien, 🟠 moins de 20 % restants ou limite atteinte, 🔴 crédit épuisé ou clé refusée.
+Touchez-le pour le détail, avec une jauge :
+
+- **solde lu en direct** chez OpenRouter et DeepSeek ;
+- **limites de débit** (requêtes et tokens par minute ou par jour) lues dans chaque réponse
+  (Groq, OpenAI, Anthropic, Cerebras, Mistral, GitHub Models…) ;
+- **consommation du jour** comptée par l'app (tokens réels, ou estimés si le fournisseur ne les
+  donne pas), dernier incident (401, 402, 429) et lien vers la page de consommation officielle.
+
+### 🧭 L'aide intégrée
+
+- **Comment faire** pour chaque fournisseur : les étapes exactes pour obtenir une clé, ce que
+  comprend l'offre gratuite, des conseils.
+- **Erreurs expliquées** : au lieu d'un code HTTP, ce qui se passe et quoi faire, avec des
+  boutons (Réessayer, Autre modèle, Réglages du fournisseur, Voir le crédit).
+- **Centre d'aide** avec recherche : démarrer, clés, crédit et tokens, Ollama, agents, GitHub,
+  confidentialité.
+- **Premiers pas** : quatre étapes cochées automatiquement sur l'accueil.
+
 ### 🤖 Les agents
 
 - **14 agents intégrés** : Dev Flutter, Expert Rust, Dev Web, Relecteur de code, Testeur,

@@ -8,6 +8,7 @@ import 'state/agent_state.dart';
 import 'state/chat_state.dart';
 import 'state/github_state.dart';
 import 'state/settings_state.dart';
+import 'state/usage_state.dart';
 import 'ui/home_shell.dart';
 import 'ui/onboarding.dart';
 import 'ui/theme.dart';
@@ -44,8 +45,14 @@ class NexoraApp extends StatelessWidget {
           update: (_, gh, s) => s!..githubToken = (() => gh.token),
         ),
         ChangeNotifierProvider(create: (_) => AgentState(storage)),
+        ChangeNotifierProvider(create: (_) => UsageState(storage)),
         ChangeNotifierProxyProvider<SettingsState, ChatState>(
-          create: (c) => ChatState(storage, c.read<SettingsState>(), client),
+          create: (c) => ChatState(
+            storage,
+            c.read<SettingsState>(),
+            client,
+            usage: c.read<UsageState>(),
+          ),
           update: (_, s, chat) => chat!,
         ),
       ],

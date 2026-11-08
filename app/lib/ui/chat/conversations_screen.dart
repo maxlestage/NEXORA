@@ -6,9 +6,13 @@ import '../../models/provider.dart';
 import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/settings_state.dart';
+import '../help/getting_started.dart';
+import '../help/help_screen.dart';
+import '../home_shell.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
+import '../widgets/quota_badge.dart';
 import 'chat_screen.dart';
 
 const _starters = [
@@ -84,6 +88,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   fontSize: 20,
                 ),
               ),
+              actions: [
+                IconButton(
+                  tooltip: 'Aide et guides',
+                  icon: const Icon(Icons.help_outline),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const HelpScreen())),
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 background: SafeArea(
                   child: Padding(
@@ -112,6 +125,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                 .onSurfaceVariant,
                           ),
                         ),
+                        QuotaBadge(providerId: current.providerId, dense: true),
                       ],
                     ),
                   ),
@@ -162,6 +176,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   },
                 ),
               ),
+            ),
+            SliverToBoxAdapter(
+              child: GettingStartedCard(onGoToTab: (i) => homeTab.value = i),
             ),
             SliverToBoxAdapter(
               child: Padding(

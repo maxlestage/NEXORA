@@ -114,6 +114,9 @@ class LlmClient {
           ],
           'stream': stream,
           if (o.temperature != null) 'temperature': o.temperature,
+          if (stream && _streamUsage.contains(p.id))
+            'stream_options': {'include_usage': true},
+          if (p.id == 'openrouter') 'usage': {'include': true},
         };
     }
   }
@@ -144,6 +147,7 @@ class LlmClient {
     required List<LlmMessage> messages,
     String? system,
     LlmOptions options = const LlmOptions(),
+    void Function(Map<String, String> headers, int status)? onHeaders,
   }) {
     late final StreamController<ChatDelta> controller;
     http.Client? client;
@@ -173,6 +177,7 @@ class LlmClient {
         await controller.close();
         return;
       }
+      onHeaders?.call(res.headers, res.statusCode);
       if (res.statusCode < 200 || res.statusCode >= 300) {
         final body = await res.stream.bytesToString();
         controller.addError(
@@ -195,7 +200,12 @@ class LlmClient {
       if (whole) {
         final body = await res.stream.bytesToString();
         final text = _wholeText(provider, body);
-        final d = splitter.feed(ChatDelta(text: text));
+        TokenUsage? usage;
+        try {
+          final j = jsonDecode(body);
+          if (j is Map) usage = TokenUsage.fromJson(j['usage']);
+        } catch (_) {}
+        final d = splitter.feed(ChatDelta(text: text, usage: usage));
         if (!d.isEmpty) controller.add(d);
         final rest = splitter.flush();
         if (!rest.isEmpty) controller.add(rest);
@@ -247,8 +257,11 @@ class LlmClient {
     required List<LlmMessage> messages,
     String? system,
     LlmOptions options = const LlmOptions(),
+    void Function(Map<String, String> headers, int status)? onHeaders,
+    void Function(TokenUsage usage)? onUsage,
   }) async {
     final b = StringBuffer();
+    var total = const TokenUsage(0, 0);
     await for (final d in stream(
       provider: provider,
       apiKey: apiKey,
@@ -256,11 +269,31 @@ class LlmClient {
       messages: messages,
       system: system,
       options: options,
+      onHeaders: onHeaders,
     )) {
       b.write(d.text);
+      if (d.usage != null) total = total + d.usage!;
+    }
+    if (onUsage != null) {
+      onUsage(total.total > 0 ? total : _estimate(messages, system, b));
     }
     return b.toString().trim();
   }
+
+  static TokenUsage _estimate(
+    List<LlmMessage> messages,
+    String? system,
+    StringBuffer out,
+  ) {
+    final input =
+        messages.fold<int>(0, (n, m) => n + m.content.length) +
+        (system?.length ?? 0);
+    return TokenUsage((input / 4).ceil(), (out.length / 4).ceil());
+  }
+
+  /// Ces fournisseurs envoient le décompte des tokens à la fin du flux si on le
+  /// demande ; les autres l'envoient d'eux-mêmes ou il est estimé.
+  static const _streamUsage = {'openai', 'deepseek', 'together', 'xai'};
 
   String _wholeText(ProviderDef p, String body) {
     try {

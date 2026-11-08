@@ -8,16 +8,20 @@ import '../models/provider.dart';
 import '../services/llm_client.dart';
 import '../services/storage.dart';
 import 'settings_state.dart';
+import 'usage_state.dart';
 
 /// Les conversations, et l'envoi des messages en flux.
 class ChatState extends ChangeNotifier {
-  ChatState(this.storage, this.settings, this.llm) {
+  ChatState(this.storage, this.settings, this.llm, {this.usage}) {
     _load();
   }
 
   final Storage storage;
   final SettingsState settings;
   final LlmClient llm;
+
+  /// Le témoin de crédit, mis à jour à chaque réponse.
+  final UsageState? usage;
 
   final List<Conversation> _conversations = [];
   final Map<String, StreamSubscription<ChatDelta>> _running = {};
@@ -188,6 +192,8 @@ class ChatState extends ChangeNotifier {
             'l\'utilisateur, en Markdown.',
       if (context != null && context.isNotEmpty) context,
     ].join('\n\n');
+    var tokens = const TokenUsage(0, 0);
+    var failed = false;
 
     final sub = llm
         .stream(
@@ -197,15 +203,19 @@ class ChatState extends ChangeNotifier {
           messages: history,
           system: system,
           options: LlmOptions(temperature: settings.temperature),
+          onHeaders: (h, _) => usage?.recordHeaders(provider.id, h),
         )
         .listen(
           (d) {
             answer.content += d.text;
             answer.thinking += d.thinking;
+            if (d.usage != null) tokens = tokens + d.usage!;
             notifyListeners();
             _save();
           },
           onError: (Object e) {
+            failed = true;
+            usage?.recordError(provider.id, e);
             answer.error = true;
             answer.content = answer.content.isEmpty
                 ? '$e'
@@ -214,6 +224,16 @@ class ChatState extends ChangeNotifier {
           },
           onDone: () {
             _running.remove(c.id);
+            if (!failed && answer.content.isNotEmpty) {
+              usage?.recordUsage(
+                provider.id,
+                usage: tokens.total > 0 ? tokens : null,
+                inputChars:
+                    system.length +
+                    history.fold<int>(0, (n, m) => n + m.content.length),
+                outputChars: answer.content.length + answer.thinking.length,
+              );
+            }
             if (answer.content.trim().isEmpty && !answer.error) {
               answer.error = true;
               answer.content =

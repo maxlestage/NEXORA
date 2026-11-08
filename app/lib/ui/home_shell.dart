@@ -15,8 +15,31 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
+/// L'onglet affiché : les écrans peuvent en changer (ex. « Premiers pas »).
+final ValueNotifier<int> homeTab = ValueNotifier(0);
+
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // L'accueil s'ouvre toujours sur le chat.
+    homeTab.value = 0;
+    homeTab.addListener(_onTab);
+  }
+
+  @override
+  void dispose() {
+    homeTab.removeListener(_onTab);
+    super.dispose();
+  }
+
+  void _onTab() {
+    if (mounted && homeTab.value != _index) {
+      setState(() => _index = homeTab.value);
+    }
+  }
 
   static const _pages = <Widget>[
     ConversationsScreen(),
@@ -49,6 +72,7 @@ class _HomeShellState extends State<HomeShell> {
     );
     void select(int i) {
       HapticFeedback.selectionClick();
+      homeTab.value = i;
       setState(() => _index = i);
     }
 

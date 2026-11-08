@@ -8,14 +8,17 @@ import '../../models/provider.dart';
 import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/github_state.dart';
+import '../../services/error_help.dart';
 import '../../state/settings_state.dart';
 import '../agents/agent_picker.dart';
 import '../github/repo_file_picker.dart';
+import '../providers/provider_detail_screen.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
+import '../widgets/quota_badge.dart';
 
 /// Une conversation.
 class ChatScreen extends StatefulWidget {
@@ -176,6 +179,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPicked: (r) => chat.setModel(c.id, r),
                 ),
                 const SizedBox(width: 8),
+                QuotaBadge(providerId: ref.providerId),
+                const SizedBox(width: 8),
                 ActionChip(
                   avatar: Text(agent?.emoji ?? '💬'),
                   label: Text(agent?.name ?? 'Assistant'),
@@ -218,6 +223,18 @@ class _ChatScreenState extends State<ChatScreen> {
                             isLast && m.role == Role.assistant && !running
                             ? () => chat.regenerate(c.id, agent: agent)
                             : null,
+                        onChangeModel: () async {
+                          final r = await pickModel(context, current: ref);
+                          if (r == null) return;
+                          chat.setModel(c.id, r);
+                          // Un agent qui impose son modèle est retiré, pour que le
+                          // nouveau modèle soit bien utilisé.
+                          final keep = agent?.model == null ? agent : null;
+                          if (keep == null && agent != null) {
+                            chat.setAgent(c.id, null);
+                          }
+                          chat.regenerate(c.id, agent: keep);
+                        },
                         onEdit: m.role == Role.user && !running
                             ? () async {
                                 final t = await _rename(
@@ -390,6 +407,7 @@ class _MessageTile extends StatelessWidget {
     required this.showThinking,
     this.onRegenerate,
     this.onEdit,
+    this.onChangeModel,
   });
 
   final ChatMessage message;
@@ -397,6 +415,7 @@ class _MessageTile extends StatelessWidget {
   final bool showThinking;
   final VoidCallback? onRegenerate;
   final VoidCallback? onEdit;
+  final VoidCallback? onChangeModel;
 
   @override
   Widget build(BuildContext context) {
@@ -497,21 +516,10 @@ class _MessageTile extends StatelessWidget {
             ),
           const SizedBox(height: 6),
           if (m.error)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Nx.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Nx.red.withValues(alpha: 0.4)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.error_outline, color: Nx.red, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: SelectableText(m.content)),
-                ],
-              ),
+            _ErrorCard(
+              message: m,
+              onRetry: onRegenerate,
+              onChangeModel: onChangeModel,
             )
           else if (m.content.isEmpty && streaming)
             const SizedBox(height: 4)
@@ -680,6 +688,114 @@ class _Composer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Une erreur expliquée : ce qui se passe, quoi faire, et des boutons pour le faire.
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, this.onRetry, this.onChangeModel});
+
+  final ChatMessage message;
+  final VoidCallback? onRetry;
+  final VoidCallback? onChangeModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsState>();
+    final ref = ModelRef.parse(message.model);
+    final p = ref == null ? null : settings.provider(ref.providerId);
+    final help = explainError(message.content, p);
+    final tt = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Nx.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Nx.red.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.error_outline, color: Nx.red, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  help.title,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final a in help.advice)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('•  '),
+                  Expanded(child: Text(a)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (onRetry != null)
+                FilledButton.tonalIcon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Réessayer'),
+                ),
+              if (help.suggestOtherModel && onChangeModel != null)
+                OutlinedButton.icon(
+                  onPressed: onChangeModel,
+                  icon: const Icon(Icons.swap_horiz, size: 18),
+                  label: const Text('Autre modèle'),
+                ),
+              if (p != null && help.suggestSettings)
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProviderDetailScreen(providerId: p.id),
+                    ),
+                  ),
+                  icon: const Icon(Icons.key, size: 18),
+                  label: Text('Réglages ${p.name}'),
+                ),
+              if (p != null && help.suggestQuota)
+                OutlinedButton.icon(
+                  onPressed: () => showQuotaSheet(context, p.id),
+                  icon: const Icon(Icons.speed, size: 18),
+                  label: const Text('Voir le crédit'),
+                ),
+            ],
+          ),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              dense: true,
+              title: Text('Détail technique', style: tt.labelMedium),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SelectableText(
+                    message.content,
+                    style: const TextStyle(fontFamily: Nx.mono, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
