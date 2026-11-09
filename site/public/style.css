@@ -923,3 +923,4 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .release .checks { margin: 0; }
 .release .checks li { padding-top: 5px; padding-bottom: 5px; font-size: 0.92rem; }
 .pill-tag { white-space: nowrap; }
+.logo-mark img { display: block; width: 36px; height: 36px; border-radius: 9px; box-shadow: 0 0 18px rgba(139, 92, 246, 0.45); }
