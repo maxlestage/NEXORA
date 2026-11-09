@@ -82,11 +82,14 @@ enum SessionStatus {
 
 /// Une action demandée par le modèle.
 class ToolCall {
-  ToolCall(this.tool, this.args, {this.thought = ''});
+  ToolCall(this.tool, this.args, {this.thought = '', this.goal = ''});
 
   final String tool;
   final Map<String, dynamic> args;
   final String thought;
+
+  /// La demande de l'utilisateur, que l'agent se répète à chaque étape.
+  final String goal;
 }
 
 /// Lit l'action dans la réponse du modèle : un objet JSON (dans un bloc ```json ou
@@ -139,6 +142,7 @@ List<ToolCall> parseToolCalls(String reply) {
   }
   if (obj == null) return const [];
   final thought = (obj['thought'] ?? '').toString();
+  final goal = (obj['demande'] ?? obj['goal'] ?? '').toString().trim();
   final raw = obj['actions'] is List
       ? (obj['actions'] as List).whereType<Map>().toList()
       : [obj];
@@ -176,6 +180,7 @@ List<ToolCall> parseToolCalls(String reply) {
         thought: i == 0
             ? (thought.isNotEmpty ? thought : (a['thought'] ?? '').toString())
             : '',
+        goal: i == 0 ? goal : '',
       ),
     );
   }
@@ -458,6 +463,34 @@ class AgentRun extends ChangeNotifier {
         'passages modifiés si besoin).';
   }
 
+  /// Le rappel ajouté à chaque résultat d'outil : l'agent relit la demande avant
+  /// chaque action (seul le plus récent est gardé dans l'historique).
+  static const reminderMark = '\n\n— RAPPEL DE LA DEMANDE —\n';
+
+  String get reminder {
+    final r = requests;
+    final older = r.length > 1
+        ? '\nDemandes précédentes (toujours valables sauf contradiction) : '
+              '${r.sublist(0, r.length - 1).map((t) => '« ${_clip(t)} »').join(' ; ')}'
+        : '';
+    return '$reminderMark'
+        'L\'utilisateur te demande : « ${r.last} »$older\n'
+        'Répète-toi cette demande dans "demande", et fais uniquement ce qui la '
+        'sert.';
+  }
+
+  static String _clip(String t) =>
+      t.length <= 300 ? t : '${t.substring(0, 300)}…';
+
+  /// Retire les anciens rappels (le dernier suffit).
+  static void dropReminders(List<LlmMessage> history) {
+    for (var i = 0; i < history.length; i++) {
+      final m = history[i];
+      final at = m.content.indexOf(reminderMark);
+      if (at >= 0) history[i] = LlmMessage(m.role, m.content.substring(0, at));
+    }
+  }
+
   String get _system {
     // Les noms d'outils de Claude Code (Read, Edit, Grep…) valent ceux de NEXORA.
     const aliases = {
@@ -514,11 +547,16 @@ class AgentRun extends ChangeNotifier {
         'Sous-agents disponibles (delegate) :\n'
             '${_delegates.map((a) => '- ${_slug(a.name)} : ${a.description}').join('\n')}',
       'À chaque tour, réponds avec un bloc :\n'
-          '```json\n{"thought": "ce que tu fais et pourquoi", "tool": "nom", '
-          '"args": {...}}\n```\n'
+          '```json\n{"demande": "ce que l\'utilisateur t\'a demandé, répété '
+          'avec ses mots", "thought": "en quoi cette action sert sa demande", '
+          '"tool": "nom", "args": {...}}\n```\n'
+          'Le champ "demande" est OBLIGATOIRE à CHAQUE tour : répète-toi ce que '
+          'l\'utilisateur veut avant chaque action (sa dernière instruction en '
+          'priorité), puis fais une action qui sert exactement cette demande.\n'
           'POUR ALLER VITE, groupe plusieurs actions dans un même tour (par exemple '
           'lire plusieurs fichiers, ou écrire plusieurs fichiers) :\n'
-          '```json\n{"thought": "…", "actions": [{"tool": "read_file", "args": '
+          '```json\n{"demande": "…", "thought": "…", "actions": [{"tool": '
+          '"read_file", "args": '
           '{"path": "a"}}, {"tool": "read_file", "args": {"path": "b"}}]}\n```\n'
           'Les lectures groupées sont faites en parallèle. Pour plusieurs write_file, '
           'mets un bloc de code par fichier après le JSON, dans le même ordre. finish '
@@ -655,23 +693,36 @@ class AgentRun extends ChangeNotifier {
           final calls = parseToolCalls(reply);
           if (calls.isEmpty) {
             _add(AgentStep(StepKind.thought, reply));
+            dropReminders(history);
             history.add(
-              const LlmMessage(
+              LlmMessage(
                 'user',
                 'Je n\'ai pas trouvé d\'action. Réponds avec un bloc ```json '
-                    '{"thought": …, "tool": …, "args": {…}}```.',
+                    '{"demande": …, "thought": …, "tool": …, "args": {…}}```.'
+                    '$reminder',
               ),
             );
             continue;
           }
-          if (calls.first.thought.isNotEmpty) {
-            _add(AgentStep(StepKind.thought, calls.first.thought));
+          final goal = calls.first.goal;
+          final thought = calls.first.thought;
+          if (goal.isNotEmpty || thought.isNotEmpty) {
+            _add(
+              AgentStep(
+                StepKind.thought,
+                [
+                  if (goal.isNotEmpty) '🎯 $goal',
+                  if (thought.isNotEmpty) thought,
+                ].join('\n'),
+              ),
+            );
           }
           final work = calls.where((c) => c.tool != 'finish').toList();
           actsSince += work.length;
           final results = await _execAll(work);
           if (results.isNotEmpty) {
-            history.add(LlmMessage('user', results.join('\n\n')));
+            dropReminders(history);
+            history.add(LlmMessage('user', '${results.join('\n\n')}$reminder'));
             compactHistory(history);
           }
           final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
