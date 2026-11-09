@@ -111,4 +111,39 @@ void main() {
     expect(run.summary, 'Le titre est déjà rouge');
     expect(requests, hasLength(2));
   });
+
+  test('à chaque étape, l\'agent se répète la demande', () async {
+    final run = build([
+      '```json\n${jsonEncode({
+        'demande': 'Mettre le titre en rouge',
+        'thought': 'Je lis le style',
+        'actions': [
+          {
+            'tool': 'read_file',
+            'args': {'path': 'a.css'},
+          },
+        ],
+      })}\n```',
+      act('write_file', {'path': 'a.css'}, 'h1{color:red}'),
+      act('finish', {'summary': 'ok'}),
+    ]);
+    await run.run();
+    // Le rappel suit chaque résultat, et un seul reste dans l'historique.
+    expect(requests[1], contains('RAPPEL DE LA DEMANDE'));
+    expect(requests[2], contains('RAPPEL DE LA DEMANDE'));
+    expect(
+      run.history.where((m) => m.content.contains('RAPPEL DE LA DEMANDE')),
+      hasLength(1),
+    );
+    expect(
+      run.history.lastWhere((m) => m.role == 'user').content,
+      contains('« Mets le titre en rouge »'),
+    );
+    // La demande répétée par l'agent est affichée dans ses étapes.
+    expect(run.steps.first.text, startsWith('🎯 Mettre le titre en rouge'));
+    expect(
+      parseToolCalls('{"demande":"x","tool":"finish","args":{}}').single.goal,
+      'x',
+    );
+  });
 }

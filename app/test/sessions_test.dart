@@ -156,7 +156,11 @@ void main() {
     await run.run(followUp: 'Ajoute une feuille de style');
     expect(run.steps.any((s) => s.kind == StepKind.user), isTrue);
     expect(
-      run.history.where((m) => m.content.contains('feuille')),
+      run.history.where(
+        (m) =>
+            m.content.startsWith('NOUVELLE INSTRUCTION') &&
+            m.content.contains('feuille'),
+      ),
       hasLength(1),
     );
     expect(run.changes.keys, ['galerie/style.css']);
