@@ -396,7 +396,18 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-          // Le modèle et l'effort, réglables d'un geste comme dans Claude.
+          // « / » : les commandes ; « @ » : les sous-agents.
+          _Suggestions(
+            controller: _input,
+            onPick: (v) {
+              _input.value = TextEditingValue(
+                text: v,
+                selection: TextSelection.collapsed(offset: v.length),
+              );
+              _focus.requestFocus();
+            },
+          ),
+          // Le modèle et l'effort, réglables d'un geste.
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 2, 10, 0),
             child: Row(
@@ -577,6 +588,17 @@ class _MessageTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (m.command != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '⌘ ${m.command}',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontFamily: Nx.mono,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
               _UserBubble(
                 dark: dark,
                 text: m.content.length > 4000
@@ -617,9 +639,13 @@ class _MessageTile extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  ref == null
-                      ? 'NEXORA'
-                      : modelDisplayName(context.read<SettingsState>(), ref),
+                  m.by ??
+                      (ref == null
+                          ? 'NEXORA'
+                          : modelDisplayName(
+                              context.read<SettingsState>(),
+                              ref,
+                            )),
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontFamily: Nx.mono,
@@ -630,6 +656,22 @@ class _MessageTile extends StatelessWidget {
               if (streaming) ...[const SizedBox(width: 8), const _TypingDots()],
             ],
           ),
+          if (m.skills.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final s in m.skills)
+                    Chip(
+                      visualDensity: VisualDensity.compact,
+                      avatar: const Icon(Icons.extension_outlined, size: 15),
+                      label: Text('Skill $s'),
+                    ),
+                ],
+              ),
+            ),
           if (showThinking && m.thinking.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -1129,5 +1171,91 @@ class _UserBubble extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+/// Pendant la saisie : les commandes (`/…`) ou les sous-agents (`@…`) qui
+/// correspondent, à toucher pour compléter.
+class _Suggestions extends StatelessWidget {
+  const _Suggestions({required this.controller, required this.onPick});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onPick;
+
+  static String slug(String name) =>
+      name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final t = value.text;
+        final m = RegExp(r'^([/@])([\w.:-]*)$').firstMatch(t);
+        if (m == null) return const SizedBox.shrink();
+        final lib = context.read<AgentState>();
+        final q = m[2]!.toLowerCase();
+        final items = <(String, String, String)>[
+          if (m[1] == '/')
+            for (final c in lib.commands)
+              if (c.name.toLowerCase().contains(q))
+                (
+                  '/${c.name} ',
+                  '/${c.name}${c.argumentHint.isEmpty ? '' : ' ${c.argumentHint}'}',
+                  c.description,
+                )
+              else
+                for (final a in lib.all)
+                  if (slug(a.name).contains(q))
+                    (
+                      '@${slug(a.name)} ',
+                      '${a.emoji} @${slug(a.name)}',
+                      a.description,
+                    ),
+        ];
+        if (items.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Text(
+              m[1] == '/'
+                  ? 'Aucune commande. Installez-en depuis Agents → Bibliothèque.'
+                  : 'Aucun agent ne correspond.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          );
+        }
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: Card(
+            margin: const EdgeInsets.fromLTRB(10, 4, 10, 0),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                for (final (insert, title, sub) in items.take(30))
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: Nx.mono,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: sub.isEmpty
+                        ? null
+                        : Text(
+                            sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                    onTap: () => onPick(insert),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

@@ -176,15 +176,3 @@ final List<Agent> builtinAgents = [
         'Android. $_style',
   ),
 ];
-
-/// Des dépôts publics qui publient des agents au format `.claude/agents/*.md`,
-/// proposés dans « Installer depuis GitHub ».
-const List<(String repo, String label)> agentSources = [
-  ('wshobson/agents', 'wshobson/agents · agents spécialisés'),
-  (
-    'VoltAgent/awesome-claude-code-subagents',
-    'VoltAgent · 100+ sous-agents par catégories',
-  ),
-  ('0xfurai/claude-code-subagents', '0xfurai · experts par langage'),
-  ('iannuttall/claude-agents', 'iannuttall · agents du quotidien'),
-];
