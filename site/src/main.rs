@@ -59,7 +59,7 @@ fn page(chemin: &str, titre: &str, description: &str, contenu: Vec<Node>) -> Pag
         )
         .stylesheet("/style.css")
         .head(concat!(
-            r#"<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>"#,
+            r#"<link rel="icon" href="/favicon.png" type="image/png"/>"#,
             r#"<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"/>"#,
             r#"<meta name="color-scheme" content="dark"/>"#,
             r##"<meta name="theme-color" content="#05050d"/>"##,
@@ -98,7 +98,15 @@ fn logo() -> Element {
     a().class("logo")
         .href("/")
         .attr("aria-label", format!("{APP}, accueil"))
-        .child(span().class("logo-mark").html(icone("logo")))
+        .child(
+            span().class("logo-mark").child(
+                img()
+                    .attr("src", "/icons/logo-96.png")
+                    .attr("alt", "")
+                    .attr("width", "36")
+                    .attr("height", "36"),
+            ),
+        )
         .child(span().class("logo-text").text("NEXORA"))
 }
 
