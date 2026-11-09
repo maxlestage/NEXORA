@@ -205,4 +205,28 @@ void main() {
     await run.run();
     expect(run.steps.last.text, contains('Limite de 2 étapes'));
   });
+
+  test('noms d\'outils inventés ramenés aux vrais', () {
+    expect(canonicalTool('repo_browser.search_code'), 'search_code');
+    expect(canonicalTool('functions.read_file'), 'read_file');
+    expect(canonicalTool('Grep'), 'search_code');
+    expect(canonicalTool('str_replace'), 'edit_file');
+    final c = parseToolCalls(
+      '{"tool":"repo_browser.edit_file","args":{"path":"a"}}',
+    ).single;
+    expect(c.tool, 'edit_file');
+  });
+
+  test('search_code cherche dans le contenu, avec le code autour', () async {
+    final run = build([
+      () => text(act('search_code', {'query': 'un projet'})),
+      () => text(act('finish', {'summary': 'ok'})),
+    ]);
+    await run.run();
+    final result = run.history
+        .firstWhere((m) => m.content.startsWith('Résultat de search_code'))
+        .content;
+    expect(result, contains('README.md'));
+    expect(result, contains('>3: Un projet.'));
+  });
 }

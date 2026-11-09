@@ -145,7 +145,8 @@ ChatDelta? parseOpenAiSseLine(String line) {
   }
   if (j is! Map) return null;
   if (j['error'] != null) {
-    throw LlmException(_errorMessage(j['error']));
+    // Une erreur au milieu du flux : souvent passagère chez le fournisseur.
+    throw LlmException(_errorMessage(j['error']), transient: true);
   }
   final usage =
       TokenUsage.fromJson(j['usage']) ??
@@ -182,7 +183,9 @@ ChatDelta? parseOllamaLine(String line) {
     return null;
   }
   if (j is! Map) return null;
-  if (j['error'] != null) throw LlmException(j['error'].toString());
+  if (j['error'] != null) {
+    throw LlmException(j['error'].toString(), transient: true);
+  }
   final msg = j['message'];
   final text = msg is Map ? msg['content'] : null;
   final thinking = msg is Map ? msg['thinking'] : null;
@@ -243,7 +246,8 @@ ChatDelta? parseAnthropicSseLine(String line) {
     case 'message_stop':
       return const ChatDelta(done: true);
     case 'error':
-      throw LlmException(_errorMessage(j['error']));
+      // Une erreur au milieu du flux : souvent passagère chez le fournisseur.
+      throw LlmException(_errorMessage(j['error']), transient: true);
   }
   return null;
 }
