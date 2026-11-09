@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.12';
+const String currentVersion = '2.2.13';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {

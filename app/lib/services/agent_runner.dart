@@ -113,8 +113,12 @@ ToolCall? parseToolCall(String reply) {
 /// `{"thought": …, "actions": [{"tool": …, "args": {…}}, …]}`. Les contenus des
 /// `write_file` sont pris dans les blocs de code qui suivent, dans l'ordre.
 List<ToolCall> parseToolCalls(String reply) {
-  bool wanted(Map<String, dynamic>? o) =>
-      o != null && (o['tool'] != null || o['actions'] is List);
+  bool wanted(Map<String, dynamic>? o) {
+    if (o == null) return false;
+    _normalizeAction(o);
+    return o['tool'] != null || o['actions'] is List;
+  }
+
   final fence = RegExp(r'```(\w*)\n([\s\S]*?)```');
   final blocks = fence.allMatches(reply).toList();
   Map<String, dynamic>? obj;
@@ -163,7 +167,9 @@ List<ToolCall> parseToolCalls(String reply) {
   ];
   var next = 0;
   final calls = <ToolCall>[];
-  for (final (i, a) in raw.indexed) {
+  for (final (i, a0) in raw.indexed) {
+    final a = Map<String, dynamic>.from(a0);
+    _normalizeAction(a);
     final tool = a['tool']?.toString();
     if (tool == null || tool.isEmpty) continue;
     final args = a['args'] is Map
@@ -195,6 +201,45 @@ List<ToolCall> parseToolCalls(String reply) {
     );
   }
   return calls;
+}
+
+/// Les autres façons d'écrire une action, ramenées à `{"tool": …, "args": …}` :
+/// `{"finish": {…}}` (le nom de l'outil en clé), `{"name": …, "arguments": …}`
+/// (style « function calling »), `{"action": …}` ou `{"function": …}`.
+const _knownTools = {
+  ...agentTools,
+  'use_skill': '',
+  'read_skill_file': '',
+  'delegate': '',
+};
+
+void _normalizeAction(Map<String, dynamic> o) {
+  if (o['tool'] != null || o['actions'] is List) return;
+  for (final k in ['action', 'function', 'name', 'tool_name']) {
+    final v = o[k];
+    if (v is String && _knownTools.containsKey(v)) {
+      o['tool'] = v;
+      final a = o['args'] ?? o['arguments'] ?? o['parameters'] ?? o['input'];
+      o['args'] = a is String ? (_tryJson(a) ?? {}) : (a is Map ? a : {});
+      return;
+    }
+  }
+  // Un objet qui ne contient que le résumé de fin : c'est finish.
+  if (o['summary'] is String && o['args'] == null) {
+    o['tool'] = 'finish';
+    o['args'] = {
+      'summary': o['summary'],
+      if (o['commit_message'] != null) 'commit_message': o['commit_message'],
+    };
+    return;
+  }
+  for (final k in o.keys.toList()) {
+    if (!_knownTools.containsKey(k)) continue;
+    final v = o[k];
+    o['tool'] = k;
+    o['args'] = v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+    return;
+  }
 }
 
 Map<String, dynamic>? _tryJson(String s) {
@@ -490,7 +535,8 @@ class AgentRun extends ChangeNotifier {
     return '$reminderMark'
         'Ce que l\'utilisateur t\'a demandé au tout début : « ${r.first} »$next\n'
         'Répète-toi cette demande dans "demande", et fais uniquement ce qui la '
-        'sert.';
+        'sert. Quand elle est entièrement faite, appelle finish (ne refais pas '
+        'une action déjà réussie).';
   }
 
   /// Retire les anciens rappels (le dernier suffit).
@@ -698,6 +744,11 @@ class AgentRun extends ChangeNotifier {
       var nudged = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
+      // Fini par finish (ou arrêté pour une raison déjà affichée).
+      var ended = false;
+      // La dernière série d'actions, pour repérer une boucle.
+      String? lastSig;
+      var repeats = 0;
       do {
         for (var i = 0; i < maxSteps && !_stop; i++) {
           if (_inbox.isNotEmpty) {
@@ -706,8 +757,25 @@ class AgentRun extends ChangeNotifier {
             restate = true;
           }
           _readInbox();
-          final reply = await _ask(history);
+          var reply = await _ask(history);
+          // Une réponse vide (coupure, modèle qui n'a écrit que sa réflexion) :
+          // redemandée tout de suite, sans encombrer l'historique.
+          for (var retry = 0; retry < 2 && !_stop; retry++) {
+            if (reply == null || reply.trim().isNotEmpty) break;
+            reply = await _ask(history);
+          }
           if (reply == null || _stop) break;
+          if (reply.trim().isEmpty) {
+            _add(
+              AgentStep(
+                StepKind.error,
+                'Le modèle a renvoyé une réponse vide trois fois de suite. '
+                'Essayez un autre modèle, ou envoyez « continue ».',
+              ),
+            );
+            ended = true;
+            break;
+          }
           history.add(LlmMessage('assistant', reply));
           final calls = parseToolCalls(reply);
           if (calls.isEmpty) {
@@ -741,6 +809,37 @@ class AgentRun extends ChangeNotifier {
             );
           }
           final work = calls.where((c) => c.tool != 'finish').toList();
+          // Exactement les mêmes actions qu'au tour précédent : déjà faites.
+          final sig = jsonEncode([
+            for (final c in work) [c.tool, c.args],
+          ]);
+          if (work.isNotEmpty && sig == lastSig) {
+            repeats++;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Tu viens de refaire exactement la même action qu\'au tour '
+                    'précédent : elle est déjà faite, inutile de la répéter. Si la '
+                    'demande est remplie, appelle finish ; sinon passe à l\'étape '
+                    'suivante.$reminder',
+              ),
+            );
+            if (repeats >= 3) {
+              _add(
+                AgentStep(
+                  StepKind.error,
+                  'L\'agent répète la même action en boucle : arrêté. Ses '
+                  'brouillons sont gardés ; envoyez une précision ou « continue ».',
+                ),
+              );
+              ended = true;
+              break;
+            }
+            continue;
+          }
+          lastSig = sig;
+          repeats = 0;
           actsSince += work.length;
           final results = await _execAll(work);
           if (results.isNotEmpty) {
@@ -771,11 +870,23 @@ class AgentRun extends ChangeNotifier {
             _add(
               AgentStep(StepKind.done, summary.isEmpty ? 'Terminé.' : summary),
             );
+            ended = true;
             break;
           }
         }
       } while (_inbox.isNotEmpty && !_stop);
-      if (_stop) _add(AgentStep(StepKind.error, 'Arrêté.'));
+      if (_stop) {
+        _add(AgentStep(StepKind.error, 'Arrêté.'));
+      } else if (!ended) {
+        _add(
+          AgentStep(
+            StepKind.error,
+            'Limite de $maxSteps étapes atteinte avant la fin. Envoyez « continue » '
+            'pour que l\'agent poursuive (ses brouillons sont gardés), ou montez '
+            'l\'effort pour lui donner plus d\'étapes.',
+          ),
+        );
+      }
       if (commitMessage.isEmpty) commitMessage = task;
     } catch (e) {
       _add(AgentStep(StepKind.error, '$e'));
@@ -1114,10 +1225,40 @@ class AgentRun extends ChangeNotifier {
             '${hits.length > 200 ? '\n… (${hits.length - 200} de plus)' : ''}';
       case 'edit_file':
         final p = path();
-        final oldText = call.args['old']?.toString();
-        final newText = call.args['new']?.toString();
+        // Les noms de Claude Code (old_string/new_string) et d'autres modèles.
+        String? arg(List<String> names) {
+          for (final n in names) {
+            final v = call.args[n];
+            if (v != null) return v.toString();
+          }
+          return null;
+        }
+
+        var oldText = arg(['old', 'old_string', 'old_text', 'search', 'find']);
+        var newText = arg([
+          'new',
+          'new_string',
+          'new_text',
+          'replace',
+          'replacement',
+          'content',
+          'text',
+          'append',
+        ]);
+        // Un seul bloc : c'est le texte à ajouter (à la fin du fichier).
+        if (newText == null && oldText != null) {
+          newText = oldText;
+          oldText = '';
+        }
+        // « "" » ou « '' » : un old vide écrit à la façon d'une chaîne.
+        if (oldText != null &&
+            const ['""', "''", '``'].contains(oldText.trim())) {
+          oldText = '';
+        }
         if (oldText == null || newText == null) {
-          return 'ERREUR : il faut old et new (deux blocs de code après le JSON).';
+          return 'ERREUR : il manque le texte. Mets "old" (le passage à remplacer, '
+              'vide pour ajouter à la fin) et "new" (le nouveau texte) dans args, '
+              'ou deux blocs de code après le JSON.';
         }
         final where = resolve(p);
         if (where == null || where.$2.isEmpty) return _mountHint;
@@ -1130,6 +1271,13 @@ class AgentRun extends ChangeNotifier {
             return 'OK, $p créé en brouillon.';
           }
           return problem!;
+        }
+        // Le même ajout deux fois : le texte est déjà là, on ne le double pas.
+        if (oldText.isEmpty &&
+            newText.trim().isNotEmpty &&
+            text.trimRight().endsWith(newText.trim())) {
+          return 'Déjà fait : ce texte est déjà à la fin de $p (rien n\'a été '
+              'ajouté une deuxième fois). Si la demande est remplie, appelle finish.';
         }
         final edited = applyEdit(
           text,

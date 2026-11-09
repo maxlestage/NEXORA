@@ -7,6 +7,7 @@ class ChatDelta {
     this.thinking = '',
     this.done = false,
     this.usage,
+    this.toolCalls = const [],
   });
 
   final String text;
@@ -16,8 +17,92 @@ class ChatDelta {
   /// Les tokens consommés, quand le fournisseur les indique (souvent à la fin).
   final TokenUsage? usage;
 
+  /// Des appels d'outils « natifs » (canal `tool_calls`), par morceaux.
+  final List<ToolCallPart> toolCalls;
+
   bool get isEmpty =>
-      text.isEmpty && thinking.isEmpty && !done && usage == null;
+      text.isEmpty &&
+      thinking.isEmpty &&
+      !done &&
+      usage == null &&
+      toolCalls.isEmpty;
+}
+
+/// Un morceau d'appel d'outil natif : beaucoup de modèles (gpt-oss, GPT, Qwen,
+/// Llama…) appellent les outils décrits dans la consigne par le canal `tool_calls`
+/// au lieu d'écrire le bloc JSON demandé. Sans lui, la réponse paraît vide.
+class ToolCallPart {
+  const ToolCallPart(this.index, {this.name = '', this.arguments = ''});
+
+  final int index;
+  final String name;
+
+  /// Les arguments en JSON (texte, reçu par morceaux).
+  final String arguments;
+}
+
+/// Réunit les morceaux d'appels d'outils natifs et les rend sous la forme que lit
+/// l'agent (un bloc ```json {"actions": [...]}```).
+class ToolCallCollector {
+  final Map<int, (StringBuffer, StringBuffer)> _calls = {};
+
+  void add(ChatDelta d) {
+    for (final p in d.toolCalls) {
+      final c = _calls.putIfAbsent(
+        p.index,
+        () => (StringBuffer(), StringBuffer()),
+      );
+      c.$1.write(p.name);
+      c.$2.write(p.arguments);
+    }
+  }
+
+  bool get isEmpty => _calls.isEmpty;
+
+  /// Le bloc à ajouter à la réponse, ou `null` s'il n'y a eu aucun appel.
+  String? render() {
+    if (_calls.isEmpty) return null;
+    final keys = _calls.keys.toList()..sort();
+    final actions = <Map<String, dynamic>>[];
+    for (final k in keys) {
+      final (name, args) = _calls[k]!;
+      final n = name.toString().trim();
+      if (n.isEmpty) continue;
+      Object? parsed;
+      try {
+        parsed = jsonDecode(args.toString().trim().isEmpty ? '{}' : '$args');
+      } catch (_) {
+        parsed = {'raw': args.toString()};
+      }
+      actions.add({
+        'tool': n,
+        'args': parsed is Map ? parsed : {'value': parsed},
+      });
+    }
+    if (actions.isEmpty) return null;
+    return '\n```json\n${jsonEncode({'actions': actions})}\n```\n';
+  }
+}
+
+List<ToolCallPart> _toolCallParts(Object? raw) {
+  if (raw is! List) return const [];
+  final out = <ToolCallPart>[];
+  for (final (i, t) in raw.indexed) {
+    if (t is! Map) continue;
+    final f = t['function'];
+    final fn = f is Map ? f : t;
+    final args = fn['arguments'] ?? fn['input'];
+    out.add(
+      ToolCallPart(
+        t['index'] is int ? t['index'] as int : i,
+        name: (fn['name'] ?? '').toString(),
+        arguments: args is String
+            ? args
+            : (args == null ? '' : jsonEncode(args)),
+      ),
+    );
+  }
+  return out;
 }
 
 /// Les tokens d'une réponse : envoyés (question, historique) et reçus.
@@ -78,9 +163,13 @@ ChatDelta? parseOpenAiSseLine(String line) {
     text: text is String ? text : '',
     thinking: thinking is String ? thinking : '',
     usage: usage,
+    toolCalls: _toolCallParts(delta?['tool_calls']),
   );
   return out.isEmpty ? null : out;
 }
+
+/// Ollama envoie chaque appel d'outil entier : chacun reçoit son propre numéro.
+var _ollamaCalls = 0;
 
 /// Une ligne NDJSON de l'API native d'Ollama.
 ChatDelta? parseOllamaLine(String line) {
@@ -98,9 +187,21 @@ ChatDelta? parseOllamaLine(String line) {
   final text = msg is Map ? msg['content'] : null;
   final thinking = msg is Map ? msg['thinking'] : null;
   final done = j['done'] == true;
+  // Les appels d'outils d'Ollama arrivent entiers : un index par appel.
+  final calls = msg is Map ? msg['tool_calls'] : null;
   return ChatDelta(
     text: text is String ? text : '',
     thinking: thinking is String ? thinking : '',
+    toolCalls: calls is List
+        ? [
+            for (final p in _toolCallParts(calls))
+              ToolCallPart(
+                _ollamaCalls++,
+                name: p.name,
+                arguments: p.arguments,
+              ),
+          ]
+        : const [],
     done: done,
     usage: done
         ? TokenUsage.fromJson({
