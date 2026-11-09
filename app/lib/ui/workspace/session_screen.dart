@@ -546,10 +546,46 @@ class _StepTile extends StatelessWidget {
       StepKind.error => (Icons.error_outline, Nx.red),
       StepKind.done => (Icons.flag_circle, Nx.green),
       StepKind.user => (Icons.person_outline, Nx.accent(context)),
+      StepKind.goal => (Icons.track_changes, Nx.amber),
     };
     final text = step.kind == StepKind.tool
         ? '${step.tool} ${step.text}'
         : step.text;
+    // Au tout début : ce que l'agent a compris de votre demande, bien en vue.
+    if (step.kind == StepKind.goal) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: GestureDetector(
+          onLongPress: () =>
+              showFullText(context, 'Ce que l\'agent a compris', text),
+          child: Glass(
+            glow: Nx.amber,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: color, size: 18),
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: Text(
+                        'Ce que l\'agent a compris de votre demande',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Nx.amber,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                MarkdownView(text, selectable: false),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     // Appui long : le texte entier de l'étape, à relire ou copier.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
