@@ -166,6 +166,27 @@ Touchez-le pour le détail, avec une jauge :
 - **Dépôts** : le second onglet garde la liste de vos dépôts, leur code, leurs branches et les
   agents cloud.
 
+### 🧩 Skills, sous-agents, commandes et plugins
+
+**Agents → Bibliothèque** installe, au format de Claude Code, depuis n'importe quel dépôt
+GitHub ou des sources recommandées (skills officielles d'Anthropic, plugins de Claude Code,
+Superpowers, agents de wshobson et VoltAgent…) :
+
+- **sous-agents** (`agents/*.md`) : des spécialistes. Dans le chat, `@nom` leur confie un
+  message ; dans une session, l'agent leur **délègue** une sous-tâche (`delegate`) qu'ils
+  font à part avant de rendre un rapport ;
+- **skills** (`<dossier>/SKILL.md` et ses fichiers) : chargées **à la demande**. L'assistant
+  ne voit que leur nom et leur description et demande celle qui sert (`[[skill: nom]]` dans
+  le chat, `use_skill` et `read_skill_file` dans une session) ; une skill peut être
+  « toujours » active ;
+- **commandes** (`commands/*.md`) : lancées avec `/nom arguments` (`$ARGUMENTS`, `$1`…),
+  avec des suggestions pendant la saisie ;
+- **plugins** (`.claude-plugin/marketplace.json`) : chaque plugin s'ouvre et s'installe en
+  entier, même s'il est rangé dans un autre dépôt.
+
+Les fichiers publics sont téléchargés directement (raw.githubusercontent.com), quatre à la
+fois : installer des dizaines d'agents ne prend que quelques secondes.
+
 ### ☁️ Les agents cloud (GitHub Actions)
 
 Installez en un geste un workflow dans un dépôt, ajoutez la clé en secret, puis envoyez des

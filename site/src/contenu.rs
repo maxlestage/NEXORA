@@ -469,13 +469,13 @@ pub const FONCTIONS: [Fonction; 9] = [
     Fonction {
         id: "agents",
         icone: "robot",
-        titre: "Agents installables",
-        texte: "Un catalogue d'experts prêts à l'emploi, et tous ceux que vous trouvez sur GitHub, en un geste.",
+        titre: "Agents, skills et plugins",
+        texte: "Sous-agents spécialistes, skills chargées à la demande, commandes et plugins : tout le format de Claude Code, installé depuis GitHub en quelques gestes.",
         points: &[
-            "Format .claude/agents/*.md",
-            "Depuis un dépôt ou une URL",
-            "Vos propres agents",
-            "Un modèle par agent",
+            "Sous-agents : @nom dans le chat, délégation dans les sessions",
+            "Skills chargées seulement quand elles servent",
+            "Commandes /… et plugins",
+            "Sources recommandées en un geste",
         ],
     },
     Fonction {

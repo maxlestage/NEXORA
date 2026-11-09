@@ -181,6 +181,20 @@ const List<HelpSection> helpSections = [
   ]),
   HelpSection('🐙', 'GitHub', [
     HelpTopic(
+      'Skills, sous-agents, commandes : à quoi ça sert ?',
+      '- **Sous-agent** : un spécialiste (sécurité, Rust, design…) avec sa propre '
+          'consigne. Dans le chat, écrivez **@nom** au début du message pour qu\'il '
+          'réponde ; dans une session, l\'agent peut lui **déléguer** une '
+          'sous-tâche, qu\'il fait à part avant de rendre un rapport.\n'
+          '- **Skill** : un savoir-faire (créer un PDF, faire du TDD, une revue…). '
+          'L\'assistant ne voit que son nom et sa description, et la **charge quand '
+          'elle sert** : peu de contexte utilisé, des réponses plus justes.\n'
+          '- **Commande** : un message tout prêt, lancé avec **/nom**.\n'
+          '- **Plugin** : un paquet de tout ça.\n'
+          'Installez-les depuis **Agents → Bibliothèque** : sources recommandées en un '
+          'geste, ou n\'importe quel dépôt GitHub.',
+    ),
+    HelpTopic(
       'Le travail continue-t-il en arrière-plan ?',
       'Oui : une session d\'agent ou une réponse continue quand vous quittez l\'app '
           'ou verrouillez le téléphone. Sur **Android**, une notification « NEXORA '

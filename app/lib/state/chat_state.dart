@@ -10,6 +10,7 @@ import '../services/background_work.dart';
 import '../services/conversation_store.dart';
 import '../services/llm_client.dart';
 import '../services/storage.dart';
+import 'agent_state.dart';
 import 'settings_state.dart';
 import 'usage_state.dart';
 
@@ -25,6 +26,7 @@ class ChatState extends ChangeNotifier {
     this.settings,
     this.llm, {
     this.usage,
+    this.agents,
     ConversationStore? store,
   }) {
     _ready = _init(store);
@@ -33,6 +35,9 @@ class ChatState extends ChangeNotifier {
   final Storage storage;
   final SettingsState settings;
   final LlmClient llm;
+
+  /// Les sous-agents, skills et commandes installés (`@agent`, `/commande`).
+  final AgentState? agents;
 
   /// Le témoin de crédit, mis à jour à chaque réponse.
   final UsageState? usage;
@@ -286,12 +291,41 @@ class ChatState extends ChangeNotifier {
     final c = byId(id);
     // Une seule réponse à la fois par conversation (Entrée pendant une réponse).
     if (c == null || !c.loaded || text.trim().isEmpty || isRunning(id)) return;
-    c.messages.add(ChatMessage(role: Role.user, content: text.trim()));
-    if (c.messages.where((m) => m.role == Role.user).length == 1) {
-      c.title = _quickTitle(text);
+    var content = text.trim();
+    String? command;
+    var target = agent;
+    var mention = false;
+    final lib = agents;
+    if (lib != null) {
+      // « /nom arguments » : la commande installée, avec ses arguments.
+      final cmd = RegExp(r'^/([\w.:-]+)\s*([\s\S]*)$').firstMatch(content);
+      final found = cmd == null ? null : lib.commandNamed(cmd[1]!);
+      if (found != null) {
+        command = content.split('\n').first;
+        content = found.expand(cmd![2] ?? '');
+      }
+      // « @agent … » : ce sous-agent répond à ce message.
+      final at = RegExp(r'^@([\w.:-]+)').firstMatch(content);
+      final who = at == null ? null : lib.agentNamed(at[1]!);
+      if (who != null) {
+        target = who;
+        mention = true;
+      }
     }
-    _respond(c, agent: agent, context: context);
+    c.messages.add(
+      ChatMessage(role: Role.user, content: content, command: command),
+    );
+    if (c.messages.where((m) => m.role == Role.user).length == 1) {
+      c.title = _quickTitle(command ?? text);
+    }
+    _respond(c, agent: target, context: context, mention: mention);
   }
+
+  /// La demande d'une skill dans une réponse : `[[skill: nom]]`.
+  static final skillRequest = RegExp(
+    r'\[\[\s*skill\s*:\s*([^\]]+?)\s*\]\]',
+    caseSensitive: false,
+  );
 
   /// Refait la dernière réponse.
   void regenerate(String id, {Agent? agent}) {
@@ -346,13 +380,22 @@ class ChatState extends ChangeNotifier {
     return (usable.sublist(start), start);
   }
 
-  void _respond(Conversation c, {Agent? agent, String? context}) {
+  void _respond(
+    Conversation c, {
+    Agent? agent,
+    String? context,
+    bool mention = false,
+    List<String> loaded = const [],
+    int round = 0,
+  }) {
     final ref = settings.resolve(agent?.model ?? c.model);
     final provider = settings.provider(ref.providerId)!;
     final answer = ChatMessage(
       role: Role.assistant,
       content: '',
       model: ref.key,
+      by: mention && agent != null ? '${agent.emoji} ${agent.name}' : null,
+      skills: loaded,
     );
     final (history, dropped) = recentHistory(
       c.messages,
@@ -379,6 +422,7 @@ class ChatState extends ChangeNotifier {
         settings.personalSystem().split('\n\n').skip(1).join('\n\n'),
       if (level.hint.isNotEmpty) level.hint,
       if (context != null && context.isNotEmpty) context,
+      ..._skillsPrompt(c, round),
     ].where((p) => p.trim().isNotEmpty).join('\n\n');
     var tokens = const TokenUsage(0, 0);
     var failed = false;
@@ -465,6 +509,23 @@ class ChatState extends ChangeNotifier {
                 outputChars: outputChars,
               );
             }
+            // L'assistant demande une skill : on la charge et il répond avec.
+            if (!answer.error && round < 2) {
+              final wanted = _requestedSkills(c, answer.content);
+              if (wanted.isNotEmpty) {
+                c.messages.remove(answer);
+                c.skills.addAll(wanted);
+                _respond(
+                  c,
+                  agent: agent,
+                  context: context,
+                  mention: mention,
+                  loaded: [...loaded, ...wanted],
+                  round: round + 1,
+                );
+                return;
+              }
+            }
             if (answer.content.trim().isEmpty && !answer.error) {
               answer.error = true;
               answer.content =
@@ -478,6 +539,54 @@ class ChatState extends ChangeNotifier {
           cancelOnError: false,
         );
     _running[c.id] = sub;
+  }
+
+  /// Les skills dans la consigne : celles déjà chargées (en entier) et la liste
+  /// des autres (nom et description), à demander avec `[[skill: nom]]`.
+  List<String> _skillsPrompt(Conversation c, int round) {
+    final lib = agents;
+    if (lib == null || lib.skills.isEmpty) return const [];
+    final active = {
+      for (final s in lib.skills)
+        if (s.always) s.name.toLowerCase(),
+      for (final n in c.skills) n.toLowerCase(),
+    };
+    final loaded = lib.skills.where(
+      (s) => active.contains(s.name.toLowerCase()),
+    );
+    final others = lib.skills.where(
+      (s) => !active.contains(s.name.toLowerCase()),
+    );
+    return [
+      for (final s in loaded) s.instructions,
+      if (others.isNotEmpty && round < 2)
+        'Skills disponibles (des savoir-faire chargés à la demande) :\n'
+            '${others.map((s) => '- ${s.name} : ${s.description}').join('\n')}\n'
+            'Si l\'une d\'elles aide vraiment pour cette demande, réponds UNIQUEMENT '
+            'par la ligne [[skill: nom]] (une ligne par skill utile) : son contenu te '
+            'sera donné, puis tu répondras. Sinon, réponds normalement.',
+    ];
+  }
+
+  /// Les skills demandées par une réponse qui ne contient que des demandes.
+  List<String> _requestedSkills(Conversation c, String content) {
+    final lib = agents;
+    if (lib == null) return const [];
+    final asked = skillRequest.allMatches(content).map((m) => m[1]!).toList();
+    if (asked.isEmpty) return const [];
+    final rest = content.replaceAll(skillRequest, '').trim();
+    if (rest.length > 200) return const [];
+    final already = c.skills.map((n) => n.toLowerCase()).toSet();
+    final out = <String>[];
+    for (final n in asked) {
+      final s = lib.skillNamed(n);
+      if (s != null &&
+          !already.contains(s.name.toLowerCase()) &&
+          !out.contains(s.name)) {
+        out.add(s.name);
+      }
+    }
+    return out;
   }
 
   static String _quickTitle(String text) {
