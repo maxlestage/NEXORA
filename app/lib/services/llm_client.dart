@@ -343,6 +343,8 @@ class LlmClient {
         return;
       }
       final splitter = ThinkSplitter();
+      // Les appels d'outils natifs, rendus en texte à la fin de la réponse.
+      final tools = ToolCallCollector();
       final parse = switch (provider.kind) {
         ApiKind.openai => parseOpenAiSseLine,
         ApiKind.ollama => parseOllamaLine,
@@ -355,11 +357,28 @@ class LlmClient {
           provider.kind != ApiKind.ollama;
       if (whole) {
         final body = await res.stream.bytesToString();
-        final text = _wholeText(provider, body);
+        var text = _wholeText(provider, body);
         TokenUsage? usage;
         try {
           final j = jsonDecode(body);
-          if (j is Map) usage = TokenUsage.fromJson(j['usage']);
+          if (j is Map) {
+            usage = TokenUsage.fromJson(j['usage']);
+            final msg =
+                ((j['choices'] as List?)?.firstOrNull as Map?)?['message'];
+            if (msg is Map) {
+              final d = parseOpenAiSseLine(
+                'data: ${jsonEncode({
+                  'choices': [
+                    {
+                      'delta': {'tool_calls': msg['tool_calls']},
+                    },
+                  ],
+                })}',
+              );
+              if (d != null) tools.add(d);
+              text += tools.render() ?? '';
+            }
+          }
         } catch (_) {}
         final d = splitter.feed(ChatDelta(text: text, usage: usage));
         if (!d.isEmpty) controller.add(d);
@@ -380,6 +399,8 @@ class LlmClient {
         if (controller.isClosed) return;
         final rest = splitter.flush();
         if (!rest.isEmpty) controller.add(rest);
+        final calls = tools.render();
+        if (calls != null) controller.add(ChatDelta(text: calls));
         await controller.close();
         client?.close();
       }
@@ -414,6 +435,7 @@ class LlmClient {
               try {
                 final d = parse(line);
                 if (d == null) return;
+                tools.add(d);
                 final out = splitter.feed(d);
                 if (!out.isEmpty) controller.add(out);
                 // Fin annoncée par le fournisseur : on n'attend pas qu'il ferme

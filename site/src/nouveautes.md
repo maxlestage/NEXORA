@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.13 — 9 novembre 2026 — L'agent travaille enfin comme il faut
+- Corrigé : avec beaucoup de modèles (gpt-oss, GPT, Qwen, Llama…), l'agent semblait ne rien répondre. Il appelait ses outils par un canal que l'app ignorait. Ces appels sont maintenant compris.
+- Les modifications acceptent les formats de Claude Code (old_string, new_string) et des autres modèles. Un ajout à la fin d'un fichier n'est jamais fait deux fois.
+- Une boucle sur la même action est repérée et arrêtée, et une réponse vide est redemandée au lieu de gâcher une étape.
+- L'agent ne s'arrête plus en silence : s'il atteint sa limite d'étapes, il le dit et vous pouvez lui envoyer « continue ».
+- Vérifié sur de vraies sessions : ajout d'une section dans un README, et remplacement d'un titre sans toucher au reste du fichier.
+
 ## 2.2.12 — 9 novembre 2026 — Les tout derniers modèles, toutes les 6 heures
 - Le catalogue des modèles est mis à jour toutes les 6 heures au lieu d'une fois par jour, et l'app le relit aussi toutes les 6 heures.
 - Nouvelle source en direct : la liste d'OpenRouter, souvent à jour le jour même d'une sortie. Elle repère les nouveaux modèles d'Anthropic, OpenAI, Google et xAI avant les autres bases.
