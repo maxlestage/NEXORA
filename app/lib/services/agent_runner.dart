@@ -13,11 +13,24 @@ import 'llm_client.dart';
 /// Les outils que l'agent autonome peut utiliser sur un dépôt.
 const Map<String, String> agentTools = {
   'list_files': 'Liste les fichiers. args: {"path": "dossier/optionnel"}',
-  'read_file': 'Lit un fichier. args: {"path": "chemin/du/fichier"}',
+  'read_file':
+      'Lit un fichier, en entier s\'il est court. Pour un long fichier, lis-le par '
+      'plages de lignes. args: {"path": "…", "start": 1, "end": 400}',
+  'find_in_file':
+      'Trouve les lignes d\'un fichier qui contiennent un texte ou une expression '
+      'régulière, avec leur numéro. args: {"path": "…", "pattern": "…"}',
   'search_code': 'Cherche un texte dans le code. args: {"query": "texte"}',
+  'edit_file':
+      'Modifie un passage d\'un fichier sans le réécrire (idéal pour les longs '
+      'fichiers) : remplace exactement « old » par « new ». old doit être unique '
+      'dans le fichier (ajoute des lignes autour sinon) ; "all": true remplace '
+      'toutes les occurrences ; old vide ajoute new à la fin du fichier. args: '
+      '{"path": "…"} puis DEUX blocs de code après le JSON : d\'abord old, puis new '
+      '(ou "old" et "new" dans args).',
   'write_file':
-      'Crée ou remplace un fichier ENTIER. args: {"path": "..."} puis le contenu '
-      'complet dans un bloc de code juste après le JSON.',
+      'Crée un fichier, ou remplace un fichier court ENTIER. args: {"path": "..."} '
+      'puis le contenu complet dans un bloc de code juste après le JSON. Pour '
+      'changer une partie d\'un fichier existant, utilise edit_file.',
   'delete_file': 'Supprime un fichier. args: {"path": "..."}',
   'finish': 'Termine. args: {"summary": "ce qui a été fait", "commit_message": "..."}',
 };
@@ -144,6 +157,15 @@ List<ToolCall> parseToolCalls(String reply) {
         args['content'] == null &&
         next < contents.length) {
       args['content'] = contents[next++];
+    }
+    // edit_file : l'ancien passage puis le nouveau, dans deux blocs de code.
+    String block(String b) =>
+        b.endsWith('\n') ? b.substring(0, b.length - 1) : b;
+    if (tool == 'edit_file' && args['old'] == null && next < contents.length) {
+      args['old'] = block(contents[next++]);
+    }
+    if (tool == 'edit_file' && args['new'] == null && next < contents.length) {
+      args['new'] = block(contents[next++]);
     }
     calls.add(
       ToolCall(
@@ -400,9 +422,29 @@ class AgentRun extends ChangeNotifier {
   }
 
   String get _system {
+    // Les noms d'outils de Claude Code (Read, Edit, Grep…) valent ceux de NEXORA.
+    const aliases = {
+      'read': ['read_file'],
+      'edit': ['edit_file'],
+      'multiedit': ['edit_file'],
+      'write': ['write_file', 'edit_file'],
+      'grep': ['find_in_file', 'search_code'],
+      'glob': ['list_files'],
+      'ls': ['list_files'],
+    };
+    final wanted = {
+      for (final t in agent?.tools ?? const <String>[]) ...[
+        t,
+        ...?aliases[t.trim().toLowerCase()],
+      ],
+    };
     final allowed = agent == null || agent!.tools.isEmpty
         ? agentTools.keys.toList()
-        : {...agent!.tools.where(agentTools.containsKey), 'finish'}.toList();
+        : {
+            ...agentTools.keys.where(wanted.contains),
+            'read_file',
+            'finish',
+          }.toList();
     final tools = [
       ...allowed.map((t) => '- $t : ${agentTools[t]}'),
       if (skills.isNotEmpty) ...[
@@ -411,9 +453,10 @@ class AgentRun extends ChangeNotifier {
             '"path": "…"}',
       ],
       if (_delegates.isNotEmpty)
-        '- delegate : confie une sous-tâche à un sous-agent spécialiste, qui la '
-            'fait à part et te rend un rapport. args: {"agent": "…", "task": '
-            '"… (donne-lui tout le contexte utile)"}',
+        '- delegate : confie une sous-tâche de réflexion à un sous-agent '
+            'spécialiste, qui te rend un rapport. Il ne voit PAS les fichiers : '
+            'colle-lui les extraits utiles, puis fais toi-même les modifications. '
+            'args: {"agent": "…", "task": "…"}',
     ].join('\n');
     return [
       if (agent != null) agent!.systemPrompt,
@@ -444,8 +487,12 @@ class AgentRun extends ChangeNotifier {
           'mets un bloc de code par fichier après le JSON, dans le même ordre. finish '
           'doit être seul. La liste des fichiers t\'est donnée au départ : ne la '
           'redemande pas sans raison.\n'
-          'Pour write_file, mets ensuite le contenu COMPLET du fichier dans un bloc '
-          'de code séparé. Lis un fichier avant de le modifier. Fais des '
+          'Pour modifier un fichier existant, utilise edit_file (old puis new, '
+          'dans deux blocs de code) : jamais besoin de le réécrire en entier, même '
+          's\'il est très long. Un long fichier se lit par plages (read_file avec '
+          'start/end) ou avec find_in_file. Pour write_file, mets ensuite le contenu '
+          'COMPLET du fichier dans un bloc de code séparé. Lis un fichier avant de '
+          'le modifier. Fais des '
           'changements minimes et cohérents. Quand la tâche est faite, appelle '
           'finish avec un résumé et un message de commit court en français.',
     ].join('\n\n');
@@ -604,6 +651,7 @@ class AgentRun extends ChangeNotifier {
   static const _readOnly = {
     'list_files',
     'read_file',
+    'find_in_file',
     'search_code',
     'use_skill',
     'read_skill_file',
@@ -781,6 +829,63 @@ class AgentRun extends ChangeNotifier {
       '(Dépôt ${e.key} illisible : ${e.value})',
   ].join('\n');
 
+  /// Le texte actuel d'un fichier : le brouillon s'il y en a un, sinon la version
+  /// du dépôt (entière, gardée en mémoire). Rend (null, explication) sinon.
+  Future<(String?, String?)> _current(String p) async {
+    if (changes.containsKey(p)) {
+      final c = changes[p];
+      return c == null
+          ? (null, 'ERREUR : ce fichier a été supprimé.')
+          : (c, null);
+    }
+    if (originals.containsKey(p) && originals[p] != null) {
+      return (originals[p], null);
+    }
+    final where = resolve(p);
+    if (where == null) return (null, _mountHint);
+    final (t, inner) = where;
+    final FileContent f;
+    try {
+      f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
+    } on GitHubException catch (e) {
+      // Un fichier qui n'existe pas n'est pas une panne : on aide l'agent à
+      // trouver le bon chemin.
+      if (e.status == 404) {
+        originals.putIfAbsent(p, () => null);
+        return (
+          null,
+          'Fichier introuvable : $p (il n\'existe pas encore, tu peux le créer '
+              'avec write_file).${await _nearby(p)}',
+        );
+      }
+      rethrow;
+    }
+    if (f.binary) return (null, 'ERREUR : fichier binaire.');
+    originals[p] = f.text;
+    return (f.text, null);
+  }
+
+  /// Un fichier, ou une plage de ses lignes. Un long fichier est donné par
+  /// morceaux de 600 lignes, avec ce qu'il faut pour lire la suite.
+  static String _range(String p, String text, Object? start, Object? end) {
+    final lines = text.split('\n');
+    final total = lines.length;
+    int? asInt(Object? v) => v is num ? v.toInt() : int.tryParse('${v ?? ''}');
+    var from = asInt(start) ?? 1;
+    var to = asInt(end);
+    if (to == null && start == null && text.length <= 24000) return text;
+    from = from.clamp(1, total);
+    to = (to ?? from + 599).clamp(from, total);
+    if (to - from > 1200) to = from + 1200;
+    final part = lines.sublist(from - 1, to).join('\n');
+    final more = to < total
+        ? '\n… Lignes $from à $to sur $total (${text.length} caractères). Lis la '
+              'suite avec "start": ${to + 1}, cherche avec find_in_file, et modifie '
+              'avec edit_file (sans réécrire tout le fichier).'
+        : '\n(Lignes $from à $to sur $total : fin du fichier.)';
+    return '$part$more';
+  }
+
   /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
   Future<String> _nearby(String path) async {
     final tree = await _files();
@@ -841,31 +946,64 @@ class AgentRun extends ChangeNotifier {
         ].where((l) => l.trim().isNotEmpty).join('\n');
       case 'read_file':
         final p = path();
-        if (changes.containsKey(p)) {
-          return changes[p] ?? 'ERREUR : ce fichier a été supprimé.';
+        final (text, problem) = await _current(p);
+        if (text == null) return problem!;
+        return _range(p, text, call.args['start'], call.args['end']);
+      case 'find_in_file':
+        final p = path();
+        final pattern = (call.args['pattern'] ?? call.args['query'] ?? '')
+            .toString();
+        if (pattern.isEmpty) return 'ERREUR : pattern vide.';
+        final (text, problem) = await _current(p);
+        if (text == null) return problem!;
+        RegExp re;
+        try {
+          re = RegExp(pattern, caseSensitive: false);
+        } catch (_) {
+          re = RegExp(RegExp.escape(pattern), caseSensitive: false);
+        }
+        final lines = text.split('\n');
+        final hits = <String>[
+          for (var i = 0; i < lines.length; i++)
+            if (re.hasMatch(lines[i]))
+              '${i + 1}: ${lines[i].length > 300 ? '${lines[i].substring(0, 300)}…' : lines[i]}',
+        ];
+        if (hits.isEmpty) {
+          return 'Aucune ligne ne contient « $pattern » dans $p.';
+        }
+        return '${hits.length} ligne(s) dans $p (${lines.length} lignes) :\n'
+            '${hits.take(200).join('\n')}'
+            '${hits.length > 200 ? '\n… (${hits.length - 200} de plus)' : ''}';
+      case 'edit_file':
+        final p = path();
+        final oldText = call.args['old']?.toString();
+        final newText = call.args['new']?.toString();
+        if (oldText == null || newText == null) {
+          return 'ERREUR : il faut old et new (deux blocs de code après le JSON).';
         }
         final where = resolve(p);
-        if (where == null) return _mountHint;
-        final (t, inner) = where;
-        final FileContent f;
-        try {
-          f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
-        } on GitHubException catch (e) {
-          // Un fichier qui n'existe pas n'est pas une panne : on aide l'agent à
-          // trouver le bon chemin.
-          if (e.status == 404) {
-            originals.putIfAbsent(p, () => null);
-            return 'Fichier introuvable : $p (il n\'existe pas encore, tu peux le '
-                'créer avec write_file).${await _nearby(p)}';
+        if (where == null || where.$2.isEmpty) return _mountHint;
+        final (text, problem) = await _current(p);
+        if (text == null) {
+          // Fichier nouveau : old vide le crée.
+          if (oldText.isEmpty && !changes.containsKey(p)) {
+            changes[p] = newText.endsWith('\n') ? newText : '$newText\n';
+            notifyListeners();
+            return 'OK, $p créé en brouillon.';
           }
-          rethrow;
+          return problem!;
         }
-        if (f.binary) return 'ERREUR : fichier binaire.';
-        final text = f.text;
-        originals.putIfAbsent(p, () => text);
-        return text.length > 24000
-            ? '${text.substring(0, 24000)}\n… (tronqué, ${text.length} caractères)'
-            : text;
+        final edited = applyEdit(
+          text,
+          oldText,
+          newText,
+          all: call.args['all'] == true,
+        );
+        if (edited.$1 == null) return 'ERREUR : ${edited.$2}';
+        changes[p] = edited.$1;
+        notifyListeners();
+        return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
+            'est inchangé.';
       case 'search_code':
         final q = (call.args['query'] ?? '').toString();
         if (q.isEmpty) return 'ERREUR : query vide.';
@@ -894,6 +1032,18 @@ class AgentRun extends ChangeNotifier {
         }
         final where = resolve(p);
         if (where == null || where.$2.isEmpty) return _mountHint;
+        // Garde-fou : remplacer un long fichier par un texte bien plus court est
+        // presque toujours une erreur (fichier lu en partie). On refuse.
+        final before = changes.containsKey(p) ? changes[p] : originals[p];
+        if (before != null &&
+            before.length > 8000 &&
+            content.length < before.length * 0.6 &&
+            call.args['force'] != true) {
+          return 'ERREUR : $p fait ${before.length} caractères et ce contenu '
+              '${content.length} : la fin du fichier serait perdue. Utilise '
+              'edit_file pour ne changer qu\'un passage (ou "force": true si tu '
+              'veux vraiment le raccourcir).';
+        }
         changes[p] = content.endsWith('\n') ? content : '$content\n';
         notifyListeners();
         return 'OK, $p enregistré en brouillon (${content.length} caractères).';
@@ -1205,4 +1355,59 @@ class AgentRun extends ChangeNotifier {
     );
     return r.first.result;
   }
+}
+
+/// Remplace `old` par `new` dans `text`. Rend (texte modifié, résumé) ou
+/// (null, explication de l'échec). Tolère les fins de ligne et les espaces de fin.
+(String?, String) applyEdit(
+  String text,
+  String old,
+  String replacement, {
+  bool all = false,
+}) {
+  if (old.isEmpty) {
+    final sep = text.isEmpty || text.endsWith('\n') ? '' : '\n';
+    return (
+      '$text$sep$replacement${replacement.endsWith('\n') ? '' : '\n'}',
+      'ajout à la fin',
+    );
+  }
+  int count(String hay, String needle) =>
+      RegExp(RegExp.escape(needle)).allMatches(hay).length;
+  var source = text;
+  var needle = old;
+  var n = count(source, needle);
+  if (n == 0) {
+    // Mêmes lignes, aux espaces de fin et aux retours chariot près.
+    String norm(String s) => s
+        .replaceAll('\r\n', '\n')
+        .split('\n')
+        .map((l) => l.trimRight())
+        .join('\n');
+    final nt = norm(text);
+    final no = norm(old);
+    if (no.isNotEmpty && count(nt, no) > 0) {
+      source = nt;
+      needle = no;
+      n = count(nt, no);
+    }
+  }
+  if (n == 0) {
+    return (
+      null,
+      'passage introuvable. Relis le fichier (read_file avec start/end ou '
+          'find_in_file) et recopie old exactement, espaces compris.',
+    );
+  }
+  if (n > 1 && !all) {
+    return (
+      null,
+      'le passage apparaît $n fois : ajoute des lignes autour pour qu\'il soit '
+          'unique, ou "all": true pour tout remplacer.',
+    );
+  }
+  final out = all
+      ? source.replaceAll(needle, replacement)
+      : source.replaceFirst(needle, replacement);
+  return (out, all && n > 1 ? '$n remplacements' : '1 remplacement');
 }
