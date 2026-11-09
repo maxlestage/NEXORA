@@ -124,21 +124,24 @@ void main() {
     },
   );
 
-  test('modification ciblée : passage unique, espaces de fin tolérés', () async {
-    final run = AgentRun(
-      llm: LlmClient(),
-      github: github(),
-      provider: providersCatalog.firstWhere((p) => p.id == 'groq'),
-      apiKey: 'k',
-      model: 'm',
-      owner: 'max',
-      repo: 'STRATYX',
-      branch: 'main',
-      task: 't',
-    );
-    run.originals['site/public/style.css'] = big;
-    expect(applyEdit(big, '.atelier', '.x', all: false).$1, isNotNull);
-    expect(applyEdit('a\na\n', 'a', 'b').$1, isNull); // pas unique
-    expect(applyEdit('a  \nb\n', 'a\nb', 'c').$1, 'c\n'); // espaces de fin
-  });
+  test(
+    'modification ciblée : passage unique, espaces de fin tolérés',
+    () async {
+      final run = AgentRun(
+        llm: LlmClient(),
+        github: github(),
+        provider: providersCatalog.firstWhere((p) => p.id == 'groq'),
+        apiKey: 'k',
+        model: 'm',
+        owner: 'max',
+        repo: 'STRATYX',
+        branch: 'main',
+        task: 't',
+      );
+      run.originals['site/public/style.css'] = big;
+      expect(applyEdit(big, '.atelier', '.x', all: false).$1, isNotNull);
+      expect(applyEdit('a\na\n', 'a', 'b').$1, isNull); // pas unique
+      expect(applyEdit('a  \nb\n', 'a\nb', 'c').$1, 'c\n'); // espaces de fin
+    },
+  );
 }
