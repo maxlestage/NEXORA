@@ -1,13 +1,14 @@
-# Garde le catalogue de modèles à jour : chaque jour, récupère les derniers modèles sur
-# internet (models.dev, Pollinations), et s'il y a du nouveau, l'enregistre dans
-# app/assets/models.json et site/public/models.json puis republie le site. L'app relit
-# le fichier du site une fois par jour : les nouveaux modèles arrivent sans mise à jour.
+# Garde le catalogue de modèles à jour : toutes les 6 heures, récupère les derniers
+# modèles sur internet (models.dev, la liste en direct d'OpenRouter, Pollinations), et
+# s'il y a du nouveau, l'enregistre dans app/assets/models.json et site/public/models.json
+# puis republie le site. L'app relit le fichier du site toutes les 6 heures : les
+# nouveaux modèles arrivent sans mise à jour de l'app.
 
 name: Modèles
 
 on:
   schedule:
-    - cron: "17 5 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
