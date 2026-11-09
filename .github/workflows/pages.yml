@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: site
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -37,7 +37,7 @@ jobs:
           workspaces: site
       - uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen@0.2.129
+          tool: wasm-bindgen@0.2.130
       - name: Bundle du navigateur (îlots et 3D)
         run: |
           cargo build --lib --target wasm32-unknown-unknown --profile wasm-release
@@ -57,8 +57,8 @@ jobs:
         run: |
           gh api -X PUT "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow \
             || gh api -X POST "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -70,4 +70,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

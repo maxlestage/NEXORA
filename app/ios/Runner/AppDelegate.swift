@@ -23,7 +23,7 @@ import UserNotifications
 /// Garde NEXORA en vie en arrière-plan le temps qu'une session d'agent ou une
 /// réponse se termine.
 ///
-/// - iOS 26 et plus : une tâche « continue » (BGContinuedProcessingTask), lancée par
+/// - iOS 26 et plus (iOS 27 compris) : une tâche « continue » (BGContinuedProcessingTask), lancée par
 ///   l'utilisateur, avec sa progression dans l'interface du système ; elle dure tant
 ///   que le travail avance.
 /// - Avant iOS 26 : le délai accordé par iOS (environ 30 secondes) ; au retour dans
