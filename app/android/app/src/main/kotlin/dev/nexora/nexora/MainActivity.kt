@@ -20,6 +20,7 @@ class MainActivity : FlutterActivity() {
                 try {
                     when (call.method) {
                         "start" -> {
+                            WorkService.stopRequested = false
                             askNotifications()
                             val intent = Intent(this, WorkService::class.java)
                                 .putExtra("title", title)
@@ -38,7 +39,8 @@ class MainActivity : FlutterActivity() {
                             result.success(WorkService.current != null)
                         }
                         "stop" -> {
-                            WorkService.current?.finish()
+                            val service = WorkService.current
+                            if (service != null) service.finish() else WorkService.stopRequested = true
                             result.success(true)
                         }
                         "status" -> result.success(

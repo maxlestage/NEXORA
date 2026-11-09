@@ -39,7 +39,8 @@ class _GettingStartedCardState extends State<GettingStartedCard> {
   @override
   Widget build(BuildContext context) {
     if (_hidden) return const SizedBox.shrink();
-    final chat = context.watch<ChatState>();
+    context.select<ChatState, int>((c) => c.listRevision);
+    final chat = context.read<ChatState>();
     final settings = context.watch<SettingsState>();
     final gh = context.watch<GitHubState>();
     final agents = context.watch<AgentState>();
