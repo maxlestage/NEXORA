@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/agent.dart';
 import '../models/provider.dart';
+import '../models/skill.dart';
 import 'diff.dart';
 import 'github_api.dart';
 import 'llm_client.dart';
@@ -214,6 +215,9 @@ class AgentRun extends ChangeNotifier {
     this.onError,
     String? id,
     DateTime? createdAt,
+    this.skills = const [],
+    this.subagents = const [],
+    this.readSkillFile,
   }) : id = id ?? 's${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}',
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = createdAt ?? DateTime.now() {
@@ -273,6 +277,15 @@ class AgentRun extends ChangeNotifier {
   final void Function(Map<String, String> headers)? onHeaders;
   final void Function(TokenUsage usage)? onUsage;
   final void Function(Object error)? onError;
+
+  /// Les skills installées (chargées à la demande avec use_skill).
+  List<Skill> skills;
+
+  /// Les sous-agents à qui confier une sous-tâche (delegate).
+  List<Agent> subagents;
+
+  /// Lit un fichier d'une skill (scripts, références) sur GitHub.
+  Future<String> Function(Skill skill, String file)? readSkillFile;
 
   /// Les dépôts de la mission (le premier est le principal).
   late final List<RepoTarget> targets;
@@ -390,7 +403,18 @@ class AgentRun extends ChangeNotifier {
     final allowed = agent == null || agent!.tools.isEmpty
         ? agentTools.keys.toList()
         : {...agent!.tools.where(agentTools.containsKey), 'finish'}.toList();
-    final tools = allowed.map((t) => '- $t : ${agentTools[t]}').join('\n');
+    final tools = [
+      ...allowed.map((t) => '- $t : ${agentTools[t]}'),
+      if (skills.isNotEmpty) ...[
+        '- use_skill : charge une skill (ses instructions). args: {"name": "…"}',
+        '- read_skill_file : lit un fichier d\'une skill. args: {"skill": "…", '
+            '"path": "…"}',
+      ],
+      if (_delegates.isNotEmpty)
+        '- delegate : confie une sous-tâche à un sous-agent spécialiste, qui la '
+            'fait à part et te rend un rapport. args: {"agent": "…", "task": '
+            '"… (donne-lui tout le contexte utile)"}',
+    ].join('\n');
     return [
       if (agent != null) agent!.systemPrompt,
       if (!multi)
@@ -403,6 +427,12 @@ class AgentRun extends ChangeNotifier {
             'Tous les chemins commencent par ce dossier (ex. ${mountOf(targets.first)}/README.md). '
             'Tu peux lire un dépôt pour t\'en inspirer et en modifier un autre.',
       'Outils disponibles :\n$tools',
+      if (skills.isNotEmpty)
+        'Skills disponibles (charge celles qui servent avec use_skill) :\n'
+            '${skills.map((s) => '- ${s.name} : ${s.description}').join('\n')}',
+      if (_delegates.isNotEmpty)
+        'Sous-agents disponibles (delegate) :\n'
+            '${_delegates.map((a) => '- ${_slug(a.name)} : ${a.description}').join('\n')}',
       'À chaque tour, réponds avec un bloc :\n'
           '```json\n{"thought": "ce que tu fais et pourquoi", "tool": "nom", '
           '"args": {...}}\n```\n'
@@ -570,7 +600,15 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
-  static const _readOnly = {'list_files', 'read_file', 'search_code'};
+  /// Les actions sans effet sur les brouillons : faites en parallèle.
+  static const _readOnly = {
+    'list_files',
+    'read_file',
+    'search_code',
+    'use_skill',
+    'read_skill_file',
+    'delegate',
+  };
 
   /// Exécute les actions d'un tour : les lectures en parallèle, les écritures dans
   /// l'ordre. Rend un « Résultat de … » par action, dans l'ordre demandé.
@@ -596,7 +634,12 @@ class AgentRun extends ChangeNotifier {
     }
     final results = <String>[];
     for (final (i, c) in calls.indexed) {
-      final label = c.args['path'] ?? c.args['query'] ?? '';
+      final label =
+          c.args['path'] ??
+          c.args['query'] ??
+          c.args['agent'] ??
+          c.args['name'] ??
+          '';
       _add(AgentStep(StepKind.tool, '$label', tool: c.tool));
       final r = out[i];
       if (r.startsWith('ERREUR')) {
@@ -650,6 +693,43 @@ class AgentRun extends ChangeNotifier {
         if (_stop) return null;
       }
     }
+  }
+
+  Skill? _skill(String name) {
+    final n = name.trim().toLowerCase();
+    return skills.where((s) => s.name.toLowerCase() == n).firstOrNull;
+  }
+
+  /// Les sous-agents à qui déléguer (pas l'agent principal lui-même).
+  List<Agent> get _delegates =>
+      subagents.where((a) => a.id != agent?.id).take(60).toList();
+
+  static String _slug(String name) =>
+      name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+
+  /// Une réponse du modèle hors de l'historique (pour un sous-agent), qui s'arrête
+  /// avec la session.
+  Future<String?> _askOnce({required String system, required String prompt}) {
+    final cancel = _cancel = Completer<String?>();
+    return Future.any<String?>([
+      cancel.future,
+      llm.complete(
+        provider: provider,
+        apiKey: apiKey,
+        model: model,
+        messages: [LlmMessage('user', prompt)],
+        system: system,
+        options: LlmOptions(
+          temperature: 0.2,
+          maxTokens: level == null || level!.maxTokens < 16000
+              ? 16000
+              : level!.maxTokens,
+          level: level,
+        ),
+        onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
+        onUsage: onUsage,
+      ),
+    ]);
   }
 
   /// Attente avant de réessayer une étape (réglable pour les tests).
@@ -824,6 +904,45 @@ class AgentRun extends ChangeNotifier {
         changes[p] = null;
         notifyListeners();
         return 'OK, $p sera supprimé.';
+      case 'use_skill':
+        final name = (call.args['name'] ?? '').toString();
+        final sk = _skill(name);
+        if (sk == null) {
+          return 'ERREUR : skill inconnue « $name ». Skills : '
+              '${skills.map((s) => s.name).join(', ')}';
+        }
+        return sk.instructions;
+      case 'read_skill_file':
+        final sk = _skill((call.args['skill'] ?? '').toString());
+        final file = (call.args['path'] ?? '').toString();
+        if (sk == null || readSkillFile == null) {
+          return 'ERREUR : skill inconnue.';
+        }
+        final text = await readSkillFile!(sk, file);
+        return text.length > 24000
+            ? '${text.substring(0, 24000)}\n… (tronqué)'
+            : text;
+      case 'delegate':
+        final who = (call.args['agent'] ?? '').toString();
+        final task = (call.args['task'] ?? '').toString();
+        final sub = _delegates
+            .where((a) => _slug(a.name) == _slug(who))
+            .firstOrNull;
+        if (sub == null) {
+          return 'ERREUR : sous-agent inconnu « $who ». Sous-agents : '
+              '${_delegates.map((a) => _slug(a.name)).join(', ')}';
+        }
+        if (task.trim().isEmpty) return 'ERREUR : task vide.';
+        final report = await _askOnce(
+          system:
+              '${sub.systemPrompt}\n\nTu travailles comme sous-agent pour un agent '
+              'principal : fais la tâche demandée avec le contexte fourni et rends '
+              'un rapport concis et complet (pas de questions en retour).',
+          prompt: task,
+        );
+        return report == null
+            ? 'ERREUR : sous-agent interrompu.'
+            : 'Rapport de ${sub.name} :\n$report';
       default:
         return 'ERREUR : outil inconnu « ${call.tool} ».';
     }

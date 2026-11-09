@@ -85,6 +85,7 @@ class SessionState extends ChangeNotifier {
               usage?.recordUsage(p.id, model: j['model'] as String?, usage: t),
           onError: (e) => usage?.recordError(p.id, e),
         );
+        _equip(run);
         _attach(run);
       } catch (_) {
         // Session illisible (fournisseur retiré…) : ignorée.
@@ -92,6 +93,14 @@ class SessionState extends ChangeNotifier {
     }
     loading = false;
     notifyListeners();
+  }
+
+  /// Donne à l'agent les skills et les sous-agents installés (à jour).
+  void _equip(AgentRun run) {
+    run
+      ..skills = agents.skills
+      ..subagents = agents.all
+      ..readSkillFile = (s, f) => agents.readSkillFile(github.api, s, f);
   }
 
   final Map<String, VoidCallback> _listeners = {};
@@ -198,6 +207,7 @@ class SessionState extends ChangeNotifier {
       onUsage: (t) => usage?.recordUsage(p.id, model: model.model, usage: t),
       onError: (e) => usage?.recordError(p.id, e),
     );
+    _equip(run);
     _attach(run);
     _trim();
     notifyListeners();
@@ -219,6 +229,7 @@ class SessionState extends ChangeNotifier {
     run
       ..github = github.api
       ..apiKey = settings.key(run.provider.id);
+    _equip(run);
     run.run(followUp: instruction);
   }
 

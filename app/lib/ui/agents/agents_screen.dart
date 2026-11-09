@@ -23,14 +23,14 @@ class AgentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Agents'),
           actions: [
-            IconButton(
-              tooltip: 'Installer depuis GitHub',
+            TextButton.icon(
               icon: const Icon(Icons.download_rounded),
+              label: const Text('Bibliothèque'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const InstallAgentsScreen()),
               ),
@@ -38,9 +38,12 @@ class AgentsScreen extends StatelessWidget {
           ],
           bottom: const TabBar(
             dividerColor: Colors.transparent,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Catalogue'),
               Tab(text: 'Mes agents'),
+              Tab(text: 'Skills & commandes'),
               Tab(text: 'Cloud GitHub'),
             ],
           ),
@@ -53,7 +56,9 @@ class AgentsScreen extends StatelessWidget {
           icon: const Icon(Icons.add),
           label: const Text('Créer'),
         ),
-        body: const TabBarView(children: [_Catalog(), _Mine(), _Cloud()]),
+        body: const TabBarView(
+          children: [_Catalog(), _Mine(), _Skills(), _Cloud()],
+        ),
       ),
     );
   }
@@ -132,6 +137,168 @@ class _Mine extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// Les skills et les commandes installées.
+class _Skills extends StatelessWidget {
+  const _Skills();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AgentState>();
+    final tt = Theme.of(context).textTheme;
+    void library() => Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const InstallAgentsScreen()));
+    if (state.skills.isEmpty && state.commands.isEmpty) {
+      return EmptyState(
+        icon: const Text('🧩', style: TextStyle(fontSize: 48)),
+        title: 'Aucune skill ni commande',
+        text:
+            'Une skill est un savoir-faire (créer un PDF, faire une revue de '
+            'code, suivre une méthode…) que l\'assistant charge seulement quand '
+            'il sert. Une commande se lance avec /nom dans le chat.',
+        action: FilledButton.icon(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const InstallAgentsScreen(initialSpec: 'anthropics/skills'),
+            ),
+          ),
+          icon: const Icon(Icons.download_rounded),
+          label: const Text('Skills officielles d\'Anthropic'),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+      children: [
+        if (state.skills.isNotEmpty) ...[
+          const SectionTitle('Skills'),
+          Text(
+            'L\'assistant voit leur nom et leur description, et charge une skill '
+            'quand elle sert. « Toujours » l\'ajoute à chaque conversation.',
+            style: tt.bodySmall,
+          ),
+          for (final sk in state.skills)
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: const Icon(Icons.extension_outlined),
+              title: Text(
+                sk.name,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                sk.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Toujours', style: tt.labelSmall),
+                  Switch(
+                    value: sk.always,
+                    onChanged: (v) => state.setSkillAlways(sk.id, v),
+                  ),
+                ],
+              ),
+              onTap: () => _showText(context, sk.name, sk.instructions),
+              onLongPress: () => _confirmRemove(
+                context,
+                sk.name,
+                () => state.removeSkill(sk.id),
+              ),
+            ),
+        ],
+        if (state.commands.isNotEmpty) ...[
+          const SectionTitle('Commandes'),
+          Text('Tapez / dans le chat pour les lancer.', style: tt.bodySmall),
+          for (final c in state.commands)
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: const Icon(Icons.terminal_rounded),
+              title: Text(
+                '/${c.name}',
+                style: const TextStyle(
+                  fontFamily: Nx.mono,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: Text(
+                c.description.isEmpty ? c.body : c.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => _showText(context, '/${c.name}', c.body),
+              onLongPress: () => _confirmRemove(
+                context,
+                '/${c.name}',
+                () => state.removeCommand(c.id),
+              ),
+            ),
+        ],
+        const SizedBox(height: 12),
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: library,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('En ajouter depuis la bibliothèque'),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(child: Text('Appui long pour supprimer.', style: tt.labelSmall)),
+      ],
+    );
+  }
+
+  static void _showText(BuildContext context, String title, String text) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        builder: (context, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            MarkdownView(text),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _confirmRemove(
+    BuildContext context,
+    String name,
+    VoidCallback remove,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Supprimer $name ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) remove();
   }
 }
 
