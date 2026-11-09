@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -370,10 +371,15 @@ class AgentRun extends ChangeNotifier {
   String commitMessage = '';
   List<String>? _tree;
 
+  /// Arrête l'agent tout de suite, même au milieu d'une réponse du modèle.
   void stop() {
     _stop = true;
+    final c = _cancel;
+    if (c != null && !c.isCompleted) c.complete(null);
     notifyListeners();
   }
+
+  Completer<String?>? _cancel;
 
   void _add(AgentStep s) {
     steps.add(s);
@@ -425,6 +431,22 @@ class AgentRun extends ChangeNotifier {
     List<LlmMessage> history, {
     int keep = keepFullResults,
   }) {
+    // Les anciennes réponses de l'agent : les contenus de fichiers écrits (ils sont
+    // dans les brouillons) ne repartent pas à chaque étape.
+    var turns = 0;
+    final block = RegExp(r'```(\w*)\n([\s\S]*?)```');
+    for (var i = history.length - 1; i >= 0; i--) {
+      final m = history[i];
+      if (m.role != 'assistant') continue;
+      if (++turns <= 4 || m.content.length <= 1500) continue;
+      final short = m.content.replaceAllMapped(block, (b) {
+        final body = b.group(2) ?? '';
+        if (body.length <= 400 || b.group(1) == 'json') return b.group(0)!;
+        return '```\n(contenu retiré de l\'historique : ${body.length} caractères, '
+            'il est dans les brouillons)\n```';
+      });
+      if (short != m.content) history[i] = LlmMessage('assistant', short);
+    }
     var seen = 0;
     for (var i = history.length - 1; i >= 0; i--) {
       final m = history[i];
@@ -455,12 +477,8 @@ class AgentRun extends ChangeNotifier {
     final note =
         'Instruction de l\'utilisateur pendant ton travail : ${_inbox.join('\n')}';
     _inbox.clear();
-    if (history.isNotEmpty && history.last.role == 'user') {
-      final last = history.removeLast();
-      history.add(LlmMessage('user', '${last.content}\n\n$note'));
-    } else {
-      history.add(LlmMessage('user', note));
-    }
+    // Un message à part : il n'est jamais raccourci avec les résultats d'outils.
+    history.add(LlmMessage('user', note));
   }
 
   /// Lance la session, ou la continue avec une nouvelle instruction.
@@ -492,56 +510,56 @@ class AgentRun extends ChangeNotifier {
       final note =
           'Nouvelle instruction de l\'utilisateur (même session, les brouillons '
           'en cours sont gardés) : ${followUp.trim()}';
-      // Deux messages de l'utilisateur de suite : on les réunit.
-      if (history.last.role == 'user') {
-        final last = history.removeLast();
-        history.add(LlmMessage('user', '${last.content}\n\n$note'));
-      } else {
-        history.add(LlmMessage('user', note));
-      }
+      // Un message à part (réuni au précédent à l'envoi si besoin), jamais
+      // raccourci avec les résultats d'outils.
+      history.add(LlmMessage('user', note));
     } else if (history.last.role != 'user') {
       history.add(const LlmMessage('user', 'Continue la tâche.'));
     }
     notifyListeners();
     try {
-      for (var i = 0; i < maxSteps && !_stop; i++) {
-        _readInbox();
-        final reply = await _ask(history);
-        if (reply == null || _stop) break;
-        history.add(LlmMessage('assistant', reply));
-        final calls = parseToolCalls(reply);
-        if (calls.isEmpty) {
-          _add(AgentStep(StepKind.thought, reply));
-          history.add(
-            const LlmMessage(
-              'user',
-              'Je n\'ai pas trouvé d\'action. Réponds avec un bloc ```json '
-                  '{"thought": …, "tool": …, "args": {…}}```.',
-            ),
-          );
-          continue;
+      // Une instruction arrivée pendant le dernier tour (ou après « finish ») relance
+      // le travail au lieu d'être oubliée.
+      do {
+        for (var i = 0; i < maxSteps && !_stop; i++) {
+          _readInbox();
+          final reply = await _ask(history);
+          if (reply == null || _stop) break;
+          history.add(LlmMessage('assistant', reply));
+          final calls = parseToolCalls(reply);
+          if (calls.isEmpty) {
+            _add(AgentStep(StepKind.thought, reply));
+            history.add(
+              const LlmMessage(
+                'user',
+                'Je n\'ai pas trouvé d\'action. Réponds avec un bloc ```json '
+                    '{"thought": …, "tool": …, "args": {…}}```.',
+              ),
+            );
+            continue;
+          }
+          if (calls.first.thought.isNotEmpty) {
+            _add(AgentStep(StepKind.thought, calls.first.thought));
+          }
+          final work = calls.where((c) => c.tool != 'finish').toList();
+          final results = await _execAll(work);
+          if (results.isNotEmpty) {
+            history.add(LlmMessage('user', results.join('\n\n')));
+            compactHistory(history);
+          }
+          final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
+          if (finish != null) {
+            summary = (finish.args['summary'] ?? '').toString();
+            commitMessage = (finish.args['commit_message'] ?? task)
+                .toString()
+                .trim();
+            _add(
+              AgentStep(StepKind.done, summary.isEmpty ? 'Terminé.' : summary),
+            );
+            break;
+          }
         }
-        if (calls.first.thought.isNotEmpty) {
-          _add(AgentStep(StepKind.thought, calls.first.thought));
-        }
-        final work = calls.where((c) => c.tool != 'finish').toList();
-        final results = await _execAll(work);
-        if (results.isNotEmpty) {
-          history.add(LlmMessage('user', results.join('\n\n')));
-          compactHistory(history);
-        }
-        final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
-        if (finish != null) {
-          summary = (finish.args['summary'] ?? '').toString();
-          commitMessage = (finish.args['commit_message'] ?? task)
-              .toString()
-              .trim();
-          _add(
-            AgentStep(StepKind.done, summary.isEmpty ? 'Terminé.' : summary),
-          );
-          break;
-        }
-      }
+      } while (_inbox.isNotEmpty && !_stop);
       if (_stop) _add(AgentStep(StepKind.error, 'Arrêté.'));
       if (commitMessage.isEmpty) commitMessage = task;
     } catch (e) {
@@ -598,22 +616,27 @@ class AgentRun extends ChangeNotifier {
   Future<String?> _ask(List<LlmMessage> history) async {
     for (var attempt = 0; ; attempt++) {
       try {
-        return await llm.complete(
-          provider: provider,
-          apiKey: apiKey,
-          model: model,
-          messages: history,
-          system: _system,
-          options: LlmOptions(
-            temperature: 0.2,
-            maxTokens: level == null || level!.maxTokens < 16000
-                ? 16000
-                : level!.maxTokens,
-            level: level,
+        final cancel = _cancel = Completer<String?>();
+        if (_stop) return null;
+        return await Future.any<String?>([
+          cancel.future,
+          llm.complete(
+            provider: provider,
+            apiKey: apiKey,
+            model: model,
+            messages: history,
+            system: _system,
+            options: LlmOptions(
+              temperature: 0.2,
+              maxTokens: level == null || level!.maxTokens < 16000
+                  ? 16000
+                  : level!.maxTokens,
+              level: level,
+            ),
+            onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
+            onUsage: onUsage,
           ),
-          onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
-          onUsage: onUsage,
-        );
+        ]);
       } on LlmException catch (e) {
         onError?.call(e);
         if (!e.retryable || attempt >= stepRetries || _stop) rethrow;
@@ -833,67 +856,83 @@ class AgentRun extends ChangeNotifier {
     if (groups.isEmpty) {
       throw GitHubException('Aucun brouillon accepté à envoyer.');
     }
+    // Les chemins de l'espace de travail de chaque dépôt (pour retirer ses brouillons).
+    final paths = <RepoTarget, List<String>>{};
+    for (final p in accepted.keys) {
+      final w = resolve(p);
+      if (w != null && w.$2.isNotEmpty) {
+        paths.putIfAbsent(w.$1, () => []).add(p);
+      }
+    }
     final results = <ShipResult>[];
-    for (final g in groups.entries) {
-      final t = g.key;
-      final from = refOf(t);
-      var target = heads[t.fullName] ?? targetBranch ?? from;
-      if (target != from) {
-        try {
-          await github.createBranch(t.owner, t.name, target, from: from);
-        } on GitHubException catch (e) {
-          // 404/409 : dépôt vide, pas encore de branche d'où partir. Le premier
-          // commit va directement sur sa branche principale (pas de pull request).
-          if (e.status == 404 || e.status == 409) {
-            target = from;
-          } else if (e.status != 422) {
-            rethrow; // 422 : la branche existe déjà
+    try {
+      for (final g in groups.entries) {
+        final t = g.key;
+        final from = refOf(t);
+        var target = heads[t.fullName] ?? targetBranch ?? from;
+        if (target != from) {
+          try {
+            await github.createBranch(t.owner, t.name, target, from: from);
+          } on GitHubException catch (e) {
+            // 404/409 : dépôt vide, pas encore de branche d'où partir. Le premier
+            // commit va directement sur sa branche principale (pas de pull request).
+            if (e.status == 404 || e.status == 409) {
+              target = from;
+            } else if (e.status != 422) {
+              rethrow; // 422 : la branche existe déjà
+            }
           }
         }
-      }
-      final sha = await github.commitFiles(
-        t.owner,
-        t.name,
-        branch: target,
-        message: message,
-        changes: [
-          for (final e in g.value.entries)
-            e.value == null
-                ? FileChange.remove(e.key)
-                : FileChange.write(e.key, e.value!),
-        ],
-      );
-      commits.add('${t.fullName}@$sha');
-      if (target != t.branch) heads[t.fullName] = target;
-      final existing = pulls[t.fullName];
-      if (existing != null) {
-        results.add(ShipResult(t, existing));
-      } else if (openPr && target != t.branch) {
-        final others = groups.keys.where((x) => x != t).map((x) => x.fullName);
-        final pr = await github.createPull(
+        final sha = await github.commitFiles(
           t.owner,
           t.name,
-          title: message,
-          head: target,
-          base: t.branch,
-          body:
-              '$summary\n\n> $task\n\n'
-              '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
-              '_Proposé par un agent NEXORA._',
+          branch: target,
+          message: message,
+          changes: [
+            for (final e in g.value.entries)
+              e.value == null
+                  ? FileChange.remove(e.key)
+                  : FileChange.write(e.key, e.value!),
+          ],
         );
-        pulls[t.fullName] = pr.htmlUrl;
-        results.add(ShipResult(t, pr.htmlUrl));
-      } else {
-        results.add(ShipResult(t, sha));
+        // Ce dépôt est envoyé : ses brouillons deviennent la version des fichiers,
+        // même si un dépôt suivant échoue.
+        commits.add('${t.fullName}@$sha');
+        if (target != t.branch) heads[t.fullName] = target;
+        for (final p in paths[t] ?? const <String>[]) {
+          originals[p] = changes.remove(p);
+        }
+        final existing = pulls[t.fullName];
+        if (existing != null) {
+          results.add(ShipResult(t, existing));
+        } else if (openPr && target != t.branch) {
+          // Si l'ouverture échoue, la branche est gardée et la pull request sera
+          // réessayée au prochain envoi.
+          final others = groups.keys
+              .where((x) => x != t)
+              .map((x) => x.fullName);
+          final pr = await github.createPull(
+            t.owner,
+            t.name,
+            title: message,
+            head: target,
+            base: t.branch,
+            body:
+                '$summary\n\n> $task\n\n'
+                '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
+                '_Proposé par un agent NEXORA._',
+          );
+          pulls[t.fullName] = pr.htmlUrl;
+          results.add(ShipResult(t, pr.htmlUrl));
+        } else {
+          results.add(ShipResult(t, sha));
+        }
       }
+    } finally {
+      rejected.removeWhere((p) => !changes.containsKey(p));
+      _tree = null;
+      notifyListeners();
     }
-    // Les brouillons envoyés deviennent la nouvelle version des fichiers.
-    for (final path in accepted.keys.toList()) {
-      originals[path] = changes.remove(path);
-    }
-    rejected.removeWhere((p) => !changes.containsKey(p));
-    _tree = null;
-    notifyListeners();
     return results;
   }
 

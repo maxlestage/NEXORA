@@ -91,22 +91,43 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  /// Le doigt est sur la liste : on ne la fait pas défiler à sa place.
+  bool _dragging = false;
+
   void _toBottom({bool force = false}) {
-    if (!force && !_stickToBottom) return;
+    if (!force && (!_stickToBottom || _dragging)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
+      if (!_scroll.hasClients || (!force && _dragging)) return;
+      final end = _scroll.position.maxScrollExtent;
+      if (force) {
         _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
+          end,
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
         );
+      } else if (_scroll.position.pixels != end) {
+        // Pendant une réponse : un saut, sans animation qui se battrait avec
+        // la suivante (15 par seconde).
+        _scroll.jumpTo(end);
       }
     });
   }
 
+  bool _onScroll(ScrollNotification n) {
+    if (n is ScrollStartNotification && n.dragDetails != null) {
+      _dragging = true;
+      _stickToBottom = false;
+    } else if (n is ScrollEndNotification) {
+      _dragging = false;
+      final p = _scroll.hasClients ? _scroll.position : null;
+      if (p != null) _stickToBottom = p.pixels >= p.maxScrollExtent - 80;
+    }
+    return false;
+  }
+
   void _send(Conversation c, Agent? agent) {
     final text = _input.text.trim();
-    if (text.isEmpty || !c.loaded) return;
+    if (text.isEmpty || !c.loaded || _chat.isRunning(c.id)) return;
     if (context.read<SettingsState>().haptics) HapticFeedback.mediumImpact();
     final files = _attachments
         .map((a) => 'Fichier `${a.$1}` :\n```\n${a.$2}\n```')
@@ -226,92 +247,97 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: !c.loaded
-                      ? const Center(child: CircularProgressIndicator())
-                      : c.messages.isEmpty
-                      ? _Empty(
-                          agent: agent,
-                          onPick: (t) {
-                            _input.text = t;
-                            _focus.requestFocus();
-                          },
-                        )
-                      : ListView.builder(
-                          controller: _scroll,
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                          itemCount: c.messages.length,
-                          // Le contexte de l'écran (stable) et non celui de l'élément de
-                          // liste : les messages mis en cache gardent leurs actions.
-                          itemBuilder: (_, i) {
-                            final m = c.messages[i];
-                            final isLast = i == c.messages.length - 1;
-                            final signature = (
-                              m.content.length,
-                              m.thinking.length,
-                              m.error,
-                              m.tokensOut,
-                              isLast,
-                              running,
-                              settings.showThinking,
-                              agent?.id,
-                              ref.key,
-                              Theme.of(context).brightness,
-                              settings.accent,
-                              settings.bubbleStyle,
-                            );
-                            final cached = _tiles[m];
-                            if (cached != null && cached.$1 == signature) {
-                              return cached.$2;
-                            }
-                            final tile = _MessageTile(
-                              key: ValueKey('${c.id}-$i'),
-                              message: m,
-                              streaming: running && isLast,
-                              showThinking: settings.showThinking,
-                              onRegenerate:
-                                  isLast && m.role == Role.assistant && !running
-                                  ? () => chat.regenerate(c.id, agent: agent)
-                                  : null,
-                              onChangeModel: () async {
-                                final r = await pickModel(
-                                  context,
-                                  current: ref,
-                                );
-                                if (r == null) return;
-                                chat.setModel(c.id, r);
-                                // Un agent qui impose son modèle est retiré, pour que le
-                                // nouveau modèle soit bien utilisé.
-                                final keep = agent?.model == null
-                                    ? agent
-                                    : null;
-                                if (keep == null && agent != null) {
-                                  chat.setAgent(c.id, null);
-                                }
-                                chat.regenerate(c.id, agent: keep);
-                              },
-                              onEdit: m.role == Role.user && !running
-                                  ? () async {
-                                      final t = await _rename(
-                                        context,
-                                        m.content,
-                                        title: 'Modifier le message',
-                                        lines: 6,
-                                      );
-                                      if (t != null && t.isNotEmpty) {
-                                        chat.editAndResend(
-                                          c.id,
-                                          i,
-                                          t,
-                                          agent: agent,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: _onScroll,
+                    child: !c.loaded
+                        ? const Center(child: CircularProgressIndicator())
+                        : c.messages.isEmpty
+                        ? _Empty(
+                            agent: agent,
+                            onPick: (t) {
+                              _input.text = t;
+                              _focus.requestFocus();
+                            },
+                          )
+                        : ListView.builder(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                            itemCount: c.messages.length,
+                            // Le contexte de l'écran (stable) et non celui de l'élément de
+                            // liste : les messages mis en cache gardent leurs actions.
+                            itemBuilder: (_, i) {
+                              final m = c.messages[i];
+                              final isLast = i == c.messages.length - 1;
+                              final signature = (
+                                m.content.length,
+                                m.thinking.length,
+                                m.error,
+                                m.tokensOut,
+                                isLast,
+                                running,
+                                settings.showThinking,
+                                agent?.id,
+                                ref.key,
+                                Theme.of(context).brightness,
+                                settings.accent,
+                                settings.bubbleStyle,
+                              );
+                              final cached = _tiles[m];
+                              if (cached != null && cached.$1 == signature) {
+                                return cached.$2;
+                              }
+                              final tile = _MessageTile(
+                                key: ValueKey('${c.id}-$i'),
+                                message: m,
+                                streaming: running && isLast,
+                                showThinking: settings.showThinking,
+                                onRegenerate:
+                                    isLast &&
+                                        m.role == Role.assistant &&
+                                        !running
+                                    ? () => chat.regenerate(c.id, agent: agent)
+                                    : null,
+                                onChangeModel: () async {
+                                  final r = await pickModel(
+                                    context,
+                                    current: ref,
+                                  );
+                                  if (r == null) return;
+                                  chat.setModel(c.id, r);
+                                  // Un agent qui impose son modèle est retiré, pour que le
+                                  // nouveau modèle soit bien utilisé.
+                                  final keep = agent?.model == null
+                                      ? agent
+                                      : null;
+                                  if (keep == null && agent != null) {
+                                    chat.setAgent(c.id, null);
+                                  }
+                                  chat.regenerate(c.id, agent: keep);
+                                },
+                                onEdit: m.role == Role.user && !running
+                                    ? () async {
+                                        final t = await _rename(
+                                          context,
+                                          m.content,
+                                          title: 'Modifier le message',
+                                          lines: 6,
                                         );
+                                        if (t != null && t.isNotEmpty) {
+                                          chat.editAndResend(
+                                            c.id,
+                                            i,
+                                            t,
+                                            agent: agent,
+                                          );
+                                        }
                                       }
-                                    }
-                                  : null,
-                            );
-                            _tiles[m] = (signature, tile);
-                            return tile;
-                          },
-                        ),
+                                    : null,
+                              );
+                              _tiles[m] = (signature, tile);
+                              return tile;
+                            },
+                          ),
+                  ),
                 ),
                 if (c.loaded && c.messages.isNotEmpty)
                   Positioned(

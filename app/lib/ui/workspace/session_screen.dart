@@ -85,9 +85,13 @@ class _SessionScreenState extends State<SessionScreen> {
     final branch = TextEditingController(
       text: 'nexora/${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
     );
-    final hasPull = run.pulls.isNotEmpty || run.heads.isNotEmpty;
     var pr = true;
     final groups = run.acceptedByRepo;
+    // Chaque dépôt modifié a-t-il déjà sa pull request ? Sinon on demande comment
+    // envoyer (un dépôt sans pull request ne part jamais en direct par surprise).
+    final hasPull =
+        groups.isNotEmpty &&
+        groups.keys.every((t) => run.pulls.containsKey(t.fullName));
     final go = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -178,8 +182,10 @@ class _SessionScreenState extends State<SessionScreen> {
     try {
       final results = await run.commitAll(
         message: msg.text.trim().isEmpty ? run.task : msg.text.trim(),
-        targetBranch: !hasPull && pr ? branch.text.trim() : null,
-        openPr: !hasPull && pr,
+        targetBranch: hasPull || !pr ? null : branch.text.trim(),
+        // Les dépôts qui ont déjà leur pull request la mettent à jour ; les autres
+        // en ouvrent une (si demandé).
+        openPr: hasPull || pr,
       );
       if (!mounted) return;
       final pulls = results.where((r) => r.isPull).toList();

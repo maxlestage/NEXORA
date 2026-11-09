@@ -51,7 +51,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatState>();
+    // La liste n'est redessinée que si elle change (pas à chaque morceau de
+    // réponse d'une conversation ouverte).
+    context.select<ChatState, int>((c) => c.listRevision);
+    final chat = context.read<ChatState>();
     final settings = context.watch<SettingsState>();
     final agents = context.watch<AgentState>();
     final tt = Theme.of(context).textTheme;

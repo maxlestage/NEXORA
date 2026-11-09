@@ -49,15 +49,42 @@ class NexoraBackground: NSObject, FlutterPlugin {
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "nexora/background", binaryMessenger: registrar.messenger())
-    registrar.addMethodCallDelegate(NexoraBackground(), channel: channel)
+    let instance = NexoraBackground()
+    registrar.addMethodCallDelegate(instance, channel: channel)
+    let center = NotificationCenter.default
+    center.addObserver(
+      instance, selector: #selector(NexoraBackground.didEnterBackground),
+      name: UIApplication.didEnterBackgroundNotification, object: nil)
+    center.addObserver(
+      instance, selector: #selector(NexoraBackground.didBecomeActive),
+      name: UIApplication.didBecomeActiveNotification, object: nil)
+  }
+
+  /// À chaque sortie de l'app pendant le travail : du temps en arrière-plan, même si
+  /// celui de la sortie précédente est épuisé.
+  @objc private func didEnterBackground() {
+    guard running else { return }
+    beginLegacy()
+  }
+
+  /// De retour dans l'app pendant le travail : si iOS avait arrêté la tâche continue,
+  /// on en redemande une (elle doit être demandée app ouverte).
+  @objc private func didBecomeActive() {
+    guard running else { return }
+    if #available(iOS 26.0, *) {
+      if continued == nil { submitContinued() }
+    }
   }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let args = call.arguments as? [String: Any] ?? [:]
-    title = args["title"] as? String ?? title
-    text = args["text"] as? String ?? text
-    done = Int64(args["done"] as? Int ?? 0)
-    total = Int64(args["total"] as? Int ?? 0)
+    // Seuls start et update changent le travail en cours (pas status ni notify).
+    if call.method == "start" || call.method == "update" {
+      title = args["title"] as? String ?? title
+      text = args["text"] as? String ?? text
+      done = Int64(args["done"] as? Int ?? 0)
+      total = Int64(args["total"] as? Int ?? 0)
+    }
     switch call.method {
     case "start":
       start()
@@ -69,7 +96,9 @@ class NexoraBackground: NSObject, FlutterPlugin {
       stop()
       result(true)
     case "notify":
-      notify(title: title, body: text)
+      notify(
+        title: args["title"] as? String ?? "NEXORA",
+        body: args["text"] as? String ?? "")
       result(true)
     case "status":
       result(["mode": mode, "error": lastError ?? ""])
