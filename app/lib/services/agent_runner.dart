@@ -37,7 +37,17 @@ const Map<String, String> agentTools = {
       'qui a été fait (ou pourquoi c\'est impossible)", "commit_message": "..."}',
 };
 
-enum StepKind { thought, tool, result, error, done, user }
+enum StepKind {
+  thought,
+  tool,
+  result,
+  error,
+  done,
+  user,
+
+  /// Ce que l'agent a compris de la demande, redit au tout début (avant d'agir).
+  goal,
+}
 
 class AgentStep {
   AgentStep(this.kind, this.text, {this.tool});
@@ -446,7 +456,8 @@ class AgentRun extends ChangeNotifier {
             for (final (i, t) in r.indexed)
               '${i + 1}. « $t »${i == r.length - 1 ? '  ← la plus récente' : ''}',
           ].join('\n');
-    return 'DEMANDES DE L\'UTILISATEUR (ta seule mission) :\n$list\n\n'
+    return 'DEMANDES DE L\'UTILISATEUR (ta seule mission, à garder en tête du '
+        'début à la fin) :\n$list\n\n'
         'Règles absolues :\n'
         '- Fais EXACTEMENT ce qui est demandé : rien de moins, et rien de plus. '
         'Pas d\'« améliorations » ni de refonte non demandées, pas d\'autre '
@@ -459,6 +470,9 @@ class AgentRun extends ChangeNotifier {
         '- Si deux demandes se contredisent, la plus récente l\'emporte.\n'
         '- Une demande impossible ou ambiguë : n\'invente pas autre chose, explique '
         'le blocage dans finish.\n'
+        '- AU TOUT DÉBUT (ton premier tour, et le premier tour après chaque '
+        'nouvelle instruction), avant toute action : redis-toi dans "demande" '
+        'TOUT ce que l\'utilisateur veut, point par point, avec ses mots.\n'
         '- Avant finish, vérifie demande par demande qu\'elle est faite (relis les '
         'passages modifiés si besoin).';
   }
@@ -469,18 +483,15 @@ class AgentRun extends ChangeNotifier {
 
   String get reminder {
     final r = requests;
-    final older = r.length > 1
-        ? '\nDemandes précédentes (toujours valables sauf contradiction) : '
-              '${r.sublist(0, r.length - 1).map((t) => '« ${_clip(t)} »').join(' ; ')}'
+    final next = r.length > 1
+        ? '\nPuis, dans l\'ordre (la dernière prime en cas de contradiction) :\n'
+              '${[for (final (i, t) in r.skip(1).indexed) '${i + 2}. « $t »'].join('\n')}'
         : '';
     return '$reminderMark'
-        'L\'utilisateur te demande : « ${r.last} »$older\n'
+        'Ce que l\'utilisateur t\'a demandé au tout début : « ${r.first} »$next\n'
         'Répète-toi cette demande dans "demande", et fais uniquement ce qui la '
         'sert.';
   }
-
-  static String _clip(String t) =>
-      t.length <= 300 ? t : '${t.substring(0, 300)}…';
 
   /// Retire les anciens rappels (le dernier suffit).
   static void dropReminders(List<LlmMessage> history) {
@@ -529,6 +540,8 @@ class AgentRun extends ChangeNotifier {
             'args: {"agent": "…", "task": "…"}',
     ].join('\n');
     return [
+      // Tout au début : ce que l'utilisateur veut, avant tout le reste.
+      _requestsPrompt,
       if (agent != null) agent!.systemPrompt,
       if (!multi)
         'Tu es un agent de code autonome qui travaille dans le dépôt GitHub '
@@ -570,8 +583,10 @@ class AgentRun extends ChangeNotifier {
           'le modifier. Fais des '
           'changements minimes et cohérents. Quand la tâche est faite, appelle '
           'finish avec un résumé et un message de commit court en français.',
-      // En dernier : ce que l'utilisateur veut, toujours sous les yeux du modèle.
-      _requestsPrompt,
+      // Et à la fin, pour ne jamais l'oublier.
+      'RAPPEL : ta mission est la demande de l\'utilisateur donnée tout en haut '
+          '(« ${requests.first} »${requests.length > 1 ? ', puis ses ${requests.length - 1} instruction(s) suivantes' : ''}). '
+          'Rien d\'autre.',
     ].join('\n\n');
   }
 
@@ -654,10 +669,11 @@ class AgentRun extends ChangeNotifier {
       history.add(
         LlmMessage(
           'user',
-          files.isEmpty
-              ? 'Tâche : $task\n\nCommence par explorer le dépôt.'
-              : 'Tâche : $task\n\nFichiers :\n$files\n\nLis directement les '
-                    'fichiers utiles (plusieurs à la fois).',
+          'DEMANDE DE L\'UTILISATEUR : « $task »\n\n'
+              '${files.isEmpty ? 'Explore le dépôt.' : 'Fichiers :\n$files'}\n\n'
+              'Avant toute action, redis-toi dans "demande" tout ce que '
+              'l\'utilisateur veut (« $task »), point par point. Puis lis '
+              'directement les fichiers utiles (plusieurs à la fois).',
         ),
       );
     } else if (followUp != null && followUp.trim().isNotEmpty) {
@@ -680,11 +696,14 @@ class AgentRun extends ChangeNotifier {
       // avoir rien fait pour elle est refusé une fois.
       var actsSince = 0;
       var nudged = false;
+      // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
+      var restate = true;
       do {
         for (var i = 0; i < maxSteps && !_stop; i++) {
           if (_inbox.isNotEmpty) {
             actsSince = 0;
             nudged = false;
+            restate = true;
           }
           _readInbox();
           final reply = await _ask(history);
@@ -706,7 +725,11 @@ class AgentRun extends ChangeNotifier {
           }
           final goal = calls.first.goal;
           final thought = calls.first.thought;
-          if (goal.isNotEmpty || thought.isNotEmpty) {
+          if (restate && goal.isNotEmpty) {
+            restate = false;
+            _add(AgentStep(StepKind.goal, goal));
+            if (thought.isNotEmpty) _add(AgentStep(StepKind.thought, thought));
+          } else if (goal.isNotEmpty || thought.isNotEmpty) {
             _add(
               AgentStep(
                 StepKind.thought,
