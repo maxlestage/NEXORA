@@ -10,6 +10,7 @@ import '../services/background_work.dart';
 import '../services/conversation_store.dart';
 import '../services/llm_client.dart';
 import '../services/storage.dart';
+import '../services/voice.dart';
 import 'agent_state.dart';
 import 'settings_state.dart';
 import 'usage_state.dart';
@@ -287,7 +288,18 @@ class ChatState extends ChangeNotifier {
   }
 
   /// Envoie `text` et lance la réponse en flux.
-  void send(String id, String text, {Agent? agent, String? context}) {
+  /// Quand une réponse lue à voix haute est finie : l'id de sa conversation (pour
+  /// la conversation vocale, qui écoute de nouveau).
+  final ValueNotifier<String?> spokenTurnEnded = ValueNotifier(null);
+
+  /// Envoie `text`. `voice` : le message a été dicté (la réponse sera lue).
+  void send(
+    String id,
+    String text, {
+    Agent? agent,
+    String? context,
+    bool voice = false,
+  }) {
     final c = byId(id);
     // Une seule réponse à la fois par conversation (Entrée pendant une réponse).
     if (c == null || !c.loaded || text.trim().isEmpty || isRunning(id)) return;
@@ -318,7 +330,14 @@ class ChatState extends ChangeNotifier {
     if (c.messages.where((m) => m.role == Role.user).length == 1) {
       c.title = _quickTitle(command ?? text);
     }
-    _respond(c, agent: target, context: context, mention: mention);
+    VoiceService.instance.stopSpeaking();
+    _respond(
+      c,
+      agent: target,
+      context: context,
+      mention: mention,
+      speak: voice || settings.speakReplies || asksForVoice(text),
+    );
   }
 
   /// La demande d'une skill dans une réponse : `[[skill: nom]]`.
@@ -351,6 +370,7 @@ class ChatState extends ChangeNotifier {
     final sub = _running.remove(id);
     if (sub == null) return;
     sub.cancel();
+    VoiceService.instance.stopSpeaking();
     BackgroundWork.instance.release('chat:$id');
     final c = byId(id);
     if (c != null) _changed(c, now: true);
@@ -387,6 +407,7 @@ class ChatState extends ChangeNotifier {
     bool mention = false,
     List<String> loaded = const [],
     int round = 0,
+    bool speak = false,
   }) {
     final ref = settings.resolve(agent?.model ?? c.model);
     final provider = settings.provider(ref.providerId)!;
@@ -429,9 +450,28 @@ class ChatState extends ChangeNotifier {
     // Le texte s'accumule ici et n'est recopié dans le message qu'à chaque image.
     final text = StringBuffer();
     final thinking = StringBuffer();
+    // La lecture à voix haute avance phrase par phrase pendant la réponse.
+    var spoken = 0;
+    void speakNew({bool all = false}) {
+      if (!speak) return;
+      final clean = cleanForSpeech(text.toString());
+      if (clean.length <= spoken) return;
+      var end = clean.length;
+      if (!all) {
+        end = clean.lastIndexOf(RegExp(r'[.!?…\n]')) + 1;
+        if (end <= spoken) return;
+      }
+      for (final sentence in speakableSentences(clean.substring(spoken, end))) {
+        VoiceService.instance.enqueue(sentence);
+      }
+      spoken = end;
+    }
+
     void flush() {
       answer.content = text.toString();
       answer.thinking = thinking.toString();
+      // Une demande de skill n'est pas lue : on attend la vraie réponse.
+      if (!skillRequest.hasMatch(answer.content)) speakNew();
     }
 
     final sub = llm
@@ -522,9 +562,20 @@ class ChatState extends ChangeNotifier {
                   mention: mention,
                   loaded: [...loaded, ...wanted],
                   round: round + 1,
+                  speak: speak,
                 );
                 return;
               }
+            }
+            if (speak && !answer.error) {
+              speakNew(all: true);
+              VoiceService.instance.enqueue(
+                '',
+                onDone: () {
+                  spokenTurnEnded.value = null;
+                  spokenTurnEnded.value = c.id;
+                },
+              );
             }
             if (answer.content.trim().isEmpty && !answer.error) {
               answer.error = true;

@@ -181,6 +181,16 @@ const List<HelpSection> helpSections = [
   ]),
   HelpSection('🐙', 'GitHub', [
     HelpTopic(
+      'Parler à l\'assistant et l\'entendre répondre',
+      'Touchez le **micro** de la barre de saisie et parlez : le texte s\'écrit en '
+          'direct et part à la fin de votre phrase. La réponse est alors **lue à '
+          'voix haute**, phrase par phrase (le code est affiché, pas lu). Vous pouvez '
+          'aussi écrire « réponds-moi à voix haute ». En **conversation vocale**, '
+          'l\'assistant vous écoute de nouveau après chaque réponse : touchez '
+          '« Terminer » pour arrêter. Réglages dans **Personnaliser → Voix**. La '
+          'première fois, autorisez le micro et la reconnaissance vocale.',
+    ),
+    HelpTopic(
       'Skills, sous-agents, commandes : à quoi ça sert ?',
       '- **Sous-agent** : un spécialiste (sécurité, Rust, design…) avec sa propre '
           'consigne. Dans le chat, écrivez **@nom** au début du message pour qu\'il '
