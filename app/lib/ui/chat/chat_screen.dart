@@ -10,6 +10,7 @@ import '../../state/agent_state.dart';
 import '../../state/chat_state.dart';
 import '../../state/github_state.dart';
 import '../../services/error_help.dart';
+import '../../services/voice.dart';
 import '../../state/settings_state.dart';
 import '../agents/agent_picker.dart';
 import '../github/repo_file_picker.dart';
@@ -57,6 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chat = context.read<ChatState>();
+    _chat.spokenTurnEnded.addListener(_onSpokenTurn);
     // La conversation s'ouvre sur les derniers messages.
     _chat.ensureLoaded(widget.conversationId).then((_) => _jumpToEnd());
     if (widget.initialPrompt != null) _input.text = widget.initialPrompt!;
@@ -85,10 +87,68 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     // Libère la mémoire de la conversation (elle reste enregistrée).
     _chat.unload(widget.conversationId);
+    _chat.spokenTurnEnded.removeListener(_onSpokenTurn);
+    VoiceService.instance.cancelListening();
+    VoiceService.instance.stopSpeaking();
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Conversation vocale en cours : après chaque réponse lue, on écoute de nouveau.
+  bool _voiceMode = false;
+
+  /// Dicte un message. Envoyé dès la fin de la dictée (si réglé ainsi), et la
+  /// réponse est lue à voix haute.
+  Future<void> _dictate(Conversation c, Agent? agent) async {
+    final voice = VoiceService.instance;
+    if (voice.listening) {
+      await voice.stopListening();
+      return;
+    }
+    final settings = context.read<SettingsState>();
+    voice.rate = settings.voiceRate;
+    final before = _input.text.trim();
+    final ok = await voice.listen(
+      onPartial: (t) {
+        final v = before.isEmpty ? t : '$before $t';
+        _input.value = TextEditingValue(
+          text: v,
+          selection: TextSelection.collapsed(offset: v.length),
+        );
+      },
+      onFinal: (_) {
+        if (!mounted) return;
+        if (settings.voiceAutoSend) {
+          setState(() => _voiceMode = settings.voiceConversation);
+          _send(c, agent, voice: true);
+        }
+      },
+    );
+    if (!ok && mounted) {
+      toast(
+        context,
+        voice.error ?? 'Micro indisponible sur cet appareil.',
+        error: true,
+      );
+    }
+  }
+
+  void _stopVoice() {
+    setState(() => _voiceMode = false);
+    VoiceService.instance.cancelListening();
+    VoiceService.instance.stopSpeaking();
+  }
+
+  /// La réponse lue est finie : en conversation vocale, on écoute de nouveau.
+  void _onSpokenTurn() {
+    final id = _chat.spokenTurnEnded.value;
+    if (!mounted || !_voiceMode || id != widget.conversationId) return;
+    final c = _chat.byId(id!);
+    if (c == null) return;
+    final agent = context.read<AgentState>().byId(c.agentId);
+    _dictate(c, agent);
   }
 
   /// Le doigt est sur la liste : on ne la fait pas défiler à sa place.
@@ -125,7 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return false;
   }
 
-  void _send(Conversation c, Agent? agent) {
+  void _send(Conversation c, Agent? agent, {bool voice = false}) {
     final text = _input.text.trim();
     if (text.isEmpty || !c.loaded || _chat.isRunning(c.id)) return;
     if (context.read<SettingsState>().haptics) HapticFeedback.mediumImpact();
@@ -136,6 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
       c.id,
       files.isEmpty ? text : '$files\n\n$text',
       agent: agent,
+      voice: voice,
     );
     _input.clear();
     setState(() => _attachments.clear());
@@ -428,6 +489,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+          if (_voiceMode) _VoiceModeBar(onStop: _stopVoice),
           _Composer(
             controller: _input,
             focus: _focus,
@@ -435,6 +497,7 @@ class _ChatScreenState extends State<ChatScreen> {
             onSend: () => _send(c, agent),
             onStop: () => chat.stop(c.id),
             onAttach: _attach,
+            onMic: () => _dictate(c, agent),
           ),
         ],
       ),
@@ -724,6 +787,16 @@ class _MessageTile extends StatelessWidget {
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   onPressed: () => copyText(context, m.content),
                 ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Lire à voix haute',
+                  icon: const Icon(Icons.volume_up_outlined, size: 18),
+                  onPressed: () {
+                    final v = VoiceService.instance;
+                    v.rate = context.read<SettingsState>().voiceRate;
+                    v.speaking ? v.stopSpeaking() : v.speak(m.content);
+                  },
+                ),
                 if (onRegenerate != null)
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -873,6 +946,7 @@ class _Composer extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onAttach,
+    required this.onMic,
   });
 
   final TextEditingController controller;
@@ -881,6 +955,7 @@ class _Composer extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
   final VoidCallback onAttach;
+  final VoidCallback onMic;
 
   @override
   Widget build(BuildContext context) {
@@ -931,6 +1006,11 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            // Le micro : dicter (la réponse sera lue à voix haute).
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: _MicButton(onTap: onMic),
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 2),
@@ -1256,6 +1336,95 @@ class _Suggestions extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Le micro de la barre de saisie : rouge et animé pendant l'écoute.
+class _MicButton extends StatelessWidget {
+  const _MicButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final voice = VoiceService.instance;
+    return ListenableBuilder(
+      listenable: voice,
+      builder: (context, _) {
+        final on = voice.listening;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: on ? Nx.red.withValues(alpha: 0.15) : Colors.transparent,
+            boxShadow: on
+                ? [
+                    BoxShadow(
+                      color: Nx.red.withValues(alpha: 0.45),
+                      blurRadius: 6 + voice.level * 18,
+                      spreadRadius: voice.level * 4,
+                    ),
+                  ]
+                : null,
+          ),
+          child: IconButton(
+            tooltip: on ? 'Arrêter la dictée' : 'Parler',
+            icon: Icon(
+              on ? Icons.mic_rounded : Icons.mic_none_rounded,
+              color: on ? Nx.red : null,
+            ),
+            onPressed: onTap,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// La conversation vocale en cours : écoute, réponse lue, écoute de nouveau.
+class _VoiceModeBar extends StatelessWidget {
+  const _VoiceModeBar({required this.onStop});
+
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final voice = VoiceService.instance;
+    return ListenableBuilder(
+      listenable: voice,
+      builder: (context, _) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+        child: Row(
+          children: [
+            Icon(
+              voice.listening
+                  ? Icons.hearing_rounded
+                  : voice.speaking
+                  ? Icons.volume_up_rounded
+                  : Icons.headset_mic_rounded,
+              size: 18,
+              color: Nx.accent(context),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                voice.listening
+                    ? 'Je vous écoute…'
+                    : voice.speaking
+                    ? 'Je réponds à voix haute…'
+                    : 'Conversation vocale',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onStop,
+              icon: const Icon(Icons.stop_circle_outlined, size: 18),
+              label: const Text('Terminer'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

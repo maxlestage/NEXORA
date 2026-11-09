@@ -19,6 +19,10 @@
 	<string>NEXORA</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NEXORA utilise le micro quand vous dictez un message à l'assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>NEXORA transforme votre voix en texte pour l'envoyer à l'assistant.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).work.*</string>
