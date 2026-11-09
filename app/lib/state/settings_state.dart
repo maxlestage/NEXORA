@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.2';
+const String currentVersion = '2.2.3';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
@@ -103,7 +103,7 @@ class SettingsState extends ChangeNotifier {
 
   // —— Personnalisation ——————————————————————————————————————
   /// Le niveau de réflexion par défaut des conversations.
-  ThinkLevel defaultLevel = ThinkLevel.equilibre;
+  ThinkLevel defaultLevel = ThinkLevel.moyen;
 
   /// Le jeu de couleurs (index dans `accentPalettes`).
   int accent = 0;
@@ -178,7 +178,7 @@ class SettingsState extends ChangeNotifier {
     haptics = storage.getBool('haptics', fallback: true);
     defaultLevel =
         ThinkLevel.parse(storage.getString('default_level')) ??
-        ThinkLevel.equilibre;
+        ThinkLevel.moyen;
     accent = storage.getInt('accent');
     oledBlack = storage.getBool('oled_black');
     textScale = storage.getDouble('text_scale', fallback: 1);
@@ -624,7 +624,7 @@ class SettingsState extends ChangeNotifier {
 
   /// Remet l'apparence et l'assistant par défaut (pas les clés ni les modèles).
   Future<void> resetPersonalization() async {
-    await setDefaultLevel(ThinkLevel.equilibre);
+    await setDefaultLevel(ThinkLevel.moyen);
     await setAccent(0);
     await setContextTokens(32000);
     await setOledBlack(false);

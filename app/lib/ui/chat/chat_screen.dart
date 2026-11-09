@@ -16,9 +16,9 @@ import '../github/repo_file_picker.dart';
 import '../providers/provider_detail_screen.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
-import '../widgets/level_picker.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
+import '../widgets/model_sheet.dart';
 import '../widgets/nexus_orb.dart';
 import '../widgets/quota_badge.dart';
 import '../widgets/scroll_arrows.dart';
@@ -204,18 +204,6 @@ class _ChatScreenState extends State<ChatScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                ModelChip(
-                  current: ref,
-                  onPicked: (r) => chat.setModel(c.id, r),
-                ),
-                const SizedBox(width: 8),
-                LevelChip(
-                  level: chat.levelFor(c, agent),
-                  provider: settings.provider(ref.providerId),
-                  model: ref.model,
-                  onPicked: (l) => chat.setLevel(c.id, l),
-                ),
-                const SizedBox(width: 8),
                 ActionChip(
                   avatar: Text(agent?.emoji ?? '💬'),
                   label: Text(agent?.name ?? 'Assistant'),
@@ -382,6 +370,27 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+          // Le modèle et l'effort, réglables d'un geste comme dans Claude.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 2, 10, 0),
+            child: Row(
+              children: [
+                Flexible(
+                  child: ModelEffortButton(
+                    current: ref,
+                    level: chat.levelFor(c, agent),
+                    onModel: (r) {
+                      chat.setModel(c.id, r);
+                      // Un agent qui impose son modèle est retiré, pour que le
+                      // modèle choisi soit bien utilisé.
+                      if (agent?.model != null) chat.setAgent(c.id, null);
+                    },
+                    onLevel: (l) => chat.setLevel(c.id, l),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _Composer(
             controller: _input,
             focus: _focus,
@@ -582,7 +591,9 @@ class _MessageTile extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  ref?.model ?? 'NEXORA',
+                  ref == null
+                      ? 'NEXORA'
+                      : modelDisplayName(context.read<SettingsState>(), ref),
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontFamily: Nx.mono,

@@ -19,7 +19,7 @@ void main() {
       final r = reasoningParams(
         P('anthropic'),
         'claude-opus-5-5',
-        ThinkLevel.maximum,
+        ThinkLevel.max,
       );
       expect(r['output_config'], {'effort': 'max'});
       expect((r['thinking'] as Map)['type'], 'adaptive');
@@ -27,75 +27,64 @@ void main() {
         reasoningParams(
           P('anthropic'),
           'claude-sonnet-4-6',
-          ThinkLevel.rapide,
+          ThinkLevel.faible,
         )['output_config'],
         {'effort': 'low'},
       );
       // Ancien modèle : pas de réglage natif.
       expect(
-        reasoningParams(P('anthropic'), 'claude-haiku-4-5', ThinkLevel.maximum),
+        reasoningParams(P('anthropic'), 'claude-haiku-4-5', ThinkLevel.max),
         isEmpty,
       );
     });
 
     test('OpenAI, Gemini, OpenRouter, Groq', () {
-      expect(reasoningParams(P('openai'), 'gpt-5', ThinkLevel.approfondi), {
+      expect(reasoningParams(P('openai'), 'gpt-5', ThinkLevel.eleve), {
         'reasoning_effort': 'high',
       });
       expect(
-        reasoningParams(P('openai'), 'gpt-4.1', ThinkLevel.approfondi),
+        reasoningParams(P('openai'), 'gpt-4.1', ThinkLevel.eleve),
         isEmpty,
       );
       expect(
-        reasoningParams(P('gemini'), 'gemini-2.5-flash', ThinkLevel.rapide),
+        reasoningParams(P('gemini'), 'gemini-2.5-flash', ThinkLevel.faible),
         {'reasoning_effort': 'low'},
       );
       expect(
         reasoningParams(
           P('openrouter'),
           'qwen/qwen3-coder:free',
-          ThinkLevel.equilibre,
+          ThinkLevel.moyen,
         ),
         {
           'reasoning': {'effort': 'medium'},
         },
       );
       expect(
-        reasoningParams(P('groq'), 'openai/gpt-oss-120b', ThinkLevel.maximum),
+        reasoningParams(P('groq'), 'openai/gpt-oss-120b', ThinkLevel.max),
         {'reasoning_effort': 'high'},
       );
-      expect(reasoningParams(P('groq'), 'qwen/qwen3-32b', ThinkLevel.rapide), {
+      expect(reasoningParams(P('groq'), 'qwen/qwen3-32b', ThinkLevel.faible), {
         'reasoning_effort': 'none',
       });
       expect(
-        reasoningParams(
-          P('groq'),
-          'llama-3.3-70b-versatile',
-          ThinkLevel.maximum,
-        ),
+        reasoningParams(P('groq'), 'llama-3.3-70b-versatile', ThinkLevel.max),
         isEmpty,
       );
     });
 
     test('Ollama : think', () {
       expect(
-        reasoningParams(
-          P('ollama-cloud'),
-          'gpt-oss:120b',
-          ThinkLevel.approfondi,
-        ),
+        reasoningParams(P('ollama-cloud'), 'gpt-oss:120b', ThinkLevel.eleve),
         {'think': 'high'},
       );
-      expect(reasoningParams(P('ollama-cloud'), 'kimi-k3', ThinkLevel.rapide), {
+      expect(reasoningParams(P('ollama-cloud'), 'kimi-k3', ThinkLevel.faible), {
         'think': false,
       });
-      expect(reasoningParams(P('ollama'), 'qwen3:8b', ThinkLevel.equilibre), {
+      expect(reasoningParams(P('ollama'), 'qwen3:8b', ThinkLevel.moyen), {
         'think': true,
       });
-      expect(
-        reasoningParams(P('ollama'), 'llama3.2', ThinkLevel.maximum),
-        isEmpty,
-      );
+      expect(reasoningParams(P('ollama'), 'llama3.2', ThinkLevel.max), isEmpty);
     });
   });
 
@@ -126,7 +115,7 @@ void main() {
       apiKey: 'k',
       model: 'gemini-2.5-pro',
       messages: const [LlmMessage('user', 'a')],
-      options: const LlmOptions(level: ThinkLevel.maximum),
+      options: const LlmOptions(level: ThinkLevel.max),
     );
     expect(out, 'OK');
     expect(bodies.first['reasoning_effort'], 'high');
@@ -144,7 +133,9 @@ void main() {
     );
     expect(Agent.fromJson(a.toJson()).level, 'maximum');
     expect(Agent.fromMarkdown(a.toMarkdown(), id: 'b')!.level, 'maximum');
-    expect(ThinkLevel.parse('rapide'), ThinkLevel.rapide);
+    expect(ThinkLevel.parse('rapide'), ThinkLevel.faible);
+    expect(ThinkLevel.parse('maximum'), ThinkLevel.max);
+    expect(ThinkLevel.parse('extra'), ThinkLevel.extra);
     expect(ThinkLevel.parse('?'), isNull);
   });
 
@@ -159,7 +150,7 @@ void main() {
       style: 'Tutoie-moi',
     );
     await s.setAccent(3);
-    await s.setDefaultLevel(ThinkLevel.approfondi);
+    await s.setDefaultLevel(ThinkLevel.eleve);
     await s.setTabHidden('github', true);
     final sys = s.personalSystem();
     expect(sys, contains('Tu es Jarvis'));
@@ -176,7 +167,7 @@ void main() {
     );
     expect(s.assistantName, 'Jarvis');
     expect(s.accent, 3);
-    expect(s.defaultLevel, ThinkLevel.approfondi);
+    expect(s.defaultLevel, ThinkLevel.eleve);
     expect(s.hiddenTabs, {'github'});
   });
 }
