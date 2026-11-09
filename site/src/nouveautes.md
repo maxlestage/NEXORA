@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.9 — 9 novembre 2026 — L'agent fait ce que vous demandez
+- Vos demandes sont redonnées à l'agent à chaque étape : la mission et chaque instruction envoyée ensuite ne se perdent plus dans un long travail.
+- L'agent fait exactement ce qui est demandé, au mot près : pas de changements non demandés, et votre dernière instruction l'emporte sur les précédentes.
+- S'il essaie de terminer sans rien faire pour votre demande, il est relancé pour la faire vraiment, ou pour expliquer précisément pourquoi c'est impossible.
+- Le résumé de fin reprend chaque demande et ce qui a été fait.
+- Dans le chat aussi, l'assistant suit votre dernier message à la lettre (forme, longueur, format).
+
 ## 2.2.8 — 9 novembre 2026 — Nouveau logo
 - Nouveau logo NEXORA : l'hexagone néon et son orbite, sur l'icône de l'app iPhone et Android.
 - Le site prend le même logo : en-tête, icône d'onglet, icône d'écran d'accueil (PWA) et image de partage sur les réseaux.
