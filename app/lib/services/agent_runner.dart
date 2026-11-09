@@ -439,6 +439,30 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
+  /// Les instructions envoyées pendant que l'agent travaille : lues au tour suivant.
+  final List<String> _inbox = [];
+
+  /// Ajoute une instruction pendant le travail (sans l'interrompre).
+  void steer(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return;
+    _inbox.add(t);
+    _add(AgentStep(StepKind.user, t));
+  }
+
+  void _readInbox() {
+    if (_inbox.isEmpty) return;
+    final note =
+        'Instruction de l\'utilisateur pendant ton travail : ${_inbox.join('\n')}';
+    _inbox.clear();
+    if (history.isNotEmpty && history.last.role == 'user') {
+      final last = history.removeLast();
+      history.add(LlmMessage('user', '${last.content}\n\n$note'));
+    } else {
+      history.add(LlmMessage('user', note));
+    }
+  }
+
   /// Lance la session, ou la continue avec une nouvelle instruction.
   Future<void> run({String? followUp}) async {
     if (running) return;
@@ -481,6 +505,7 @@ class AgentRun extends ChangeNotifier {
     notifyListeners();
     try {
       for (var i = 0; i < maxSteps && !_stop; i++) {
+        _readInbox();
         final reply = await _ask(history);
         if (reply == null || _stop) break;
         history.add(LlmMessage('assistant', reply));
@@ -612,14 +637,61 @@ class AgentRun extends ChangeNotifier {
 
   /// Les fichiers de chaque dépôt (lus une fois), avec le préfixe de son dossier
   /// quand il y a plusieurs dépôts.
+  /// Les dépôts sans aucun commit (créés vides) : rien à lire, mais on peut y écrire.
+  final Set<String> _emptyRepos = {};
+
+  /// Les dépôts illisibles (branche introuvable, accès refusé) et pourquoi.
+  final Map<String, String> _unreadable = {};
+
   Future<List<String>> _files() async {
     if (_tree != null) return _tree!;
     final all = <String>[];
-    for (final t in targets) {
-      final files = await github.tree(t.owner, t.name, refOf(t));
+    // Un dépôt vide ou illisible ne bloque pas les autres.
+    final lists = await Future.wait([
+      for (final t in targets)
+        github
+            .tree(t.owner, t.name, refOf(t))
+            .then<List<String>?>((f) => f)
+            .catchError((Object e) {
+              final status = e is GitHubException ? e.status : null;
+              if (status == 409 || status == 404) {
+                _emptyRepos.add(t.fullName);
+              } else {
+                _unreadable[t.fullName] = '$e';
+              }
+              return null;
+            }),
+    ]);
+    for (final (i, t) in targets.indexed) {
+      final files = lists[i] ?? const <String>[];
       all.addAll(multi ? files.map((f) => '${mountOf(t)}/$f') : files);
     }
     return _tree = all;
+  }
+
+  /// Une note sur les dépôts vides ou illisibles, ajoutée aux listes de fichiers.
+  String get _repoNotes => [
+    for (final r in _emptyRepos)
+      '(Le dépôt $r est vide ou sa branche n\'existe pas encore : crée ses fichiers '
+          'avec write_file.)',
+    for (final e in _unreadable.entries)
+      '(Dépôt ${e.key} illisible : ${e.value})',
+  ].join('\n');
+
+  /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
+  Future<String> _nearby(String path) async {
+    final tree = await _files();
+    final name = path.split('/').last.toLowerCase();
+    final dir = path.contains('/')
+        ? path.substring(0, path.lastIndexOf('/'))
+        : '';
+    final hits = <String>{
+      ...tree.where(
+        (f) => f.toLowerCase().endsWith('/$name') || f.toLowerCase() == name,
+      ),
+      if (dir.isNotEmpty) ...tree.where((f) => f.startsWith('$dir/')),
+    }.take(12).toList();
+    return hits.isEmpty ? '' : '\nChemins proches :\n${hits.join('\n')}';
   }
 
   String get _mountHint =>
@@ -646,15 +718,24 @@ class AgentRun extends ChangeNotifier {
                 .where((f) => changes[f] != null || !changes.containsKey(f))
                 .toList()
               ..sort();
+        final notes = _repoNotes;
         if (files.isEmpty) {
-          return multi
-              ? 'Aucun fichier. Dossiers : ${_mounts.keys.join(', ')}'
-              : 'Aucun fichier.';
+          return [
+            prefix.isEmpty
+                ? 'Aucun fichier.'
+                : 'Aucun fichier sous « $prefix ».',
+            if (multi) 'Dossiers : ${_mounts.keys.join(', ')}',
+            if (prefix.isNotEmpty) await _nearby(prefix),
+            notes,
+          ].where((l) => l.trim().isNotEmpty).join('\n');
         }
         final shown = files.take(300).join('\n');
-        return files.length > 300
-            ? '$shown\n… (${files.length - 300} de plus, précise un dossier)'
-            : shown;
+        return [
+          files.length > 300
+              ? '$shown\n… (${files.length - 300} de plus, précise un dossier)'
+              : shown,
+          notes,
+        ].where((l) => l.trim().isNotEmpty).join('\n');
       case 'read_file':
         final p = path();
         if (changes.containsKey(p)) {
@@ -663,7 +744,19 @@ class AgentRun extends ChangeNotifier {
         final where = resolve(p);
         if (where == null) return _mountHint;
         final (t, inner) = where;
-        final f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
+        final FileContent f;
+        try {
+          f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
+        } on GitHubException catch (e) {
+          // Un fichier qui n'existe pas n'est pas une panne : on aide l'agent à
+          // trouver le bon chemin.
+          if (e.status == 404) {
+            originals.putIfAbsent(p, () => null);
+            return 'Fichier introuvable : $p (il n\'existe pas encore, tu peux le '
+                'créer avec write_file).${await _nearby(p)}';
+          }
+          rethrow;
+        }
         if (f.binary) return 'ERREUR : fichier binaire.';
         final text = f.text;
         originals.putIfAbsent(p, () => text);
@@ -744,12 +837,18 @@ class AgentRun extends ChangeNotifier {
     for (final g in groups.entries) {
       final t = g.key;
       final from = refOf(t);
-      final target = heads[t.fullName] ?? targetBranch ?? from;
+      var target = heads[t.fullName] ?? targetBranch ?? from;
       if (target != from) {
         try {
           await github.createBranch(t.owner, t.name, target, from: from);
         } on GitHubException catch (e) {
-          if (e.status != 422) rethrow; // 422 : la branche existe déjà
+          // 404/409 : dépôt vide, pas encore de branche d'où partir. Le premier
+          // commit va directement sur sa branche principale (pas de pull request).
+          if (e.status == 404 || e.status == 409) {
+            target = from;
+          } else if (e.status != 422) {
+            rethrow; // 422 : la branche existe déjà
+          }
         }
       }
       final sha = await github.commitFiles(

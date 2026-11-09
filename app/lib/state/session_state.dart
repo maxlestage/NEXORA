@@ -196,7 +196,12 @@ class SessionState extends ChangeNotifier {
   /// interrompue).
   void continueSession(String id, String instruction) {
     final run = byId(id);
-    if (run == null || run.running) return;
+    if (run == null) return;
+    // Pendant le travail : l'instruction est lue au tour suivant.
+    if (run.running) {
+      run.steer(instruction);
+      return;
+    }
     // La clé ou le compte ont pu changer depuis.
     run
       ..github = github.api

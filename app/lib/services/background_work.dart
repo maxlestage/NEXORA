@@ -98,6 +98,19 @@ class BackgroundWork {
     _invoke(method, args);
   }
 
+  /// Ce que fait le système, pour le diagnostic : `continued` (iOS suit la tâche),
+  /// `submitted`, `legacy` (~30 s seulement), `expired`, `service` (Android), `idle`.
+  Future<(String, String)?> status() async {
+    if (!supported) return null;
+    try {
+      final r = await _channel.invokeMapMethod<String, Object?>('status');
+      if (r == null) return null;
+      return ('${r['mode'] ?? 'idle'}', '${r['error'] ?? ''}');
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _invoke(String method, Map<String, Object?> args) async {
     if (!supported) return;
     try {

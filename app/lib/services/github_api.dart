@@ -454,10 +454,36 @@ class GitHubApi {
     required String message,
     required List<FileChange> changes,
   }) async {
-    final ref = await _req(
-      'GET',
-      '/repos/$owner/$repo/git/ref/heads/${_enc(branch)}',
-    ) as Map;
+    final Map ref;
+    try {
+      ref = await _req(
+        'GET',
+        '/repos/$owner/$repo/git/ref/heads/${_enc(branch)}',
+      ) as Map;
+    } on GitHubException catch (e) {
+      // Dépôt vide (aucun commit) : l'API Git Data ne peut pas y créer le premier
+      // commit. Le premier fichier passe par l'API Contents, qui crée la branche,
+      // puis les autres suivent en un commit.
+      final first = changes.where((c) => !c.delete).firstOrNull;
+      if ((e.status != 404 && e.status != 409) || first == null) rethrow;
+      final sha = await writeFile(
+        owner,
+        repo,
+        first.path,
+        first.content!,
+        message: message,
+        branch: branch,
+      );
+      final rest = changes.where((c) => !identical(c, first)).toList();
+      if (rest.isEmpty) return sha;
+      return commitFiles(
+        owner,
+        repo,
+        branch: branch,
+        message: message,
+        changes: rest,
+      );
+    }
     final parent = (ref['object'] as Map)['sha'] as String;
     final parentCommit =
         await _req('GET', '/repos/$owner/$repo/git/commits/$parent') as Map;
