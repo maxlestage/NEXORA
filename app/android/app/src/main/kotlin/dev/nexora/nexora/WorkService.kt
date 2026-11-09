@@ -40,6 +40,12 @@ class WorkService : Service() {
         } else {
             startForeground(Notifs.ONGOING_ID, n)
         }
+        // Arrêt demandé avant que le service ait démarré : on s'arrête aussitôt.
+        if (stopRequested) {
+            stopRequested = false
+            finish()
+            return START_NOT_STICKY
+        }
         if (wakeLock == null) {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nexora:work").apply {
@@ -76,6 +82,9 @@ class WorkService : Service() {
     companion object {
         @Volatile
         var current: WorkService? = null
+
+        @Volatile
+        var stopRequested = false
     }
 }
 

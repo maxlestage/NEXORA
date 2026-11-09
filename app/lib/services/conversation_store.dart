@@ -46,11 +46,25 @@ class FileConversationStore implements ConversationStore {
   File get _index => File('${dir.path}/index.json');
   File _file(String id) => File('${dir.path}/$id.json');
 
-  Future<void> _write(File f, String content) async {
-    await dir.create(recursive: true);
-    final tmp = File('${f.path}.tmp');
-    await tmp.writeAsString(content, flush: true);
-    await tmp.rename(f.path);
+  /// Les écritures en cours, par fichier : elles passent l'une après l'autre, jamais
+  /// en même temps (sinon deux écritures pourraient se mélanger).
+  final Map<String, Future<void>> _queue = {};
+  int _n = 0;
+
+  Future<void> _write(File f, String content) {
+    final previous = _queue[f.path] ?? Future<void>.value();
+    final next = previous.catchError((_) {}).then((_) async {
+      await dir.create(recursive: true);
+      // Un fichier temporaire unique, puis un renommage (atomique).
+      final tmp = File('${f.path}.${_n++}.tmp');
+      await tmp.writeAsString(content, flush: true);
+      await tmp.rename(f.path);
+    });
+    _queue[f.path] = next;
+    next.whenComplete(() {
+      if (identical(_queue[f.path], next)) _queue.remove(f.path);
+    }).ignore();
+    return next;
   }
 
   @override
