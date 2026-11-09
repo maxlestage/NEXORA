@@ -139,8 +139,14 @@ void main() {
       run.history.lastWhere((m) => m.role == 'user').content,
       contains('« Mets le titre en rouge »'),
     );
-    // La demande répétée par l'agent est affichée dans ses étapes.
-    expect(run.steps.first.text, startsWith('🎯 Mettre le titre en rouge'));
+    // Au tout début, ce que l'agent a compris est affiché à part.
+    expect(run.steps.first.kind, StepKind.goal);
+    expect(run.steps.first.text, 'Mettre le titre en rouge');
+    // La toute première demande est en tête des instructions, et dans le rappel.
+    final sys = jsonDecode(requests.first) as Map;
+    final first = jsonEncode(sys['messages']);
+    expect(first.indexOf('DEMANDES DE L'), lessThan(first.indexOf('Outils')));
+    expect(requests[1], contains('au tout début : « Mets le titre en rouge »'));
     expect(
       parseToolCalls('{"demande":"x","tool":"finish","args":{}}').single.goal,
       'x',
