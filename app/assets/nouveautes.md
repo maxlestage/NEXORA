@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.0 — 9 novembre 2026 — Plus rapide, et toujours les derniers modèles
+- L'agent va beaucoup plus vite : il lit plusieurs fichiers en parallèle, connaît la liste des fichiers dès le départ, et chez Anthropic l'historique est mis en cache.
+- Deux flèches pour aller tout en haut ou tout en bas d'une conversation ou d'une session.
+- Les derniers modèles de chaque fournisseur sont récupérés sur internet chaque jour, avec leur date de sortie, leur prix et leur contexte, les plus récents en premier et marqués 🆕.
+- Leurs prix servent au témoin de crédit pour tous les fournisseurs.
+
 ## 2.1.0 — 8 novembre 2026 — Le travail continue en arrière-plan
 - Les sessions d'agent et les réponses continuent quand vous quittez l'app ou verrouillez le téléphone.
 - Sur iPhone (iOS 26), la progression s'affiche dans le système ; sur Android, une notification « NEXORA travaille… » suit l'avancement.

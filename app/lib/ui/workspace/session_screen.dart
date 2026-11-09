@@ -9,6 +9,7 @@ import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/nexus_orb.dart';
 import '../widgets/quota_badge.dart';
+import '../widgets/scroll_arrows.dart';
 import 'draft_review_screen.dart';
 import 'sessions_list.dart';
 
@@ -50,15 +51,6 @@ class _SessionScreenState extends State<SessionScreen> {
       }
       if (frames > 0) _jumpToEnd(frames - 1);
     });
-  }
-
-  void _toEnd() {
-    if (!_scroll.hasClients) return;
-    _scroll.animateTo(
-      _scroll.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
   }
 
   @override
@@ -452,17 +444,11 @@ class _SessionScreenState extends State<SessionScreen> {
                     ],
                   ),
                 ),
-                if (_showDown)
-                  Positioned(
-                    right: 14,
-                    bottom: 12,
-                    child: FloatingActionButton.small(
-                      heroTag: null,
-                      tooltip: 'Aller en bas',
-                      onPressed: _toEnd,
-                      child: const Icon(Icons.arrow_downward_rounded),
-                    ),
-                  ),
+                Positioned(
+                  right: 14,
+                  bottom: 12,
+                  child: ScrollArrows(controller: _scroll),
+                ),
               ],
             ),
           ),

@@ -81,7 +81,35 @@ class _ModelPickerState extends State<_ModelPicker> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      s.catalog.updated.isEmpty
+                          ? 'Les plus récents en premier'
+                          : 'Derniers modèles au ${s.catalog.updated} · les plus récents en premier',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Chercher les nouveaux modèles',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.cloud_sync_outlined, size: 20),
+                    onPressed: () async {
+                      final ok = await s.refreshCatalog(force: true);
+                      if (context.mounted) {
+                        toast(
+                          context,
+                          ok
+                              ? 'Catalogue à jour (${s.catalog.updated})'
+                              : 'Pas de connexion au catalogue, la liste reste celle du ${s.catalog.updated}',
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               TextField(
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),

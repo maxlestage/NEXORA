@@ -83,11 +83,17 @@ const Map<String, Map<String, ModelPrice>> modelPrices = {
 /// Le prix d'un modèle : nom exact (`gpt-oss:120b`), sinon sans l'étiquette
 /// (`deepseek-v4-pro:0813` → `deepseek-v4-pro`).
 ModelPrice? priceOf(String providerId, String model) {
-  final table = modelPrices[providerId];
-  if (table == null) return null;
   final m = model.toLowerCase().replaceAll(RegExp(r'-cloud$'), '');
-  return table[m] ?? table[m.split(':').first];
+  for (final table in [modelPrices[providerId], livePrices[providerId]]) {
+    if (table == null) continue;
+    final p = table[m] ?? table[m.split(':').first];
+    if (p != null) return p;
+  }
+  return null;
 }
+
+/// Les prix du catalogue des derniers modèles (internet), rempli au démarrage.
+Map<String, Map<String, ModelPrice>> livePrices = {};
 
 /// Les offres mensuelles connues, pour régler le crédit en un geste.
 const Map<String, List<(String, double)>> monthlyPlans = {

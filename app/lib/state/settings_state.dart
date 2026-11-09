@@ -1,4 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+import '../data/model_catalog.dart';
 
 import '../data/model_prices.dart';
 import '../data/providers_catalog.dart';
@@ -9,11 +18,69 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.1.0';
+const String currentVersion = '2.2.0';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
     _load();
+    _loadCatalog();
+  }
+
+  /// Les derniers modèles de chaque fournisseur (internet, mis à jour chaque jour).
+  ModelCatalog catalog = ModelCatalog.empty;
+
+  Future<void> _loadCatalog() async {
+    try {
+      catalog = ModelCatalog.parse(
+        await rootBundle.loadString('assets/models.json'),
+      );
+    } catch (_) {}
+    final cached = storage.getString('models_catalog');
+    if (cached != null) {
+      try {
+        final c = ModelCatalog.parse(cached);
+        if (c.updated.compareTo(catalog.updated) >= 0) catalog = c;
+      } catch (_) {}
+    }
+    livePrices = catalog.prices;
+    notifyListeners();
+    unawaited(refreshCatalog());
+  }
+
+  /// Relit le catalogue sur le site (au plus une fois toutes les 20 h, sauf `force`).
+  /// Rend vrai si une nouvelle version a été chargée.
+  Future<bool> refreshCatalog({bool force = false}) async {
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+      return false;
+    }
+    final last = DateTime.tryParse(
+      storage.getString('models_catalog_at') ?? '',
+    );
+    if (!force &&
+        last != null &&
+        DateTime.now().difference(last).inHours < 20) {
+      return false;
+    }
+    try {
+      final r = await http
+          .get(Uri.parse(catalogUrl))
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode != 200) return false;
+      final raw = utf8.decode(r.bodyBytes);
+      final c = ModelCatalog.parse(raw);
+      if (c.isEmpty) return false;
+      await storage.setString('models_catalog', raw);
+      await storage.setString(
+        'models_catalog_at',
+        DateTime.now().toIso8601String(),
+      );
+      catalog = c;
+      livePrices = c.prices;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   final Storage storage;
@@ -256,23 +323,51 @@ class SettingsState extends ChangeNotifier {
 
   // —— Modèles ———————————————————————————————————————————————
 
+  /// Les modèles d'un fournisseur, les plus récents d'abord : la liste de votre
+  /// compte si elle a été chargée, sinon le catalogue des derniers modèles.
   List<ModelInfo> models(String providerId) {
-    final cached = _models[providerId];
-    if (cached != null && cached.isNotEmpty) {
-      final p = provider(providerId);
-      final extra = (p?.defaultModels ?? const <String>[])
-          .where((m) => !cached.any((c) => c.id == m))
-          .map(
-            (m) => ModelInfo(m, free: p!.free, detail: priceOf(p.id, m)?.label),
-          );
-      return [...extra, ...cached];
-    }
     final p = provider(providerId);
-    return (p?.defaultModels ?? const <String>[])
-        .map(
-          (m) => ModelInfo(m, free: p!.free, detail: priceOf(p.id, m)?.label),
-        )
-        .toList();
+    if (p == null) return const [];
+    final now = DateTime.now();
+    final cat = catalog.providers[providerId] ?? const <CatalogModel>[];
+    ModelInfo info(String id, {bool? free, String? detail}) {
+      final c = catalog.find(providerId, id);
+      final price = priceOf(p.id, id);
+      final parts = <String>[
+        if (c != null && c.isNew(now)) '🆕 ${c.release}',
+        if (detail != null && detail.isNotEmpty)
+          detail
+        else if (price != null)
+          price.label,
+        if (c?.context != null) '${contextLabel(c!.context!)} ctx',
+      ];
+      return ModelInfo(
+        id,
+        free: free ?? (p.free || (c?.free ?? false)),
+        detail: parts.isEmpty ? null : parts.join(' · '),
+      );
+    }
+
+    final live = _models[providerId];
+    if (live != null && live.isNotEmpty) {
+      final rank = {for (final (i, c) in cat.indexed) c.id: i};
+      final known = live.where((m) => rank.containsKey(m.id)).toList()
+        ..sort((a, b) => rank[a.id]!.compareTo(rank[b.id]!));
+      final unknown = live.where((m) => !rank.containsKey(m.id));
+      final extra = p.defaultModels.where((m) => !live.any((l) => l.id == m));
+      return [
+        for (final m in extra) info(m),
+        for (final m in [...known, ...unknown])
+          info(m.id, free: m.free || p.free, detail: m.detail),
+      ];
+    }
+    final seen = <String>{};
+    return [
+      for (final c in cat)
+        if (seen.add(c.id)) info(c.id),
+      for (final m in p.defaultModels)
+        if (seen.add(m)) info(m),
+    ];
   }
 
   bool hasLiveModels(String providerId) =>

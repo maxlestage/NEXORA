@@ -1,0 +1,46 @@
+# Garde le catalogue de modèles à jour : chaque jour, récupère les derniers modèles sur
+# internet (models.dev, Pollinations), et s'il y a du nouveau, l'enregistre dans
+# app/assets/models.json et site/public/models.json puis republie le site. L'app relit
+# le fichier du site une fois par jour : les nouveaux modèles arrivent sans mise à jour.
+
+name: Modèles
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: merge-into-master
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Derniers modèles
+        run: python3 .github/scripts/update_models.py
+      - name: Enregistrer et republier le site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app/assets/models.json site/public/models.json; then
+            echo "::notice title=Modèles::rien de neuf aujourd'hui"
+            exit 0
+          fi
+          git config user.name "Maxime Lestage"
+          git config user.email "maxlestage@icloud.com"
+          git add app/assets/models.json site/public/models.json
+          git commit -m "Modèles : catalogue mis à jour ($(date -u +%Y-%m-%d))"
+          git push origin HEAD:master
+          gh workflow run pages.yml --ref master --repo "$GITHUB_REPOSITORY"
+          gh workflow run heroku.yml --ref master --repo "$GITHUB_REPOSITORY"
+          echo "::notice title=Modèles::catalogue mis à jour, site republié"
