@@ -131,7 +131,12 @@ Future<void> showWhatsNewOnce(BuildContext context) async {
                 ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
-          ReleaseCard(release: releases.first, current: true),
+          // Défile si les nouveautés sont longues (petits écrans).
+          Flexible(
+            child: SingleChildScrollView(
+              child: ReleaseCard(release: releases.first, current: true),
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [

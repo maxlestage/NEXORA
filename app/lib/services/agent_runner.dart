@@ -75,6 +75,16 @@ class ToolCall {
 /// Lit l'action dans la réponse du modèle : un objet JSON (dans un bloc ```json ou
 /// nu), et pour `write_file`, le contenu dans le bloc de code qui suit.
 ToolCall? parseToolCall(String reply) {
+  final calls = parseToolCalls(reply);
+  return calls.isEmpty ? null : calls.first;
+}
+
+/// Une ou plusieurs actions : `{"tool": …}` ou, pour aller plus vite,
+/// `{"thought": …, "actions": [{"tool": …, "args": {…}}, …]}`. Les contenus des
+/// `write_file` sont pris dans les blocs de code qui suivent, dans l'ordre.
+List<ToolCall> parseToolCalls(String reply) {
+  bool wanted(Map<String, dynamic>? o) =>
+      o != null && (o['tool'] != null || o['actions'] is List);
   final fence = RegExp(r'```(\w*)\n([\s\S]*?)```');
   final blocks = fence.allMatches(reply).toList();
   Map<String, dynamic>? obj;
@@ -83,26 +93,26 @@ ToolCall? parseToolCall(String reply) {
     final lang = b.group(1) ?? '';
     final body = b.group(2) ?? '';
     if (lang == 'json' || (lang.isEmpty && body.trimLeft().startsWith('{'))) {
-      obj = _tryJson(body);
-      if (obj != null && obj['tool'] != null) {
+      final cand = _tryJson(body);
+      if (wanted(cand)) {
+        obj = cand;
         afterIndex = b.end;
         break;
       }
-      obj = null;
     }
   }
   if (obj == null) {
     final start = reply.indexOf('{');
     final end = reply.lastIndexOf('}');
     if (start >= 0 && end > start) {
-      // Cherche le plus petit objet JSON valide qui contient "tool".
+      // Cherche le plus petit objet JSON valide qui contient "tool" ou "actions".
       for (
         var e = reply.indexOf('}', start);
         e >= 0 && e <= end;
         e = reply.indexOf('}', e + 1)
       ) {
         final cand = _tryJson(reply.substring(start, e + 1));
-        if (cand != null && cand['tool'] != null) {
+        if (wanted(cand)) {
           obj = cand;
           afterIndex = e + 1;
           break;
@@ -110,23 +120,40 @@ ToolCall? parseToolCall(String reply) {
       }
     }
   }
-  if (obj == null) return null;
-  final args = obj['args'] is Map
-      ? Map<String, dynamic>.from(obj['args'] as Map)
-      : <String, dynamic>{};
-  if (obj['tool'] == 'write_file' && args['content'] == null) {
-    for (final b in blocks) {
-      if (b.start >= afterIndex) {
-        args['content'] = b.group(2) ?? '';
-        break;
-      }
+  if (obj == null) return const [];
+  final thought = (obj['thought'] ?? '').toString();
+  final raw = obj['actions'] is List
+      ? (obj['actions'] as List).whereType<Map>().toList()
+      : [obj];
+  // Les blocs de code après le JSON : les contenus des fichiers, dans l'ordre.
+  final contents = [
+    for (final b in blocks)
+      if (b.start >= afterIndex) b.group(2) ?? '',
+  ];
+  var next = 0;
+  final calls = <ToolCall>[];
+  for (final (i, a) in raw.indexed) {
+    final tool = a['tool']?.toString();
+    if (tool == null || tool.isEmpty) continue;
+    final args = a['args'] is Map
+        ? Map<String, dynamic>.from(a['args'] as Map)
+        : <String, dynamic>{};
+    if (tool == 'write_file' &&
+        args['content'] == null &&
+        next < contents.length) {
+      args['content'] = contents[next++];
     }
+    calls.add(
+      ToolCall(
+        tool,
+        args,
+        thought: i == 0
+            ? (thought.isNotEmpty ? thought : (a['thought'] ?? '').toString())
+            : '',
+      ),
+    );
   }
-  return ToolCall(
-    obj['tool'].toString(),
-    args,
-    thought: (obj['thought'] ?? '').toString(),
-  );
+  return calls;
 }
 
 Map<String, dynamic>? _tryJson(String s) {
@@ -370,9 +397,17 @@ class AgentRun extends ChangeNotifier {
             'Tous les chemins commencent par ce dossier (ex. ${mountOf(targets.first)}/README.md). '
             'Tu peux lire un dépôt pour t\'en inspirer et en modifier un autre.',
       'Outils disponibles :\n$tools',
-      'À CHAQUE tour, réponds avec UNE seule action, sous la forme d\'un bloc :\n'
+      'À chaque tour, réponds avec un bloc :\n'
           '```json\n{"thought": "ce que tu fais et pourquoi", "tool": "nom", '
           '"args": {...}}\n```\n'
+          'POUR ALLER VITE, groupe plusieurs actions dans un même tour (par exemple '
+          'lire plusieurs fichiers, ou écrire plusieurs fichiers) :\n'
+          '```json\n{"thought": "…", "actions": [{"tool": "read_file", "args": '
+          '{"path": "a"}}, {"tool": "read_file", "args": {"path": "b"}}]}\n```\n'
+          'Les lectures groupées sont faites en parallèle. Pour plusieurs write_file, '
+          'mets un bloc de code par fichier après le JSON, dans le même ordre. finish '
+          'doit être seul. La liste des fichiers t\'est donnée au départ : ne la '
+          'redemande pas sans raison.\n'
           'Pour write_file, mets ensuite le contenu COMPLET du fichier dans un bloc '
           'de code séparé. Lis un fichier avant de le modifier. Fais des '
           'changements minimes et cohérents. Quand la tâche est faite, appelle '
@@ -411,8 +446,22 @@ class AgentRun extends ChangeNotifier {
     interrupted = false;
     _stop = false;
     if (history.isEmpty) {
+      // Les fichiers sont donnés tout de suite : un aller-retour de moins.
+      var files = '';
+      try {
+        final tree = await _files();
+        files = tree.length > 400
+            ? '${tree.take(400).join('\n')}\n… (${tree.length - 400} de plus)'
+            : tree.join('\n');
+      } catch (_) {}
       history.add(
-        LlmMessage('user', 'Tâche : $task\n\nCommence par explorer le dépôt.'),
+        LlmMessage(
+          'user',
+          files.isEmpty
+              ? 'Tâche : $task\n\nCommence par explorer le dépôt.'
+              : 'Tâche : $task\n\nFichiers :\n$files\n\nLis directement les '
+                    'fichiers utiles (plusieurs à la fois).',
+        ),
       );
     } else if (followUp != null && followUp.trim().isNotEmpty) {
       _add(AgentStep(StepKind.user, followUp.trim()));
@@ -435,8 +484,8 @@ class AgentRun extends ChangeNotifier {
         final reply = await _ask(history);
         if (reply == null || _stop) break;
         history.add(LlmMessage('assistant', reply));
-        final call = parseToolCall(reply);
-        if (call == null) {
+        final calls = parseToolCalls(reply);
+        if (calls.isEmpty) {
           _add(AgentStep(StepKind.thought, reply));
           history.add(
             const LlmMessage(
@@ -447,12 +496,19 @@ class AgentRun extends ChangeNotifier {
           );
           continue;
         }
-        if (call.thought.isNotEmpty) {
-          _add(AgentStep(StepKind.thought, call.thought));
+        if (calls.first.thought.isNotEmpty) {
+          _add(AgentStep(StepKind.thought, calls.first.thought));
         }
-        if (call.tool == 'finish') {
-          summary = (call.args['summary'] ?? '').toString();
-          commitMessage = (call.args['commit_message'] ?? task)
+        final work = calls.where((c) => c.tool != 'finish').toList();
+        final results = await _execAll(work);
+        if (results.isNotEmpty) {
+          history.add(LlmMessage('user', results.join('\n\n')));
+          compactHistory(history);
+        }
+        final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
+        if (finish != null) {
+          summary = (finish.args['summary'] ?? '').toString();
+          commitMessage = (finish.args['commit_message'] ?? task)
               .toString()
               .trim();
           _add(
@@ -460,20 +516,6 @@ class AgentRun extends ChangeNotifier {
           );
           break;
         }
-        final label = call.args['path'] ?? call.args['query'] ?? '';
-        _add(AgentStep(StepKind.tool, '$label', tool: call.tool));
-        String result;
-        try {
-          result = await _exec(call);
-        } catch (e) {
-          result = 'ERREUR : $e';
-          _add(AgentStep(StepKind.error, '$e', tool: call.tool));
-        }
-        if (!result.startsWith('ERREUR')) {
-          _add(AgentStep(StepKind.result, _short(result), tool: call.tool));
-        }
-        history.add(LlmMessage('user', 'Résultat de ${call.tool} :\n$result'));
-        compactHistory(history);
       }
       if (_stop) _add(AgentStep(StepKind.error, 'Arrêté.'));
       if (commitMessage.isEmpty) commitMessage = task;
@@ -483,6 +525,47 @@ class AgentRun extends ChangeNotifier {
       running = false;
       notifyListeners();
     }
+  }
+
+  static const _readOnly = {'list_files', 'read_file', 'search_code'};
+
+  /// Exécute les actions d'un tour : les lectures en parallèle, les écritures dans
+  /// l'ordre. Rend un « Résultat de … » par action, dans l'ordre demandé.
+  Future<List<String>> _execAll(List<ToolCall> calls) async {
+    Future<String> one(ToolCall c) async {
+      try {
+        return await _exec(c);
+      } catch (e) {
+        return 'ERREUR : $e';
+      }
+    }
+
+    final out = List<String>.filled(calls.length, '');
+    final reads = [
+      for (final (i, c) in calls.indexed)
+        if (_readOnly.contains(c.tool)) (i, one(c)),
+    ];
+    for (final (i, c) in calls.indexed) {
+      if (!_readOnly.contains(c.tool)) out[i] = await one(c);
+    }
+    for (final (i, f) in reads) {
+      out[i] = await f;
+    }
+    final results = <String>[];
+    for (final (i, c) in calls.indexed) {
+      final label = c.args['path'] ?? c.args['query'] ?? '';
+      _add(AgentStep(StepKind.tool, '$label', tool: c.tool));
+      final r = out[i];
+      if (r.startsWith('ERREUR')) {
+        _add(AgentStep(StepKind.error, r.substring(9).trim(), tool: c.tool));
+      } else {
+        _add(AgentStep(StepKind.result, _short(r), tool: c.tool));
+      }
+      results.add(
+        'Résultat de ${c.tool}${calls.length > 1 && '$label'.isNotEmpty ? ' ($label)' : ''} :\n$r',
+      );
+    }
+    return results;
   }
 
   /// Une étape : la réponse du modèle, avec de nouveaux essais si le réseau

@@ -194,6 +194,9 @@ class LlmClient {
           ...extra,
           'model': model,
           'max_tokens': o.maxTokens < 1024 ? 1024 : o.maxTokens,
+          // Cache des prompts : l'historique déjà envoyé est relu bien plus vite
+          // (et moins cher) au tour suivant. Retiré si le serveur le refuse.
+          if (reasoning) 'cache_control': {'type': 'ephemeral'},
           if (system != null && system.isNotEmpty) 'system': system,
           'messages': _alternate(messages),
           'stream': stream,
@@ -286,7 +289,8 @@ class LlmClient {
         var reasoning = true;
         // Le fournisseur refuse le réglage de réflexion : on réessaie sans.
         if ((res.statusCode == 400 || res.statusCode == 422) &&
-            reasoningParams(provider, model, options.level).isNotEmpty) {
+            (provider.kind == ApiKind.anthropic ||
+                reasoningParams(provider, model, options.level).isNotEmpty)) {
           await res.stream.drain<void>();
           reasoning = false;
           res = await client!

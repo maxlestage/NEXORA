@@ -21,6 +21,7 @@ import '../widgets/markdown_view.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/nexus_orb.dart';
 import '../widgets/quota_badge.dart';
+import '../widgets/scroll_arrows.dart';
 
 /// Une conversation.
 class ChatScreen extends StatefulWidget {
@@ -324,18 +325,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           },
                         ),
                 ),
-                if (_showDown && c.loaded && c.messages.isNotEmpty)
+                if (c.loaded && c.messages.isNotEmpty)
                   Positioned(
                     right: 14,
                     bottom: 12,
-                    child: FloatingActionButton.small(
-                      heroTag: null,
-                      tooltip: 'Aller en bas',
-                      onPressed: () {
-                        _stickToBottom = true;
-                        _toBottom(force: true);
-                      },
-                      child: const Icon(Icons.arrow_downward_rounded),
+                    child: ScrollArrows(
+                      controller: _scroll,
+                      onBottom: () => _stickToBottom = true,
                     ),
                   ),
               ],

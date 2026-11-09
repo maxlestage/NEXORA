@@ -243,6 +243,18 @@ Les tests de l'app vérifient que les deux fichiers sont identiques et que la ve
 cours a ses nouveautés ; à la fusion sur master, le site (Pages et Heroku) et TestFlight
 partent tout seuls.
 
+## Toujours les derniers modèles
+
+Chaque jour, le workflow **Modèles** (`.github/workflows/models.yml`) lance
+`.github/scripts/update_models.py` : il récupère sur internet les derniers modèles de chaque
+fournisseur ([models.dev](https://models.dev) et Pollinations), avec leur date de sortie, leur
+prix et leur contexte, et met à jour `app/assets/models.json` et `site/public/models.json`
+s'il y a du nouveau, puis republie le site. L'app relit ce fichier sur le site une fois par
+jour : les nouveaux modèles apparaissent (🆕, les plus récents en premier) sans attendre une
+mise à jour de l'app, et leurs prix alimentent le témoin de crédit. À la main :
+`python3 .github/scripts/update_models.py`, ou « Run workflow » sur **Modèles** depuis
+GitHub, ou le bouton ☁️ du choix de modèle dans l'app.
+
 ## CI, fusion automatique et versions
 
 - **Chaque push et chaque pull request** ([`ci.yml`](.github/workflows/ci.yml)) : format,
