@@ -1870,7 +1870,11 @@ mod tests {
         let nouveautes = client.get("/nouveautes").await.text();
         let v = &versions()[0];
         assert!(nouveautes.contains(&format!("v{}", v.numero)));
-        assert!(client.get("/").await.text().contains(v.titre));
+        // Le titre est échappé dans le HTML (apostrophes, guillemets…).
+        let accueil = client.get("/").await.text();
+        let premier_mot = v.titre.split(['\'', '"', '&', '<']).next().unwrap_or("");
+        assert!(accueil.contains(premier_mot), "{premier_mot}");
+        assert!(accueil.contains(&format!("v{}", v.numero)));
         assert_eq!(client.get("/nulle-part").await.status(), 404);
         assert_eq!(client.get("/manifest.webmanifest").await.status(), 200);
         assert_eq!(client.get("/sw.js").await.status(), 200);
