@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.10 — 9 novembre 2026 — L'agent se répète votre demande à chaque étape
+- Avant chaque action, l'agent se répète ce que vous lui avez demandé, avec vos mots, puis explique en quoi l'action y répond.
+- Cette demande s'affiche dans la session (🎯) à chaque étape : vous voyez tout de suite s'il a bien compris.
+- Après chaque résultat, l'app lui rappelle votre dernière instruction et les précédentes.
+
 ## 2.2.9 — 9 novembre 2026 — L'agent fait ce que vous demandez
 - Vos demandes sont redonnées à l'agent à chaque étape : la mission et chaque instruction envoyée ensuite ne se perdent plus dans un long travail.
 - L'agent fait exactement ce qui est demandé, au mot près : pas de changements non demandés, et votre dernière instruction l'emporte sur les précédentes.
