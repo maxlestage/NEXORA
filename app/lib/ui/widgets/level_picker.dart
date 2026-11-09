@@ -4,132 +4,210 @@ import 'package:flutter/services.dart';
 import '../../models/level.dart';
 import '../../models/provider.dart';
 import '../../services/llm_client.dart' show reasoningParams;
-import '../theme.dart';
-import 'fx.dart';
 
-/// Choisit le niveau de réflexion. Rend `null` si l'utilisateur annule.
-Future<ThinkLevel?> pickLevel(
-  BuildContext context, {
-  required ThinkLevel current,
-  ProviderDef? provider,
-  String? model,
-  String title = 'Niveau de réflexion',
-}) {
-  return showModalBottomSheet<ThinkLevel>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (context) {
-      final tt = Theme.of(context).textTheme;
-      return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Comme l\'effort de Claude : plus le niveau est haut, plus le modèle '
-              'réfléchit avant de répondre.',
-              style: tt.bodySmall,
-            ),
-            const SizedBox(height: 14),
-            for (final (i, l) in ThinkLevel.values.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Reveal(
-                  index: i,
-                  child: _LevelCard(
-                    level: l,
-                    selected: l == current,
-                    native: provider != null && model != null
-                        ? reasoningParams(provider, model, l).isNotEmpty
-                        : null,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      Navigator.pop(context, l);
-                    },
-                  ),
-                ),
-              ),
-            if (provider != null && model != null)
-              Text(
-                reasoningParams(provider, model, current).isNotEmpty
-                    ? '« $model » a un réglage de réflexion natif : NEXORA '
-                          'l\'utilise directement.'
-                    : '« $model » n\'a pas de réglage natif : le niveau ajuste la '
-                          'consigne et la longueur maximale de réponse.',
-                style: tt.bodySmall,
-              ),
-          ],
-        ),
-      );
-    },
-  );
-}
+/// La note sous la liste, comme dans Claude.
+const effortNote =
+    'Un effort plus élevé signifie des réponses plus approfondies, mais prend plus '
+    'de temps et consomme vos limites plus rapidement.';
 
-class _LevelCard extends StatelessWidget {
-  const _LevelCard({
-    required this.level,
-    required this.selected,
-    required this.onTap,
-    this.native,
-  });
+/// Le modèle a-t-il un réglage d'effort natif ? (Sinon l'effort règle la consigne et
+/// la longueur maximale de la réponse.)
+bool hasNativeEffort(ProviderDef? provider, String? model) =>
+    provider != null &&
+    model != null &&
+    reasoningParams(provider, model, ThinkLevel.eleve).isNotEmpty;
 
-  final ThinkLevel level;
-  final bool selected;
-  final bool? native;
-  final VoidCallback onTap;
+/// Une carte groupée, à la manière des réglages iOS.
+class GroupedCard extends StatelessWidget {
+  const GroupedCard({super.key, required this.children});
+
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-    final accent = Theme.of(context).colorScheme.primary;
-    return Glass(
-      glow: selected ? accent : null,
-      onTap: onTap,
-      child: Row(
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
         children: [
-          Text(level.emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      level.label,
-                      style: tt.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    LevelBars(level: level, color: accent),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(level.description, style: tt.bodySmall),
-                const SizedBox(height: 4),
-                Text(
-                  'Réponse jusqu\'à ${level.maxTokens ~/ 1000}k tokens · agent : '
-                  '${level.agentSteps} actions',
-                  style: tt.labelSmall?.copyWith(fontFamily: Nx.mono),
-                ),
-              ],
-            ),
-          ),
-          if (selected) Icon(Icons.check_circle, color: accent),
+          for (final (i, c) in children.indexed) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                indent: 20,
+                endIndent: 20,
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            c,
+          ],
         ],
       ),
     );
   }
 }
 
-/// Quatre barres, comme un indicateur de réseau : le niveau en un coup d'œil.
+/// Un badge : « Recommandé », ou un avertissement de consommation.
+class EffortBadge extends StatelessWidget {
+  const EffortBadge(this.level, {super.key});
+
+  final ThinkLevel level;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = level.badge;
+    if (b == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final warn = level.warning;
+    final fg = warn ? const Color(0xFF8A5A00) : scheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: warn
+            ? const Color(0xFFF6DFA4)
+            : scheme.onSurface.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (warn) ...[
+            Icon(Icons.warning_amber_rounded, size: 15, color: fg),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Text(
+              b,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: fg,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La liste des efforts (Faible → Max), avec la coche sur le choix courant.
+class EffortList extends StatelessWidget {
+  const EffortList({
+    super.key,
+    required this.current,
+    required this.onPicked,
+    this.provider,
+    this.model,
+  });
+
+  final ThinkLevel current;
+  final ValueChanged<ThinkLevel> onPicked;
+  final ProviderDef? provider;
+  final String? model;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final accent = Theme.of(context).colorScheme.primary;
+    final native = provider == null || model == null
+        ? true
+        : hasNativeEffort(provider, model);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GroupedCard(
+          children: [
+            for (final l in ThinkLevel.values)
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onPicked(l);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(l.label, style: tt.titleMedium),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: EffortBadge(l),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 30,
+                        child: l == current
+                            ? Icon(Icons.check_rounded, color: accent, size: 26)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Text(
+            native
+                ? effortNote
+                : '$effortNote\n« $model » n\'a pas de réglage natif : l\'effort '
+                      'ajuste sa consigne et la longueur de ses réponses.',
+            style: tt.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Choisit l'effort. Rend `null` si l'utilisateur annule.
+Future<ThinkLevel?> pickLevel(
+  BuildContext context, {
+  required ThinkLevel current,
+  ProviderDef? provider,
+  String? model,
+  String title = 'Effort',
+}) {
+  return showModalBottomSheet<ThinkLevel>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (context) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          EffortList(
+            current: current,
+            provider: provider,
+            model: model,
+            onPicked: (l) => Navigator.pop(context, l),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Cinq barres, comme un indicateur de réseau : l'effort en un coup d'œil.
 class LevelBars extends StatelessWidget {
   const LevelBars({super.key, required this.level, required this.color});
 
@@ -142,12 +220,11 @@ class LevelBars extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        for (var i = 0; i < 4; i++)
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
+        for (var i = 0; i < ThinkLevel.values.length; i++)
+          Container(
             margin: const EdgeInsets.only(right: 2),
-            width: 4,
-            height: 5.0 + i * 3,
+            width: 3.5,
+            height: 4.0 + i * 2.5,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(2),
               color: i <= level.index ? color : color.withValues(alpha: 0.2),
@@ -158,7 +235,7 @@ class LevelBars extends StatelessWidget {
   }
 }
 
-/// La puce du niveau, dans une conversation ou un agent.
+/// La puce de l'effort, dans un agent ou une session.
 class LevelChip extends StatelessWidget {
   const LevelChip({
     super.key,
@@ -177,7 +254,7 @@ class LevelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     return Tooltip(
-      message: 'Niveau de réflexion',
+      message: 'Effort',
       child: ActionChip(
         avatar: LevelBars(level: level, color: accent),
         label: Text(level.label),

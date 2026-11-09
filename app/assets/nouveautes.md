@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.3 — 9 novembre 2026 — Modèle et effort comme dans Claude
+- Dans chaque conversation, un bouton « Opus 5.5 · Élevé » au-dessus de la saisie ouvre « Sélectionner un modèle » : les modèles principaux avec leur description, l'effort, et « Plus de modèles ».
+- Cinq niveaux d'effort, comme Claude : Faible, Moyen (recommandé), Élevé, Extra et Max (utilisation 3,5× ou plus).
+- Les noms lisibles des modèles partout (« Opus 5.5 » plutôt que claude-opus-5-5).
+- Corrections et vérification complète de l'app.
+
 ## 2.2.2 — 9 novembre 2026 — Moins d'erreurs, arrière-plan fiable, tout relire
 - L'agent ne s'arrête plus sur un fichier absent ou un dépôt vide : il propose les chemins proches et peut créer le premier commit d'un dépôt neuf.
 - Arrière-plan sur iPhone : la progression avance en continu pour qu'iOS ne coupe plus la tâche, et la session indique si iOS la suit.
