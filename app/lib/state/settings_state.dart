@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.5';
+const String currentVersion = '2.2.6';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
@@ -123,6 +123,45 @@ class SettingsState extends ChangeNotifier {
   /// Touche Entrée pour envoyer (clavier physique, web, tablette).
   bool sendOnEnter = false;
 
+  // —— Voix ————————————————————————————————————————————————————
+  /// Lire toutes les réponses à voix haute (sinon : seulement si vous avez parlé
+  /// ou si vous le demandez).
+  bool speakReplies = false;
+
+  /// Conversation vocale : après la réponse lue, l'app écoute de nouveau.
+  bool voiceConversation = true;
+
+  /// Envoyer le message dès la fin de la dictée.
+  bool voiceAutoSend = true;
+
+  /// Vitesse de lecture (0.3 lente → 0.7 rapide).
+  double voiceRate = 0.5;
+
+  Future<void> setVoice({
+    bool? speak,
+    bool? conversation,
+    bool? autoSend,
+    double? rate,
+  }) async {
+    if (speak != null) {
+      speakReplies = speak;
+      await storage.setBool('voice_speak', speak);
+    }
+    if (conversation != null) {
+      voiceConversation = conversation;
+      await storage.setBool('voice_conversation', conversation);
+    }
+    if (autoSend != null) {
+      voiceAutoSend = autoSend;
+      await storage.setBool('voice_autosend', autoSend);
+    }
+    if (rate != null) {
+      voiceRate = rate;
+      await storage.setDouble('voice_rate', rate);
+    }
+    notifyListeners();
+  }
+
   /// Mémoire envoyée au modèle, en tokens (0 = toute la conversation).
   int contextTokens = 32000;
 
@@ -187,6 +226,10 @@ class SettingsState extends ChangeNotifier {
     sendOnEnter = storage.getBool('send_on_enter');
     assistantName = storage.getString('assistant_name') ?? 'NEXORA';
     contextTokens = storage.getInt('context_tokens', fallback: 32000);
+    speakReplies = storage.getBool('voice_speak');
+    voiceConversation = storage.getBool('voice_conversation', fallback: true);
+    voiceAutoSend = storage.getBool('voice_autosend', fallback: true);
+    voiceRate = storage.getDouble('voice_rate', fallback: 0.5);
     customInstructions = storage.getBool('custom_instructions');
     aboutMe = storage.getString('about_me') ?? '';
     responseStyle = storage.getString('response_style') ?? '';
