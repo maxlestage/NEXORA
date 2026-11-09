@@ -143,6 +143,8 @@ void main() {
         503,
         503,
         503,
+        act('finish', {'summary': 'Rien à faire'}),
+        // Terminer sans aucune action est refusé une fois : l'agent confirme.
         act('finish', {'summary': 'OK après coupure'}),
       ]),
     );

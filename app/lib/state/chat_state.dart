@@ -21,6 +21,14 @@ import 'usage_state.dart';
 /// (les messages le sont à l'ouverture), chaque conversation est enregistrée seule,
 /// l'écran est rafraîchi au plus ~15 fois par seconde pendant une réponse, et seuls
 /// les messages récents sont renvoyés au modèle (mémoire réglable).
+/// Rappel donné à chaque réponse du chat : la demande de l'utilisateur d'abord.
+const followRequests =
+    'Fais exactement ce que l\'utilisateur demande dans son dernier message, '
+    'dans la forme demandée (longueur, format, langue, code complet ou non…). '
+    'Ne remplace pas sa demande par une autre, ne change pas de sujet, et '
+    'n\'ajoute rien qu\'il n\'a pas demandé. Si quelque chose t\'en empêche, '
+    'dis-le clairement au lieu de faire autre chose.';
+
 class ChatState extends ChangeNotifier {
   ChatState(
     this.storage,
@@ -444,6 +452,7 @@ class ChatState extends ChangeNotifier {
       if (level.hint.isNotEmpty) level.hint,
       if (context != null && context.isNotEmpty) context,
       ..._skillsPrompt(c, round),
+      followRequests,
     ].where((p) => p.trim().isNotEmpty).join('\n\n');
     var tokens = const TokenUsage(0, 0);
     var failed = false;

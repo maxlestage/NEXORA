@@ -146,10 +146,15 @@ void main() {
     final done = run.run();
     gate.complete();
     await done;
-    expect(calls, 2);
-    expect(run.summary, 'fini 2');
+    // Fini sans rien faire pour l'instruction : l'agent est relancé une fois.
+    expect(calls, 3);
+    expect(run.summary, 'fini 3');
     expect(
-      run.history.where((m) => m.content.contains('Ajoute un README')),
+      run.history.where(
+        (m) =>
+            m.content.startsWith('NOUVELLE INSTRUCTION') &&
+            m.content.contains('Ajoute un README'),
+      ),
       hasLength(1),
     );
   });

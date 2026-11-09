@@ -32,7 +32,9 @@ const Map<String, String> agentTools = {
       'puis le contenu complet dans un bloc de code juste après le JSON. Pour '
       'changer une partie d\'un fichier existant, utilise edit_file.',
   'delete_file': 'Supprime un fichier. args: {"path": "..."}',
-  'finish': 'Termine. args: {"summary": "ce qui a été fait", "commit_message": "..."}',
+  'finish':
+      'Termine. args: {"summary": "pour chaque demande de l\'utilisateur, ce '
+      'qui a été fait (ou pourquoi c\'est impossible)", "commit_message": "..."}',
 };
 
 enum StepKind { thought, tool, result, error, done, user }
@@ -421,6 +423,41 @@ class AgentRun extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Les demandes de l'utilisateur, dans l'ordre : la mission puis chaque
+  /// instruction envoyée ensuite (pendant ou après le travail).
+  List<String> get requests => [
+    task,
+    for (final s in steps)
+      if (s.kind == StepKind.user && s.text.trim().isNotEmpty) s.text.trim(),
+  ];
+
+  /// Les demandes, redonnées à l'agent à CHAQUE étape (dans ses instructions) :
+  /// elles ne se perdent jamais dans un long historique, et la dernière prime.
+  String get _requestsPrompt {
+    final r = requests;
+    final list = r.length == 1
+        ? '« ${r.first} »'
+        : [
+            for (final (i, t) in r.indexed)
+              '${i + 1}. « $t »${i == r.length - 1 ? '  ← la plus récente' : ''}',
+          ].join('\n');
+    return 'DEMANDES DE L\'UTILISATEUR (ta seule mission) :\n$list\n\n'
+        'Règles absolues :\n'
+        '- Fais EXACTEMENT ce qui est demandé : rien de moins, et rien de plus. '
+        'Pas d\'« améliorations » ni de refonte non demandées, pas d\'autre '
+        'fichier ou fonctionnalité que ceux qu\'il faut pour la demande.\n'
+        '- Ne remplace jamais une demande par ce que tu crois mieux. Si tu penses '
+        'qu\'autre chose serait utile, propose-le dans le résumé de finish, sans '
+        'le faire.\n'
+        '- Respecte les détails donnés (textes, couleurs, noms, fichiers, valeurs) '
+        'au mot près.\n'
+        '- Si deux demandes se contredisent, la plus récente l\'emporte.\n'
+        '- Une demande impossible ou ambiguë : n\'invente pas autre chose, explique '
+        'le blocage dans finish.\n'
+        '- Avant finish, vérifie demande par demande qu\'elle est faite (relis les '
+        'passages modifiés si besoin).';
+  }
+
   String get _system {
     // Les noms d'outils de Claude Code (Read, Edit, Grep…) valent ceux de NEXORA.
     const aliases = {
@@ -495,6 +532,8 @@ class AgentRun extends ChangeNotifier {
           'le modifier. Fais des '
           'changements minimes et cohérents. Quand la tâche est faite, appelle '
           'finish avec un résumé et un message de commit court en français.',
+      // En dernier : ce que l'utilisateur veut, toujours sous les yeux du modèle.
+      _requestsPrompt,
     ].join('\n\n');
   }
 
@@ -552,7 +591,8 @@ class AgentRun extends ChangeNotifier {
   void _readInbox() {
     if (_inbox.isEmpty) return;
     final note =
-        'Instruction de l\'utilisateur pendant ton travail : ${_inbox.join('\n')}';
+        'NOUVELLE INSTRUCTION DE L\'UTILISATEUR (prioritaire, à appliquer '
+        'maintenant, avant de continuer) : ${_inbox.join('\n')}';
     _inbox.clear();
     // Un message à part : il n'est jamais raccourci avec les résultats d'outils.
     history.add(LlmMessage('user', note));
@@ -585,8 +625,9 @@ class AgentRun extends ChangeNotifier {
     } else if (followUp != null && followUp.trim().isNotEmpty) {
       _add(AgentStep(StepKind.user, followUp.trim()));
       final note =
-          'Nouvelle instruction de l\'utilisateur (même session, les brouillons '
-          'en cours sont gardés) : ${followUp.trim()}';
+          'NOUVELLE INSTRUCTION DE L\'UTILISATEUR (même session, les brouillons '
+          'en cours sont gardés). Fais-la maintenant, exactement comme demandé : '
+          '${followUp.trim()}';
       // Un message à part (réuni au précédent à l'envoi si besoin), jamais
       // raccourci avec les résultats d'outils.
       history.add(LlmMessage('user', note));
@@ -597,8 +638,16 @@ class AgentRun extends ChangeNotifier {
     try {
       // Une instruction arrivée pendant le dernier tour (ou après « finish ») relance
       // le travail au lieu d'être oubliée.
+      // Le nombre d'actions faites depuis la dernière demande : terminer sans
+      // avoir rien fait pour elle est refusé une fois.
+      var actsSince = 0;
+      var nudged = false;
       do {
         for (var i = 0; i < maxSteps && !_stop; i++) {
+          if (_inbox.isNotEmpty) {
+            actsSince = 0;
+            nudged = false;
+          }
           _readInbox();
           final reply = await _ask(history);
           if (reply == null || _stop) break;
@@ -619,12 +668,27 @@ class AgentRun extends ChangeNotifier {
             _add(AgentStep(StepKind.thought, calls.first.thought));
           }
           final work = calls.where((c) => c.tool != 'finish').toList();
+          actsSince += work.length;
           final results = await _execAll(work);
           if (results.isNotEmpty) {
             history.add(LlmMessage('user', results.join('\n\n')));
             compactHistory(history);
           }
           final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
+          if (finish != null && actsSince == 0 && !nudged && _inbox.isEmpty) {
+            nudged = true;
+            history.add(
+              LlmMessage(
+                'user',
+                'Tu termines sans avoir rien fait pour la dernière demande : '
+                    '« ${requests.last} ». Si elle demande un changement, fais-le '
+                    'maintenant (lis puis modifie les fichiers concernés). Si c\'est '
+                    'une simple question, ou si c\'est déjà fait, rappelle finish en '
+                    'l\'expliquant précisément.',
+              ),
+            );
+            continue;
+          }
           if (finish != null) {
             summary = (finish.args['summary'] ?? '').toString();
             commitMessage = (finish.args['commit_message'] ?? task)
