@@ -38,7 +38,7 @@ class Agent {
   /// `fournisseur::modèle` préféré (facultatif).
   String? model;
 
-  /// Niveau de réflexion préféré (`rapide`, `equilibre`, `approfondi`, `maximum`).
+  /// Effort préféré (`faible`, `moyen`, `eleve`, `extra`, `max`).
   String? level;
 
   /// Outils autorisés en mode autonome (vide : tous).

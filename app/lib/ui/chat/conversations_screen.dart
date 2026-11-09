@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
 import '../widgets/quota_badge.dart';
+import '../widgets/model_sheet.dart';
 import 'chat_screen.dart';
 
 const _starters = [
@@ -115,7 +116,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${provider?.emoji ?? ''} ${current.model} · '
+                          '${provider?.emoji ?? ''} ${modelDisplayName(settings, current)} · '
                           '${settings.readyProviders.length} fournisseurs prêts',
                           style: tt.bodySmall?.copyWith(
                             color: Theme.of(context)

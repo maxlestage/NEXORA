@@ -15,8 +15,7 @@ import '../github/create_repo.dart';
 import '../github/repo_picker.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
-import '../widgets/level_picker.dart';
-import '../widgets/model_picker.dart';
+import '../widgets/model_sheet.dart';
 import '../widgets/nexus_orb.dart';
 import '../widgets/quota_badge.dart';
 import 'session_screen.dart';
@@ -208,18 +207,14 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              ModelChip(
+              ModelEffortButton(
                 current: ref,
-                onPicked: (r) => setState(() => _model = r),
-              ),
-              QuotaBadge(providerId: ref.providerId),
-              LevelChip(
                 level:
                     _level ?? ThinkLevel.parse(_agent?.level) ?? s.defaultLevel,
-                provider: s.provider(ref.providerId),
-                model: ref.model,
-                onPicked: (l) => setState(() => _level = l),
+                onModel: (r) => setState(() => _model = r),
+                onLevel: (l) => setState(() => _level = l),
               ),
+              QuotaBadge(providerId: ref.providerId),
               ActionChip(
                 avatar: Text(_agent?.emoji ?? '🤖'),
                 label: Text(_agent?.name ?? 'Agent généraliste'),

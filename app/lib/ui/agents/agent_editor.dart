@@ -144,7 +144,7 @@ class _AgentEditorState extends State<AgentEditor> {
                 ),
             ],
           ),
-          const SectionTitle('Niveau de réflexion'),
+          const SectionTitle('Effort'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
