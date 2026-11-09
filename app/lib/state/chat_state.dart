@@ -60,7 +60,7 @@ class ChatState extends ChangeNotifier {
     _conversations.addAll(await _store.loadIndex());
     await _migrate();
     loading = false;
-    notifyListeners();
+    _notifyAll();
   }
 
   /// Anciennes versions : toutes les conversations dans une seule préférence.
@@ -108,7 +108,7 @@ class ChatState extends ChangeNotifier {
       ..clear()
       ..addAll(messages);
     c.loaded = true;
-    notifyListeners();
+    _notifyAll();
   }
 
   /// Libère la mémoire des conversations fermées (garde l'index).
@@ -125,35 +125,59 @@ class ChatState extends ChangeNotifier {
     if (i >= 0) _conversations[i] = replacement;
   }
 
-  /// Rafraîchit l'écran au plus une fois par image de [_frame].
-  void _notifySoon() {
-    _notifyTimer ??= Timer(_frame, () {
+  /// Rafraîchit l'écran au plus une fois par image de [_frame] ; un peu moins
+  /// souvent pour les très longues réponses (le Markdown est relu à chaque fois).
+  void _notifySoon([int length = 0]) {
+    final frame = length < 3000
+        ? _frame
+        : length < 12000
+        ? const Duration(milliseconds: 150)
+        : const Duration(milliseconds: 300);
+    _notifyTimer ??= Timer(frame, () {
       _notifyTimer = null;
       notifyListeners();
     });
   }
 
+  /// Change quand la liste des conversations doit être redessinée (titres, ordre,
+  /// réponses en cours) — pas à chaque morceau de réponse.
+  int listRevision = 0;
+
+  void _notifyAll() {
+    listRevision++;
+    notifyListeners();
+  }
+
   void _changed(Conversation c, {bool now = false}) {
-    _saveTimers.remove(c.id)?.cancel();
     if (now) {
+      _saveTimers.remove(c.id)?.cancel();
       _store.save(c);
-    } else {
-      _saveTimers[c.id] = Timer(_saveDelay, () {
-        _saveTimers.remove(c.id);
-        _store.save(c);
+      _indexTimer?.cancel();
+      _indexTimer = Timer(Duration.zero, () {
+        _indexTimer = null;
+        _store.saveIndex(_conversations);
       });
+      return;
     }
-    _indexTimer?.cancel();
-    _indexTimer = Timer(
-      now ? Duration.zero : _saveDelay,
-      () => _store.saveIndex(_conversations),
-    );
+    // Pendant une réponse : au plus un enregistrement toutes les 2 s (pas un
+    // nouveau minuteur à chaque morceau de texte).
+    _saveTimers[c.id] ??= Timer(_saveDelay, () {
+      _saveTimers.remove(c.id);
+      _store.save(c);
+    });
+    _indexTimer ??= Timer(_saveDelay, () {
+      _indexTimer = null;
+      _store.saveIndex(_conversations);
+    });
   }
 
   void _metaChanged() {
     _indexTimer?.cancel();
-    _indexTimer = Timer(Duration.zero, () => _store.saveIndex(_conversations));
-    notifyListeners();
+    _indexTimer = Timer(Duration.zero, () {
+      _indexTimer = null;
+      _store.saveIndex(_conversations);
+    });
+    _notifyAll();
   }
 
   Conversation create({String? model, String? agentId}) {
@@ -185,7 +209,7 @@ class ChatState extends ChangeNotifier {
     _saveTimers.clear();
     _conversations.clear();
     _store.deleteAll();
-    notifyListeners();
+    _notifyAll();
   }
 
   /// Supprime les conversations non épinglées sans activité depuis [days] jours.
@@ -225,7 +249,7 @@ class ChatState extends ChangeNotifier {
       ..loaded = true
       ..trimmed = 0;
     _changed(c, now: true);
-    notifyListeners();
+    _notifyAll();
   }
 
   void togglePin(String id) {
@@ -260,7 +284,8 @@ class ChatState extends ChangeNotifier {
   /// Envoie `text` et lance la réponse en flux.
   void send(String id, String text, {Agent? agent, String? context}) {
     final c = byId(id);
-    if (c == null || !c.loaded || text.trim().isEmpty) return;
+    // Une seule réponse à la fois par conversation (Entrée pendant une réponse).
+    if (c == null || !c.loaded || text.trim().isEmpty || isRunning(id)) return;
     c.messages.add(ChatMessage(role: Role.user, content: text.trim()));
     if (c.messages.where((m) => m.role == Role.user).length == 1) {
       c.title = _quickTitle(text);
@@ -295,7 +320,7 @@ class ChatState extends ChangeNotifier {
     BackgroundWork.instance.release('chat:$id');
     final c = byId(id);
     if (c != null) _changed(c, now: true);
-    notifyListeners();
+    _notifyAll();
   }
 
   /// Les messages envoyés au modèle : les plus récents, dans la limite de la
@@ -336,7 +361,7 @@ class ChatState extends ChangeNotifier {
     c.trimmed = dropped;
     c.messages.add(answer);
     c.updated = DateTime.now();
-    notifyListeners();
+    _notifyAll();
 
     BackgroundWork.instance.hold(
       'chat:${c.id}',
@@ -386,7 +411,7 @@ class ChatState extends ChangeNotifier {
             if (d.usage != null) tokens = tokens + d.usage!;
             if (_notifyTimer == null) {
               flush();
-              _notifySoon();
+              _notifySoon(text.length);
             }
             _changed(c);
           },
@@ -448,7 +473,7 @@ class ChatState extends ChangeNotifier {
             }
             c.updated = DateTime.now();
             _changed(c, now: true);
-            notifyListeners();
+            _notifyAll();
           },
           cancelOnError: false,
         );

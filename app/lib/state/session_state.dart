@@ -94,12 +94,25 @@ class SessionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  final Map<String, VoidCallback> _listeners = {};
+
   void _attach(AgentRun run) {
     _sessions.add(run);
-    run.addListener(() => _changed(run));
+    void listener() => _changed(run);
+    _listeners[run.id] = listener;
+    run.addListener(listener);
+  }
+
+  void _detach(AgentRun run) {
+    final l = _listeners.remove(run.id);
+    if (l != null) run.removeListener(l);
+    _saveTimers.remove(run.id)?.cancel();
+    background.release('session:${run.id}');
   }
 
   void _changed(AgentRun run) {
+    // Une session supprimée ne doit plus être enregistrée (elle reviendrait).
+    if (!_sessions.contains(run)) return;
     notifyListeners();
     _background(run);
     // Enregistrée au plus toutes les 1,5 s pendant le travail, tout de suite après.
@@ -214,9 +227,9 @@ class SessionState extends ChangeNotifier {
   void delete(String id) {
     final run = byId(id);
     if (run == null) return;
-    run.stop();
-    _saveTimers.remove(id)?.cancel();
     _sessions.remove(run);
+    _detach(run);
+    run.stop();
     _store.delete(id);
     notifyListeners();
   }
@@ -229,6 +242,7 @@ class SessionState extends ChangeNotifier {
         .toList();
     for (final s in old) {
       _sessions.remove(s);
+      _detach(s);
       _store.delete(s.id);
     }
   }

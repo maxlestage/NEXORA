@@ -3,6 +3,14 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.4 — 9 novembre 2026 — Vérification complète : plus fiable et plus fluide
+- Enregistrements à l'abri : deux sauvegardes rapprochées ne peuvent plus abîmer les conversations ou les sessions.
+- Sessions sur plusieurs dépôts : un dépôt sans pull request n'est plus jamais modifié directement, et un envoi interrompu reprend proprement.
+- « Arrêter » arrête l'agent tout de suite, et une session supprimée ne revient plus.
+- Les instructions envoyées pendant le travail ne sont plus jamais oubliées.
+- Chat : une seule réponse à la fois, on peut remonter librement pendant qu'elle s'écrit, et les très longues réponses restent fluides.
+- Arrière-plan : nouvelle demande de temps à chaque sortie de l'app sur iPhone, et arrêt fiable de la notification sur Android.
+
 ## 2.2.3 — 9 novembre 2026 — Modèle et effort comme dans Claude
 - Dans chaque conversation, un bouton « Opus 5.5 · Élevé » au-dessus de la saisie ouvre « Sélectionner un modèle » : les modèles principaux avec leur description, l'effort, et « Plus de modèles ».
 - Cinq niveaux d'effort, comme Claude : Faible, Moyen (recommandé), Élevé, Extra et Max (utilisation 3,5× ou plus).
