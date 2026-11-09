@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.5 — 9 novembre 2026 — Skills, sous-agents, commandes et plugins
+- Agents → Bibliothèque : installez en quelques gestes des sous-agents, des skills, des commandes et des plugins depuis GitHub, au format de Claude Code, avec des sources recommandées (skills officielles d'Anthropic, plugins de Claude Code, Superpowers, agents spécialistes…).
+- Les skills se chargent seulement quand elles servent : l'assistant voit leur nom et leur description, et demande celle qui l'aide. Une skill peut aussi être « toujours » active.
+- Dans le chat, @nom confie un message à un sous-agent spécialiste, et /commande lance une commande, avec des suggestions pendant la saisie.
+- Dans les sessions, l'agent peut charger une skill et déléguer une sous-tâche à un sous-agent, qui travaille à part et rend un rapport.
+
 ## 2.2.4 — 9 novembre 2026 — Vérification complète : plus fiable et plus fluide
 - Enregistrements à l'abri : deux sauvegardes rapprochées ne peuvent plus abîmer les conversations ou les sessions.
 - Sessions sur plusieurs dépôts : un dépôt sans pull request n'est plus jamais modifié directement, et un envoi interrompu reprend proprement.

@@ -67,6 +67,7 @@ class NexoraApp extends StatelessWidget {
             c.read<SettingsState>(),
             client,
             usage: c.read<UsageState>(),
+            agents: c.read<AgentState>(),
             store: conversationStore,
           ),
           update: (_, s, chat) => chat!,

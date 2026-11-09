@@ -15,6 +15,9 @@ class ChatMessage {
     this.tokensOut = 0,
     this.cost,
     this.estimated = false,
+    this.by,
+    this.skills = const [],
+    this.command,
   }) : at = at ?? DateTime.now();
 
   final Role role;
@@ -35,6 +38,15 @@ class ChatMessage {
   double? cost;
   bool estimated;
 
+  /// Le sous-agent qui a répondu (`@nom`), affiché à la place du modèle.
+  final String? by;
+
+  /// Les skills chargées pour cette réponse.
+  final List<String> skills;
+
+  /// La commande tapée (`/nom arguments`), pour un message de l'utilisateur.
+  final String? command;
+
   Map<String, dynamic> toJson() => {
     'role': role.name,
     'content': content,
@@ -46,6 +58,9 @@ class ChatMessage {
     if (tokensOut > 0) 'tout': tokensOut,
     if (cost != null) 'cost': cost,
     if (estimated) 'est': true,
+    if (by != null) 'by': by,
+    if (skills.isNotEmpty) 'skills': skills,
+    if (command != null) 'cmd': command,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
@@ -62,6 +77,9 @@ class ChatMessage {
     tokensOut: j['tout'] as int? ?? 0,
     cost: (j['cost'] as num?)?.toDouble(),
     estimated: j['est'] as bool? ?? false,
+    by: j['by'] as String?,
+    skills: (j['skills'] as List?)?.cast<String>() ?? const [],
+    command: j['cmd'] as String?,
   );
 }
 
@@ -72,6 +90,7 @@ class Conversation {
     this.model,
     this.agentId,
     this.level,
+    List<String>? skills,
     List<ChatMessage>? messages,
     DateTime? updated,
     this.pinned = false,
@@ -79,6 +98,7 @@ class Conversation {
     String preview = '',
     int messageCount = 0,
   }) : messages = messages ?? [],
+       skills = skills ?? [],
        updated = updated ?? DateTime.now(),
        storedPreview = preview,
        storedCount = messageCount;
@@ -94,6 +114,9 @@ class Conversation {
 
   /// Le niveau de réflexion choisi pour cette conversation (`ThinkLevel.name`).
   String? level;
+
+  /// Les skills chargées dans cette conversation (gardées pour la suite).
+  final List<String> skills;
   final List<ChatMessage> messages;
   DateTime updated;
   bool pinned;
@@ -131,6 +154,7 @@ class Conversation {
     'model': model,
     'agentId': agentId,
     'level': level,
+    if (skills.isNotEmpty) 'skills': skills,
     'updated': updated.toIso8601String(),
     'pinned': pinned,
     'preview': preview,
@@ -143,6 +167,7 @@ class Conversation {
     model: j['model'] as String?,
     agentId: j['agentId'] as String?,
     level: j['level'] as String?,
+    skills: (j['skills'] as List?)?.cast<String>().toList(),
     updated: DateTime.tryParse(j['updated'] as String? ?? ''),
     pinned: j['pinned'] as bool? ?? false,
     loaded: false,
@@ -156,6 +181,7 @@ class Conversation {
     'model': model,
     'agentId': agentId,
     'level': level,
+    if (skills.isNotEmpty) 'skills': skills,
     'updated': updated.toIso8601String(),
     'pinned': pinned,
     'messages': messages.map((m) => m.toJson()).toList(),
@@ -167,6 +193,7 @@ class Conversation {
     model: j['model'] as String?,
     agentId: j['agentId'] as String?,
     level: j['level'] as String?,
+    skills: (j['skills'] as List?)?.cast<String>().toList(),
     updated: DateTime.tryParse(j['updated'] as String? ?? ''),
     pinned: j['pinned'] as bool? ?? false,
     messages: ((j['messages'] as List?) ?? const [])
