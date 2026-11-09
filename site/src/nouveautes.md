@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.11 — 9 novembre 2026 — Votre demande, au tout début
+- Votre demande est la toute première chose que l'agent lit, avant ses outils et ses consignes, et elle lui est redonnée à la fin de chaque étape.
+- Au tout début de la session, avant de toucher à quoi que ce soit, l'agent se redit votre demande point par point. Il le refait après chaque nouvelle instruction.
+- Ce qu'il a compris s'affiche dans un encadré « Ce que l'agent a compris de votre demande » : s'il se trompe, vous le voyez avant qu'il ne travaille.
+- Les rappels reprennent toujours votre demande de départ en entier, puis vos instructions suivantes.
+
 ## 2.2.10 — 9 novembre 2026 — L'agent se répète votre demande à chaque étape
 - Avant chaque action, l'agent se répète ce que vous lui avez demandé, avec vos mots, puis explique en quoi l'action y répond.
 - Cette demande s'affiche dans la session (🎯) à chaque étape : vous voyez tout de suite s'il a bien compris.
