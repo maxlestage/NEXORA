@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.11';
+const String currentVersion = '2.2.12';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
@@ -26,7 +26,7 @@ class SettingsState extends ChangeNotifier {
     _loadCatalog();
   }
 
-  /// Les derniers modèles de chaque fournisseur (internet, mis à jour chaque jour).
+  /// Les derniers modèles de chaque fournisseur (internet, mis à jour toutes les 6 heures).
   ModelCatalog catalog = ModelCatalog.empty;
 
   Future<void> _loadCatalog() async {
@@ -47,7 +47,7 @@ class SettingsState extends ChangeNotifier {
     unawaited(refreshCatalog());
   }
 
-  /// Relit le catalogue sur le site (au plus une fois toutes les 20 h, sauf `force`).
+  /// Relit le catalogue sur le site (au plus une fois toutes les 6 h, sauf `force`).
   /// Rend vrai si une nouvelle version a été chargée.
   Future<bool> refreshCatalog({bool force = false}) async {
     if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
@@ -56,9 +56,7 @@ class SettingsState extends ChangeNotifier {
     final last = DateTime.tryParse(
       storage.getString('models_catalog_at') ?? '',
     );
-    if (!force &&
-        last != null &&
-        DateTime.now().difference(last).inHours < 20) {
+    if (!force && last != null && DateTime.now().difference(last).inHours < 6) {
       return false;
     }
     try {

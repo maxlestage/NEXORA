@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.12 — 9 novembre 2026 — Les tout derniers modèles, toutes les 6 heures
+- Le catalogue des modèles est mis à jour toutes les 6 heures au lieu d'une fois par jour, et l'app le relit aussi toutes les 6 heures.
+- Nouvelle source en direct : la liste d'OpenRouter, souvent à jour le jour même d'une sortie. Elle repère les nouveaux modèles d'Anthropic, OpenAI, Google et xAI avant les autres bases.
+- Catalogue rafraîchi aujourd'hui : Claude Fable 5.2 (sorti aujourd'hui), GPT-6.1 Terra et Terra Pro, GPT-6.1 Sol Pro, Gemini 4 Argon, Grok 4.7, Kimi K3.1 Pro, DeepSeek V4.1 Flash, MiniMax M3.1 Flash, Mistral Large 4…
+
 ## 2.2.11 — 9 novembre 2026 — Votre demande, au tout début
 - Votre demande est la toute première chose que l'agent lit, avant ses outils et ses consignes, et elle lui est redonnée à la fin de chaque étape.
 - Au tout début de la session, avant de toucher à quoi que ce soit, l'agent se redit votre demande point par point. Il le refait après chaque nouvelle instruction.

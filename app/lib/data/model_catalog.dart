@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'model_prices.dart';
 
-/// Le catalogue des derniers modèles, tiré d'internet chaque jour (models.dev) par
-/// `.github/scripts/update_models.py`. Livré avec l'app (assets/models.json) et relu
-/// sur le site une fois par jour.
+/// Le catalogue des derniers modèles, tiré d'internet toutes les 6 heures (models.dev
+/// et la liste en direct d'OpenRouter) par `.github/scripts/update_models.py`. Livré
+/// avec l'app (assets/models.json) et relu sur le site toutes les 6 heures.
 const catalogUrl = 'https://maxlestage.github.io/NEXORA/models.json';
 
 class CatalogModel {
