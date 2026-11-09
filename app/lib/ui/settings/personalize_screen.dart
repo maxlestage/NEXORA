@@ -173,7 +173,7 @@ class PersonalizeScreen extends StatelessWidget {
             child: Column(
               children: [
                 ListTile(
-                  title: const Text('Niveau de réflexion par défaut'),
+                  title: const Text('Effort par défaut'),
                   subtitle: Text(
                     '${s.defaultLevel.emoji} ${s.defaultLevel.label} · '
                     '${s.defaultLevel.description}',
@@ -186,7 +186,7 @@ class PersonalizeScreen extends StatelessWidget {
                     final l = await pickLevel(
                       context,
                       current: s.defaultLevel,
-                      title: 'Niveau par défaut',
+                      title: 'Effort par défaut',
                     );
                     if (l != null) s.setDefaultLevel(l);
                   },

@@ -62,9 +62,13 @@ Map<String, dynamic> reasoningParams(
       final minor = int.tryParse(v.group(2) ?? '') ?? 0;
       // Effort et réflexion adaptative : Claude 4.6 et suivants.
       if (major < 4 || (major == 4 && minor < 6)) return const {};
+      // « Extra » (xhigh) existe depuis Opus 4.7 : Claude 4.6 passe à « high ».
+      final effort = l == ThinkLevel.extra && major == 4 && minor == 6
+          ? 'high'
+          : l.anthropic;
       return {
         'thinking': {'type': 'adaptive', 'display': 'summarized'},
-        'output_config': {'effort': l.anthropic},
+        'output_config': {'effort': effort},
       };
     case ApiKind.ollama:
       if (m.contains('gpt-oss')) return {'think': l.openai};
@@ -74,7 +78,7 @@ Map<String, dynamic> reasoningParams(
         r'mistral-large-4|gemma4',
       );
       if (!thinks.hasMatch(m)) return const {};
-      return {'think': l != ThinkLevel.rapide};
+      return {'think': l != ThinkLevel.faible};
     case ApiKind.openai:
       if (p.id == 'openrouter') {
         return {
@@ -94,7 +98,7 @@ Map<String, dynamic> reasoningParams(
         case 'groq':
           return m.contains('qwen3')
               ? {
-                  'reasoning_effort': l == ThinkLevel.rapide
+                  'reasoning_effort': l == ThinkLevel.faible
                       ? 'none'
                       : 'default',
                 }
@@ -102,7 +106,7 @@ Map<String, dynamic> reasoningParams(
         case 'xai':
           return m.contains('grok-3-mini')
               ? {
-                  'reasoning_effort': l.index >= ThinkLevel.approfondi.index
+                  'reasoning_effort': l.index >= ThinkLevel.eleve.index
                       ? 'high'
                       : 'low',
                 }

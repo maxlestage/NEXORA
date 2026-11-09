@@ -94,7 +94,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Couleurs, thème, texte, animations, niveau de réflexion, '
+                        'Couleurs, thème, texte, animations, effort, '
                         'messages, assistant, onglets…',
                         style: tt.bodySmall,
                       ),
