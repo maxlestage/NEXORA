@@ -539,11 +539,25 @@ class _MessageTile extends StatelessWidget {
         child: GestureDetector(
           onLongPress: () => copyText(context, m.content),
           onDoubleTap: onEdit,
-          child: _UserBubble(
-            dark: dark,
-            text: m.content.length > 4000
-                ? '${m.content.substring(0, 4000)}…'
-                : m.content,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _UserBubble(
+                dark: dark,
+                text: m.content.length > 4000
+                    ? '${m.content.substring(0, 4000)}…'
+                    : m.content,
+              ),
+              // Les longs messages (fichiers joints) : tout le texte, à relire
+              // ou copier.
+              if (m.content.length > 4000)
+                TextButton.icon(
+                  onPressed: () =>
+                      showFullText(context, 'Votre message', m.content),
+                  icon: const Icon(Icons.unfold_more, size: 18),
+                  label: Text('Afficher tout (${m.content.length} caractères)'),
+                ),
+            ],
           ),
         ),
       );
@@ -986,6 +1000,42 @@ class _ErrorCard extends StatelessWidget {
 }
 
 /// Un message envoyé, dans le style choisi (Réglages → Personnaliser).
+/// Un texte entier, sélectionnable et copiable, en plein écran.
+Future<void> showFullText(BuildContext context, String title, String text) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (context) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.9,
+      maxChildSize: 0.95,
+      builder: (context, scroll) => Column(
+        children: [
+          ListTile(
+            title: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            trailing: IconButton(
+              tooltip: 'Copier',
+              icon: const Icon(Icons.copy_rounded),
+              onPressed: () => copyText(context, text),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: scroll,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              child: SelectableText(text),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _UserBubble extends StatelessWidget {
   const _UserBubble({required this.dark, required this.text});
 

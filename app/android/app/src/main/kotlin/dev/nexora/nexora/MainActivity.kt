@@ -41,6 +41,12 @@ class MainActivity : FlutterActivity() {
                             WorkService.current?.finish()
                             result.success(true)
                         }
+                        "status" -> result.success(
+                            mapOf(
+                                "mode" to if (WorkService.current != null) "service" else "idle",
+                                "error" to "",
+                            ),
+                        )
                         "notify" -> {
                             Notifs.done(this, title, text)
                             result.success(true)

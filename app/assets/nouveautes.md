@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.2 — 9 novembre 2026 — Moins d'erreurs, arrière-plan fiable, tout relire
+- L'agent ne s'arrête plus sur un fichier absent ou un dépôt vide : il propose les chemins proches et peut créer le premier commit d'un dépôt neuf.
+- Arrière-plan sur iPhone : la progression avance en continu pour qu'iOS ne coupe plus la tâche, et la session indique si iOS la suit.
+- La mission complète s'affiche en tête de chaque session ; un appui long sur une étape l'ouvre en entier pour la relire ou la copier, et les longs messages du chat s'affichent en entier.
+- Vous pouvez écrire à l'agent pendant qu'il travaille : l'instruction est prise en compte au tour suivant.
+
 ## 2.2.1 — 9 novembre 2026 — Tout à jour
 - Construite avec Xcode 27 et le SDK d'iOS 27, et toujours compatible à partir d'iOS 15.
 - Flutter 3.47.9 et Dart 3.13, avec les dernières versions de toutes les bibliothèques de l'app.

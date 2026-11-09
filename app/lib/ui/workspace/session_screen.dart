@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/agent_runner.dart';
 import '../../state/session_state.dart';
 import '../theme.dart';
+import '../chat/chat_screen.dart' show showFullText;
+import '../widgets/background_status.dart';
 import '../widgets/fx.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/nexus_orb.dart';
@@ -306,6 +308,7 @@ class _SessionScreenState extends State<SessionScreen> {
                                     providerId: run.provider.id,
                                     dense: true,
                                   ),
+                                  if (run.running) const BackgroundStatus(),
                                 ],
                               ),
                             ),
@@ -345,6 +348,8 @@ class _SessionScreenState extends State<SessionScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      // La mission en entier, à relire ou copier.
+                      _StepTile(step: AgentStep(StepKind.user, run.task)),
                       for (final (i, step) in run.steps.indexed)
                         Reveal(
                           index: 0,
@@ -464,7 +469,8 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 }
 
-/// En bas : une nouvelle instruction pour la même session.
+/// En bas : une nouvelle instruction pour la même session, même pendant le travail
+/// (elle est lue au tour suivant).
 class _FollowUpBar extends StatelessWidget {
   const _FollowUpBar({
     required this.controller,
@@ -489,29 +495,30 @@ class _FollowUpBar extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
-                enabled: !running,
                 minLines: 1,
                 maxLines: 5,
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
                   hintText: running
-                      ? 'L\'agent travaille…'
+                      ? 'Préciser pendant le travail…'
                       : 'Nouvelle instruction pour cette session',
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            running
-                ? IconButton.filledTonal(
-                    tooltip: 'Arrêter',
-                    onPressed: onStop,
-                    icon: const Icon(Icons.stop_rounded),
-                  )
-                : IconButton.filled(
-                    tooltip: 'Envoyer',
-                    onPressed: onSend,
-                    icon: const Icon(Icons.arrow_upward_rounded),
-                  ),
+            IconButton.filled(
+              tooltip: running ? 'Envoyer (lu au tour suivant)' : 'Envoyer',
+              onPressed: onSend,
+              icon: const Icon(Icons.arrow_upward_rounded),
+            ),
+            if (running) ...[
+              const SizedBox(width: 4),
+              IconButton.filledTonal(
+                tooltip: 'Arrêter',
+                onPressed: onStop,
+                icon: const Icon(Icons.stop_rounded),
+              ),
+            ],
           ],
         ),
       ),
@@ -537,42 +544,51 @@ class _StepTile extends StatelessWidget {
     final text = step.kind == StepKind.tool
         ? '${step.tool} ${step.text}'
         : step.text;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: step.kind == StepKind.result
-                ? Text(
-                    text,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: Nx.mono,
-                      fontSize: 11.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                : step.kind == StepKind.user
-                ? Text(
-                    step.text,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  )
-                : step.kind == StepKind.tool
-                ? Text(
-                    text,
-                    style: const TextStyle(
-                      fontFamily: Nx.mono,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : MarkdownView(text, selectable: false),
-          ),
-        ],
+    // Appui long : le texte entier de l'étape, à relire ou copier.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPress: () => showFullText(
+        context,
+        step.kind == StepKind.user ? 'Votre message' : 'Étape',
+        text,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: step.kind == StepKind.result
+                  ? Text(
+                      text,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: Nx.mono,
+                        fontSize: 11.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  : step.kind == StepKind.user
+                  ? Text(
+                      step.text,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    )
+                  : step.kind == StepKind.tool
+                  ? Text(
+                      text,
+                      style: const TextStyle(
+                        fontFamily: Nx.mono,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : MarkdownView(text, selectable: false),
+            ),
+          ],
+        ),
       ),
     );
   }

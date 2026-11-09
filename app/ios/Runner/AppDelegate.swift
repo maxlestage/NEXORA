@@ -37,6 +37,15 @@ class NexoraBackground: NSObject, FlutterPlugin {
   private var done: Int64 = 0
   private var total: Int64 = 0
 
+  /// Ce qui se passe, pour le diagnostic affiché dans l'app.
+  private var mode = "idle"
+  private var lastError: String?
+
+  /// Le battement : iOS arrête une tâche continue qui n'avance plus, or l'agent peut
+  /// attendre la réponse du modèle une minute. On fait avancer la progression toutes
+  /// les 2 s tant que le travail continue.
+  private var ticker: Timer?
+
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "nexora/background", binaryMessenger: registrar.messenger())
@@ -62,6 +71,8 @@ class NexoraBackground: NSObject, FlutterPlugin {
     case "notify":
       notify(title: title, body: text)
       result(true)
+    case "status":
+      result(["mode": mode, "error": lastError ?? ""])
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -69,10 +80,18 @@ class NexoraBackground: NSObject, FlutterPlugin {
 
   private func start() {
     running = true
+    lastError = nil
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     beginLegacy()
+    mode = "legacy"
     if #available(iOS 26.0, *) {
       if continued == nil { submitContinued() }
+    } else {
+      lastError = "iOS 26 ou plus requis pour continuer longtemps en arrière-plan"
+    }
+    ticker?.invalidate()
+    ticker = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+      self?.update()
     }
   }
 
@@ -84,6 +103,9 @@ class NexoraBackground: NSObject, FlutterPlugin {
 
   private func stop() {
     running = false
+    ticker?.invalidate()
+    ticker = nil
+    mode = "idle"
     if #available(iOS 26.0, *) {
       if let task = continued as? BGContinuedProcessingTask {
         task.progress.completedUnitCount = task.progress.totalUnitCount
@@ -120,12 +142,18 @@ class NexoraBackground: NSObject, FlutterPlugin {
       }
       DispatchQueue.main.async { self?.attach(task) }
     }
-    guard registered else { return }
+    guard registered else {
+      lastError = "identifiant de tâche non autorisé (\(id))"
+      return
+    }
     let request = BGContinuedProcessingTaskRequest(identifier: id, title: title, subtitle: text)
-    request.strategy = .fail
+    // Si iOS ne peut pas la lancer tout de suite, il la lance dès que possible.
+    request.strategy = .queue
     do {
       try BGTaskScheduler.shared.submit(request)
+      mode = "submitted"
     } catch {
+      lastError = "\(error.localizedDescription)"
       NSLog("NEXORA : tâche de fond refusée : \(error)")
     }
   }
@@ -137,9 +165,14 @@ class NexoraBackground: NSObject, FlutterPlugin {
       return
     }
     continued = task
+    mode = "continued"
     task.expirationHandler = { [weak self] in
       task.setTaskCompleted(success: false)
-      DispatchQueue.main.async { self?.continued = nil }
+      DispatchQueue.main.async {
+        self?.continued = nil
+        self?.mode = "expired"
+        self?.lastError = "iOS a arrêté la tâche de fond"
+      }
     }
     report(task)
   }
@@ -148,15 +181,11 @@ class NexoraBackground: NSObject, FlutterPlugin {
   @available(iOS 26.0, *)
   private func report(_ task: BGContinuedProcessingTask) {
     task.updateTitle(title, subtitle: text)
-    task.progress.totalUnitCount = 100
-    let percent: Int64
-    if total > 0 {
-      percent = min(99, done * 100 / total)
-    } else {
-      // Durée inconnue (une réponse) : on avance doucement sans jamais finir.
-      percent = min(99, task.progress.completedUnitCount + 1)
-    }
-    task.progress.completedUnitCount = max(task.progress.completedUnitCount, percent)
+    // 10 000 unités : un petit pas à chaque battement, sans jamais atteindre la fin.
+    task.progress.totalUnitCount = 10_000
+    let real = total > 0 ? min(9_900, done * 9_900 / total) : 0
+    let nudged = min(9_990, task.progress.completedUnitCount + 1)
+    task.progress.completedUnitCount = max(real, nudged)
   }
 
   private func notify(title: String, body: String) {
