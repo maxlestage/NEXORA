@@ -166,6 +166,15 @@ Touchez-le pour le détail, avec une jauge :
 - **Dépôts** : le second onglet garde la liste de vos dépôts, leur code, leurs branches et les
   agents cloud.
 
+### 🎙️ La voix
+
+Un micro dans la barre de saisie : la dictée utilise la reconnaissance vocale du téléphone
+(texte en direct, envoi à la fin de la phrase). La réponse est lue à voix haute par la
+synthèse vocale du téléphone quand on a parlé, quand on le demande (« réponds-moi à voix
+haute ») ou toujours (réglage), **phrase par phrase pendant qu'elle s'écrit**, sans lire le
+code. En conversation vocale, l'assistant écoute de nouveau après chaque réponse. Gratuit,
+sans clé, avec n'importe quel modèle.
+
 ### 🧩 Skills, sous-agents, commandes et plugins
 
 **Agents → Bibliothèque** installe, au format de Claude Code, depuis n'importe quel dépôt

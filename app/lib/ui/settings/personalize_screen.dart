@@ -303,6 +303,51 @@ class PersonalizeScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SectionTitle('Voix'),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: s.speakReplies,
+                  onChanged: (v) => s.setVoice(speak: v),
+                  title: const Text('Lire toutes les réponses'),
+                  subtitle: const Text(
+                    'Sinon, la réponse est lue quand vous avez parlé (micro) ou '
+                    'quand vous le demandez (« réponds-moi à voix haute »).',
+                  ),
+                ),
+                SwitchListTile(
+                  value: s.voiceAutoSend,
+                  onChanged: (v) => s.setVoice(autoSend: v),
+                  title: const Text('Envoyer à la fin de la dictée'),
+                ),
+                SwitchListTile(
+                  value: s.voiceConversation,
+                  onChanged: (v) => s.setVoice(conversation: v),
+                  title: const Text('Conversation vocale'),
+                  subtitle: const Text(
+                    'Après la réponse lue, l\'assistant vous écoute de nouveau : '
+                    'parlez sans toucher l\'écran.',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Vitesse de lecture'),
+                  subtitle: Slider(
+                    value: s.voiceRate,
+                    min: 0.3,
+                    max: 0.7,
+                    divisions: 8,
+                    label: s.voiceRate < 0.45
+                        ? 'Lente'
+                        : s.voiceRate > 0.55
+                        ? 'Rapide'
+                        : 'Normale',
+                    onChanged: (v) => s.setVoice(rate: v),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SectionTitle('Votre assistant'),
           const _AssistantCard(),
           const SectionTitle('Onglets'),

@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.6 — 9 novembre 2026 — Parlez à l'assistant, il vous répond à voix haute
+- Un micro dans la barre de saisie : parlez, le texte s'écrit en direct et part à la fin de la phrase.
+- Quand vous avez parlé, ou si vous le demandez (« réponds-moi à voix haute »), la réponse est lue phrase par phrase pendant qu'elle s'écrit, sans lire le code.
+- Conversation vocale : après la réponse, l'assistant vous écoute de nouveau, sans toucher l'écran.
+- Un bouton pour lire n'importe quelle réponse, et dans Personnaliser → Voix : lecture de toutes les réponses, envoi automatique, vitesse.
+
 ## 2.2.5 — 9 novembre 2026 — Skills, sous-agents, commandes et plugins
 - Agents → Bibliothèque : installez en quelques gestes des sous-agents, des skills, des commandes et des plugins depuis GitHub, au format de Claude Code, avec des sources recommandées (skills officielles d'Anthropic, plugins de Claude Code, Superpowers, agents spécialistes…).
 - Les skills se chargent seulement quand elles servent : l'assistant voit leur nom et leur description, et demande celle qui l'aide. Une skill peut aussi être « toujours » active.
