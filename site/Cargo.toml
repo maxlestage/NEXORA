@@ -25,7 +25,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 paquets = { git = "https://github.com/maxlestage/Paquets", default-features = false, features = ["client"] }
-wasm-bindgen = "=0.2.129"
+wasm-bindgen = "=0.2.130"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
   "AddEventListenerOptions", "CssStyleDeclaration", "Document", "DomRect", "DomTokenList",
@@ -50,4 +50,5 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "abort"
-strip = true
+# Garde la section `target_features` dont wasm-bindgen a besoin (0.2.130+).
+strip = "debuginfo"

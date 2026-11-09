@@ -7,7 +7,7 @@
 # BuildKit (il ne reste dans aucune couche de l'image) :
 #   docker build --secret id=repos_token,env=REPOS_TOKEN -t nexora-site .
 
-FROM rust:1-bookworm AS build
+FROM rust:1-trixie AS build
 WORKDIR /src
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 RUN rustup target add wasm32-unknown-unknown \
@@ -25,7 +25,7 @@ RUN --mount=type=secret,id=repos_token \
       target/wasm32-unknown-unknown/wasm-release/nexora_site.wasm \
  && cargo build --release --bin nexora-site
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

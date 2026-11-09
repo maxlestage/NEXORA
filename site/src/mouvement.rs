@@ -3,7 +3,7 @@
 //! installation de la PWA, cartes inclinées, boutons magnétiques et curseur.
 //!
 //! Lancé une fois par page par l'îlot `mouvement` (src/lib.rs), présent sur chaque page :
-//! une seule boucle d'animation (`paquets::three::animation_loop`) fait tout ce qui bouge
+//! une seule boucle d'animation (`paquets::scene::animation_loop`) fait tout ce qui bouge
 //! image par image.
 
 use std::cell::{Cell, RefCell};
@@ -164,7 +164,7 @@ pub fn demarrer() {
     let anneau = un(".cursor-ring");
     let mut anneau_pos = (-100.0f64, -100.0f64);
     let mut dernier_y = 0.0f64;
-    let boucle = paquets::three::animation_loop(move |temps| {
+    let boucle = paquets::scene::animation_loop(move |temps| {
         if etat.rescanner.replace(false) {
             scanner(&observateur, precis && !reduit);
         }

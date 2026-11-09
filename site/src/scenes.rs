@@ -1,5 +1,5 @@
-//! Les scènes 3D, dans le navigateur : `paquets::three` (l'API de Three.js, en Rust)
-//! dessine avec WebGL 2, `paquets::three::Physics` fait tomber les objets.
+//! Les scènes 3D, dans le navigateur : `paquets::scene` (l'API de Three.js, en Rust)
+//! dessine avec WebGL 2, `paquets::scene::Physics` fait tomber les objets.
 //!
 //! Chaque scène tourne dans une `animation_loop` qui s'arrête quand l'îlot disparaît,
 //! et ne dessine rien tant que son canvas est hors de l'écran.
@@ -9,7 +9,7 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::rc::Rc;
 
 use paquets::prelude::State;
-use paquets::three::*;
+use paquets::scene::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 
@@ -50,7 +50,7 @@ pub fn start(
     info: State<u32>,
     reglages: Reglages,
 ) -> Running {
-    let mut renderer = match WebGLRenderer::new(canvas) {
+    let mut renderer = match Renderer::new(canvas) {
         Ok(renderer) => renderer,
         Err(_) => {
             // Pas de WebGL 2 : la page garde son fond animé en CSS.
@@ -266,7 +266,7 @@ struct Noeud {
     phase: f32,
 }
 
-fn hero(mut renderer: WebGLRenderer, canvas: web_sys::Element, info: State<u32>) -> Running {
+fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> Running {
     let calme = if reduced_motion() { 0.15 } else { 1.0 };
     let mut hasard = Hasard::new();
     let mut scene = Scene::new();
@@ -533,7 +533,7 @@ struct Planete {
 }
 
 fn galaxie(
-    mut renderer: WebGLRenderer,
+    mut renderer: Renderer,
     canvas: web_sys::Element,
     info: State<u32>,
     r: Reglages,
@@ -698,7 +698,7 @@ struct Impulsion {
 }
 
 fn reseau(
-    mut renderer: WebGLRenderer,
+    mut renderer: Renderer,
     canvas: web_sys::Element,
     info: State<u32>,
     r: Reglages,
@@ -910,7 +910,7 @@ fn reseau(
 const MAX_PAQUETS: usize = 120;
 
 fn pluie(
-    mut renderer: WebGLRenderer,
+    mut renderer: Renderer,
     canvas: web_sys::Element,
     info: State<u32>,
     r: Reglages,

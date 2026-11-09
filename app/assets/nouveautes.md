@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.1 — 9 novembre 2026 — Tout à jour
+- Construite avec Xcode 27 et le SDK d'iOS 27, et toujours compatible à partir d'iOS 15.
+- Flutter 3.47.9 et Dart 3.13, avec les dernières versions de toutes les bibliothèques de l'app.
+- Android : Gradle 9.9, Android Gradle Plugin 9.5.1, Kotlin 2.4.21 et Java 21.
+- Site : Rust 1.99, Paquets 0.3.1 et son nouveau moteur 3D et physique, wasm-bindgen 0.2.130, et une image Docker sous Debian 13.
+- Les automatisations GitHub utilisent les dernières versions de leurs actions, et le catalogue des modèles a été relu.
+
 ## 2.2.0 — 9 novembre 2026 — Plus rapide, et toujours les derniers modèles
 - L'agent va beaucoup plus vite : il lit plusieurs fichiers en parallèle, connaît la liste des fichiers dès le départ, et chez Anthropic l'historique est mis en cache.
 - Deux flèches pour aller tout en haut ou tout en bas d'une conversation ou d'une session.

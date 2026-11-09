@@ -34,7 +34,7 @@ jobs:
       APP: ${{ vars.HEROKU_APP_NAME }}
       REGION: ${{ vars.HEROKU_REGION || 'us' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: master
       - name: Construire et publier sur Heroku

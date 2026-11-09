@@ -185,7 +185,8 @@ const List<HelpSection> helpSections = [
       'Oui : une session d\'agent ou une réponse continue quand vous quittez l\'app '
           'ou verrouillez le téléphone. Sur **Android**, une notification « NEXORA '
           'travaille… » reste affichée pendant le travail (acceptez les notifications). '
-          'Sur **iPhone avec iOS 26**, la progression apparaît dans le système ; avec '
+          'Sur **iPhone avec iOS 26 ou plus (iOS 27 compris)**, la progression apparaît '
+          'dans le système ; avec '
           'un iOS plus ancien, iOS n\'accorde qu\'environ 30 secondes : la session '
           'reprend quand vous revenez. Une notification prévient quand c\'est fini.',
     ),

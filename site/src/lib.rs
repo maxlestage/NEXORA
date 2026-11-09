@@ -1,7 +1,7 @@
 //! Ce que le serveur et le navigateur partagent : les textes et les îlots.
 //!
 //! Le serveur rend les îlots en HTML (src/main.rs) ; compilé en WebAssembly, ce fichier
-//! les rend interactifs dans le navigateur et lance les scènes 3D de `paquets::three`
+//! les rend interactifs dans le navigateur et lance les scènes 3D de `paquets::scene`
 //! (src/scenes.rs).
 
 use paquets::prelude::*;
@@ -74,7 +74,7 @@ pub fn hero3d(_props: &str) -> Node {
         p().class("hud")
             .attr("aria-hidden", "true")
             .child(span().class("hud-dot"))
-            .text("paquets::three · WebGL 2 · ")
+            .text("paquets::scene · WebGL 2 · ")
             .text_dyn(ips(fps))
             .text(" ips"),
     ])
@@ -192,7 +192,7 @@ pub fn reseau(_props: &str) -> Node {
 }
 
 /// La pluie de paquets : des boîtes qui tombent, rebondissent et s'empilent, avec la
-/// physique de `paquets::three::Physics`. Un clin d'œil au framework du site.
+/// physique de `paquets::scene::Physics`. Un clin d'œil au framework du site.
 pub fn pluie(_props: &str) -> Node {
     let r = Reglages::default();
     let compte = use_state(0u32);
@@ -376,7 +376,7 @@ fn streamer(
     modele: State<usize>,
     question: State<usize>,
 ) -> impl FnOnce() + use<> {
-    let boucle = paquets::three::animation_loop(move |_| {
+    let boucle = paquets::scene::animation_loop(move |_| {
         let total = DEMO_QUESTIONS[question.get()].1.chars().count() as f32;
         let n = montre.get();
         if n < total {
