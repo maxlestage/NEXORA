@@ -3,7 +3,7 @@
     "short_name": "NEXORA",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#07070D",
+    "background_color": "#010009",
     "theme_color": "#8B5CF6",
     "description": "NEXORA — tous les modèles d'IA, vos agents et GitHub dans votre poche.",
     "orientation": "portrait-primary",
