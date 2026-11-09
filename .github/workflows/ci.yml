@@ -89,7 +89,20 @@ jobs:
             git merge --ff-only "$SHA"
           else
             subject="$(git log -1 --format=%s "$SHA")"
-            git merge --no-ff --no-edit "$SHA" -m "Fusion automatique : $subject"
+            if ! git merge --no-ff --no-edit "$SHA" -m "Fusion automatique : $subject"; then
+              # Seul conflit attendu : le catalogue des modèles, mis à jour à la fois
+              # par le robot des modèles sur master et dans la branche. On le régénère
+              # depuis internet (ou on garde la version de la branche).
+              conflicts="$(git diff --name-only --diff-filter=U)"
+              if [ -n "$(echo "$conflicts" | grep -v -e '^app/assets/models.json$' -e '^site/public/models.json$')" ]; then
+                echo "::error title=Fusion impossible::conflit sur : $conflicts"
+                exit 1
+              fi
+              git checkout --theirs -- app/assets/models.json site/public/models.json
+              python3 .github/scripts/update_models.py || echo "Catalogue gardé tel quel"
+              git add app/assets/models.json site/public/models.json
+              git commit --no-edit -m "Fusion automatique : $subject"
+            fi
           fi
           git push origin HEAD:master
           echo "::notice title=Fusion automatique::fusionné dans master"
