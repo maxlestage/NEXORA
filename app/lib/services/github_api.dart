@@ -359,6 +359,35 @@ class GitHubApi {
     return [ContentItem(j as Map)];
   }
 
+  /// Le texte d'un fichier par raw.githubusercontent.com : ne compte pas dans le
+  /// quota de l'API (utile pour parcourir beaucoup de fichiers). `null` si le
+  /// fichier est illisible ou binaire.
+  Future<String?> readRaw(
+    String owner,
+    String repo,
+    String path, {
+    required String ref,
+  }) async {
+    try {
+      final res = await _http
+          .get(
+            Uri.parse(
+              'https://raw.githubusercontent.com/$owner/$repo/${_enc(ref)}/${_enc(path)}',
+            ),
+            headers: {
+              if (token != null && token!.isNotEmpty)
+                'authorization': 'token $token',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200) return null;
+      if (res.bodyBytes.take(8000).contains(0)) return null;
+      return utf8.decode(res.bodyBytes, allowMalformed: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<FileContent> readFile(
     String owner,
     String repo,

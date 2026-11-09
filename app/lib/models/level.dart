@@ -11,7 +11,7 @@ enum ThinkLevel {
     anthropic: 'low',
     openai: 'low',
     maxTokens: 4096,
-    agentSteps: 12,
+    agentSteps: 24,
     hint: 'Réponds de façon directe et concise, sans détour ni longue introduction.',
   ),
   moyen(
@@ -21,7 +21,7 @@ enum ThinkLevel {
     anthropic: 'medium',
     openai: 'medium',
     maxTokens: 8192,
-    agentSteps: 24,
+    agentSteps: 40,
     hint: '',
     badge: 'Recommandé',
   ),
@@ -32,7 +32,7 @@ enum ThinkLevel {
     anthropic: 'high',
     openai: 'high',
     maxTokens: 32000,
-    agentSteps: 40,
+    agentSteps: 60,
     hint:
         'Prends le temps de réfléchir étape par étape avant de répondre, et '
         'vérifie ta réponse.',
@@ -44,7 +44,7 @@ enum ThinkLevel {
     anthropic: 'xhigh',
     openai: 'high',
     maxTokens: 48000,
-    agentSteps: 52,
+    agentSteps: 80,
     hint:
         'Réfléchis en profondeur, étape par étape, envisage les cas limites et '
         'vérifie soigneusement ta réponse.',
@@ -56,7 +56,7 @@ enum ThinkLevel {
     anthropic: 'max',
     openai: 'high',
     maxTokens: 64000,
-    agentSteps: 64,
+    agentSteps: 100,
     hint:
         'Analyse le problème en profondeur, envisage plusieurs approches, choisis '
         'la meilleure et vérifie soigneusement ta réponse avant de la donner.',

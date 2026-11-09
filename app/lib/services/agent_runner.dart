@@ -15,16 +15,21 @@ const Map<String, String> agentTools = {
   'list_files': 'Liste les fichiers. args: {"path": "dossier/optionnel"}',
   'read_file':
       'Lit un fichier, en entier s\'il est court. Pour un long fichier, lis-le par '
-      'plages de lignes. args: {"path": "…", "start": 1, "end": 400}',
+      'plages de lignes, ou autour d\'une ligne trouvée par une recherche. args: '
+      '{"path": "…", "start": 1, "end": 400} ou {"path": "…", "line": 287}',
   'find_in_file':
       'Trouve les lignes d\'un fichier qui contiennent un texte ou une expression '
       'régulière, avec leur numéro. args: {"path": "…", "pattern": "…"}',
-  'search_code': 'Cherche un texte dans le code. args: {"query": "texte"}',
+  'search_code':
+      'Cherche un texte dans le CONTENU de tous les fichiers du dépôt : rend '
+      'chaque ligne qui le contient (fichier:ligne: texte). Le meilleur moyen de '
+      'trouver où modifier. args: {"query": "texte exact", "path": "dossier '
+      'facultatif"}',
   'edit_file':
       'Modifie un passage d\'un fichier sans le réécrire (idéal pour les longs '
       'fichiers) : remplace exactement « old » par « new ». old doit être unique '
       'dans le fichier (ajoute des lignes autour sinon) ; "all": true remplace '
-      'toutes les occurrences ; old vide ajoute new à la fin du fichier. args: '
+      'toutes les occurrences ; old vide ajoute new à la fin (avec "at_end": true pour du code). args: '
       '{"path": "…"} puis DEUX blocs de code après le JSON : d\'abord old, puis new '
       '(ou "old" et "new" dans args).',
   'write_file':
@@ -170,7 +175,7 @@ List<ToolCall> parseToolCalls(String reply) {
   for (final (i, a0) in raw.indexed) {
     final a = Map<String, dynamic>.from(a0);
     _normalizeAction(a);
-    final tool = a['tool']?.toString();
+    final tool = canonicalTool(a['tool']?.toString());
     if (tool == null || tool.isEmpty) continue;
     final args = a['args'] is Map
         ? Map<String, dynamic>.from(a['args'] as Map)
@@ -203,6 +208,50 @@ List<ToolCall> parseToolCalls(String reply) {
   return calls;
 }
 
+/// Le nom d'outil tel que NEXORA le connaît : sans préfixe inventé par le modèle
+/// (« repo_browser.search_code », « functions.read_file »), et avec les noms
+/// courants des autres agents (Claude Code, Cursor…).
+String? canonicalTool(String? raw) {
+  if (raw == null) return null;
+  var t = raw.trim();
+  if (t.contains('.')) t = t.split('.').last;
+  final low = t.toLowerCase();
+  if (_knownTools.containsKey(low)) return low;
+  const synonyms = {
+    'read': 'read_file',
+    'open_file': 'read_file',
+    'view': 'read_file',
+    'cat': 'read_file',
+    'view_file': 'read_file',
+    'edit': 'edit_file',
+    'multiedit': 'edit_file',
+    'str_replace': 'edit_file',
+    'replace': 'edit_file',
+    'replace_in_file': 'edit_file',
+    'update_file': 'edit_file',
+    'apply_edit': 'edit_file',
+    'write': 'write_file',
+    'create_file': 'write_file',
+    'grep': 'search_code',
+    'search': 'search_code',
+    'search_files': 'search_code',
+    'code_search': 'search_code',
+    'find_in_files': 'search_code',
+    'glob': 'list_files',
+    'ls': 'list_files',
+    'list_dir': 'list_files',
+    'list_directory': 'list_files',
+    'find_files': 'list_files',
+    'delete': 'delete_file',
+    'remove_file': 'delete_file',
+    'done': 'finish',
+    'complete': 'finish',
+    'task_complete': 'finish',
+    'end': 'finish',
+  };
+  return synonyms[low] ?? t;
+}
+
 /// Les autres façons d'écrire une action, ramenées à `{"tool": …, "args": …}` :
 /// `{"finish": {…}}` (le nom de l'outil en clé), `{"name": …, "arguments": …}`
 /// (style « function calling »), `{"action": …}` ou `{"function": …}`.
@@ -217,8 +266,8 @@ void _normalizeAction(Map<String, dynamic> o) {
   if (o['tool'] != null || o['actions'] is List) return;
   for (final k in ['action', 'function', 'name', 'tool_name']) {
     final v = o[k];
-    if (v is String && _knownTools.containsKey(v)) {
-      o['tool'] = v;
+    if (v is String && _knownTools.containsKey(canonicalTool(v))) {
+      o['tool'] = canonicalTool(v);
       final a = o['args'] ?? o['arguments'] ?? o['parameters'] ?? o['input'];
       o['args'] = a is String ? (_tryJson(a) ?? {}) : (a is Map ? a : {});
       return;
@@ -820,9 +869,12 @@ class AgentRun extends ChangeNotifier {
               LlmMessage(
                 'user',
                 'Tu viens de refaire exactement la même action qu\'au tour '
-                    'précédent : elle est déjà faite, inutile de la répéter. Si la '
-                    'demande est remplie, appelle finish ; sinon passe à l\'étape '
-                    'suivante.$reminder',
+                    'précédent : son résultat est juste au-dessus, inutile de la '
+                    'répéter. Si ce que tu cherches n\'y est pas, change '
+                    'd\'approche (cherche sans "path" dans tout le dépôt, lis le '
+                    'fichier autour d\'une ligne avec read_file et "line", ou fais '
+                    'la modification). Si la demande est remplie, appelle '
+                    'finish.$reminder',
               ),
             );
             if (repeats >= 3) {
@@ -1136,6 +1188,154 @@ class AgentRun extends ChangeNotifier {
   }
 
   /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
+  /// Les contenus lus pour une recherche (gardés en mémoire seulement : ils ne
+  /// sont pas enregistrés avec la session).
+  final Map<String, String> _searchCache = {};
+
+  static final _binary = RegExp(
+    r'\.(png|jpe?g|gif|webp|ico|icns|bmp|svgz|pdf|zip|gz|tgz|jar|aar|so|dylib|'
+    r'a|o|class|ttf|otf|woff2?|eot|mp3|mp4|mov|wav|ogg|webm|wasm|keystore|jks|'
+    r'p12|lock|bin|exe|dll|pbxproj)$',
+    caseSensitive: false,
+  );
+
+  static bool _skipForSearch(String f) =>
+      _binary.hasMatch(f) ||
+      RegExp(
+        r'(^|/)(node_modules|build|dist|target|\.dart_tool|Pods|\.git|'
+        r'Assets\.xcassets|mipmap-[^/]+|drawable[^/]*)/',
+      ).hasMatch(f);
+
+  Future<String?> _textForSearch(String p) async {
+    if (changes.containsKey(p)) return changes[p];
+    if (originals[p] != null) return originals[p];
+    final cached = _searchCache[p];
+    if (cached != null) return cached;
+    final where = resolve(p);
+    if (where == null) return null;
+    final (t, inner) = where;
+    // raw d'abord (hors quota de l'API), puis l'API si besoin.
+    var text = await github.readRaw(t.owner, t.name, inner, ref: refOf(t));
+    if (text == null) {
+      try {
+        final f = await github.readFile(t.owner, t.name, inner, ref: refOf(t));
+        if (!f.binary) text = f.text;
+      } catch (_) {}
+    }
+    if (text == null || text.length > 400000) return null;
+    return _searchCache[p] = text;
+  }
+
+  /// Fichiers parcourus au plus par une recherche.
+  static const searchLimit = 300;
+
+  /// Cherche un texte dans le contenu des fichiers (comme grep), sans dépendre de
+  /// la recherche de GitHub (qui exige un compte, ignore les branches et les
+  /// dépôts récents).
+  Future<String> _grep(String query, String prefix) async {
+    final here = await _grepIn(query, prefix);
+    // Peu de résultats dans un dossier : la définition est souvent ailleurs
+    // (une constante, une fonction dans un autre fichier).
+    if (prefix.isNotEmpty && here.$2 <= 2) {
+      final all = await _grepIn(query, '');
+      if (all.$2 > here.$2) {
+        return '${here.$1}\n\nDans tout le dépôt (pas seulement $prefix) :\n${all.$1}';
+      }
+    }
+    return here.$1;
+  }
+
+  Future<(String, int)> _grepIn(String query, String prefix) async {
+    final all = <String>{
+      ...await _files(),
+      ...changes.entries.where((e) => e.value != null).map((e) => e.key),
+    }.where((f) => prefix.isEmpty || f.startsWith(prefix)).toList();
+    final files = all.where((f) => !_skipForSearch(f)).toList();
+    final q = query.toLowerCase();
+    final words = q.split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
+    // D'abord les fichiers déjà lus, puis ceux dont le nom évoque la recherche.
+    int rank(String f) {
+      if (changes.containsKey(f) || originals[f] != null) return 0;
+      final low = f.toLowerCase();
+      if (words.any(low.contains)) return 1;
+      return 2;
+    }
+
+    files.sort((a, b) => rank(a).compareTo(rank(b)));
+    final scanned = files.take(searchLimit).toList();
+    final texts = <String, String>{};
+    for (var i = 0; i < scanned.length; i += 12) {
+      if (_stop) break;
+      final batch = scanned.skip(i).take(12).toList();
+      final got = await Future.wait(batch.map(_textForSearch));
+      for (final (k, f) in batch.indexed) {
+        final t = got[k];
+        if (t != null) texts[f] = t;
+      }
+    }
+    List<String> find(bool Function(String line) match) => [
+      for (final e in texts.entries)
+        for (final (n, line) in e.value.split('\n').indexed)
+          if (match(line.toLowerCase()))
+            '${e.key}:${n + 1}: ${line.trim().length > 200 ? '${line.trim().substring(0, 200)}…' : line.trim()}',
+    ];
+    var hits = find((l) => l.contains(q));
+    var note = '';
+    if (hits.isEmpty && words.length > 1) {
+      hits = find((l) => words.every(l.contains));
+      if (hits.isNotEmpty) note = ' (tous les mots, pas forcément côte à côte)';
+    }
+    final names = all
+        .where(
+          (f) =>
+              f.toLowerCase().contains(q) ||
+              (words.isNotEmpty && words.every(f.toLowerCase().contains)),
+        )
+        .take(20)
+        .toList();
+    final limited = files.length > searchLimit
+        ? '\n(Recherche faite dans $searchLimit fichiers sur ${files.length} : '
+              'précise un dossier avec "path" pour chercher ailleurs.)'
+        : '';
+    if (hits.isEmpty) {
+      return (
+        'Aucune ligne ne contient « $query » (${texts.length} fichiers '
+            'parcourus).${names.isEmpty ? '' : '\nFichiers dont le nom correspond :\n${names.join('\n')}'}'
+            '\nEssaie un mot plus court ou une autre formulation.$limited',
+        0,
+      );
+    }
+    // Peu de résultats : le code autour de chacun, pour savoir quoi modifier.
+    if (hits.length <= 6) {
+      final shown = <String>[];
+      for (final h in hits) {
+        final m = RegExp(r'^(.*?):(\d+): ').firstMatch(h)!;
+        final lines = texts[m[1]]!.split('\n');
+        final n = int.parse(m[2]!) - 1;
+        final from = n - 3 < 0 ? 0 : n - 3;
+        final to = n + 3 >= lines.length ? lines.length - 1 : n + 3;
+        shown.add(
+          '${m[1]} :\n${[for (var k = from; k <= to; k++) '${k == n ? '>' : ' '}${k + 1}: ${lines[k]}'].join('\n')}',
+        );
+      }
+      return (
+        '${hits.length} ligne(s) contiennent « $query »$note, avec le code '
+            'autour :\n${shown.join('\n\n')}'
+            '${names.isEmpty ? '' : '\nFichiers dont le nom correspond : ${names.join(', ')}'}'
+            '$limited',
+        hits.length,
+      );
+    }
+    return (
+      '${hits.length} ligne(s) contiennent « $query »$note :\n'
+          '${hits.take(80).join('\n')}'
+          '${hits.length > 80 ? '\n… (${hits.length - 80} de plus : précise "path")' : ''}'
+          '${names.isEmpty ? '' : '\nFichiers dont le nom correspond : ${names.join(', ')}'}'
+          '$limited',
+      hits.length,
+    );
+  }
+
   Future<String> _nearby(String path) async {
     final tree = await _files();
     final name = path.split('/').last.toLowerCase();
@@ -1197,7 +1397,28 @@ class AgentRun extends ChangeNotifier {
         final p = path();
         final (text, problem) = await _current(p);
         if (text == null) return problem!;
-        return _range(p, text, call.args['start'], call.args['end']);
+        // « line » : les lignes autour (ce qu'on veut après une recherche).
+        final around = int.tryParse(
+          '${call.args['line'] ?? call.args['around'] ?? ''}',
+        );
+        if (around != null && call.args['start'] == null) {
+          return _range(
+            p,
+            text,
+            around - 40 < 1 ? 1 : around - 40,
+            around + 40,
+          );
+        }
+        return _range(
+          p,
+          text,
+          call.args['start'] ?? call.args['offset'],
+          call.args['end'] ??
+              (call.args['limit'] != null && call.args['offset'] != null
+                  ? (int.tryParse('${call.args['offset']}') ?? 1) +
+                        (int.tryParse('${call.args['limit']}') ?? 400)
+                  : null),
+        );
       case 'find_in_file':
         final p = path();
         final pattern = (call.args['pattern'] ?? call.args['query'] ?? '')
@@ -1212,17 +1433,34 @@ class AgentRun extends ChangeNotifier {
           re = RegExp(RegExp.escape(pattern), caseSensitive: false);
         }
         final lines = text.split('\n');
-        final hits = <String>[
+        final at = [
           for (var i = 0; i < lines.length; i++)
-            if (re.hasMatch(lines[i]))
-              '${i + 1}: ${lines[i].length > 300 ? '${lines[i].substring(0, 300)}…' : lines[i]}',
+            if (re.hasMatch(lines[i])) i,
         ];
-        if (hits.isEmpty) {
+        if (at.isEmpty) {
           return 'Aucune ligne ne contient « $pattern » dans $p.';
         }
-        return '${hits.length} ligne(s) dans $p (${lines.length} lignes) :\n'
-            '${hits.take(200).join('\n')}'
-            '${hits.length > 200 ? '\n… (${hits.length - 200} de plus)' : ''}';
+        String show(int i, {bool hit = false}) =>
+            '${hit ? '>' : ' '}${i + 1}: ${lines[i].length > 300 ? '${lines[i].substring(0, 300)}…' : lines[i]}';
+        // Peu de résultats : avec 3 lignes avant et après, pour voir le code.
+        if (at.length <= 12) {
+          final shown = <int>{};
+          final out = <String>[];
+          for (final i in at) {
+            final from = i - 3 < 0 ? 0 : i - 3;
+            final to = i + 3 >= lines.length ? lines.length - 1 : i + 3;
+            if (out.isNotEmpty && !shown.contains(from - 1)) out.add('   …');
+            for (var k = from; k <= to; k++) {
+              if (shown.add(k)) out.add(show(k, hit: k == i));
+            }
+          }
+          return '${at.length} ligne(s) dans $p (${lines.length} lignes), '
+              'marquées « > », avec le code autour :\n${out.join('\n')}\n'
+              'Pour modifier, recopie le passage exact dans "old" d\'edit_file.';
+        }
+        return '${at.length} ligne(s) dans $p (${lines.length} lignes) :\n'
+            '${at.take(200).map((i) => show(i, hit: true)).join('\n')}'
+            '${at.length > 200 ? '\n… (${at.length - 200} de plus)' : ''}';
       case 'edit_file':
         final p = path();
         // Les noms de Claude Code (old_string/new_string) et d'autres modèles.
@@ -1272,6 +1510,21 @@ class AgentRun extends ChangeNotifier {
           }
           return problem!;
         }
+        // old vide sur un fichier de code : sûrement pas « à la toute fin ».
+        final doc = RegExp(
+          r'(\.(md|markdown|txt|rst|log)$|changelog|readme)',
+          caseSensitive: false,
+        ).hasMatch(p);
+        if (oldText.isEmpty &&
+            text.trim().isNotEmpty &&
+            !doc &&
+            call.args['at_end'] != true) {
+          return 'ERREUR : "old" vide ajouterait le texte à la toute FIN de $p, ce '
+              'qui est rarement le bon endroit dans du code. Pour insérer à un '
+              'endroit précis : trouve-le (find_in_file), mets dans "old" la ligne '
+              'exacte après laquelle insérer, et dans "new" cette même ligne suivie '
+              'de l\'ajout. Pour vraiment ajouter à la fin, ajoute "at_end": true.';
+        }
         // Le même ajout deux fois : le texte est déjà là, on ne le double pas.
         if (oldText.isEmpty &&
             newText.trim().isNotEmpty &&
@@ -1291,25 +1544,15 @@ class AgentRun extends ChangeNotifier {
         return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
             'est inchangé.';
       case 'search_code':
-        final q = (call.args['query'] ?? '').toString();
+        final q =
+            (call.args['query'] ??
+                    call.args['pattern'] ??
+                    call.args['text'] ??
+                    '')
+                .toString()
+                .trim();
         if (q.isEmpty) return 'ERREUR : query vide.';
-        try {
-          final hits = <String>[];
-          for (final t in targets) {
-            final found = await github.searchCode(t.owner, t.name, q);
-            hits.addAll(multi ? found.map((f) => '${mountOf(t)}/$f') : found);
-          }
-          return hits.isEmpty ? 'Aucun résultat.' : hits.join('\n');
-        } catch (_) {
-          final hits = (await _files())
-              .where((f) => f.toLowerCase().contains(q.toLowerCase()))
-              .take(50)
-              .toList();
-          return hits.isEmpty
-              ? 'Aucun fichier dont le nom contient « $q ».'
-              : 'Recherche dans le code indisponible ; fichiers dont le nom '
-                    'correspond :\n${hits.join('\n')}';
-        }
+        return _grep(q, path());
       case 'write_file':
         final p = path();
         final content = call.args['content']?.toString();

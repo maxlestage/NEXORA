@@ -3,6 +3,14 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.14 — 9 novembre 2026 — L'agent trouve le bon endroit et le modifie
+- Nouvelle recherche dans le code : l'agent parcourt vraiment le contenu des fichiers et voit chaque ligne trouvée avec le code autour. Avant, la recherche de GitHub ne renvoyait souvent rien, et l'agent modifiait au hasard.
+- Si la définition n'est pas dans le dossier cherché (une constante dans un autre fichier…), il la trouve dans tout le dépôt.
+- Il lit directement le code autour d'une ligne trouvée, et ne colle plus du code à la toute fin d'un fichier au lieu de l'insérer au bon endroit.
+- Les noms d'outils inventés par certains modèles (« repo_browser.search_code »…) sont compris, et une erreur passagère du fournisseur est réessayée.
+- Plus d'étapes par session (24 à 100 selon l'effort).
+- Vérifié sur de vraies sessions du site NEXORA : texte d'un bouton et chiffre modifiés au bon endroit, lien ajouté au pied de page.
+
 ## 2.2.13 — 9 novembre 2026 — L'agent travaille enfin comme il faut
 - Corrigé : avec beaucoup de modèles (gpt-oss, GPT, Qwen, Llama…), l'agent semblait ne rien répondre. Il appelait ses outils par un canal que l'app ignorait. Ces appels sont maintenant compris.
 - Les modifications acceptent les formats de Claude Code (old_string, new_string) et des autres modèles. Un ajout à la fin d'un fichier n'est jamais fait deux fois.
