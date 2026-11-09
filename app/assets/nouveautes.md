@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.8 — 9 novembre 2026 — Nouveau logo
+- Nouveau logo NEXORA : l'hexagone néon et son orbite, sur l'icône de l'app iPhone et Android.
+- Le site prend le même logo : en-tête, icône d'onglet, icône d'écran d'accueil (PWA) et image de partage sur les réseaux.
+
 ## 2.2.7 — 9 novembre 2026 — L'agent modifie les longs fichiers
 - Nouvel outil de modification ciblée : l'agent remplace un passage précis d'un fichier sans le réécrire, même pour un fichier de dizaines de milliers de lignes.
 - Les longs fichiers se lisent par plages de lignes, et un nouvel outil retrouve les lignes qui contiennent un texte, avec leur numéro.
