@@ -199,13 +199,75 @@ void main() {
     expect(run.history.where((m) => m.role == 'assistant'), isEmpty);
   });
 
-  test('limite d\'étapes : le dit au lieu de s\'arrêter en silence', () async {
-    final run = build([
-      () => text(act('read_file', {'path': 'README.md', 'start': 1})),
-      () => text(act('read_file', {'path': 'README.md', 'start': 2})),
-    ], max: 2);
+  test(
+    'limite d\'étapes : l\'agent fait le point et continue jusqu\'au bout',
+    () async {
+      final run = build([
+        () => text(act('read_file', {'path': 'README.md', 'start': 1})),
+        () => text(act('read_file', {'path': 'README.md', 'start': 2})),
+        // Après le point : il continue et termine.
+        () => text(act('read_file', {'path': 'README.md', 'start': 3})),
+        () => text(act('finish', {'summary': 'Fini après le point'})),
+      ], max: 2);
+      await run.run();
+      expect(run.summary, 'Fini après le point');
+      expect(
+        run.steps.any(
+          (s) => s.text.contains('je fais le point et je continue'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('modèle qui ne répond plus : l\'agent continue avec un autre', () async {
+    var calls = 0;
+    final run =
+        AgentRun(
+            llm: LlmClient(
+              clientFactory: () => MockClient.streaming((req, body) async {
+                await body.drain<void>();
+                calls++;
+                if (req.url.host.contains('groq')) {
+                  return http.StreamedResponse(
+                    Stream.value(
+                      utf8.encode('{"error":{"message":"Invalid API Key"}}'),
+                    ),
+                    401,
+                  );
+                }
+                return text(
+                  act('finish', {'summary': 'Fini avec Pollinations'}),
+                );
+              }),
+            ),
+            github: GitHubApi(
+              't',
+              client: MockClient(
+                (_) async => http.Response('{"tree":[]}', 200),
+              ),
+            ),
+            provider: providersCatalog.firstWhere((p) => p.id == 'groq'),
+            apiKey: 'mauvaise',
+            model: 'm',
+            owner: 'max',
+            repo: 'site',
+            branch: 'main',
+            task: 'Dis bonjour',
+          )
+          ..fallback = (e, tried) async =>
+              tried.contains('pollinations::openai')
+              ? null
+              : (
+                  providersCatalog.firstWhere((p) => p.id == 'pollinations'),
+                  null,
+                  'openai',
+                );
     await run.run();
-    expect(run.steps.last.text, contains('Limite de 2 étapes'));
+    expect(run.summary, 'Fini avec Pollinations');
+    expect(run.provider.id, 'pollinations');
+    expect(run.steps.any((s) => s.text.contains('Je continue avec')), isTrue);
+    expect(calls, greaterThanOrEqualTo(2));
   });
 
   test('noms d\'outils inventés ramenés aux vrais', () {
@@ -231,4 +293,33 @@ void main() {
     expect(result, contains('README.md'));
     expect(result, contains('>3: Un projet.'));
   });
+
+  test(
+    'conversation trop longue : historique allégé, l\'agent continue',
+    () async {
+      var calls = 0;
+      final run = build([
+        () {
+          calls++;
+          return http.StreamedResponse(
+            Stream.value(
+              utf8.encode(
+                '{"error":{"message":"This model\'s maximum context length is 8192 tokens"}}',
+              ),
+            ),
+            400,
+          );
+        },
+        () => text(act('read_file', {'path': 'README.md'})),
+        () => text(act('finish', {'summary': 'ok'})),
+      ]);
+      await run.run();
+      expect(calls, 1);
+      expect(run.summary, 'ok');
+      expect(
+        run.steps.any((s) => s.text.contains('historique allégé')),
+        isTrue,
+      );
+    },
+  );
 }

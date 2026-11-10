@@ -223,7 +223,8 @@ final unfinishedWork = RegExp(
   r"(voulez|souhaitez)|veux-tu|voulez-vous|souhaites-tu|limites? ?:|"
   r"(n'|n’)(était|étaient|a) pas (été )?demandé|pas été demandé|"
   r"je ne l'ai pas fait|je n'ai pas (pu )?(le )?(faire|tester|vérifier|ajouter)|"
-  r"il faudrait (aussi|encore)|reste à faire|à faire ensuite|prochaine étape",
+  r"il faudrait (aussi|encore)|reste à faire|à faire ensuite|prochaine étape|"
+  r"impossible|je ne peux pas|je n'arrive pas|bloqué|bloquée|pas trouvé de solution",
   caseSensitive: false,
 );
 
@@ -502,7 +503,71 @@ class AgentRun extends ChangeNotifier {
   GitHubApi github;
   ProviderDef provider;
   String? apiKey;
-  final String model;
+  String model;
+
+  /// Quand le modèle ne peut plus répondre (clé refusée, crédits épuisés,
+  /// modèle retiré, panne qui dure) : un autre modèle disponible pour continuer
+  /// (`null` s'il n'y en a plus). Les modèles déjà essayés sont dans `tried`.
+  Future<(ProviderDef, String?, String)?> Function(
+    Object error,
+    Set<String> tried,
+  )?
+  fallback;
+
+  final Set<String> _tried = {};
+
+  /// Bascule sur un autre modèle après une erreur. Rend vrai si c'est fait.
+  Future<bool> _switchModel(Object error) async {
+    final f = fallback;
+    if (f == null) return false;
+    _tried.add('${provider.id}::$model');
+    final next = await f(error, _tried);
+    if (next == null) return false;
+    final (p, key, m) = next;
+    _add(
+      AgentStep(
+        StepKind.error,
+        '${provider.name} · $model ne répond plus ($error). Je continue avec '
+        '${p.name} · $m.',
+      ),
+    );
+    provider = p;
+    apiKey = key;
+    model = m;
+    return true;
+  }
+
+  /// Une erreur de fournisseur qui veut dire « conversation trop longue ».
+  static bool _tooLong(LlmException e) {
+    final m = e.message.toLowerCase();
+    return (e.status == 400 || e.status == 413 || e.status == null) &&
+        (m.contains('context') ||
+            m.contains('too long') ||
+            m.contains('too many tokens') ||
+            m.contains('maximum') && m.contains('token') ||
+            m.contains('prompt is too long'));
+  }
+
+  /// Allège l'historique : la demande de départ, puis seulement la fin.
+  void _shrink() {
+    compactHistory(history, keep: 2);
+    if (history.length > 14) {
+      final first = history.first;
+      final tail = history.sublist(history.length - 12);
+      history
+        ..clear()
+        ..add(first)
+        ..add(
+          const LlmMessage(
+            'user',
+            '(Historique raccourci : la conversation devenait trop longue. Tes '
+                'brouillons sont intacts ; relis les fichiers si besoin.)',
+          ),
+        )
+        ..addAll(tail.first.role == 'user' ? tail.skip(1) : tail);
+    }
+  }
+
   final String owner;
   final String repo;
   final String branch;
@@ -631,6 +696,11 @@ class AgentRun extends ChangeNotifier {
         'complète-le. La CI doit passer ENTIÈREMENT : après ton travail, l\'app '
         'l\'envoie sur une branche, attend la CI et te renvoie chaque échec à '
         'corriger jusqu\'à ce que tout soit vert.\n'
+        '- FACE À UN BLOCAGE, TROUVE TOUJOURS UNE SOLUTION : ne t\'arrête jamais '
+        'sur un échec. Comprends la cause, puis essaie autre chose : un autre '
+        'fichier, une autre méthode, contourner, simplifier, découper le '
+        'problème, écrire l\'outil ou le test qui manque. « Impossible » n\'est '
+        'pas une réponse : il y a toujours une solution sensée.\n'
         '- TU TE DÉBROUILLES : tout problème est à toi de le résoudre, partout '
         '(CI rouge, conflit avec la branche principale, refus ou erreur de GitHub, '
         'dépendance, configuration, workflow) : analyse la cause (journaux, outil '
@@ -1047,12 +1117,16 @@ class AgentRun extends ChangeNotifier {
       var ciAsked = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
+      // Limite d'étapes atteinte : l'agent fait le point et continue.
+      var extraRounds = 0;
+      var again = false;
       // Fini par finish (ou arrêté pour une raison déjà affichée).
       var ended = false;
       // La dernière série d'actions, pour repérer une boucle.
       String? lastSig;
       var repeats = 0;
       do {
+        again = false;
         for (var i = 0; i < maxSteps && !_stop; i++) {
           if (_inbox.isNotEmpty) {
             actsSince = 0;
@@ -1086,11 +1160,14 @@ class AgentRun extends ChangeNotifier {
           }
           if (reply == null || _stop) break;
           if (reply.trim().isEmpty) {
+            // Ce modèle n'arrive pas à répondre : on continue avec un autre.
+            if (await _switchModel('réponses vides')) continue;
             _add(
               AgentStep(
                 StepKind.error,
-                'Le modèle a renvoyé une réponse vide trois fois de suite. '
-                'Essayez un autre modèle, ou envoyez « continue ».',
+                'Le modèle a renvoyé une réponse vide trois fois de suite, et '
+                'aucun autre modèle n\'est disponible. Ajoutez une clé dans '
+                'Fournisseurs, ou envoyez « continue ».',
               ),
             );
             ended = true;
@@ -1283,7 +1360,32 @@ class AgentRun extends ChangeNotifier {
             break;
           }
         }
-      } while (_inbox.isNotEmpty && !_stop);
+        if (!ended &&
+            !_stop &&
+            _inbox.isEmpty &&
+            extraRounds < maxExtraRounds) {
+          extraRounds++;
+          _add(
+            AgentStep(
+              StepKind.thought,
+              '$maxSteps étapes utilisées : je fais le point et je continue '
+              '($extraRounds/$maxExtraRounds).',
+            ),
+          );
+          dropReminders(history);
+          history.add(
+            LlmMessage(
+              'user',
+              'Tu as utilisé $maxSteps étapes sans terminer. Fais le point : ce qui '
+                  'est fait, ce qui reste, et le chemin le plus direct pour finir. Si tu '
+                  'tournes en rond, change d\'approche (autre fichier, autre méthode, '
+                  'solution plus simple). Puis continue jusqu\'au bout.$reminder',
+            ),
+          );
+          compactHistory(history);
+          again = true;
+        }
+      } while ((again || _inbox.isNotEmpty) && !_stop);
       if (_stop) {
         _add(AgentStep(StepKind.error, 'Arrêté.'));
       } else if (!ended) {
@@ -1388,7 +1490,27 @@ class AgentRun extends ChangeNotifier {
         ]);
       } on LlmException catch (e) {
         onError?.call(e);
-        if (!e.retryable || attempt >= stepRetries || _stop) rethrow;
+        if (_stop) return null;
+        // Conversation trop longue : on l'allège et on redemande.
+        if (_tooLong(e) && attempt < stepRetries) {
+          _shrink();
+          _add(
+            AgentStep(
+              StepKind.error,
+              'Conversation trop longue pour le modèle : historique allégé, je '
+              'continue.',
+            ),
+          );
+          continue;
+        }
+        if (!e.retryable || attempt >= stepRetries) {
+          // Le modèle ne peut plus répondre : on continue avec un autre.
+          if (await _switchModel(e)) {
+            attempt = -1;
+            continue;
+          }
+          rethrow;
+        }
         _add(
           AgentStep(
             StepKind.error,
@@ -2127,11 +2249,14 @@ class AgentRun extends ChangeNotifier {
   /// que tout soit vert.
   bool autoCi = true;
 
+  /// Après la limite d'étapes, l'agent continue encore ce nombre de fois.
+  static const maxExtraRounds = 4;
+
   /// Les envois automatiques faits pour faire passer la CI.
   int ciRounds = 0;
 
   /// Au plus, avant de rendre la main.
-  static const maxCiRounds = 10;
+  static const maxCiRounds = 25;
 
   /// Quand la CI est entièrement verte : fusionner la pull request dans la
   /// branche principale (et supprimer la branche de travail).

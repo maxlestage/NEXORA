@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.20 — 10 novembre 2026 — Face à un blocage, l'agent trouve toujours une solution
+- Règle d'or : face à un échec, l'agent ne s'arrête jamais. Il comprend la cause et essaie autre chose (autre méthode, contournement, simplification, découpage). « Impossible » ou « je n'ai pas pu » dans son résumé le renvoie chercher une solution.
+- Limite d'étapes atteinte : il fait le point (ce qui est fait, ce qui reste, le chemin le plus direct) et continue tout seul, jusqu'à 4 fois.
+- Modèle qui ne répond plus (clé refusée, crédits épuisés, modèle retiré, panne qui dure, réponses vides) : l'agent continue avec un autre modèle disponible (votre modèle par défaut, un autre fournisseur avec clé, sinon un modèle gratuit) et vous l'indique.
+- Conversation trop longue pour le modèle : l'historique est allégé, et l'agent continue (ses brouillons sont intacts).
+- CI qui résiste : tous les 4 essais, l'agent doit repartir de la vraie cause et changer d'approche. Jusqu'à 25 essais.
+
 ## 2.2.19 — 10 novembre 2026 — L'agent se débrouille, partout
 - Conflits réglés par l'agent : si master a avancé, la branche est d'abord mise à jour automatiquement. S'il y a un vrai conflit, l'agent reçoit ce que master a changé, intègre les deux versions, puis renvoie le tout sur une branche à jour. L'ancienne pull request est fermée et sa branche supprimée.
 - Problèmes GitHub réglés tout seuls : pannes passagères et limites de débit réessayées, branche qui a bougé pendant l'envoi, pull request déjà ouverte reprise, méthode de fusion interdite remplacée par une autre.
