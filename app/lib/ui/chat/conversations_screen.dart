@@ -12,7 +12,6 @@ import '../home_shell.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
 import '../widgets/nexus_orb.dart';
-import '../widgets/quota_badge.dart';
 import '../widgets/model_sheet.dart';
 import 'chat_screen.dart';
 
@@ -70,18 +69,21 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     final provider = settings.provider(current.providerId);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _new,
-        icon: const Icon(Icons.add_comment_rounded),
-        label: const Text('Nouveau chat'),
-      ),
+      // Liste vide : le bouton est dans le contenu (il ne cache rien).
+      floatingActionButton: list.isEmpty && _q.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _new,
+              icon: const Icon(Icons.add_comment_rounded),
+              label: const Text('Nouveau chat'),
+            ),
       body: Aurora(
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              // Transparente : le fond animé continue sous l'en-tête, sans bande.
-              expandedHeight: 345,
-              backgroundColor: Colors.transparent,
+              pinned: true,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor
+                  .withValues(alpha: 0.85),
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               title: const GradientText(
@@ -101,48 +103,38 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   ).push(MaterialPageRoute(builder: (_) => const HelpScreen())),
                 ),
               ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 48),
-                    // Rétrécit au besoin (grands textes) au lieu de déborder.
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.topCenter,
-                      child: Column(
-                        children: [
-                          NexusOrb(
-                            size: 180,
-                            pulse: chat.conversations.any(
-                              (c) => chat.isRunning(c.id),
-                            ),
-                          ),
-                          // L'orbite dépasse du globe : le titre reste en dessous.
-                          const SizedBox(height: 36),
-                          Text(
-                            'Que voulez-vous créer aujourd\'hui ?',
-                            style: tt.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${provider?.emoji ?? ''} ${modelDisplayName(settings, current)} · '
-                            '${settings.readyProviders.length} fournisseurs prêts',
-                            style: tt.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                          ),
-                          QuotaBadge(
-                            providerId: current.providerId,
-                            dense: true,
-                          ),
-                        ],
+            ),
+            // L'en-tête défile normalement : jamais écrasé ni déformé.
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Column(
+                  children: [
+                    NexusOrb(
+                      size: 180,
+                      pulse: chat.conversations.any(
+                        (c) => chat.isRunning(c.id),
                       ),
                     ),
-                  ),
+                    // L'orbite dépasse du globe : le titre reste en dessous.
+                    const SizedBox(height: 36),
+                    Text(
+                      'Que voulez-vous créer aujourd\'hui ?',
+                      textAlign: TextAlign.center,
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${provider?.emoji ?? ''} ${modelDisplayName(settings, current)} · '
+                      '${settings.readyProviders.length} fournisseurs prêts',
+                      textAlign: TextAlign.center,
+                      style: tt.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -211,7 +203,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 hasScrollBody: false,
                 // De la place pour le bouton « Nouveau chat » en bas.
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 90),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: EmptyState(
                     icon: const Text('💬', style: TextStyle(fontSize: 48)),
                     title: _q.isEmpty ? 'Aucune conversation' : 'Rien trouvé',
@@ -219,6 +211,13 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ? 'Lancez-vous : Pollinations répond gratuitement, sans clé. '
                               'Ajoutez d\'autres fournisseurs dans l\'onglet Modèles.'
                         : 'Essayez un autre mot.',
+                    action: _q.isEmpty
+                        ? FilledButton.icon(
+                            onPressed: _new,
+                            icon: const Icon(Icons.add_comment_rounded),
+                            label: const Text('Nouveau chat'),
+                          )
+                        : null,
                   ),
                 ),
               )
