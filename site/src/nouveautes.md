@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.31 — 10 novembre 2026 — Pollinations : un nouvel essai qui en est vraiment un
+- Corrigé : avec le fournisseur gratuit Pollinations, quand une réponse échouait (« invalid or omitted terminal usage »), chaque nouvel essai renvoyait exactement la même panne, car Pollinations gardait la réponse ratée en mémoire. La session s'arrêtait alors en plein travail.
+- Chaque requête porte maintenant une graine nouvelle : le nouvel essai obtient une vraie nouvelle réponse et l'agent continue son travail.
+- Dans le chat, « Régénérer » avec Pollinations donne enfin une autre réponse, au lieu de la même.
+- Vos échanges avec Pollinations sont marqués privés : ils n'apparaissent plus dans son fil public.
+
 ## 2.2.30 — 10 novembre 2026 — L'agent ne tourne plus en rond sans agir
 - Corrigé : quand le modèle répondait sans choisir d'action (il redisait la demande et sa réflexion, sans rien faire), la session répétait la même relance jusqu'à épuiser toutes ses étapes.
 - L'agent est maintenant relancé avec une consigne précise : ajouter son action, contourner l'obstacle par une autre voie, ou expliquer pourquoi c'est impossible.
