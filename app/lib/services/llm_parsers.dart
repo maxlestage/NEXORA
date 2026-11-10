@@ -129,11 +129,20 @@ class ChatDelta {
     this.done = false,
     this.usage,
     this.toolCalls = const [],
+    this.stop,
   });
 
   final String text;
   final String thinking;
   final bool done;
+
+  /// Pourquoi le modèle s'est arrêté, quand le fournisseur le dit : `stop`
+  /// (fini), `length` / `max_tokens` (coupé par la limite de longueur)… et
+  /// `cut` quand la connexion s'est fermée sans aucun signal de fin.
+  final String? stop;
+
+  /// La réponse a été coupée avant la fin : il faut demander la suite.
+  bool get truncated => isCutStop(stop);
 
   /// Les tokens consommés, quand le fournisseur les indique (souvent à la fin).
   final TokenUsage? usage;
@@ -146,8 +155,16 @@ class ChatDelta {
       thinking.isEmpty &&
       !done &&
       usage == null &&
-      toolCalls.isEmpty;
+      toolCalls.isEmpty &&
+      stop == null;
 }
+
+/// Une raison d'arrêt qui veut dire « coupé avant la fin ».
+bool isCutStop(String? stop) =>
+    stop == 'length' ||
+    stop == 'max_tokens' ||
+    stop == 'max_output_tokens' ||
+    stop == 'cut';
 
 /// Un morceau d'appel d'outil natif : beaucoup de modèles (gpt-oss, GPT, Qwen,
 /// Llama…) appellent les outils décrits dans la consigne par le canal `tool_calls`
@@ -284,11 +301,13 @@ ChatDelta? parseOpenAiSseLine(String line) {
   final delta = (c['delta'] ?? c['message']) as Map?;
   final text = delta?['content'];
   final thinking = delta?['reasoning_content'] ?? delta?['reasoning'];
+  final finish = c['finish_reason'];
   final out = ChatDelta(
     text: text is String ? text : '',
     thinking: thinking is String ? thinking : '',
     usage: usage,
     toolCalls: _toolCallParts(delta?['tool_calls']),
+    stop: finish is String && finish.isNotEmpty ? finish : null,
   );
   return out.isEmpty ? null : out;
 }
@@ -330,6 +349,7 @@ ChatDelta? parseOllamaLine(String line) {
           ]
         : const [],
     done: done,
+    stop: done ? (j['done_reason'] as String? ?? 'stop') : null,
     usage: done
         ? TokenUsage.fromJson({
             'prompt_tokens': j['prompt_eval_count'],
@@ -366,7 +386,12 @@ ChatDelta? parseAnthropicSseLine(String line) {
       return u == null ? null : ChatDelta(usage: TokenUsage(u.input, 0));
     case 'message_delta':
       final u = TokenUsage.fromJson(j['usage']);
-      return u == null ? null : ChatDelta(usage: TokenUsage(0, u.output));
+      final reason = (j['delta'] as Map?)?['stop_reason'];
+      if (u == null && reason is! String) return null;
+      return ChatDelta(
+        usage: u == null ? null : TokenUsage(0, u.output),
+        stop: reason is String ? reason : null,
+      );
     case 'message_stop':
       return const ChatDelta(done: true);
     case 'error':
@@ -417,6 +442,7 @@ class ThinkSplitter {
       thinking: thinking.toString(),
       done: d.done,
       usage: d.usage,
+      stop: d.stop,
     );
   }
 

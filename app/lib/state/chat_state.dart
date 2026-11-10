@@ -474,6 +474,9 @@ class ChatState extends ChangeNotifier {
     // Le texte s'accumule ici et n'est recopié dans le message qu'à chaque image.
     final text = StringBuffer();
     final thinking = StringBuffer();
+    // Ce qui a été envoyé au modèle (toutes les parties), pour l'estimation.
+    var inputChars = 0;
+    final price = priceOf(provider.id, ref.model);
     // La lecture à voix haute avance phrase par phrase pendant la réponse.
     var spoken = 0;
     void speakNew({bool all = false}) {
@@ -494,93 +497,120 @@ class ChatState extends ChangeNotifier {
     void flush() {
       answer.content = text.toString();
       answer.thinking = thinking.toString();
+      // Le compteur avance pendant la réponse (estimation, remplacée à la fin
+      // par les chiffres du fournisseur).
+      final tin = tokens.input > 0 ? tokens.input : (inputChars / 4).ceil();
+      final tout = ((text.length + thinking.length) / 4).ceil();
+      answer
+        ..tokensIn = tin
+        ..tokensOut = tout
+        ..estimated = true
+        ..cost = price?.cost(tin, tout);
       // Une demande de skill n'est pas lue : on attend la vraie réponse.
       if (!skillRequest.hasMatch(answer.content)) speakNew();
     }
 
-    final sub = llm
-        .stream(
-          provider: provider,
-          apiKey: settings.key(provider.id),
-          model: ref.model,
-          messages: history,
-          system: system,
-          options: LlmOptions(
-            temperature: settings.temperature,
-            maxTokens: level.maxTokens,
-            level: level,
-          ),
-          onHeaders: (h, _) => usage?.recordHeaders(provider.id, h),
-        )
-        .listen(
-          (d) {
-            text.write(d.text);
-            thinking.write(d.thinking);
-            if (d.usage != null) tokens = tokens + d.usage!;
-            if (_notifyTimer == null) {
+    // Une partie de la réponse. Si le modèle est coupé par sa limite de
+    // longueur (Pollinations : 1 500 tokens), on lui demande la suite, qui
+    // s'ajoute au même message : la réponse va toujours jusqu'au bout.
+    void part(int index) {
+      final continuing = index > 0;
+      final messages = [
+        ...history,
+        if (continuing) ...[
+          LlmMessage('assistant', text.toString()),
+          LlmMessage('user', continuePrompt(text.toString())),
+        ],
+      ];
+      inputChars +=
+          system.length + messages.fold<int>(0, (n, m) => n + m.content.length);
+      String? stopReason;
+      // Le début de la suite est gardé un instant, pour la raccorder sans
+      // doublon ni bloc de code rouvert.
+      final head = StringBuffer();
+      var stitching = continuing;
+      late final StreamSubscription<ChatDelta> sub;
+      sub = llm
+          .stream(
+            provider: provider,
+            apiKey: settings.key(provider.id),
+            model: ref.model,
+            messages: messages,
+            system: system,
+            options: LlmOptions(
+              temperature: settings.temperature,
+              maxTokens: level.maxTokens,
+              // La suite n'a pas besoin de réfléchir de nouveau longuement :
+              // les tokens vont au texte.
+              level: continuing ? ThinkLevel.faible : level,
+            ),
+            onHeaders: (h, _) => usage?.recordHeaders(provider.id, h),
+          )
+          .listen(
+            (d) {
+              if (d.stop != null) stopReason = d.stop;
+              if (stitching) {
+                head.write(d.text);
+                if (head.length >= 200) {
+                  stitching = false;
+                  text.write(stitch(text.toString(), head.toString()));
+                }
+              } else {
+                text.write(d.text);
+              }
+              thinking.write(d.thinking);
+              if (d.usage != null) tokens = tokens + d.usage!;
+              if (_notifyTimer == null) {
+                flush();
+                _notifySoon(text.length);
+              }
+              _changed(c);
+            },
+            onError: (Object e) {
+              failed = true;
+              usage?.recordError(provider.id, e);
+              if (stitching) {
+                stitching = false;
+                text.write(stitch(text.toString(), head.toString()));
+              }
               flush();
-              _notifySoon(text.length);
-            }
-            _changed(c);
-          },
-          onError: (Object e) {
-            failed = true;
-            usage?.recordError(provider.id, e);
-            flush();
-            answer.error = true;
-            answer.content = answer.content.isEmpty
-                ? '$e'
-                : '${answer.content}\n\n⚠️ $e';
-            text
-              ..clear()
-              ..write(answer.content);
-            _notifySoon();
-          },
-          onDone: () {
-            _running.remove(c.id);
-            _onStop.remove(c.id);
-            BackgroundWork.instance.release(
-              'chat:${c.id}',
-              doneTitle: answer.error ? 'Réponse interrompue' : 'Réponse prête',
-              doneText: c.title,
-            );
-            if (!answer.error) flush();
-            if (!failed && answer.content.isNotEmpty) {
-              final inputChars =
-                  system.length +
-                  history.fold<int>(0, (n, m) => n + m.content.length);
-              final outputChars =
-                  answer.content.length + answer.thinking.length;
-              final real = tokens.total > 0;
-              final t = real
-                  ? tokens
-                  : TokenUsage(
-                      (inputChars / 4).ceil(),
-                      (outputChars / 4).ceil(),
-                    );
-              answer
-                ..tokensIn = t.input
-                ..tokensOut = t.output
-                ..estimated = !real
-                ..cost = priceOf(
-                  provider.id,
-                  ref.model,
-                )?.cost(t.input, t.output);
-              usage?.recordUsage(
-                provider.id,
-                model: ref.model,
-                usage: real ? tokens : null,
+              answer.error = true;
+              answer.content = answer.content.isEmpty
+                  ? '$e'
+                  : '${answer.content}\n\n⚠️ $e';
+              text
+                ..clear()
+                ..write(answer.content);
+              _notifySoon();
+            },
+            onDone: () {
+              if (stitching) {
+                stitching = false;
+                text.write(stitch(text.toString(), head.toString()));
+              }
+              // Arrêtée entre-temps (bouton Stop, conversation effacée…).
+              if (_running[c.id] != sub) return;
+              if (!failed &&
+                  isCutStop(stopReason) &&
+                  text.isNotEmpty &&
+                  index < maxContinuations) {
+                flush();
+                _notifySoon(text.length);
+                part(index + 1);
+                return;
+              }
+              _finish(
+                c,
+                answer,
+                provider: provider,
+                ref: ref,
+                failed: failed,
+                tokens: tokens,
                 inputChars: inputChars,
-                outputChars: outputChars,
-              );
-            }
-            // L'assistant demande une skill : on la charge et il répond avec.
-            if (!answer.error && round < 2) {
-              final wanted = _requestedSkills(c, answer.content);
-              if (wanted.isNotEmpty) {
-                c.messages.remove(answer);
-                c.skills.addAll(wanted);
-                _respond(
+                flush: flush,
+                speakAll: () => speakNew(all: true),
+                speak: speak,
+                again: (wanted) => _respond(
                   c,
                   agent: agent,
                   context: context,
@@ -588,33 +618,16 @@ class ChatState extends ChangeNotifier {
                   loaded: [...loaded, ...wanted],
                   round: round + 1,
                   speak: speak,
-                );
-                return;
-              }
-            }
-            if (speak && !answer.error) {
-              speakNew(all: true);
-              VoiceService.instance.enqueue(
-                '',
-                onDone: () {
-                  spokenTurnEnded.value = null;
-                  spokenTurnEnded.value = c.id;
-                },
+                ),
+                round: round,
               );
-            }
-            if (answer.content.trim().isEmpty && !answer.error) {
-              answer.error = true;
-              answer.content =
-                  'Réponse vide. Le modèle « ${ref.model} » est peut-être indisponible '
-                  'chez ${provider.name} : essayez-en un autre.';
-            }
-            c.updated = DateTime.now();
-            _changed(c, now: true);
-            _notifyAll();
-          },
-          cancelOnError: false,
-        );
-    _running[c.id] = sub;
+            },
+            cancelOnError: false,
+          );
+      _running[c.id] = sub;
+    }
+
+    part(0);
     // Arrêtée en route : le texte déjà reçu est gardé en entier (il n'était
     // recopié qu'à chaque image), et une réponse encore vide disparaît au lieu
     // de laisser une bulle sans contenu.
@@ -628,6 +641,135 @@ class ChatState extends ChangeNotifier {
         c.messages.remove(answer);
       }
     };
+  }
+
+  /// Combien de fois une réponse coupée peut être prolongée.
+  static const maxContinuations = 8;
+
+  /// La consigne pour obtenir la suite d'une réponse coupée.
+  static String continuePrompt(String sofar) {
+    final tail = sofar.length > 160
+        ? sofar.substring(sofar.length - 160)
+        : sofar;
+    final inCode = '```'.allMatches(sofar).length.isOdd;
+    return 'Ta réponse a été coupée par la limite de longueur. Elle s\'arrête '
+        'exactement sur :\n«${tail.replaceAll('»', '"')}»\n'
+        'Écris UNIQUEMENT la suite, à partir du caractère suivant : ne répète '
+        'rien, pas d\'introduction, pas de résumé, pas de « voici la suite ».'
+        '${inCode ? ' La coupure est dans un bloc de code : continue le code '
+                  'directement, sans rouvrir le bloc ```.' : ''}'
+        ' Puis termine complètement la réponse.';
+  }
+
+  /// Raccorde la suite d'une réponse coupée : sans le bloc de code rouvert ni
+  /// le morceau répété.
+  static String stitch(String prev, String next) {
+    var n = next;
+    // Un bloc de code ouvert : la suite ne doit pas en rouvrir un.
+    if ('```'.allMatches(prev).length.isOdd) {
+      final open = RegExp(r'^\s*```[\w+.-]*[ \t]*\n').firstMatch(n);
+      if (open != null) n = n.substring(open.end);
+    }
+    // « Voici la suite : » et compagnie.
+    n = n.replaceFirst(
+      RegExp(
+        r'^\s*(?:voici la suite|suite|je continue|continuons)[^\n]{0,40}:\s*\n',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    // Le modèle reprend parfois les derniers mots : on enlève le doublon.
+    final max = n.length < 400 ? n.length : 400;
+    for (var k = max; k >= 8; k--) {
+      if (prev.endsWith(n.substring(0, k))) return n.substring(k);
+    }
+    // Ou il repart de la dernière ligne entamée.
+    final lastLine = prev.substring(prev.lastIndexOf('\n') + 1);
+    if (lastLine.trim().length >= 8 && n.startsWith(lastLine.trimLeft())) {
+      return n.substring(lastLine.trimLeft().length);
+    }
+    return n;
+  }
+
+  /// Fin d'une réponse : tokens, coût, skills demandées, lecture à voix haute.
+  void _finish(
+    Conversation c,
+    ChatMessage answer, {
+    required ProviderDef provider,
+    required ModelRef ref,
+    required bool failed,
+    required TokenUsage tokens,
+    required int inputChars,
+    required void Function() flush,
+    required void Function() speakAll,
+    required bool speak,
+    required void Function(List<String> wanted) again,
+    required int round,
+  }) {
+    _running.remove(c.id);
+    _onStop.remove(c.id);
+    BackgroundWork.instance.release(
+      'chat:${c.id}',
+      doneTitle: answer.error ? 'Réponse interrompue' : 'Réponse prête',
+      doneText: c.title,
+    );
+    if (!answer.error) flush();
+    if (!failed && answer.content.isNotEmpty) {
+      final outputChars = answer.content.length + answer.thinking.length;
+      final real = tokens.total > 0;
+      final t = real
+          ? tokens
+          : TokenUsage((inputChars / 4).ceil(), (outputChars / 4).ceil());
+      answer
+        ..tokensIn = t.input
+        ..tokensOut = t.output
+        ..estimated = !real
+        ..cost = priceOf(provider.id, ref.model)?.cost(t.input, t.output);
+      usage?.recordUsage(
+        provider.id,
+        model: ref.model,
+        usage: real ? tokens : null,
+        inputChars: inputChars,
+        outputChars: outputChars,
+      );
+      // Le solde chez le fournisseur est relu : il bouge avec chaque réponse.
+      usage?.refreshSoon(provider, settings.key(provider.id));
+    } else if (failed && answer.content.isNotEmpty) {
+      // Une réponse interrompue n'affiche pas de faux compteur.
+      answer
+        ..tokensIn = 0
+        ..tokensOut = 0
+        ..cost = null;
+    }
+    // L'assistant demande une skill : on la charge et il répond avec.
+    if (!answer.error && round < 2) {
+      final wanted = _requestedSkills(c, answer.content);
+      if (wanted.isNotEmpty) {
+        c.messages.remove(answer);
+        c.skills.addAll(wanted);
+        again(wanted);
+        return;
+      }
+    }
+    if (speak && !answer.error) {
+      speakAll();
+      VoiceService.instance.enqueue(
+        '',
+        onDone: () {
+          spokenTurnEnded.value = null;
+          spokenTurnEnded.value = c.id;
+        },
+      );
+    }
+    if (answer.content.trim().isEmpty && !answer.error) {
+      answer.error = true;
+      answer.content =
+          'Réponse vide. Le modèle « ${ref.model} » est peut-être indisponible '
+          'chez ${provider.name} : essayez-en un autre.';
+    }
+    c.updated = DateTime.now();
+    _changed(c, now: true);
+    _notifyAll();
   }
 
   /// Les skills dans la consigne : celles déjà chargées (en entier) et la liste

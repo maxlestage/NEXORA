@@ -142,6 +142,18 @@ class Balance {
     return currency == 'USD' ? '$n $sign' : '$n$sign';
   }
 
+  /// Le solde après une dépense, en attendant que le fournisseur le relise.
+  Balance spend(double dollars) => Balance(
+    remaining: remaining == null
+        ? null
+        : (remaining! - dollars).clamp(0.0, double.infinity),
+    total: total,
+    used: used == null ? null : used! + dollars,
+    currency: currency,
+    freeTier: freeTier,
+    note: note,
+  );
+
   String get label {
     if (remaining != null) return '${money(remaining!)} restants';
     if (used != null) return '${money(used!)} utilisés';

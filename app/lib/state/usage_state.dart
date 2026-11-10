@@ -83,6 +83,11 @@ class UsageState extends ChangeNotifier {
         ..costToday += c
         ..costMonth += c
         ..prepaidSpent += c;
+      // Le solde lu chez le fournisseur baisse tout de suite ; il est relu
+      // juste après (voir [refreshSoon]).
+      if (c > 0 && u.balance?.currency == 'USD') {
+        u.balance = u.balance!.spend(c);
+      }
     }
     if (u.lastErrorStatus != null &&
         const [401, 402, 429].contains(u.lastErrorStatus)) {
@@ -127,6 +132,23 @@ class UsageState extends ChangeNotifier {
     }
   }
 
+  final Map<String, Timer> _soon = {};
+
+  /// Relit le solde peu après une réponse (les fournisseurs mettent quelques
+  /// secondes à le mettre à jour) ; plusieurs réponses d'affilée = une lecture.
+  void refreshSoon(
+    ProviderDef p,
+    String? key, {
+    Duration delay = const Duration(seconds: 4),
+  }) {
+    if (!QuotaService.canFetch(p)) return;
+    _soon.remove(p.id)?.cancel();
+    _soon[p.id] = Timer(delay, () {
+      _soon.remove(p.id);
+      refresh(p, key);
+    });
+  }
+
   /// Le crédit mensuel de l'offre (`null` pour l'enlever).
   void setBudget(String providerId, double? dollars) {
     of(providerId).monthlyBudget = dollars;
@@ -150,6 +172,9 @@ class UsageState extends ChangeNotifier {
 
   @override
   void dispose() {
+    for (final t in _soon.values) {
+      t.cancel();
+    }
     _save?.cancel();
     super.dispose();
   }

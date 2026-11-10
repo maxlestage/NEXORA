@@ -3,6 +3,17 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.47 — 10 novembre 2026 — Les réponses vont jusqu'au bout, le crédit bouge
+- Corrigé : une réponse coupée par la limite de longueur du modèle n'est plus laissée en plan. NEXORA demande la suite tout seul et la raccorde au même message, sans doublon ni bloc de code rouvert. Pollinations, gratuit, coupe chaque réponse à 1 500 tokens.
+- Corrigé : une réponse dont la connexion a été coupée en route continue elle aussi.
+- Nouveau : avec Pollinations, le modèle réfléchit moins longtemps et garde ses tokens pour la réponse.
+- Corrigé : le coût et les tokens avancent en direct pendant la réponse.
+- Corrigé : le solde chez le fournisseur baisse dès la réponse, puis il est relu quelques secondes après et chaque minute tant qu'il est affiché.
+- Corrigé : changer de modèle propose maintenant tous les modèles du fournisseur, ainsi que le meilleur modèle de chaque autre fournisseur prêt.
+- Nouveau : quand il n'y a presque rien à choisir, l'app l'explique et mène à l'ajout d'une clé. Sans compte, Pollinations n'a qu'un seul modèle.
+- Changer de modèle pendant une réponse la relance tout de suite avec le nouveau modèle.
+- Corrigé : le bouton du modèle et les en-têtes de la liste des modèles ne débordent plus sur petit écran.
+
 ## 2.2.46 — 10 novembre 2026 — Arrêter une réponse ne perd plus rien
 - Corrigé : quand vous arrêtiez une réponse du chat, les derniers mots déjà reçus pouvaient disparaître. Tout le texte reçu jusqu'à l'arrêt est maintenant gardé.
 - Corrigé : arrêter une réponse avant son premier mot laissait une bulle vide, avec sa barre d'actions, dans la conversation. Elle disparaît maintenant, et vous pouvez renvoyer votre message tout de suite.

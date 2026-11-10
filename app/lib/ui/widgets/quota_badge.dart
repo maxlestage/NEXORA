@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -72,10 +73,20 @@ class QuotaBadge extends StatefulWidget {
 }
 
 class _QuotaBadgeState extends State<QuotaBadge> {
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoRefresh());
+    // Tant qu'il est à l'écran, le solde est relu régulièrement.
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _autoRefresh());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -84,7 +95,7 @@ class _QuotaBadgeState extends State<QuotaBadge> {
     if (old.providerId != widget.providerId) _autoRefresh();
   }
 
-  /// Relit le crédit s'il date de plus de 10 minutes.
+  /// Relit le crédit s'il date de plus de 2 minutes.
   void _autoRefresh() {
     if (!mounted) return;
     final settings = context.read<SettingsState>();
@@ -92,7 +103,7 @@ class _QuotaBadgeState extends State<QuotaBadge> {
     final p = settings.provider(widget.providerId);
     if (p == null || !QuotaService.canFetch(p)) return;
     final at = usage.of(p.id).balanceAt;
-    if (at == null || DateTime.now().difference(at).inMinutes >= 10) {
+    if (at == null || DateTime.now().difference(at).inMinutes >= 2) {
       usage.refresh(p, settings.key(p.id));
     }
   }
