@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -188,6 +190,8 @@ class _SessionScreenState extends State<SessionScreen> {
         openPr: hasPull || pr,
       );
       if (!mounted) return;
+      // Les tests GitHub sont suivis ; en cas d'échec, l'agent corrige.
+      unawaited(context.read<SessionState>().verify(run));
       final pulls = results.where((r) => r.isPull).toList();
       if (hasPull) {
         toast(context, 'Pull request mise à jour ✅');
@@ -353,6 +357,48 @@ class _SessionScreenState extends State<SessionScreen> {
                             ),
                         ],
                       ),
+                      for (final e in run.ci.entries)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Glass(
+                            glow: switch (e.value.state) {
+                              CiState.passed => Nx.green,
+                              CiState.failed => Nx.red,
+                              _ => Nx.amber,
+                            },
+                            onTap: e.value.runs.isEmpty
+                                ? null
+                                : () => launchUrl(
+                                    Uri.parse(
+                                      e.value.runs.first.url ??
+                                          'https://github.com/${e.key}/actions',
+                                    ),
+                                    mode: LaunchMode.externalApplication,
+                                  ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.science_outlined),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '${run.ci.length > 1 ? '${e.key.split('/').last} · ' : ''}'
+                                    '${e.value.label}'
+                                    '${e.value.state == CiState.failed ? '\nL\'agent corrige, puis revalidez ses brouillons.' : ''}',
+                                  ),
+                                ),
+                                if (e.value.state == CiState.waiting ||
+                                    e.value.state == CiState.running)
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 8),
                       // La mission en entier, à relire ou copier.
                       _StepTile(step: AgentStep(StepKind.user, run.task)),

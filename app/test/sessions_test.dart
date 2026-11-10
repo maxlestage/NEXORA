@@ -116,6 +116,8 @@ String act(String tool, Map args, [String? content]) =>
     '${content == null ? '' : '\n```\n$content\n```'}';
 
 void main() {
+  // Les tests obligatoires et la relecture finale ont leurs propres tests.
+  AgentRun.checks = false;
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('session : suite d\'instructions et même pull request', () async {

@@ -233,6 +233,14 @@ class SessionState extends ChangeNotifier {
     run.run(followUp: instruction);
   }
 
+  /// Après un envoi : suit les tests GitHub, et s'ils échouent, renvoie l'agent
+  /// corriger avec la fin des journaux (ses corrections reviennent en brouillons).
+  Future<void> verify(AgentRun run) async {
+    final report = await run.watchCi();
+    if (report == null || !_sessions.contains(run) || run.running) return;
+    continueSession(run.id, report);
+  }
+
   void stop(String id) => byId(id)?.stop();
 
   void delete(String id) {

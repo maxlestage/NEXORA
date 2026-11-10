@@ -327,6 +327,27 @@ class RepoTarget {
       RepoTarget(j['o'] as String, j['n'] as String, j['b'] as String);
 }
 
+/// Où en sont les tests GitHub d'un dépôt après un envoi.
+enum CiState { waiting, running, passed, failed, none }
+
+class CiReport {
+  CiReport(this.sha, {this.state = CiState.waiting, this.runs = const []});
+
+  final String sha;
+  CiState state;
+  List<CheckRun> runs;
+
+  String get label => switch (state) {
+    CiState.waiting => 'Tests GitHub : en attente…',
+    CiState.running =>
+      'Tests GitHub : en cours (${runs.where((r) => r.done).length}/${runs.length})…',
+    CiState.passed => 'Tests GitHub réussis ✅ (${runs.length})',
+    CiState.failed =>
+      'Tests GitHub échoués ❌ : ${runs.where((r) => r.failed).map((r) => r.name).join(', ')}',
+    CiState.none => 'Aucun test automatique sur GitHub pour ce dépôt',
+  };
+}
+
 /// Le résultat de l'envoi sur un dépôt : un commit (sha) ou une pull request (url).
 class ShipResult {
   ShipResult(this.repo, this.result);
@@ -578,6 +599,13 @@ class AgentRun extends ChangeNotifier {
         'la plus sensée et applique-la.\n'
         '- Ne remplace jamais la demande par autre chose, et ne touche pas à ce qui '
         'n\'a aucun rapport avec elle.\n'
+        '- TESTS OBLIGATOIRES : pour chaque modification, écris ou mets à jour les '
+        'tests qui la vérifient, avec le framework déjà utilisé par le dépôt '
+        '(cherche les tests existants : test/, tests/, *_test.*, *.test.*, spec). '
+        'S\'il n\'y en a pas, mets en place le plus simple pour ce langage. '
+        'Vérifie qu\'ils sont lancés sur GitHub (.github/workflows) : sinon, '
+        'ajoute ou complète un workflow qui les lance à chaque push. Mets aussi à '
+        'jour les tests existants que ta modification touche.\n'
         '- Ta correction ne doit rien casser ni cacher (contenu coupé, fonction '
         'retirée, mise en page abîmée) : préfère la correction à la racine à un '
         'pansement.\n'
@@ -592,6 +620,67 @@ class AgentRun extends ChangeNotifier {
         'TOUT ce que l\'utilisateur veut, point par point, avec ses mots.\n'
         '- Avant finish, vérifie demande par demande qu\'elle est faite (relis les '
         'passages modifiés si besoin).';
+  }
+
+  /// Tests obligatoires et relecture finale (désactivables dans les tests
+  /// unitaires qui ne portent pas dessus).
+  @visibleForTesting
+  static bool checks = true;
+
+  static final _codeFile = RegExp(
+    r'\.(dart|rs|js|jsx|mjs|cjs|ts|tsx|py|go|java|kt|kts|swift|rb|php|c|cc|cpp|'
+    r'h|hpp|cs|vue|svelte|css|scss|sass|less|html|sql|sh)$',
+    caseSensitive: false,
+  );
+
+  static final _testFile = RegExp(
+    r'((^|/)(test|tests|spec|specs|__tests__|e2e|integration_test|cypress|'
+    r'playwright)/|[._-](test|spec)\.[a-z]+$|_test\.[a-z]+$|(^|/)test_[^/]+$|'
+    r'(^|/)\.github/workflows/)',
+    caseSensitive: false,
+  );
+
+  /// Est-ce un fichier de tests (ou un workflow qui les lance) ?
+  static bool isTestFile(String path) => _testFile.hasMatch(path);
+
+  /// Les fichiers de code modifiés, s'il n'y a aucun test dans les brouillons.
+  List<String> _untested() {
+    final changed = changes.entries
+        .where((e) => e.value != null)
+        .map((e) => e.key);
+    if (changed.any(isTestFile)) return const [];
+    return changed.where(_codeFile.hasMatch).toList();
+  }
+
+  /// Toutes les modifications, en diff compact, pour la relecture finale.
+  String _reviewDiff({int budget = 14000}) {
+    final out = StringBuffer();
+    for (final e in changes.entries) {
+      if (out.length > budget) {
+        out.writeln('… (autres fichiers : relis-les avec read_file)');
+        break;
+      }
+      if (e.value == null) {
+        out.writeln('### ${e.key} : supprimé');
+        continue;
+      }
+      final d = lineDiff(originals[e.key], e.value);
+      out.writeln('### ${e.key} (+${d.added} −${d.removed})');
+      for (final l in withContext(d.lines, context: 2)) {
+        if (l == null) {
+          out.writeln('   …');
+        } else {
+          final sign = switch (l.kind) {
+            DiffKind.added => '+',
+            DiffKind.removed => '-',
+            DiffKind.same => ' ',
+          };
+          out.writeln('$sign${l.newNo ?? l.oldNo}: ${l.text}');
+        }
+        if (out.length > budget) break;
+      }
+    }
+    return out.toString().trimRight();
   }
 
   /// Le rappel ajouté à chaque résultat d'outil : l'agent relit la demande avant
@@ -817,6 +906,9 @@ class AgentRun extends ChangeNotifier {
       var nudged = false;
       // Déjà renvoyé faire ce que son résumé laissait de côté.
       var excused = false;
+      // Déjà renvoyé écrire les tests, déjà relu.
+      var testsAsked = false;
+      var reviewed = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
       // Fini par finish (ou arrêté pour une raison déjà affichée).
@@ -830,6 +922,8 @@ class AgentRun extends ChangeNotifier {
             actsSince = 0;
             nudged = false;
             excused = false;
+            testsAsked = false;
+            reviewed = false;
             restate = true;
           }
           _readInbox();
@@ -952,6 +1046,49 @@ class AgentRun extends ChangeNotifier {
                     'l\'expliquant précisément.',
               ),
             );
+            continue;
+          }
+          // Du code modifié sans aucun test : l'agent est renvoyé les écrire.
+          final untested = finish == null || testsAsked || !checks
+              ? const <String>[]
+              : _untested();
+          if (finish != null && untested.isNotEmpty) {
+            testsAsked = true;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Tu as modifié du code sans écrire de test : '
+                    '${untested.take(8).join(', ')}. Les tests sont obligatoires : '
+                    'écris maintenant ceux qui vérifient tes modifications (avec le '
+                    'framework du dépôt, ou le plus simple s\'il n\'y en a pas), '
+                    'assure-toi qu\'ils tournent sur GitHub (workflow), puis rappelle '
+                    'finish.$reminder',
+              ),
+            );
+            actsSince = 0;
+            nudged = true;
+            continue;
+          }
+          // Avant de terminer : relecture de toutes les modifications, comme un
+          // relecteur (une fois par demande).
+          if (finish != null && checks && !reviewed && changes.isNotEmpty) {
+            reviewed = true;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Avant de terminer, relis TOUTES tes modifications comme un '
+                    'relecteur exigeant :\n${_reviewDiff()}\n\n'
+                    'Vérifie : la demande est entièrement faite ; la syntaxe, les '
+                    'imports et les noms sont justes ; rien n\'est cassé ; les cas '
+                    'limites sont gérés ; les tests couvrent chaque modification et '
+                    'passeraient. Corrige tout problème avec edit_file. Si tout est '
+                    'bon, rappelle finish (même résumé).$reminder',
+              ),
+            );
+            actsSince = 0;
+            nudged = true;
             continue;
           }
           // Un résumé qui annonce du travail pas fait (« je pourrais… », « limite »,
@@ -1792,6 +1929,97 @@ class AgentRun extends ChangeNotifier {
       notifyListeners();
     }
     return results;
+  }
+
+  /// Les tests GitHub après le dernier envoi, par dépôt.
+  final Map<String, CiReport> ci = {};
+
+  /// Le dernier commit envoyé sur chaque dépôt.
+  Map<String, String> get lastCommits => {
+    for (final c in commits)
+      if (c.contains('@'))
+        c.substring(0, c.lastIndexOf('@')): c.substring(c.lastIndexOf('@') + 1),
+  };
+
+  /// Suit les tests GitHub (Actions et autres vérifications) du dernier envoi.
+  /// Rend un rapport d'échec (avec la fin des journaux) à donner à l'agent pour
+  /// qu'il corrige, ou `null` si tout passe ou s'il n'y a pas de tests.
+  Future<String?> watchCi({
+    Duration every = const Duration(seconds: 15),
+    Duration limit = const Duration(minutes: 30),
+    Duration noneAfter = const Duration(minutes: 3),
+  }) async {
+    final shas = lastCommits;
+    if (shas.isEmpty) return null;
+    for (final e in shas.entries) {
+      if (ci[e.key]?.sha != e.value) ci[e.key] = CiReport(e.value);
+    }
+    notifyListeners();
+    final started = DateTime.now();
+    while (true) {
+      var pending = false;
+      for (final e in shas.entries) {
+        final r = ci[e.key]!;
+        if (r.state == CiState.passed ||
+            r.state == CiState.failed ||
+            r.state == CiState.none) {
+          continue;
+        }
+        final i = e.key.indexOf('/');
+        try {
+          final runs = await github.checkRuns(
+            e.key.substring(0, i),
+            e.key.substring(i + 1),
+            e.value,
+          );
+          r.runs = runs;
+          if (runs.isEmpty) {
+            if (DateTime.now().difference(started) > noneAfter) {
+              r.state = CiState.none;
+            } else {
+              pending = true;
+            }
+          } else if (runs.every((x) => x.done)) {
+            r.state = runs.any((x) => x.failed)
+                ? CiState.failed
+                : CiState.passed;
+          } else {
+            r.state = CiState.running;
+            pending = true;
+          }
+        } catch (_) {
+          pending = true;
+        }
+      }
+      notifyListeners();
+      if (!pending || DateTime.now().difference(started) > limit) break;
+      await Future<void>.delayed(every);
+    }
+    final failed = ci.entries.where(
+      (e) => shas.containsKey(e.key) && e.value.state == CiState.failed,
+    );
+    if (failed.isEmpty) return null;
+    final out = StringBuffer(
+      'Les tests GitHub ont échoué après ton envoi. Corrige le code (ou les tests '
+      's\'ils sont faux) pour que TOUT passe, puis termine.\n',
+    );
+    for (final e in failed) {
+      final i = e.key.indexOf('/');
+      for (final run in e.value.runs.where((x) => x.failed).take(3)) {
+        out.writeln('\n### ${e.key} · ${run.name} : ${run.conclusion}');
+        final log = await github.jobLog(
+          e.key.substring(0, i),
+          e.key.substring(i + 1),
+          run.id,
+          lines: 120,
+        );
+        final text = log ?? run.summary;
+        if (text != null && text.trim().isNotEmpty) {
+          out.writeln('```\n${text.trim()}\n```');
+        }
+      }
+    }
+    return out.toString();
   }
 
   /// Lignes ajoutées et retirées par les brouillons (comparées aux originaux

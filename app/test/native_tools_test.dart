@@ -73,6 +73,8 @@ String act(String tool, Map args) =>
     '```json\n${jsonEncode({'tool': tool, 'args': args})}\n```';
 
 void main() {
+  // Les tests obligatoires et la relecture finale ont leurs propres tests.
+  AgentRun.checks = false;
   const readme = '# Projet\n\nUn projet.\n';
 
   AgentRun build(
