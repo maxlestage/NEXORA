@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.28 — 10 novembre 2026 — Le travail de l'agent arrive toujours dans master
+- Corrigé : si la pull request d'une session avait déjà été fusionnée sur GitHub, les envois suivants de l'agent partaient sur sa branche et n'arrivaient jamais dans master. L'app vérifie maintenant l'état de la pull request avant chaque envoi et en ouvre une nouvelle si besoin.
+- Récupération du travail en attente : quand du travail de l'agent est resté sur une branche sans pull request, la session l'affiche. Un bouton ouvre la pull request, fait passer la CI et fusionne.
+- À l'ouverture d'une session, l'état de ses pull requests est relu sur GitHub (fusionnée, fermée ou encore ouverte).
+
 ## 2.2.27 — 10 novembre 2026 — L'agent ne rate plus une action après une accolade
 - Corrigé : quand l'agent écrivait une phrase contenant une accolade (par exemple du code « f() { … } ») juste avant son action, l'action n'était pas reconnue et il perdait un tour. Elle est maintenant retrouvée correctement.
 - Les sessions avancent donc plus droit, avec moins de relances inutiles.
