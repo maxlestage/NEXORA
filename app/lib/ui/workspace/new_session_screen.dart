@@ -242,6 +242,18 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
               'entièrement verte. Votre branche principale n\'est jamais modifiée.',
             ),
           ),
+          if (s.agentAutoCi)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: s.agentAutoMerge,
+              onChanged: s.setAgentAutoMerge,
+              title: const Text('Fusionner quand la CI est verte'),
+              subtitle: const Text(
+                'Quand tout passe, l\'agent fusionne la pull request dans la '
+                'branche principale (master, main…) et supprime sa branche de '
+                'travail.',
+              ),
+            ),
           const SizedBox(height: 8),
           Glass(
             child: Text(

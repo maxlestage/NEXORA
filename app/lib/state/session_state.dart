@@ -208,6 +208,7 @@ class SessionState extends ChangeNotifier {
       onError: (e) => usage?.recordError(p.id, e),
     );
     run.autoCi = settings.agentAutoCi;
+    run.autoMerge = settings.agentAutoMerge;
     _equip(run);
     _attach(run);
     _trim();

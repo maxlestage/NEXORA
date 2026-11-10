@@ -194,6 +194,8 @@ void main() {
   test('boucle CI : envoi sur une branche avec pull request, échec puis vert', () async {
     var round = 0;
     final pushed = <String>[];
+    final mergedPrs = <String>[];
+    final deleted = <String>[];
     final pulls = <String>[];
     final gh = MockClient((req) async {
       final p = req.url.path;
@@ -224,6 +226,14 @@ void main() {
       if (p.contains('/git/refs/heads/') && req.method == 'PATCH') {
         pushed.add(p.split('/git/refs/heads/').last);
         return http.Response('{}', 200);
+      }
+      if (p.contains('/git/refs/heads/') && req.method == 'DELETE') {
+        deleted.add(p.split('/git/refs/heads/').last);
+        return http.Response('', 204);
+      }
+      if (p.endsWith('/pulls/1/merge') && req.method == 'PUT') {
+        mergedPrs.add('${body()['merge_method']}:${body()['commit_title']}');
+        return http.Response('{"merged":true}', 200);
       }
       if (p.endsWith('/git/refs')) {
         return http.Response(jsonEncode({'ref': body()['ref']}), 201);
@@ -285,5 +295,12 @@ void main() {
     expect(pushed, [branch, branch]);
     expect(pulls, hasLength(1));
     expect(run.ciRounds, 2);
+    // Vert : fusionné dans la branche principale, branche de travail supprimée.
+    expect(mergedPrs, ['squash:Somme']);
+    expect(run.ciNote, contains('fusionné dans main'));
+    expect(run.merged, ['max/site → main']);
+    expect(deleted, [branch]);
+    expect(run.heads, isEmpty);
+    expect(run.pulls, isEmpty);
   });
 }

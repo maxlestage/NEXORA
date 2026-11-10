@@ -800,11 +800,16 @@ class GitHubApi {
     String repo,
     int number, {
     String method = 'squash',
+    String? title,
   }) => _req(
     'PUT',
     '/repos/$owner/$repo/pulls/$number/merge',
-    body: {'merge_method': method},
+    body: {'merge_method': method, 'commit_title': ?title},
   );
+
+  /// Supprime une branche (après la fusion de sa pull request).
+  Future<void> deleteBranch(String owner, String repo, String branch) =>
+      _req('DELETE', '/repos/$owner/$repo/git/refs/heads/${_enc(branch)}');
 
   // —— Actions ———————————————————————————————————————————————————
 

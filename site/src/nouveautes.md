@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.18 — 10 novembre 2026 — L'agent fusionne dans master quand tout est vert
+- Quand la CI est entièrement verte, l'agent fusionne lui-même sa pull request dans la branche principale (master, main…), en un seul commit avec son message, puis supprime sa branche de travail.
+- La session affiche « CI entièrement verte ✅ et fusionné dans master 🎉 ». Une nouvelle instruction repart de master à jour, sur une nouvelle branche.
+- En cas de conflit avec master, rien n'est forcé : la session vous le dit et la pull request reste ouverte.
+- Option « Fusionner quand la CI est verte » à la création d'une session (activée par défaut).
+
 ## 2.2.17 — 10 novembre 2026 — L'agent fait passer la CI, entièrement
 - CI GitHub obligatoire : l'agent écrit ou complète un workflow (.github/workflows/ci.yml), lancé à chaque push et pull request, qui construit le projet et lance tous les tests. S'il l'oublie, il est renvoyé l'écrire avant de terminer.
 - Boucle jusqu'au vert : quand l'agent a fini, son travail part sur une branche de travail avec une pull request. Votre branche principale n'est jamais modifiée.
