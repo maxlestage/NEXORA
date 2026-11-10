@@ -1,5 +1,126 @@
 import 'dart:convert';
 
+/// Lit un objet JSON écrit un peu de travers par un modèle, sans en changer le
+/// sens : retours à la ligne ou tabulations bruts dans une chaîne (fréquents
+/// quand l'argument est du code), échappements invalides (`\'`, `\d`),
+/// guillemets intérieurs non échappés, virgule finale, objet répété ou suivi de
+/// texte. Rend `null` si l'objet reste illisible (par exemple coupé avant la
+/// fin : il n'est jamais complété au hasard).
+Map<String, dynamic>? decodeLooseJson(String text) {
+  final s = text.trim();
+  if (s.isEmpty) return null;
+  Map<String, dynamic>? asMap(String t) {
+    try {
+      final j = jsonDecode(t);
+      return j is Map ? Map<String, dynamic>.from(j) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  final strict = asMap(s);
+  if (strict != null) return strict;
+  final start = s.indexOf('{');
+  if (start < 0) return null;
+  final fixed = _repairJson(s.substring(start));
+  if (fixed == null) return null;
+  return asMap(fixed);
+}
+
+final _key = RegExp(r'\s*"(?:[^"\\\n]|\\.)*"\s*:');
+final _value = RegExp(r'\s*["{\[\-0-9tfn]');
+
+/// Réécrit le premier objet JSON de [s] en JSON strict (voir [decodeLooseJson]).
+/// Rend `null` si l'objet ne se ferme jamais.
+String? _repairJson(String s) {
+  final out = StringBuffer();
+  final stack = <String>[];
+  var inString = false;
+  bool hex4(int at) =>
+      at + 4 <= s.length &&
+      RegExp(r'^[0-9a-fA-F]{4}$').hasMatch(s.substring(at, at + 4));
+  for (var i = 0; i < s.length; i++) {
+    final c = s[i];
+    if (inString) {
+      if (c == '\\') {
+        final n = i + 1 < s.length ? s[i + 1] : '';
+        if (n == 'u' && hex4(i + 2)) {
+          out.write(s.substring(i, i + 6));
+          i += 5;
+        } else if (n.isNotEmpty && '"\\/bfnrt'.contains(n)) {
+          out.write('\\$n');
+          i++;
+        } else if (n == "'") {
+          out.write("'");
+          i++;
+        } else {
+          // Une barre oblique inverse qui n'échappe rien : gardée telle quelle.
+          out.write(r'\\');
+        }
+      } else if (c == '"') {
+        // Fin de la chaîne seulement si la suite le confirme ; sinon c'est un
+        // guillemet du texte (du code) oublié dans l'échappement.
+        var j = i + 1;
+        while (j < s.length && ' \t\r\n'.contains(s[j])) {
+          j++;
+        }
+        final next = j < s.length ? s[j] : '';
+        final bool closes;
+        if (next == '' || ':}]'.contains(next)) {
+          closes = true;
+        } else if (next == ',') {
+          // Après la virgule : la clé suivante d'un objet, ou une valeur dans
+          // une liste. « f("a", b) » n'en est pas une.
+          closes = stack.isNotEmpty && stack.last == '['
+              ? _value.matchAsPrefix(s, j + 1) != null
+              : _key.matchAsPrefix(s, j + 1) != null;
+        } else {
+          closes = false;
+        }
+        if (closes) {
+          inString = false;
+          out.write('"');
+        } else {
+          out.write(r'\"');
+        }
+      } else if (c.codeUnitAt(0) < 0x20) {
+        out.write(switch (c) {
+          '\n' => r'\n',
+          '\r' => r'\r',
+          '\t' => r'\t',
+          _ => '\\u${c.codeUnitAt(0).toRadixString(16).padLeft(4, '0')}',
+        });
+      } else {
+        out.write(c);
+      }
+      continue;
+    }
+    if (c == '"') {
+      inString = true;
+      out.write(c);
+    } else if (c == '{' || c == '[') {
+      stack.add(c);
+      out.write(c);
+    } else if (c == '}' || c == ']') {
+      // Une virgule juste avant la fermeture : retirée.
+      final sofar = out.toString().trimRight();
+      if (sofar.endsWith(',')) {
+        out
+          ..clear()
+          ..write(sofar.substring(0, sofar.length - 1));
+      }
+      out.write(c);
+      if (stack.isNotEmpty) stack.removeLast();
+      // Le premier objet est complet : ce qui suit (un doublon, du texte) est
+      // laissé de côté.
+      if (stack.isEmpty) return out.toString();
+    } else {
+      out.write(c);
+    }
+  }
+  return null;
+}
+
 /// Un morceau de réponse reçu en flux.
 class ChatDelta {
   const ChatDelta({
@@ -68,11 +189,14 @@ class ToolCallCollector {
       final (name, args) = _calls[k]!;
       final n = name.toString().trim();
       if (n.isEmpty) continue;
+      final text = args.toString().trim();
       Object? parsed;
       try {
-        parsed = jsonDecode(args.toString().trim().isEmpty ? '{}' : '$args');
+        parsed = jsonDecode(text.isEmpty ? '{}' : text);
       } catch (_) {
-        parsed = {'raw': args.toString()};
+        // Arguments écrits de travers (fréquent quand ils contiennent du code) :
+        // relus avec indulgence avant d'être déclarés illisibles.
+        parsed = decodeLooseJson(text) ?? {'raw': text};
       }
       actions.add({
         'tool': n,

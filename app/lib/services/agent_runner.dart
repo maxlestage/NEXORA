@@ -240,7 +240,7 @@ List<ToolCall> parseToolCalls(String reply) {
     final lang = b.lang;
     final body = b.body;
     if (lang == 'json' || (lang.isEmpty && body.trimLeft().startsWith('{'))) {
-      final cand = _tryJson(body);
+      final cand = _tryLooseJson(body);
       if (wanted(cand)) {
         obj = cand;
         afterIndex = b.end;
@@ -271,6 +271,25 @@ List<ToolCall> parseToolCalls(String reply) {
           afterIndex = e + 1;
           break;
         }
+      }
+    }
+  }
+  if (obj == null) {
+    // Aucun objet strictement valide : le JSON a pu être écrit de travers
+    // (retours à la ligne bruts, échappements invalides dans du code). Relu avec
+    // indulgence à partir des accolades qui ouvrent une action.
+    final opener = RegExp(r'\{\s*"(tool|actions|thought|demande|name|action)"');
+    for (final m in opener.allMatches(reply).take(5)) {
+      final cand = decodeLooseJson(reply.substring(m.start));
+      if (wanted(cand)) {
+        obj = cand;
+        // Les blocs de code qui suivent le JSON (contenus des fichiers) : après
+        // la fin de cet objet, à peu près là où se ferme le dernier bloc JSON.
+        final close = blocks.where((b) => b.start <= m.start).lastOrNull;
+        afterIndex = close != null && close.end > m.start
+            ? close.end
+            : m.start + 1;
+        break;
       }
     }
   }
@@ -395,7 +414,9 @@ void _normalizeAction(Map<String, dynamic> o) {
     if (v is String && _knownTools.containsKey(canonicalTool(v))) {
       o['tool'] = canonicalTool(v);
       final a = o['args'] ?? o['arguments'] ?? o['parameters'] ?? o['input'];
-      o['args'] = a is String ? (_tryJson(a) ?? {}) : (a is Map ? a : {});
+      o['args'] = a is String
+          ? (_tryLooseJson(a) ?? {'raw': a})
+          : (a is Map ? a : {});
       return;
     }
   }
@@ -425,6 +446,11 @@ Map<String, dynamic>? _tryJson(String s) {
     return null;
   }
 }
+
+/// Comme [_tryJson], mais lit aussi un JSON écrit de travers (voir
+/// [decodeLooseJson]).
+Map<String, dynamic>? _tryLooseJson(String s) =>
+    _tryJson(s) ?? decodeLooseJson(s);
 
 /// Un dépôt sur lequel l'agent travaille.
 class RepoTarget {
@@ -2201,6 +2227,17 @@ class AgentRun extends ChangeNotifier {
       return p.startsWith('/') ? p.substring(1) : p;
     }
 
+    // Des arguments restés illisibles même relus avec indulgence (souvent coupés
+    // en route) : le modèle doit les renvoyer, au lieu de croire qu'il manque
+    // quelque chose.
+    if (call.args.length == 1 && call.args['raw'] is String) {
+      return 'ERREUR : les arguments de ${call.tool} ne sont pas du JSON valide '
+          '(coupés ou mal échappés), l\'action n\'a pas été faite. Renvoie-la '
+          'avec des arguments complets et bien échappés (\\n pour un retour à la '
+          'ligne, \\" pour un guillemet), en plus petits morceaux si le texte est '
+          'long. Pour edit_file, tu peux aussi mettre "old" et "new" dans deux '
+          'blocs de code après le JSON.';
+    }
     switch (call.tool) {
       case 'list_files':
         final tree = await _files();

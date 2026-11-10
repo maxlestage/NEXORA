@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.42 — 10 novembre 2026 — L'agent comprend ses actions même mal écrites
+- Corrigé : quand le modèle écrivait une modification avec du code collé tel quel (retours à la ligne, guillemets ou barres obliques non échappés), l'action était rejetée avec « il manque le texte » et l'agent tournait en rond sans jamais modifier le fichier.
+- Ces actions sont maintenant relues avec indulgence, sans en changer le sens : la modification est faite du premier coup, que le modèle passe par un bloc JSON ou par ses appels d'outils natifs.
+- Une action vraiment coupée en route n'est jamais complétée au hasard : l'agent sait exactement qu'il doit la renvoyer, au lieu de chercher ce qui « manque ».
+
 ## 2.2.41 — 10 novembre 2026 — Un en-tête de site entièrement repensé
 - Amélioré : l'accueil du site a un nouvel en-tête, plus épuré, avec le texte à gauche et l'emblème NEXORA à droite (en haut sur téléphone).
 - Le logo néon flotte au centre d'un disque de lumière en 3D : des centaines de grains aux couleurs de la marque tournent autour de lui. Les grosses boules et les orbites qui traversaient le titre ont disparu.
