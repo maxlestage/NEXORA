@@ -38,8 +38,9 @@ const Map<String, String> agentTools = {
       'changer une partie d\'un fichier existant, utilise edit_file.',
   'delete_file': 'Supprime un fichier. args: {"path": "..."}',
   'finish':
-      'Termine. args: {"summary": "pour chaque demande de l\'utilisateur, ce '
-      'qui a été fait (ou pourquoi c\'est impossible)", "commit_message": "..."}',
+      'Termine, quand TOUT est fait. args: {"summary": "ce qui a été fait, '
+      'demande par demande (pas de « limites » ni de propositions)", '
+      '"commit_message": "..."}',
 };
 
 enum StepKind {
@@ -207,6 +208,16 @@ List<ToolCall> parseToolCalls(String reply) {
   }
   return calls;
 }
+
+/// Les tournures d'un résumé qui laisse du travail de côté.
+final unfinishedWork = RegExp(
+  r"je (pourrais|peux aussi|pourrai)|si tu (le )?(veux|souhaites)|si vous (le )?"
+  r"(voulez|souhaitez)|veux-tu|voulez-vous|souhaites-tu|limites? ?:|"
+  r"(n'|n’)(était|étaient|a) pas (été )?demandé|pas été demandé|"
+  r"je ne l'ai pas fait|je n'ai pas (pu )?(le )?(faire|tester|vérifier|ajouter)|"
+  r"il faudrait (aussi|encore)|reste à faire|à faire ensuite|prochaine étape",
+  caseSensitive: false,
+);
 
 /// Le nom d'outil tel que NEXORA le connaît : sans préfixe inventé par le modèle
 /// (« repo_browser.search_code », « functions.read_file »), et avec les noms
@@ -553,17 +564,29 @@ class AgentRun extends ChangeNotifier {
     return 'DEMANDES DE L\'UTILISATEUR (ta seule mission, à garder en tête du '
         'début à la fin) :\n$list\n\n'
         'Règles absolues :\n'
-        '- Fais EXACTEMENT ce qui est demandé : rien de moins, et rien de plus. '
-        'Pas d\'« améliorations » ni de refonte non demandées, pas d\'autre '
-        'fichier ou fonctionnalité que ceux qu\'il faut pour la demande.\n'
-        '- Ne remplace jamais une demande par ce que tu crois mieux. Si tu penses '
-        'qu\'autre chose serait utile, propose-le dans le résumé de finish, sans '
-        'le faire.\n'
+        '- C\'est un ORDRE : obtiens le RÉSULTAT voulu, entièrement, avec bon '
+        'sens. Comprends l\'intention derrière les mots (« aucun défilement '
+        'horizontal » = rien ne dépasse la largeur de l\'écran, sur aucune page) '
+        'et corrige la VRAIE cause, partout où c\'est nécessaire : toutes les '
+        'pages, tous les fichiers concernés.\n'
+        '- Fais tout ce qu\'un excellent développeur ferait pour que ce soit '
+        'vraiment réglé (cas oubliés, styles ou tests liés à la demande) : ça fait '
+        'partie de la demande, inutile qu\'elle le précise.\n'
+        '- Ne t\'arrête jamais à mi-chemin. Interdit de finir par « je pourrais… », '
+        '« si tu veux… », « limite : … » ou « ce n\'était pas demandé » : ce qui '
+        'sert la demande, fais-le maintenant. Pas de question : choisis la solution '
+        'la plus sensée et applique-la.\n'
+        '- Ne remplace jamais la demande par autre chose, et ne touche pas à ce qui '
+        'n\'a aucun rapport avec elle.\n'
+        '- Ta correction ne doit rien casser ni cacher (contenu coupé, fonction '
+        'retirée, mise en page abîmée) : préfère la correction à la racine à un '
+        'pansement.\n'
         '- Respecte les détails donnés (textes, couleurs, noms, fichiers, valeurs) '
         'au mot près.\n'
         '- Si deux demandes se contredisent, la plus récente l\'emporte.\n'
-        '- Une demande impossible ou ambiguë : n\'invente pas autre chose, explique '
-        'le blocage dans finish.\n'
+        '- Tu ne peux pas lancer le code ni un navigateur : compense en relisant '
+        'ton travail et en choisissant la correction la plus robuste, sans en '
+        'faire une excuse dans le résumé.\n'
         '- AU TOUT DÉBUT (ton premier tour, et le premier tour après chaque '
         'nouvelle instruction), avant toute action : redis-toi dans "demande" '
         'TOUT ce que l\'utilisateur veut, point par point, avec ses mots.\n'
@@ -676,7 +699,8 @@ class AgentRun extends ChangeNotifier {
           'start/end) ou avec find_in_file. Pour write_file, mets ensuite le contenu '
           'COMPLET du fichier dans un bloc de code séparé. Lis un fichier avant de '
           'le modifier. Fais des '
-          'changements minimes et cohérents. Quand la tâche est faite, appelle '
+          'changements cohérents et complets, sans toucher à ce qui n\'a aucun '
+          'rapport. Quand la tâche est faite, appelle '
           'finish avec un résumé et un message de commit court en français.',
       // Et à la fin, pour ne jamais l'oublier.
       'RAPPEL : ta mission est la demande de l\'utilisateur donnée tout en haut '
@@ -791,6 +815,8 @@ class AgentRun extends ChangeNotifier {
       // avoir rien fait pour elle est refusé une fois.
       var actsSince = 0;
       var nudged = false;
+      // Déjà renvoyé faire ce que son résumé laissait de côté.
+      var excused = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
       // Fini par finish (ou arrêté pour une raison déjà affichée).
@@ -803,6 +829,7 @@ class AgentRun extends ChangeNotifier {
           if (_inbox.isNotEmpty) {
             actsSince = 0;
             nudged = false;
+            excused = false;
             restate = true;
           }
           _readInbox();
@@ -811,6 +838,19 @@ class AgentRun extends ChangeNotifier {
           // redemandée tout de suite, sans encombrer l'historique.
           for (var retry = 0; retry < 2 && !_stop; retry++) {
             if (reply == null || reply.trim().isNotEmpty) break;
+            // Souvent : toute la réponse est partie dans la réflexion. On demande
+            // l'action tout de suite (et la requête change, donc pas de cache).
+            history.add(
+              LlmMessage(
+                'user',
+                retry == 0
+                    ? 'Ta réponse était vide (réflexion trop longue ?). Réponds '
+                          'tout de suite, en peu de mots, avec le bloc JSON de ta '
+                          'prochaine action.'
+                    : 'Réponds UNIQUEMENT avec le bloc JSON de ta prochaine action, '
+                          'sans aucune réflexion.',
+              ),
+            );
             reply = await _ask(history);
           }
           if (reply == null || _stop) break;
@@ -912,6 +952,26 @@ class AgentRun extends ChangeNotifier {
                     'l\'expliquant précisément.',
               ),
             );
+            continue;
+          }
+          // Un résumé qui annonce du travail pas fait (« je pourrais… », « limite »,
+          // « pas demandé ») : l'agent est renvoyé le faire, une fois par demande.
+          final said = (finish?.args['summary'] ?? '').toString();
+          final excuse = unfinishedWork.firstMatch(said);
+          if (finish != null && excuse != null && !excused) {
+            excused = true;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Ton résumé annonce du travail non fait (« ${excuse[0]} »). C\'est '
+                    'un ordre et c\'est du bon sens : fais-le MAINTENANT, entièrement, '
+                    'puis rappelle finish avec un résumé de ce qui est FAIT, sans '
+                    'limites ni propositions.$reminder',
+              ),
+            );
+            actsSince = 0;
+            nudged = true;
             continue;
           }
           if (finish != null) {
