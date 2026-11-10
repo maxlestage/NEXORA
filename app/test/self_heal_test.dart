@@ -29,6 +29,13 @@ class FakeHub {
   /// Les pull requests déjà fusionnées (sur GitHub, par l'utilisateur).
   final Set<int> mergedPulls = {};
 
+  /// Le commit fusionné de chaque pull request (par défaut : celui de sa
+  /// branche, rien n'y est arrivé depuis).
+  final Map<int, String> mergedAt = {};
+
+  /// Le dernier commit de chaque branche (absente : supprimée ou jamais créée).
+  final Map<String, String> tips = {'main': 'p0'};
+
   /// Combien de 503 avant de répondre normalement.
   int failures = 0;
 
@@ -55,9 +62,11 @@ class FakeHub {
         );
       }
       if (p.contains('/git/ref/heads/')) {
+        final tip = tips[Uri.decodeComponent(p.split('/git/ref/heads/').last)];
+        if (tip == null) return http.Response('{"message":"Not Found"}', 404);
         return http.Response(
           jsonEncode({
-            'object': {'sha': 'p0'},
+            'object': {'sha': tip},
           }),
           200,
         );
@@ -78,14 +87,22 @@ class FakeHub {
         return http.Response(jsonEncode({'sha': 'c$commit'}), 201);
       }
       if (p.contains('/git/refs/heads/') && req.method == 'PATCH') {
-        pushed.add(p.split('/git/refs/heads/').last);
+        final b = p.split('/git/refs/heads/').last;
+        pushed.add(b);
+        tips[Uri.decodeComponent(b)] = body()['sha'] as String;
         return http.Response('{}', 200);
       }
       if (p.contains('/git/refs/heads/') && req.method == 'DELETE') {
         deleted.add(p.split('/git/refs/heads/').last);
+        tips.remove(Uri.decodeComponent(p.split('/git/refs/heads/').last));
         return http.Response('', 204);
       }
       if (p.endsWith('/git/refs')) {
+        final ref = (body()['ref'] as String).replaceFirst('refs/heads/', '');
+        if (tips.containsKey(ref)) {
+          return http.Response('{"message":"Reference already exists"}', 422);
+        }
+        tips[ref] = body()['sha'] as String;
         return http.Response(jsonEncode({'ref': body()['ref']}), 201);
       }
       if (p.endsWith('/update-branch')) {
@@ -115,7 +132,11 @@ class FakeHub {
         final merged = mergedPulls.contains(n);
         return http.Response(
           jsonEncode({
-            'head': {'sha': 'updated$commit'},
+            'head': {
+              'sha': merged
+                  ? mergedAt[n] ?? tips[pulls[n - 1]] ?? 'gone'
+                  : 'updated$commit',
+            },
             'state': merged ? 'closed' : 'open',
             'merged': merged,
           }),
@@ -321,6 +342,8 @@ void main() {
     // PR fusionnée sur GitHub, puis un nouvel envoi est parti sur la branche
     // (ancienne version de l'app) : il n'est dans aucune pull request.
     hub.mergedPulls.add(1);
+    hub.mergedAt[1] = hub.tips[hub.pulls.single]!;
+    hub.tips[hub.pulls.single] = 'après-fusion';
     await run.refreshPulls();
     expect(run.pulls, isEmpty);
     expect(run.stranded.map((t) => t.fullName), ['max/site']);
@@ -330,5 +353,44 @@ void main() {
     run.autoMerge = true;
     expect(await run.shipForCi(every: Duration.zero), isNull);
     expect(run.merged, ['max/site → main']);
+  });
+
+  test('pull request fusionnée sur GitHub sans rien de plus : aucune fausse '
+      'alerte de travail en attente, la suite repart de main', () async {
+    final hub = FakeHub();
+    final run = build(hub);
+    run.autoMerge = false;
+    run.changes['a.css'] = 'v1\n';
+    await run.shipForCi(every: Duration.zero);
+    final first = hub.pulls.single;
+    // L'utilisateur fusionne lui-même la pull request (branche gardée).
+    hub.mergedPulls.add(1);
+    await run.refreshPulls();
+    expect(run.pulls, isEmpty);
+    expect(run.heads, isEmpty);
+    expect(run.stranded, isEmpty);
+    expect(run.merged, ['max/site → main']);
+    expect(hub.deleted, [first]);
+    // Le prochain envoi part d'une branche neuve, créée depuis main.
+    run.changes['a.css'] = 'v2\n';
+    await run.shipForCi(every: Duration.zero);
+    expect(hub.pulls, hasLength(2));
+    expect(run.pulls['max/site'], endsWith('/pull/2'));
+  });
+
+  test('pull request fusionnée découverte à l\'envoi : l\'ancienne branche est '
+      'supprimée, le travail part sur une branche neuve depuis main', () async {
+    final hub = FakeHub();
+    final run = build(hub);
+    run.autoMerge = false;
+    run.changes['a.css'] = 'v1\n';
+    await run.shipForCi(every: Duration.zero);
+    final first = hub.pulls.single;
+    hub.mergedPulls.add(1);
+    run.changes['a.css'] = 'v2\n';
+    await run.shipForCi(every: Duration.zero);
+    expect(hub.deleted, [first]);
+    expect(hub.pulls, hasLength(2));
+    expect(run.pulls['max/site'], endsWith('/pull/2'));
   });
 }

@@ -2362,21 +2362,35 @@ class AgentRun extends ChangeNotifier {
         final n = known == null ? null : int.tryParse(known.split('/').last);
         if (n != null) {
           try {
-            final (state, _) = await github.pullStatus(t.owner, t.name, n);
+            final (state, merged, prHead) = await github.pullStatus(
+              t.owner,
+              t.name,
+              n,
+            );
             if (state != 'open') {
               pulls.remove(t.fullName);
-              // Sa branche a pu être supprimée après la fusion : on la recrée
-              // depuis la branche principale (ignoré si elle existe encore).
               final head = heads[t.fullName];
               if (head != null && head != t.branch) {
-                try {
-                  await github.createBranch(
-                    t.owner,
-                    t.name,
-                    head,
-                    from: t.branch,
-                  );
-                } catch (_) {}
+                if (await _mergedWhole(t, head, merged, prHead)) {
+                  // Tout le travail de la branche est déjà dans la branche
+                  // principale : l'envoi repart d'elle, sur une branche neuve
+                  // (pas d'anciens commits ré-proposés, pas de faux conflit).
+                  final old = heads.remove(t.fullName)!;
+                  try {
+                    await github.deleteBranch(t.owner, t.name, old);
+                  } catch (_) {}
+                } else {
+                  // Sa branche a pu être supprimée : on la recrée depuis la
+                  // branche principale (ignoré si elle existe encore).
+                  try {
+                    await github.createBranch(
+                      t.owner,
+                      t.name,
+                      head,
+                      from: t.branch,
+                    );
+                  } catch (_) {}
+                }
               }
             }
           } catch (_) {}
@@ -2713,11 +2727,51 @@ class AgentRun extends ChangeNotifier {
       final n = url == null ? null : int.tryParse(url.split('/').last);
       if (n == null) continue;
       try {
-        final (state, _) = await github.pullStatus(t.owner, t.name, n);
-        if (state != 'open') pulls.remove(t.fullName);
+        final (state, wasMerged, prHead) = await github.pullStatus(
+          t.owner,
+          t.name,
+          n,
+        );
+        if (state != 'open') {
+          pulls.remove(t.fullName);
+          final head = heads[t.fullName];
+          // Fusionnée telle quelle (sur GitHub) : rien n'attend sur sa branche,
+          // la suite repart de la branche principale.
+          if (head != null &&
+              head != t.branch &&
+              await _mergedWhole(t, head, wasMerged, prHead)) {
+            heads.remove(t.fullName);
+            merged.add('${t.fullName} → ${t.branch}');
+            _forget(t);
+            _tree = null;
+            // Sa branche ne sert plus : la supprimer évite qu'un prochain envoi
+            // y reparte avec d'anciens commits.
+            try {
+              await github.deleteBranch(t.owner, t.name, head);
+            } catch (_) {}
+          }
+        }
       } catch (_) {}
     }
     notifyListeners();
+  }
+
+  /// Vrai si la pull request a été fusionnée et que sa branche n'a rien reçu
+  /// depuis (ou a été supprimée) : tout son travail est dans la branche
+  /// principale.
+  Future<bool> _mergedWhole(
+    RepoTarget t,
+    String head,
+    bool merged,
+    String? prHead,
+  ) async {
+    if (!merged) return false;
+    try {
+      final tip = await github.branchTip(t.owner, t.name, head);
+      return tip == null || tip == prHead;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Les dépôts dont le travail est sur une branche de la session sans pull
