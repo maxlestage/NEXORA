@@ -9,6 +9,7 @@ import 'services/storage.dart';
 import 'state/agent_state.dart';
 import 'state/chat_state.dart';
 import 'state/github_state.dart';
+import 'state/routine_state.dart';
 import 'state/session_state.dart';
 import 'state/settings_state.dart';
 import 'state/usage_state.dart';
@@ -83,6 +84,14 @@ class NexoraApp extends StatelessWidget {
             store: sessionStore,
           ),
           update: (_, gh, sessions) => sessions!..githubChanged(),
+        ),
+        ChangeNotifierProvider(
+          create: (c) => RoutineState(
+            storage: storage,
+            sessions: c.read<SessionState>(),
+            github: c.read<GitHubState>(),
+            settings: c.read<SettingsState>(),
+          ),
         ),
       ],
       child: Consumer<SettingsState>(

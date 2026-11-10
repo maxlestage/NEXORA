@@ -244,6 +244,35 @@ const List<HelpSection> helpSections = [
           'fichiers `.github/workflows`). Créez un nouveau jeton avec ce droit.',
     ),
   ]),
+  HelpSection('⏰', 'Routines', [
+    HelpTopic(
+      'Qu\'est-ce qu\'une routine ?',
+      'Une mission relancée **toute seule**, à intervalle régulier : par exemple '
+          '« optimise l\'app et corrige les bugs », toutes les heures à partir de '
+          '11 h. Ouvrez **Sessions → Routines**, touchez **Nouvelle routine**, '
+          'décrivez la mission, choisissez les dépôts, la fréquence (30 min à 1 '
+          'jour), l\'heure de départ et, si vous voulez, une plage horaire.',
+    ),
+    HelpTopic(
+      'Comment l\'activer ou la désactiver ?',
+      'Avec l\'**interrupteur** à côté de chaque routine, dans la liste. Une '
+          'routine désactivée ne se lance plus ; réactivée, elle reprend au '
+          'prochain créneau (sans rattraper tout ce qui a été sauté). Touchez une '
+          'routine pour la configurer, la lancer tout de suite ou la supprimer.',
+    ),
+    HelpTopic(
+      'Téléphone ou GitHub : quelle différence ?',
+      '- **Téléphone** : une session de l\'agent NEXORA, avec votre modèle et '
+          'votre effort, qui peut faire passer la CI puis fusionner. Elle tourne '
+          'quand l\'app est ouverte ou en arrière-plan ; un passage manqué est '
+          'rattrapé (une fois) au retour dans l\'app. Un passage ne démarre pas '
+          'tant que le précédent travaille encore.\n'
+          '- **GitHub 24 h/24** : un workflow planifié est écrit dans chaque '
+          'dépôt et tourne sur les serveurs de GitHub, même téléphone éteint, avec '
+          'un agent cloud (sa clé doit être en secret du dépôt). L\'interrupteur '
+          'active ou désactive ce workflow directement sur GitHub.',
+    ),
+  ]),
   HelpSection('🔒', 'Confidentialité', [
     HelpTopic(
       'Où vont mes conversations ?',

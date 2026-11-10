@@ -212,6 +212,8 @@ class SessionState extends ChangeNotifier {
     required ModelRef model,
     Agent? agent,
     ThinkLevel? level,
+    bool? autoCi,
+    bool? autoMerge,
   }) async {
     await _ready;
     final p = settings.provider(model.providerId)!;
@@ -235,8 +237,8 @@ class SessionState extends ChangeNotifier {
       onUsage: (t) => usage?.recordUsage(p.id, model: model.model, usage: t),
       onError: (e) => usage?.recordError(p.id, e),
     );
-    run.autoCi = settings.agentAutoCi;
-    run.autoMerge = settings.agentAutoMerge;
+    run.autoCi = autoCi ?? settings.agentAutoCi;
+    run.autoMerge = autoMerge ?? settings.agentAutoMerge;
     _equip(run);
     _attach(run);
     _trim();
