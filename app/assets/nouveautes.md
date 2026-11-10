@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.46 — 10 novembre 2026 — Arrêter une réponse ne perd plus rien
+- Corrigé : quand vous arrêtiez une réponse du chat, les derniers mots déjà reçus pouvaient disparaître. Tout le texte reçu jusqu'à l'arrêt est maintenant gardé.
+- Corrigé : arrêter une réponse avant son premier mot laissait une bulle vide, avec sa barre d'actions, dans la conversation. Elle disparaît maintenant, et vous pouvez renvoyer votre message tout de suite.
+
 ## 2.2.45 — 10 novembre 2026 — L'agent ne se fie plus à un fichier deviné
 - Corrigé : quand vous décriviez un fichier par son rôle (« le fichier qui gère les nouveautés ») sans le nommer, « Ce que l'agent a compris » pouvait choisir un fichier d'après son seul nom et en faire une règle stricte. L'agent modifiait alors le mauvais fichier, même après avoir trouvé le bon.
 - Un fichier que vous n'avez pas nommé n'est plus jamais une contrainte : il est marqué « supposé, à vérifier », et l'agent le confirme en lisant le code avant d'y toucher.
