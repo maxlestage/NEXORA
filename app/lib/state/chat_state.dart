@@ -158,6 +158,15 @@ class ChatState extends ChangeNotifier {
   /// réponses en cours) — pas à chaque morceau de réponse.
   int listRevision = 0;
 
+  /// Votre avis sur une réponse (👍 1, 👎 -1, 0 pour l'enlever).
+  void rate(String convId, ChatMessage m, int value) {
+    final c = byId(convId);
+    if (c == null) return;
+    m.rating = m.rating == value ? 0 : value;
+    _changed(c, now: true);
+    _notifyAll();
+  }
+
   void _notifyAll() {
     listRevision++;
     notifyListeners();
