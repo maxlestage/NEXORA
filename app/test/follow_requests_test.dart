@@ -74,7 +74,7 @@ void main() {
       expect(last, contains('Mets le titre en rouge'));
       expect(last, contains('Finalement en bleu, pas en rouge'));
       expect(last, contains('la plus r'));
-      expect(last, contains('EXACTEMENT'));
+      expect(last, contains('ORDRE'));
       expect(run.requests, [
         'Mets le titre en rouge',
         'Finalement en bleu, pas en rouge',
@@ -152,4 +152,28 @@ void main() {
       'x',
     );
   });
+
+  test(
+    'un résumé qui laisse du travail de côté est renvoyé le faire',
+    () async {
+      final run = build([
+        act('write_file', {'path': 'a.css'}, 'html{overflow-x:clip}'),
+        act('finish', {
+          'summary':
+              'Corrigé. Je pourrais ajouter un test, ce n\'était pas demandé.',
+        }),
+        act('write_file', {'path': 'largeur.test.js'}, 'test()'),
+        act('finish', {'summary': 'Corrigé et test ajouté.'}),
+      ]);
+      await run.run();
+      expect(run.summary, 'Corrigé et test ajouté.');
+      expect(run.changes.keys, containsAll(['a.css', 'largeur.test.js']));
+      expect(requests[2], contains('travail non fait'));
+      expect(
+        unfinishedWork.hasMatch('Limite : je n\'ai pas pu tester'),
+        isTrue,
+      );
+      expect(unfinishedWork.hasMatch('Titre passé en bleu.'), isFalse);
+    },
+  );
 }

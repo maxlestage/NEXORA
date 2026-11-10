@@ -3,6 +3,14 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.15 — 10 novembre 2026 — L'agent va jusqu'au bout, sans excuses
+- Vos demandes sont des ordres : l'agent vise le résultat voulu, avec bon sens. Il cherche la vraie cause et la corrige partout où il faut (toutes les pages, tous les fichiers concernés).
+- Il fait aussi ce qu'un bon développeur ferait pour que ce soit vraiment réglé (cas oubliés, tests liés à la demande), sans attendre qu'on le lui précise.
+- Fini les « limite : … », « je pourrais… » et « ce n'était pas demandé » : un résumé qui laisse du travail de côté renvoie l'agent le faire, avant de terminer.
+- Sa correction ne doit rien casser ni cacher, et il ne touche pas à ce qui n'a aucun rapport avec la demande.
+- Quand un modèle passe toute sa réponse à réfléchir sans agir, l'agent lui demande de répondre directement, au lieu d'abandonner.
+- Dans le chat aussi : réponses complètes et directement utilisables, sans travail laissé pour plus tard.
+
 ## 2.2.14 — 9 novembre 2026 — L'agent trouve le bon endroit et le modifie
 - Nouvelle recherche dans le code : l'agent parcourt vraiment le contenu des fichiers et voit chaque ligne trouvée avec le code autour. Avant, la recherche de GitHub ne renvoyait souvent rien, et l'agent modifiait au hasard.
 - Si la définition n'est pas dans le dossier cherché (une constante dans un autre fichier…), il la trouve dans tout le dépôt.

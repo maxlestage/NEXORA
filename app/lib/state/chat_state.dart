@@ -23,11 +23,12 @@ import 'usage_state.dart';
 /// les messages récents sont renvoyés au modèle (mémoire réglable).
 /// Rappel donné à chaque réponse du chat : la demande de l'utilisateur d'abord.
 const followRequests =
-    'Fais exactement ce que l\'utilisateur demande dans son dernier message, '
-    'dans la forme demandée (longueur, format, langue, code complet ou non…). '
-    'Ne remplace pas sa demande par une autre, ne change pas de sujet, et '
-    'n\'ajoute rien qu\'il n\'a pas demandé. Si quelque chose t\'en empêche, '
-    'dis-le clairement au lieu de faire autre chose.';
+    'Fais ce que l\'utilisateur demande dans son dernier message, entièrement '
+    'et avec bon sens, dans la forme demandée (longueur, format, langue, code '
+    'complet ou non…). Comprends son intention et donne la réponse complète et '
+    'directement utilisable : pas de « je pourrais… », pas de travail laissé '
+    'pour plus tard, pas de question si une solution sensée existe. Ne change '
+    'pas de sujet et ne remplace pas sa demande par une autre.';
 
 class ChatState extends ChangeNotifier {
   ChatState(
