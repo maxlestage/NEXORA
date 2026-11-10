@@ -1480,15 +1480,34 @@ class AgentRun extends ChangeNotifier {
             history.add(
               LlmMessage(
                 'user',
-                'Tu viens de refaire exactement la même action qu\'au tour '
-                    'précédent : son résultat est juste au-dessus, inutile de la '
-                    'répéter. Si ce que tu cherches n\'y est pas, change '
-                    'd\'approche (cherche sans "path" dans tout le dépôt, lis le '
-                    'fichier autour d\'une ligne avec read_file et "line", ou fais '
-                    'la modification). Si la demande est remplie, appelle '
-                    'finish.$reminder',
+                repeats == 1
+                    ? 'Tu viens de refaire exactement la même action qu\'au tour '
+                          'précédent : son résultat est juste au-dessus, inutile de '
+                          'la répéter. Si ce que tu cherches n\'y est pas, change '
+                          'd\'approche (cherche sans "path" dans tout le dépôt, lis '
+                          'le fichier autour d\'une ligne avec read_file et "line", '
+                          'ou fais la modification). Si la demande est remplie, '
+                          'appelle finish.$reminder'
+                    : 'STOP : c\'est la ${repeats + 1}e fois que tu fais cette même '
+                          'action, et son résultat ne changera pas. Ce que tu '
+                          'cherches N\'EXISTE PAS sous ce nom ou à cet endroit : un '
+                          'nom ou un chemin supposé (par toi ou par la traduction en '
+                          'langage NEXORA) est faux. Fie-toi aux résultats déjà '
+                          'obtenus et suis les mots de l\'utilisateur : pars du code '
+                          'qui existe vraiment (liste les fichiers, lis le plus '
+                          'proche du sujet), crée ce qui manque si la demande '
+                          'l\'implique, ou appelle finish en expliquant précisément '
+                          'ce qui n\'existe pas. Choisis une AUTRE action '
+                          'maintenant.$reminder',
               ),
             );
+            // Ce modèle reste bloqué malgré les relances : un autre modèle
+            // disponible reprend la suite (avec tout le travail déjà fait).
+            if (repeats >= 3 &&
+                await _switchModel('même action répétée en boucle')) {
+              repeats = 0;
+              continue;
+            }
             if (repeats >= 3) {
               _add(
                 AgentStep(
