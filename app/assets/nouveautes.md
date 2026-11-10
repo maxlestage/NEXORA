@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.36 — 10 novembre 2026 — Les nouveautés dès l'accueil du site
+- Nouveau : un encadré « Quoi de neuf » dans l'en-tête de l'accueil du site, visible dès l'arrivée. Il présente la dernière version et ses principaux changements avec leur étiquette (Nouveau, Amélioré, Corrigé).
+- La section des dernières versions est remontée juste sous l'en-tête, avant la liste des fournisseurs.
+
 ## 2.2.35 — 10 novembre 2026 — Ce qui change à chaque version, bien visible
 - Nouveau : chaque changement porte son étiquette, Nouveau, Amélioré ou Corrigé, dans l'app (Réglages → Nouveautés) comme sur le site.
 - Après une mise à jour, la fenêtre « Quoi de neuf » montre toutes les versions que vous n'avez pas encore vues, et pas seulement la dernière. Un résumé indique combien de nouveautés, d'améliorations et de corrections elles apportent.
