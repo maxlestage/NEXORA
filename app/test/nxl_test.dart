@@ -158,8 +158,11 @@ void main() {
     expect(prompt, contains('ne nomme une fonction'));
     expect(prompt, contains('la fonction qui compare les versions'));
     // Pour l'agent, la traduction est une aide : les mots de l'utilisateur
-    // priment si un nom cité n'existe pas.
-    expect(requests[1], contains('mots de l\'utilisateur qui comptent'));
+    // priment si un nom cité n'existe pas ou n'est pas le bon.
+    expect(requests[1], contains('ce sont ses mots qui comptent'));
+    expect(requests[1], contains('n\'est pas celui que'));
+    // Un fichier décrit par son rôle n'est pas choisi d'après son nom.
+    expect(prompt, contains('ne le choisis pas'));
     // La liste est lue une seule fois, puis resservie à l'agent.
     expect(trees, 1);
     expect(requests[1], contains('app/test/format_test.dart'));
