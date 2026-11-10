@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.30 — 10 novembre 2026 — L'agent ne tourne plus en rond sans agir
+- Corrigé : quand le modèle répondait sans choisir d'action (il redisait la demande et sa réflexion, sans rien faire), la session répétait la même relance jusqu'à épuiser toutes ses étapes.
+- L'agent est maintenant relancé avec une consigne précise : ajouter son action, contourner l'obstacle par une autre voie, ou expliquer pourquoi c'est impossible.
+- Au bout de trois réponses sans action, un autre modèle disponible prend la suite ; sinon la session s'arrête vite avec une explication claire, au lieu de consommer votre crédit pour rien.
+- Les réflexions de l'agent s'affichent en texte lisible, plus en JSON brut.
+
 ## 2.2.29 — 10 novembre 2026 — Plus de fausse alerte après une fusion sur GitHub
 - Corrigé : après avoir fusionné vous-même la pull request d'une session sur GitHub, la session affichait à tort « Du travail de l'agent attend sur une branche ». Elle reconnaît maintenant que tout est déjà dans master.
 - La branche de travail devenue inutile est supprimée, et le prochain envoi de l'agent part d'une branche neuve créée depuis master : pas d'anciens commits proposés à nouveau, pas de faux conflit.
