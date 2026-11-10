@@ -645,7 +645,7 @@ class AgentRun extends ChangeNotifier {
   final Agent? agent;
 
   /// Le niveau de réflexion de l'agent (effort du modèle et nombre d'actions).
-  final ThinkLevel? level;
+  ThinkLevel? level;
   final int maxSteps;
 
   final List<AgentStep> steps = [];
