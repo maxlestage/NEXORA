@@ -20,7 +20,9 @@ void main() {
 
     await tester.tap(find.text('Passer'));
     await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Nouveau chat'), findsOneWidget);
+    // L'accueil (le bouton « Nouveau chat » est dans le contenu, plus bas, tant
+    // qu'il n'y a aucune conversation).
+    expect(find.text('Que voulez-vous créer aujourd\'hui ?'), findsOneWidget);
     expect(find.text('Premiers pas'), findsOneWidget);
 
     for (final tab in ['Agents', 'Code', 'Modèles', 'Réglages']) {

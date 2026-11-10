@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.26 — 10 novembre 2026 — Le crédit restant, toujours en vue
+- Le crédit restant chez votre fournisseur s'affiche en permanence en bas de l'écran, au-dessus des onglets, quel que soit l'onglet. Touchez-le pour le détail.
+- Dans le chat et dans chaque session, le crédit du modèle utilisé est affiché à côté du choix du modèle, juste au-dessus du champ de saisie.
+- Accueil corrigé : en défilant, le texte de l'en-tête n'est plus écrasé ni déformé, et le bouton « Nouveau chat » ne recouvre plus rien quand la liste est vide.
+
 ## 2.2.25 — 10 novembre 2026 — Sessions plus belles, et le modèle à portée de main
 - Choisissez le modèle et l'effort directement dans une session, juste au-dessus du champ d'instruction, comme dans le chat. Le changement est pris en compte dès la prochaine réponse de l'agent, même pendant son travail.
 - Sessions redessinées : chaque action de l'agent tient dans une carte compacte (« Lit index.html », « Modifie site.css ») avec ✓ ou ⚠️. Touchez-la pour voir le résultat.
