@@ -810,6 +810,8 @@ async fn accueil(_req: Request) -> Page {
                                 .text("Voir la démo"),
                         ),
                 )
+                // Sur un téléphone : la place de l'emblème 3D NEXORA.
+                .child(div().id("hero-stage").attr("aria-hidden", "true"))
                 // Les nouveautés, dès l'arrivée sur le site.
                 .child(quoi_de_neuf(derniere))
                 .child(
