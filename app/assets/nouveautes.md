@@ -5,12 +5,8 @@
 
 ## 2.2.38 — 10 novembre 2026 — Le chat en bulles, avec une barre d'actions
 - Nouveau : les réponses de l'assistant sont dans des bulles, à gauche, et vos messages restent à droite, comme dans une messagerie.
-- Nouveau : sous chaque réponse, une barre d'actions :
-  - copier (avec ✓ une fois copié) ;
-  - votre avis (bonne ou mauvaise réponse) ;
-  - lire à voix haute ;
-  - partager avec la feuille de partage du téléphone ;
-  - « … » pour régénérer, réessayer avec un autre modèle, sélectionner le texte ou voir le détail des tokens.
+- Nouveau : sous chaque réponse, une barre d'actions pour copier (✓ une fois copié), donner votre avis (bonne ou mauvaise réponse), lire à voix haute et partager avec la feuille de partage du téléphone.
+- Nouveau : le bouton « … » sous une réponse permet de la régénérer, de réessayer avec un autre modèle, de sélectionner le texte ou de voir le détail des tokens.
 - Après un 👎, l'app propose de régénérer la réponse.
 
 ## 2.2.37 — 10 novembre 2026 — L'encadré des nouveautés passe devant la 3D
