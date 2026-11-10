@@ -3,6 +3,9 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.37 — 10 novembre 2026 — L'encadré des nouveautés passe devant la 3D
+- Corrigé : sur l'accueil du site, la boule 3D et ses anneaux passaient par-dessus l'encadré « Quoi de neuf ». Ils passent maintenant derrière, et l'encadré a un fond plus opaque pour rester parfaitement lisible.
+
 ## 2.2.36 — 10 novembre 2026 — Les nouveautés dès l'accueil du site
 - Nouveau : un encadré « Quoi de neuf » dans l'en-tête de l'accueil du site, visible dès l'arrivée. Il présente la dernière version et ses principaux changements avec leur étiquette (Nouveau, Amélioré, Corrigé).
 - La section des dernières versions est remontée juste sous l'en-tête, avant la liste des fournisseurs.
