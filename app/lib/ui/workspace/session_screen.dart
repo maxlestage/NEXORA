@@ -47,6 +47,11 @@ class _SessionScreenState extends State<SessionScreen> {
     });
     // La session s'ouvre sur ses dernières étapes.
     _jumpToEnd();
+    // Une pull request a pu être fusionnée ou fermée sur GitHub entre-temps.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<SessionState>().byId(widget.sessionId)?.refreshPulls();
+    });
   }
 
   void _jumpToEnd([int frames = 5]) {
@@ -359,6 +364,48 @@ class _SessionScreenState extends State<SessionScreen> {
                             ),
                         ],
                       ),
+                      // Du travail resté sur une branche sans pull request.
+                      if (!run.running &&
+                          !run.shipping &&
+                          run.stranded.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Glass(
+                            glow: Nx.amber,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Du travail de l\'agent attend sur '
+                                  '${run.stranded.map((t) => '${t.name} (${run.heads[t.fullName]})').join(', ')}, '
+                                  'sans pull request ouverte : il n\'est pas '
+                                  'encore dans ${run.stranded.first.branch}.',
+                                ),
+                                const SizedBox(height: 8),
+                                FilledButton.icon(
+                                  onPressed: () async {
+                                    final err = await sessions.recover(run);
+                                    if (!context.mounted) return;
+                                    toast(
+                                      context,
+                                      err ??
+                                          (run.autoCi
+                                              ? 'Pull request ouverte : CI puis fusion en cours'
+                                              : 'Pull request ouverte'),
+                                      error: err != null,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.call_merge),
+                                  label: Text(
+                                    run.autoCi && run.autoMerge
+                                        ? 'Ouvrir la PR, faire passer la CI et fusionner'
+                                        : 'Ouvrir la pull request',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       if (run.ciNote.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),

@@ -2348,6 +2348,32 @@ class AgentRun extends ChangeNotifier {
     try {
       for (final g in groups.entries) {
         final t = g.key;
+        // Sa pull request a été fusionnée ou fermée entre-temps (sur GitHub) :
+        // le travail ne doit pas finir sur une branche que plus rien ne fusionne.
+        // Une nouvelle pull request est ouverte (depuis la même branche).
+        final known = pulls[t.fullName];
+        final n = known == null ? null : int.tryParse(known.split('/').last);
+        if (n != null) {
+          try {
+            final (state, _) = await github.pullStatus(t.owner, t.name, n);
+            if (state != 'open') {
+              pulls.remove(t.fullName);
+              // Sa branche a pu être supprimée après la fusion : on la recrée
+              // depuis la branche principale (ignoré si elle existe encore).
+              final head = heads[t.fullName];
+              if (head != null && head != t.branch) {
+                try {
+                  await github.createBranch(
+                    t.owner,
+                    t.name,
+                    head,
+                    from: t.branch,
+                  );
+                } catch (_) {}
+              }
+            }
+          } catch (_) {}
+        }
         final from = refOf(t);
         var target = heads[t.fullName] ?? targetBranch ?? from;
         if (target != from) {
@@ -2668,6 +2694,65 @@ class AgentRun extends ChangeNotifier {
       // Branche mise à jour avec la principale : la CI repasse sur le nouveau commit.
     }
     ciNote = 'La branche principale bouge sans cesse : réessayez plus tard.';
+    notifyListeners();
+    return null;
+  }
+
+  /// Relit l'état des pull requests de la session : celles fusionnées ou
+  /// fermées sur GitHub sont oubliées (leur branche reste connue).
+  Future<void> refreshPulls() async {
+    for (final t in targets) {
+      final url = pulls[t.fullName];
+      final n = url == null ? null : int.tryParse(url.split('/').last);
+      if (n == null) continue;
+      try {
+        final (state, _) = await github.pullStatus(t.owner, t.name, n);
+        if (state != 'open') pulls.remove(t.fullName);
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
+  /// Les dépôts dont le travail est sur une branche de la session sans pull
+  /// request ouverte (par exemple : la précédente a été fusionnée avant les
+  /// derniers envois).
+  List<RepoTarget> get stranded => [
+    for (final t in targets)
+      if (heads[t.fullName] != null &&
+          heads[t.fullName] != t.branch &&
+          pulls[t.fullName] == null &&
+          !changes.keys.any((p) => resolve(p)?.$1 == t))
+        t,
+  ];
+
+  /// Ouvre une pull request pour chaque branche orpheline. Rend une erreur.
+  Future<String?> reopenPulls() async {
+    for (final t in stranded) {
+      final head = heads[t.fullName]!;
+      try {
+        final pr = await github.createPull(
+          t.owner,
+          t.name,
+          title: commitMessage.isEmpty ? task : commitMessage,
+          head: head,
+          base: t.branch,
+          body: '$summary\n\n> $task\n\n_Proposé par un agent NEXORA._',
+        );
+        pulls[t.fullName] = pr.htmlUrl;
+      } on GitHubException catch (e) {
+        final existing = e.status == 422
+            ? await github.findPull(t.owner, t.name, head)
+            : null;
+        if (existing != null) {
+          pulls[t.fullName] = existing.htmlUrl;
+        } else if (e.status == 422) {
+          // Rien de nouveau sur la branche : déjà dans la branche principale.
+          heads.remove(t.fullName);
+        } else {
+          return '${t.fullName} : ${e.message}';
+        }
+      }
+    }
     notifyListeners();
     return null;
   }

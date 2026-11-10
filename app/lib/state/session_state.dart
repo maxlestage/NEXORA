@@ -362,6 +362,29 @@ class SessionState extends ChangeNotifier {
     unawaited(_drive(run, followUp: report, fromApp: true));
   }
 
+  /// Récupère le travail resté sur une branche sans pull request : en ouvre une,
+  /// puis (si la session le prévoit) fait passer la CI et fusionne.
+  Future<String?> recover(AgentRun run) async {
+    if (run.running || run.shipping) return null;
+    final err = await run.reopenPulls();
+    if (err != null) return err;
+    if (!run.autoCi || run.pulls.isEmpty) return null;
+    String? report;
+    run.shipping = true;
+    try {
+      report = await run.shipForCi();
+    } catch (e) {
+      report = 'Problème pendant la fusion : $e';
+    } finally {
+      run.shipping = false;
+      _changed(run);
+    }
+    if (report != null && _sessions.contains(run) && !run.cancelled) {
+      unawaited(_drive(run, followUp: report, fromApp: true));
+    }
+    return null;
+  }
+
   /// Reprend la boucle CI d'une session (après une limite atteinte).
   void retryCi(AgentRun run) {
     run.ciRounds = 0;

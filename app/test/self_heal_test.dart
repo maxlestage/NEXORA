@@ -26,6 +26,9 @@ class FakeHub {
   /// Réponse de « update-branch » : 202 (mise à jour) ou 422 (conflit).
   int updateStatus = 422;
 
+  /// Les pull requests déjà fusionnées (sur GitHub, par l'utilisateur).
+  final Set<int> mergedPulls = {};
+
   /// Combien de 503 avant de répondre normalement.
   int failures = 0;
 
@@ -108,9 +111,13 @@ class FakeHub {
         return http.Response('{}', 200);
       }
       if (one != null) {
+        final n = int.parse(one[1]!);
+        final merged = mergedPulls.contains(n);
         return http.Response(
           jsonEncode({
             'head': {'sha': 'updated$commit'},
+            'state': merged ? 'closed' : 'open',
+            'merged': merged,
           }),
           200,
         );
@@ -287,4 +294,41 @@ void main() {
       );
     },
   );
+
+  test('pull request fusionnée sur GitHub entre-temps : une nouvelle est '
+      'ouverte, le travail ne reste pas sur une branche orpheline', () async {
+    final hub = FakeHub();
+    final run = build(hub);
+    run.autoMerge = false;
+    run.changes['a.css'] = 'v1\n';
+    expect(await run.shipForCi(every: Duration.zero), isNull);
+    expect(hub.pulls, hasLength(1));
+    // L'utilisateur fusionne la pull request lui-même sur GitHub.
+    hub.mergedPulls.add(1);
+    run.changes['a.css'] = 'v2\n';
+    await run.shipForCi(every: Duration.zero);
+    expect(hub.pulls, hasLength(2)); // une nouvelle pull request
+    expect(run.pulls['max/site'], endsWith('/pull/2'));
+  });
+
+  test('travail resté sur une branche après une fusion : repéré, puis une '
+      'pull request est rouverte et fusionnée', () async {
+    final hub = FakeHub();
+    final run = build(hub);
+    run.autoMerge = false;
+    run.changes['a.css'] = 'v1\n';
+    await run.shipForCi(every: Duration.zero);
+    // PR fusionnée sur GitHub, puis un nouvel envoi est parti sur la branche
+    // (ancienne version de l'app) : il n'est dans aucune pull request.
+    hub.mergedPulls.add(1);
+    await run.refreshPulls();
+    expect(run.pulls, isEmpty);
+    expect(run.stranded.map((t) => t.fullName), ['max/site']);
+    expect(await run.reopenPulls(), isNull);
+    expect(hub.pulls, hasLength(2));
+    expect(run.stranded, isEmpty);
+    run.autoMerge = true;
+    expect(await run.shipForCi(every: Duration.zero), isNull);
+    expect(run.merged, ['max/site → main']);
+  });
 }
