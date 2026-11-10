@@ -399,7 +399,7 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
   content: ""; position: absolute; inset: auto 0 0; height: 25%; z-index: 1; pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--bg));
 }
-.hero-inner { z-index: 2; pointer-events: none; }
+.hero-inner { position: relative; z-index: 2; pointer-events: none; }
 .hero-inner a, .hero-inner button { pointer-events: auto; }
 .hero-title { max-width: 12ch; margin: 18px 0 18px; text-shadow: 0 4px 30px rgba(5, 5, 13, 0.6); }
 .hero-lead { max-width: 54ch; font-size: 1rem; }
@@ -934,7 +934,8 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .tag-fix { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.45); }
 
 /* Accueil : « Quoi de neuf », dans l'en-tête. */
-.hero-news { margin-top: 22px; max-width: 560px; padding: 16px 18px; border-radius: 18px; background: rgba(15, 15, 30, 0.62); border: 1px solid rgba(139, 92, 246, 0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); text-align: left; }
+/* Au-dessus de la scène 3D (la boule passe derrière), fond presque opaque. */
+.hero-news { position: relative; z-index: 3; pointer-events: auto; margin-top: 22px; max-width: 560px; padding: 16px 18px; border-radius: 18px; background: rgba(12, 12, 26, 0.9); border: 1px solid rgba(139, 92, 246, 0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); text-align: left; }
 .hero-news-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .hero-news-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #67e8f9; }
 .hero-news-title { margin: 0 0 10px; font-weight: 700; color: var(--text, #fff); line-height: 1.35; }
