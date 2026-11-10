@@ -154,6 +154,12 @@ void main() {
     expect(prompt, contains('app/lib/utils/format.dart'));
     expect(prompt, contains('sans inventer de chemin'));
     expect(prompt, contains('N\'écris pas de code'));
+    // Pas de nom de fonction deviné : l'agent le chercherait en vain.
+    expect(prompt, contains('ne nomme une fonction'));
+    expect(prompt, contains('la fonction qui compare les versions'));
+    // Pour l'agent, la traduction est une aide : les mots de l'utilisateur
+    // priment si un nom cité n'existe pas.
+    expect(requests[1], contains('mots de l\'utilisateur qui comptent'));
     // La liste est lue une seule fois, puis resservie à l'agent.
     expect(trees, 1);
     expect(requests[1], contains('app/test/format_test.dart'));

@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.34 — 10 novembre 2026 — L'agent ne tourne plus en rond entre ses recherches
+- Corrigé : l'agent pouvait alterner sans fin les mêmes recherches (« compare », puis « fn compare », puis encore « compare »…) et consommer toutes ses étapes sans rien faire. Il est maintenant repéré, même quand les recherches sont alternées.
+- Repéré, l'agent est sommé de décider avec ce qu'il sait déjà : faire la modification à partir du code qui existe, ou expliquer précisément ce qui manque. S'il insiste, un autre modèle disponible prend la suite ; sinon la session s'arrête vite avec une explication, au lieu de gaspiller votre crédit.
+- « Ce que l'agent a compris » n'invente plus de nom de fonction : il décrit la fonction visée (« la fonction qui compare les versions ») et l'agent cherche ce qui existe vraiment.
+- Si un nom ou un chemin de cette traduction n'existe pas dans le dépôt, l'agent suit vos mots à vous.
+
 ## 2.2.33 — 10 novembre 2026 — L'agent ne s'arrête plus sur une recherche sans issue
 - Corrigé : quand l'agent cherchait en boucle une fonction ou un fichier qui n'existe pas (souvent un nom supposé), la session s'arrêtait net avec « L'agent répète la même action en boucle ».
 - À la deuxième répétition, l'agent est relancé fermement : ce qu'il cherche n'existe pas sous ce nom, il repart du code qui existe vraiment, crée ce qui manque si votre demande l'implique, ou explique précisément ce qui manque.
