@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.49 — 10 novembre 2026 — L'agent modifie du premier coup, même mal indenté
+- Corrigé : quand le modèle recopiait un passage avec une autre indentation que celle du fichier, la modification était refusée (« passage introuvable ») et l'agent tournait en rond. Elle est maintenant faite, et garde l'indentation de votre fichier.
+- Quand un passage est vraiment introuvable, l'agent voit tout de suite le passage le plus ressemblant du fichier, avec ses numéros de ligne : il le recopie exactement au lieu de chercher à l'aveugle.
+- Rien n'est remplacé au hasard : si les mêmes lignes reviennent à plusieurs endroits, l'agent doit préciser lequel.
+
 ## 2.2.48 — 10 novembre 2026 — L'agent ne s'arrête plus avant d'écrire le test
 - Corrigé : quand l'agent avait déjà fait la modification mais cherchait sans fin un exemple pour écrire le test demandé, la session s'arrêtait avec « L'agent tourne en rond », sans le test.
 - Dès qu'il tourne en rond, l'agent reçoit maintenant un point clair : ce qui est déjà fait (à ne plus chercher) et ce qui reste à faire tout de suite.
