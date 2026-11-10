@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.43 — 10 novembre 2026 — Des dégradés sans aucune ligne de séparation
+- Corrigé : le badge de version et les pastilles du site ne montrent plus de coupure nette entre le rose et le bleu, le dégradé boucle en douceur.
+- Corrigé : la jauge de crédit de l'app n'a plus de ligne de séparation quand elle dépasse 83 %.
+- Un test sur le site et un test dans l'app vérifient chaque dégradé animé : une séparation ne peut plus revenir.
+
 ## 2.2.42 — 10 novembre 2026 — L'agent comprend ses actions même mal écrites
 - Corrigé : quand le modèle écrivait une modification avec du code collé tel quel (retours à la ligne, guillemets ou barres obliques non échappés), l'action était rejetée avec « il manque le texte » et l'agent tournait en rond sans jamais modifier le fichier.
 - Ces actions sont maintenant relues avec indulgence, sans en changer le sens : la modification est faite du premier coup, que le modèle passe par un bloc JSON ou par ses appels d'outils natifs.
