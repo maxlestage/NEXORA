@@ -194,6 +194,56 @@ class GitHubApi {
     if (token != null && token!.isNotEmpty) 'authorization': 'Bearer $token',
   };
 
+  /// Nouveaux essais sur une panne passagère de GitHub (réseau, 5xx, limite de
+  /// débit), avec une pause qui grandit.
+  static int retries = 3;
+  static Duration retryPause = const Duration(seconds: 2);
+
+  Future<http.Response> _send(String method, Uri uri, {Object? body}) async {
+    for (var attempt = 0; ; attempt++) {
+      final req = http.Request(method, uri)..headers.addAll(_headers);
+      if (body != null) {
+        req.headers['content-type'] = 'application/json';
+        req.body = jsonEncode(body);
+      }
+      http.Response? res;
+      try {
+        res = await http.Response.fromStream(
+          await _http.send(req).timeout(const Duration(seconds: 30)),
+        );
+      } catch (e) {
+        if (attempt >= retries) {
+          throw GitHubException('GitHub injoignable ($e). Réessayez.');
+        }
+      }
+      if (res != null) {
+        final limited =
+            res.statusCode == 429 ||
+            (res.statusCode == 403 &&
+                res.body.toLowerCase().contains('rate limit'));
+        final passing = const {500, 502, 503, 504}.contains(res.statusCode);
+        if ((!limited && !passing) || attempt >= retries) return res;
+        final wait = int.tryParse(res.headers['retry-after'] ?? '');
+        if (wait != null && wait > 0) {
+          await Future<void>.delayed(Duration(seconds: wait > 60 ? 60 : wait));
+          continue;
+        }
+      }
+      await Future<void>.delayed(retryPause * (attempt + 1));
+    }
+  }
+
+  /// Une requête brute, sans exception : (statut, corps). Pour l'outil « github »
+  /// de l'agent.
+  Future<(int, String)> raw(String method, String path, {Object? body}) async {
+    final res = await _send(
+      method,
+      Uri.parse(path.startsWith('http') ? path : '$_api$path'),
+      body: body,
+    );
+    return (res.statusCode, utf8.decode(res.bodyBytes, allowMalformed: true));
+  }
+
   Future<dynamic> _req(
     String method,
     String path, {
@@ -202,14 +252,7 @@ class GitHubApi {
   }) async {
     final uri = Uri.parse(path.startsWith('http') ? path : '$_api$path')
         .replace(queryParameters: query);
-    final req = http.Request(method, uri)..headers.addAll(_headers);
-    if (body != null) {
-      req.headers['content-type'] = 'application/json';
-      req.body = jsonEncode(body);
-    }
-    final res = await http.Response.fromStream(
-      await _http.send(req).timeout(const Duration(seconds: 30)),
-    );
+    final res = await _send(method, uri, body: body);
     if (res.statusCode == 204 || res.body.isEmpty) return null;
     final Object? j;
     try {
@@ -520,6 +563,35 @@ class GitHubApi {
     required String message,
     required List<FileChange> changes,
   }) async {
+    try {
+      return await _commitOnce(
+        owner,
+        repo,
+        branch: branch,
+        message: message,
+        changes: changes,
+      );
+    } on GitHubException catch (e) {
+      // La branche a bougé entre-temps (« not a fast forward ») : on repart de
+      // son dernier commit.
+      if (e.status != 422 || !e.message.toLowerCase().contains('fast')) rethrow;
+      return _commitOnce(
+        owner,
+        repo,
+        branch: branch,
+        message: message,
+        changes: changes,
+      );
+    }
+  }
+
+  Future<String> _commitOnce(
+    String owner,
+    String repo, {
+    required String branch,
+    required String message,
+    required List<FileChange> changes,
+  }) async {
     final Map ref;
     try {
       ref = await _req(
@@ -794,6 +866,34 @@ class GitHubApi {
     );
     return Issue(j as Map);
   }
+
+  /// La pull request ouverte d'une branche, s'il y en a une.
+  Future<Issue?> findPull(String owner, String repo, String head) async {
+    final j = await _req(
+      'GET',
+      '/repos/$owner/$repo/pulls',
+      query: {'head': '$owner:$head', 'state': 'open'},
+    ) as List;
+    return j.isEmpty ? null : Issue(j.first as Map);
+  }
+
+  /// Le dernier commit d'une pull request.
+  Future<String> pullHead(String owner, String repo, int number) async {
+    final j = await _req('GET', '/repos/$owner/$repo/pulls/$number') as Map;
+    return ((j['head'] as Map)['sha']) as String;
+  }
+
+  /// Met la branche d'une pull request à jour avec sa base (comme le bouton
+  /// « Update branch »). Échoue (422) s'il y a un vrai conflit.
+  Future<void> updateBranch(String owner, String repo, int number) =>
+      _req('PUT', '/repos/$owner/$repo/pulls/$number/update-branch', body: {});
+
+  /// Ferme une pull request (remplacée par une autre).
+  Future<void> closePull(String owner, String repo, int number) => _req(
+    'PATCH',
+    '/repos/$owner/$repo/pulls/$number',
+    body: {'state': 'closed'},
+  );
 
   Future<void> mergePull(
     String owner,

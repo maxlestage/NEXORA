@@ -37,6 +37,14 @@ const Map<String, String> agentTools = {
       'puis le contenu complet dans un bloc de code juste après le JSON. Pour '
       'changer une partie d\'un fichier existant, utilise edit_file.',
   'delete_file': 'Supprime un fichier. args: {"path": "..."}',
+  'github':
+      'Appelle l\'API GitHub sur les dépôts de la mission, pour examiner et '
+      'régler un problème : état d\'une pull request, CI et journaux '
+      '(/actions/runs, /actions/jobs/{id}/logs), relancer un workflow '
+      '(POST …/actions/runs/{id}/rerun-failed-jobs), branches, règles, '
+      'commentaires… args: {"method": "GET", "path": "/repos/owner/repo/…", '
+      '"body": {…}}. Les fichiers se modifient avec edit_file/write_file, et la '
+      'fusion est faite par l\'app quand la CI est verte.',
   'finish':
       'Termine, quand TOUT est fait. args: {"summary": "ce qui a été fait, '
       'demande par demande (pas de « limites » ni de propositions)", '
@@ -348,6 +356,18 @@ class CiReport {
   };
 }
 
+/// Ce qu'a donné la fusion des pull requests vertes.
+class MergeOutcome {
+  /// Une branche a été mise à jour avec la principale : la CI doit repasser.
+  bool updated = false;
+
+  /// Un vrai conflit, préparé pour l'agent (son rapport).
+  String? conflict;
+
+  /// Des refus de GitHub (règles de la branche…).
+  final List<String> blocked = [];
+}
+
 /// Le résultat de l'envoi sur un dépôt : un commit (sha) ou une pull request (url).
 class ShipResult {
   ShipResult(this.repo, this.result);
@@ -611,6 +631,12 @@ class AgentRun extends ChangeNotifier {
         'complète-le. La CI doit passer ENTIÈREMENT : après ton travail, l\'app '
         'l\'envoie sur une branche, attend la CI et te renvoie chaque échec à '
         'corriger jusqu\'à ce que tout soit vert.\n'
+        '- TU TE DÉBROUILLES : tout problème est à toi de le résoudre, partout '
+        '(CI rouge, conflit avec la branche principale, refus ou erreur de GitHub, '
+        'dépendance, configuration, workflow) : analyse la cause (journaux, outil '
+        'github), corrige, et continue jusqu\'à ce que tout soit réglé. Ne rends '
+        'la main qu\'une fois tout réglé ; seule une règle qui exige un humain '
+        '(relecture obligatoire) se signale, précisément, dans finish.\n'
         '- Ta correction ne doit rien casser ni cacher (contenu coupé, fonction '
         'retirée, mise en page abîmée) : préfère la correction à la racine à un '
         'pansement.\n'
@@ -646,6 +672,87 @@ class AgentRun extends ChangeNotifier {
 
   /// Est-ce un fichier de tests ?
   static bool isTestFile(String path) => _testFile.hasMatch(path);
+
+  /// Pourquoi une requête GitHub de l'agent est refusée (`null` si permise) :
+  /// seulement les dépôts de la mission, jamais leurs réglages, secrets ou
+  /// protections, ni la branche principale, ni la fusion (faite par l'app).
+  String? githubDenied(String method, String path) {
+    final m = RegExp(r'^/repos/([^/]+)/([^/?]+)(/[^?]*)?').firstMatch(path);
+    if (m == null) {
+      return 'chemin hors des dépôts de la mission (attendu : /repos/owner/repo/…).';
+    }
+    final t = targets
+        .where(
+          (t) =>
+              t.owner.toLowerCase() == m[1]!.toLowerCase() &&
+              t.name.toLowerCase() == m[2]!.toLowerCase(),
+        )
+        .firstOrNull;
+    if (t == null) return '${m[1]}/${m[2]} ne fait pas partie de la mission.';
+    final rest = m[3] ?? '';
+    if (method == 'GET') return null;
+    if (rest.isEmpty || rest == '/') {
+      return 'les réglages du dépôt ne se modifient pas depuis une session.';
+    }
+    if (RegExp(
+      r'^/(hooks|keys|collaborators|invitations|transfer|actions/(secrets|'
+      r'variables|permissions)|environments|branches/[^/]+/protection|'
+      r'rulesets|pages|deployments|security|vulnerability|autolinks|topics)',
+    ).hasMatch(rest)) {
+      return 'réglages, secrets et protections du dépôt : interdit depuis une '
+          'session.';
+    }
+    if (RegExp(r'^/pulls/\d+/merge').hasMatch(rest)) {
+      return 'la fusion est faite par l\'app, une fois la CI entièrement verte.';
+    }
+    if (RegExp(r'^/contents/').hasMatch(rest) || rest.startsWith('/git/')) {
+      final main = RegExp('^/git/refs/heads/${RegExp.escape(t.branch)}\$')
+          .hasMatch(rest);
+      if (main || rest.startsWith('/contents/')) {
+        return 'modifie les fichiers avec edit_file/write_file : l\'app les '
+            'envoie sur la branche de travail (jamais directement sur '
+            '${t.branch}).';
+      }
+    }
+    return null;
+  }
+
+  Future<String> _githubTool(Map<String, dynamic> args) async {
+    final method = (args['method'] ?? 'GET').toString().toUpperCase();
+    final path = (args['path'] ?? args['url'] ?? '')
+        .toString()
+        .trim()
+        .replaceFirst('https://api.github.com', '');
+    final why = githubDenied(method, path);
+    if (why != null) return 'ERREUR : $why';
+    final logs = RegExp(r'^/repos/([^/]+)/([^/]+)/actions/jobs/(\d+)/logs')
+        .firstMatch(path);
+    if (logs != null && method == 'GET') {
+      final text = await github.jobLog(
+        logs[1]!,
+        logs[2]!,
+        int.parse(logs[3]!),
+        lines: 200,
+      );
+      return text ?? 'Journal illisible (job introuvable ou expiré).';
+    }
+    final body = args['body'];
+    final (status, text) = await github.raw(
+      method,
+      path,
+      body: body is String ? (_tryJson(body) ?? body) : body,
+    );
+    var shown = text;
+    try {
+      shown = const JsonEncoder.withIndent(' ').convert(jsonDecode(text));
+    } catch (_) {}
+    if (shown.length > 7000) {
+      shown =
+          '${shown.substring(0, 7000)}\n… (${shown.length - 7000} caractères '
+          'de plus : précise la requête, par exemple ?per_page=5)';
+    }
+    return 'HTTP $status\n$shown';
+  }
 
   /// Les dépôts modifiés qui n'ont aucun workflow GitHub (ni dans le dépôt, ni
   /// dans les brouillons).
@@ -1793,6 +1900,8 @@ class AgentRun extends ChangeNotifier {
         notifyListeners();
         return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
             'est inchangé.';
+      case 'github':
+        return _githubTool(call.args);
       case 'search_code':
         final q =
             (call.args['query'] ??
@@ -1948,6 +2057,7 @@ class AgentRun extends ChangeNotifier {
         commits.add('${t.fullName}@$sha');
         if (target != t.branch) heads[t.fullName] = target;
         for (final p in paths[t] ?? const <String>[]) {
+          bases.putIfAbsent(p, () => originals[p]);
           originals[p] = changes.remove(p);
         }
         final existing = pulls[t.fullName];
@@ -1959,17 +2069,42 @@ class AgentRun extends ChangeNotifier {
           final others = groups.keys
               .where((x) => x != t)
               .map((x) => x.fullName);
-          final pr = await github.createPull(
-            t.owner,
-            t.name,
-            title: message,
-            head: target,
-            base: t.branch,
-            body:
-                '$summary\n\n> $task\n\n'
-                '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
-                '_Proposé par un agent NEXORA._',
-          );
+          Issue pr;
+          try {
+            pr = await github.createPull(
+              t.owner,
+              t.name,
+              title: message,
+              head: target,
+              base: t.branch,
+              body:
+                  '$summary\n\n> $task\n\n'
+                  '${others.isEmpty ? '' : 'Mission sur plusieurs dépôts, aussi : ${others.join(', ')}.\n\n'}'
+                  '_Proposé par un agent NEXORA._',
+            );
+          } on GitHubException catch (e) {
+            // Déjà ouverte pour cette branche : on la reprend.
+            final existing = e.status == 422
+                ? await github.findPull(t.owner, t.name, target)
+                : null;
+            if (existing == null) rethrow;
+            pr = existing;
+          }
+          // Les pull requests remplacées après un conflit sont fermées.
+          for (final st
+              in stalePulls
+                  .where((x) => x.startsWith('${t.fullName}|'))
+                  .toList()) {
+            final parts = st.split('|');
+            final n = int.tryParse(parts[1].split('/').last);
+            try {
+              if (n != null) await github.closePull(t.owner, t.name, n);
+              if (parts[2].isNotEmpty && parts[2] != t.branch) {
+                await github.deleteBranch(t.owner, t.name, parts[2]);
+              }
+            } catch (_) {}
+            stalePulls.remove(st);
+          }
           pulls[t.fullName] = pr.htmlUrl;
           results.add(ShipResult(t, pr.htmlUrl));
         } else {
@@ -1996,7 +2131,7 @@ class AgentRun extends ChangeNotifier {
   int ciRounds = 0;
 
   /// Au plus, avant de rendre la main.
-  static const maxCiRounds = 6;
+  static const maxCiRounds = 10;
 
   /// Quand la CI est entièrement verte : fusionner la pull request dans la
   /// branche principale (et supprimer la branche de travail).
@@ -2100,9 +2235,10 @@ class AgentRun extends ChangeNotifier {
   }
 
   /// Un tour de la boucle CI : envoie le travail sur la branche de travail (avec
-  /// pull request, jamais sur la branche principale), attend la CI GitHub et
-  /// rend le rapport à donner à l'agent pour qu'il corrige, ou `null` si la CI
-  /// est entièrement verte (ou si l'envoi est impossible : voir [ciNote]).
+  /// pull request, jamais sur la branche principale), attend la CI GitHub, la
+  /// fusionne si elle est verte, et règle seul ce qu'il peut (branche en retard,
+  /// méthode de fusion refusée, panne passagère). Rend le rapport à donner à
+  /// l'agent (CI rouge, conflit, refus de GitHub), ou `null` si tout est réglé.
   Future<String?> shipForCi({
     Duration every = const Duration(seconds: 15),
     Duration noneAfter = const Duration(minutes: 3),
@@ -2117,78 +2253,213 @@ class AgentRun extends ChangeNotifier {
         openPr: true,
       );
     } catch (e) {
-      ciNote = 'Envoi impossible : $e';
+      ciNote = 'GitHub a refusé l\'envoi : l\'agent cherche la cause…';
       notifyListeners();
-      return null;
+      return 'GitHub a refusé l\'envoi de ton travail : $e\n'
+          'Trouve la cause et règle-la toi-même (outil github pour examiner le '
+          'dépôt, ses branches et ses règles ; corrige les fichiers en cause, par '
+          'exemple un workflow refusé), puis termine : l\'app renverra tout.';
     }
-    ciNote = 'CI GitHub en cours sur la branche de travail…';
-    notifyListeners();
-    final report = await watchCi(every: every, noneAfter: noneAfter);
-    final states = ci.values.map((r) => r.state).toSet();
-    if (report == null && states.every((s) => s == CiState.passed)) {
+    // Branche en retard ou fusion refusée : jusqu'à 3 mises à jour avant d'abandonner.
+    for (var pass = 0; pass < 4; pass++) {
+      ciNote = 'CI GitHub en cours sur la branche de travail…';
+      notifyListeners();
+      final report = await watchCi(every: every, noneAfter: noneAfter);
+      final states = ci.values.map((r) => r.state).toSet();
+      if (report != null || !states.every((s) => s == CiState.passed)) {
+        ciNote =
+            'CI en échec : l\'agent corrige (essai $ciRounds/$maxCiRounds)…';
+        notifyListeners();
+        return report ??
+            (states.contains(CiState.none)
+                ? 'Aucune CI ne s\'est lancée sur GitHub après ton envoi. Écris '
+                      'ou corrige .github/workflows/ci.yml (« on: push » sur toutes '
+                      'les branches et « pull_request ») pour qu\'elle construise le '
+                      'projet et lance tous les tests, puis termine.'
+                : 'La CI GitHub n\'a pas fini à temps. Vérifie le workflow '
+                      '(durée, étapes bloquées), corrige, puis termine.');
+      }
       if (!autoMerge) {
         ciNote = 'CI entièrement verte ✅ : la pull request est prête à être fusionnée.';
         notifyListeners();
         return null;
       }
-      final problems = await mergeGreen();
-      ciNote = problems.isEmpty
-          ? 'CI entièrement verte ✅ et fusionné dans '
-                '${targets.where((t) => merged.any((m) => m.startsWith('${t.fullName} '))).map((t) => t.branch).toSet().join(', ')} 🎉'
-          : 'CI verte ✅, mais fusion impossible : ${problems.join(' ; ')}. '
-                'Fusionnez la pull request vous-même.';
-      notifyListeners();
-      return null;
+      final out = await mergeGreen();
+      if (out.conflict != null) {
+        ciNote = 'Conflit avec la branche principale : l\'agent l\'intègre…';
+        notifyListeners();
+        return out.conflict;
+      }
+      if (out.blocked.isNotEmpty) {
+        ciNote = 'Fusion refusée par GitHub : l\'agent cherche une solution…';
+        notifyListeners();
+        return 'La CI est verte, mais GitHub refuse la fusion : '
+            '${out.blocked.join(' ; ')}\nExamine la cause avec l\'outil github '
+            '(règles de la branche, état de la pull request, vérifications '
+            'requises) et règle tout ce qui dépend du dépôt, puis termine. Si une '
+            'règle exige une action humaine (relecture obligatoire), dis-le '
+            'précisément dans finish.';
+      }
+      if (!out.updated) {
+        ciNote =
+            'CI entièrement verte ✅ et fusionné dans '
+            '${targets.where((t) => merged.any((m) => m.startsWith('${t.fullName} '))).map((t) => t.branch).toSet().join(', ')} 🎉';
+        notifyListeners();
+        return null;
+      }
+      // Branche mise à jour avec la principale : la CI repasse sur le nouveau commit.
     }
-    ciNote = 'CI en échec : l\'agent corrige (essai $ciRounds/$maxCiRounds)…';
+    ciNote = 'La branche principale bouge sans cesse : réessayez plus tard.';
     notifyListeners();
-    return report ??
-        (states.contains(CiState.none)
-            ? 'Aucune CI ne s\'est lancée sur GitHub après ton envoi. Écris ou '
-                  'corrige .github/workflows/ci.yml (« on: push » sur toutes les '
-                  'branches et « pull_request ») pour qu\'elle construise le projet '
-                  'et lance tous les tests, puis termine.'
-            : 'La CI GitHub n\'a pas fini à temps. Vérifie le workflow (durée, '
-                  'étapes bloquées), corrige, puis termine.');
+    return null;
   }
 
   /// Fusionne les pull requests dont la CI est verte dans la branche principale
-  /// de leur dépôt, puis supprime la branche de travail. Les envois suivants
-  /// repartent de la branche principale (nouvelle branche, nouvelle pull
-  /// request). Rend les problèmes rencontrés.
-  Future<List<String>> mergeGreen() async {
-    final problems = <String>[];
+  /// de leur dépôt, puis supprime la branche de travail. Une branche en retard est
+  /// mise à jour (la CI doit repasser) ; un vrai conflit est préparé pour que
+  /// l'agent l'intègre ; une méthode de fusion refusée est remplacée par une
+  /// autre.
+  Future<MergeOutcome> mergeGreen() async {
+    final out = MergeOutcome();
     for (final t in targets) {
       final url = pulls[t.fullName];
       final report = ci[t.fullName];
       if (url == null || report?.state != CiState.passed) continue;
       final number = int.tryParse(url.split('/').last);
       if (number == null) continue;
-      try {
-        await github.mergePull(
-          t.owner,
-          t.name,
-          number,
-          title: commitMessage.isEmpty ? task : commitMessage,
-        );
-      } on GitHubException catch (e) {
-        problems.add(
-          '${t.fullName} : ${e.status == 405 || e.status == 409 ? 'conflit avec ${t.branch}' : e.message}',
-        );
+      GitHubException? last;
+      var done = false;
+      for (final method in const ['squash', 'merge', 'rebase']) {
+        try {
+          await github.mergePull(
+            t.owner,
+            t.name,
+            number,
+            method: method,
+            title: commitMessage.isEmpty ? task : commitMessage,
+          );
+          done = true;
+          break;
+        } on GitHubException catch (e) {
+          last = e;
+          // Méthode interdite par le dépôt : on essaie la suivante.
+          if (e.status == 405 &&
+              e.message.toLowerCase().contains('not allowed')) {
+            continue;
+          }
+          break;
+        }
+      }
+      if (done) {
+        final head = heads.remove(t.fullName);
+        pulls.remove(t.fullName);
+        merged.add('${t.fullName} → ${t.branch}');
+        if (head != null && head != t.branch) {
+          try {
+            await github.deleteBranch(t.owner, t.name, head);
+          } catch (_) {}
+        }
         continue;
       }
-      final head = heads.remove(t.fullName);
-      pulls.remove(t.fullName);
-      merged.add('${t.fullName} → ${t.branch}');
-      if (head != null && head != t.branch) {
-        try {
-          await github.deleteBranch(t.owner, t.name, head);
-        } catch (_) {}
+      final e = last!;
+      final msg = e.message.toLowerCase();
+      final notMergeable =
+          e.status == 409 ||
+          (e.status == 405 &&
+              (msg.contains('not mergeable') ||
+                  msg.contains('conflict') ||
+                  msg.contains('out of date') ||
+                  msg.contains('behind')));
+      if (!notMergeable) {
+        out.blocked.add('${t.fullName} : ${e.message}');
+        continue;
       }
+      // D'abord la mise à jour de la branche par GitHub (sans conflit réel).
+      try {
+        await github.updateBranch(t.owner, t.name, number);
+        await Future<void>.delayed(const Duration(seconds: 3));
+        final sha = await github.pullHead(t.owner, t.name, number);
+        commits.add('${t.fullName}@$sha');
+        out.updated = true;
+        continue;
+      } on GitHubException catch (u) {
+        if (u.status != 422) {
+          out.blocked.add('${t.fullName} : ${u.message}');
+          continue;
+        }
+      }
+      // Vrai conflit : l'agent reprend son travail sur la branche principale à jour.
+      out.conflict = '${out.conflict ?? ''}${await prepareConflict(t)}';
     }
     _tree = null;
     notifyListeners();
-    return problems;
+    return out;
+  }
+
+  /// La version de chaque fichier avant que la session ne le modifie (pour voir
+  /// ce que la branche principale a changé depuis).
+  final Map<String, String?> bases = {};
+
+  /// Les pull requests remplacées après un conflit (fermées au prochain envoi).
+  final List<String> stalePulls = [];
+
+  /// Prépare la résolution d'un conflit avec la branche principale : le travail
+  /// de la session revient en brouillons, posé sur la version à jour de la
+  /// branche principale, et l'agent reçoit ce qui a changé de son côté.
+  Future<String> prepareConflict(RepoTarget t) async {
+    final prefix = multi ? '${mountOf(t)}/' : '';
+    final oldPull = pulls.remove(t.fullName);
+    final oldHead = heads.remove(t.fullName);
+    if (oldPull != null) {
+      stalePulls.add('${t.fullName}|$oldPull|${oldHead ?? ''}');
+    }
+    final report = StringBuffer();
+    final conflicted = <String>[];
+    for (final p in bases.keys.where((k) => k.startsWith(prefix)).toList()) {
+      final inner = p.substring(prefix.length);
+      final ours = originals[p];
+      String? theirs;
+      try {
+        final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
+        theirs = f.binary ? ours : f.text;
+      } on GitHubException catch (e) {
+        if (e.status != 404) rethrow;
+      }
+      final base = bases[p];
+      if (theirs != ours) changes[p] = ours;
+      originals[p] = theirs;
+      if (theirs != base && theirs != ours) {
+        conflicted.add(p);
+        final d = lineDiff(base, theirs);
+        report.writeln(
+          '### $p : ce que ${t.branch} a changé depuis ton départ',
+        );
+        for (final l in withContext(d.lines, context: 2).take(160)) {
+          if (l == null) {
+            report.writeln('   …');
+          } else {
+            final sign = switch (l.kind) {
+              DiffKind.added => '+',
+              DiffKind.removed => '-',
+              DiffKind.same => ' ',
+            };
+            report.writeln('$sign ${l.text}');
+          }
+        }
+      }
+      bases[p] = theirs;
+    }
+    _tree = null;
+    if (conflicted.isEmpty) {
+      return 'La branche ${t.branch} de ${t.fullName} a avancé : ton travail est '
+          'reposé dessus. Vérifie qu\'il est toujours juste, puis termine.\n';
+    }
+    return 'CONFLIT avec ${t.branch} (${t.fullName}) sur ${conflicted.join(', ')} : '
+        'ces fichiers ont été modifiés sur ${t.branch} pendant ton travail. Ta '
+        'version est dans tes brouillons, posée sur la version à jour de '
+        '${t.branch}. Intègre leurs changements dans ta version (garde les deux '
+        'intentions, rien ne doit se perdre), relis, mets les tests à jour, puis '
+        'termine : l\'app renverra tout sur une branche à jour.\n\n$report';
   }
 
   /// Lignes ajoutées et retirées par les brouillons (comparées aux originaux
@@ -2262,6 +2533,8 @@ class AgentRun extends ChangeNotifier {
     'autoMerge': autoMerge,
     'ciRounds': ciRounds,
     'merged': merged,
+    'bases': bases,
+    'stalePulls': stalePulls,
   };
 
   /// Recrée une session enregistrée (à l'arrêt : elle peut être continuée).
@@ -2330,6 +2603,12 @@ class AgentRun extends ChangeNotifier {
     run.autoCi = j['autoCi'] as bool? ?? true;
     run.autoMerge = j['autoMerge'] as bool? ?? true;
     run.merged.addAll(((j['merged'] as List?) ?? const []).cast<String>());
+    (j['bases'] as Map?)?.forEach(
+      (k, v) => run.bases[k as String] = v as String?,
+    );
+    run.stalePulls.addAll(
+      ((j['stalePulls'] as List?) ?? const []).cast<String>(),
+    );
     run.ciRounds = j['ciRounds'] as int? ?? 0;
     run.updatedAt =
         DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? run.createdAt;
