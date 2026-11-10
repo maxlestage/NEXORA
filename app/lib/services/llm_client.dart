@@ -88,6 +88,15 @@ Map<String, dynamic> reasoningParams(
       }
       if (m.contains('gpt-oss')) return {'reasoning_effort': l.openai};
       switch (p.id) {
+        case 'pollinations':
+          // Son modèle gratuit (GPT-OSS) réfléchit avant d'écrire, mais chaque
+          // réponse est plafonnée à 1 500 tokens : réfléchir moins laisse la
+          // place au texte.
+          return {
+            'reasoning_effort': l.index <= ThinkLevel.moyen.index
+                ? 'low'
+                : 'medium',
+          };
         case 'openai':
           return RegExp(r'^(gpt-5|o[134])').hasMatch(m)
               ? {'reasoning_effort': l.openai}
@@ -395,6 +404,8 @@ class LlmClient {
         if (!d.isEmpty) controller.add(d);
         final rest = splitter.flush();
         if (!rest.isEmpty) controller.add(rest);
+        final reason = _wholeStop(body);
+        if (reason != null) controller.add(ChatDelta(stop: reason));
         await controller.close();
         return;
       }
@@ -405,6 +416,9 @@ class LlmClient {
       final limit = thinks && idleTimeout < reasoningIdleTimeout
           ? reasoningIdleTimeout
           : idleTimeout;
+      // Le signal de fin : sans lui, la connexion a été coupée en route.
+      String? stop;
+      var ended = false;
       Future<void> finish() async {
         idle?.cancel();
         if (controller.isClosed) return;
@@ -412,6 +426,9 @@ class LlmClient {
         if (!rest.isEmpty) controller.add(rest);
         final calls = tools.render();
         if (calls != null) controller.add(ChatDelta(text: calls));
+        if (stop == null && !ended) {
+          controller.add(const ChatDelta(stop: 'cut'));
+        }
         await controller.close();
         client?.close();
       }
@@ -446,6 +463,8 @@ class LlmClient {
               try {
                 final d = parse(line);
                 if (d == null) return;
+                if (d.stop != null) stop = d.stop;
+                if (d.done) ended = true;
                 tools.add(d);
                 final out = splitter.feed(d);
                 if (!out.isEmpty) controller.add(out);
@@ -526,6 +545,21 @@ class LlmClient {
   /// Ces fournisseurs envoient le décompte des tokens à la fin du flux si on le
   /// demande ; les autres l'envoient d'eux-mêmes ou il est estimé.
   static const _streamUsage = {'openai', 'deepseek', 'together', 'xai'};
+
+  /// La raison d'arrêt d'une réponse reçue d'un bloc.
+  static String? _wholeStop(String body) {
+    try {
+      final j = jsonDecode(body);
+      if (j is! Map) return null;
+      final r =
+          j['stop_reason'] ??
+          j['done_reason'] ??
+          ((j['choices'] as List?)?.firstOrNull as Map?)?['finish_reason'];
+      return r is String && r.isNotEmpty ? r : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   String _wholeText(ProviderDef p, String body) {
     try {

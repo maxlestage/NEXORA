@@ -87,6 +87,8 @@ void main() {
     );
     expect(find.text('Élevé'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Effort'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Effort'));
     await tester.pumpAndSettle();
     expect(find.text('Recommandé'), findsOneWidget);
@@ -96,6 +98,8 @@ void main() {
     expect(level, ThinkLevel.max);
     expect(find.text('Sélectionner un modèle'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Sonnet 5.5'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sonnet 5.5'));
     await tester.pumpAndSettle();
     expect(picked, const ModelRef('anthropic', 'claude-sonnet-5-5'));

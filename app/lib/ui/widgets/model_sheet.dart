@@ -6,6 +6,7 @@ import '../../data/model_catalog.dart';
 import '../../models/level.dart';
 import '../../models/provider.dart';
 import '../../state/settings_state.dart';
+import '../providers/providers_screen.dart';
 import 'level_picker.dart';
 import 'model_picker.dart';
 
@@ -53,10 +54,13 @@ List<ModelRef> featuredModels(SettingsState s, ModelRef current) {
   final pid = current.providerId;
   final ids = <String>[];
   final fams = <String>{};
+  // Le catalogue d'abord (les plus récents), puis la liste du compte : un
+  // catalogue incomplet ne cache plus les autres modèles du fournisseur.
   final cat = s.catalog.providers[pid] ?? const <CatalogModel>[];
-  final source = cat.isNotEmpty
-      ? cat.map((c) => c.id)
-      : s.models(pid).map((m) => m.id);
+  final source = <String>{
+    ...cat.map((c) => c.id),
+    ...s.models(pid).map((m) => m.id),
+  };
   for (final id in source) {
     if (id.contains(':free') && pid != 'openrouter') continue;
     if (fams.add(_family(id))) ids.add(id);
@@ -120,11 +124,33 @@ class _ModelSheetState extends State<_ModelSheet> {
   bool _effortPage = false;
 
   @override
+  void initState() {
+    super.initState();
+    // La vraie liste du fournisseur, si elle n'a jamais été chargée.
+    final s = context.read<SettingsState>();
+    final p = s.provider(_ref.providerId);
+    if (p != null && s.isReady(p) && !s.hasLiveModels(p.id)) {
+      s.refreshModels(p.id).then((_) {}, onError: (Object _) {});
+    }
+  }
+
+  void _pick(ModelRef r) {
+    HapticFeedback.selectionClick();
+    widget.onModel(r);
+    Navigator.pop(context);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final s = context.watch<SettingsState>();
     final tt = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     final provider = s.provider(_ref.providerId);
+    final others = [
+      for (final p in s.readyProviders)
+        if (p.id != _ref.providerId)
+          if (s.models(p.id).firstOrNull case final m?) ModelRef(p.id, m.id),
+    ].take(6).toList();
 
     Widget header(String title, {required bool back}) => Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
@@ -238,14 +264,61 @@ class _ModelSheetState extends State<_ModelSheet> {
                                     size: 28,
                                   )
                                 : null,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              widget.onModel(r);
-                              Navigator.pop(context);
-                            },
+                            onTap: () => _pick(r),
                           ),
                       ],
                     ),
+                    // Changer de fournisseur d'un geste : le meilleur modèle de
+                    // chacun de ceux qui sont prêts.
+                    if (others.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      GroupedCard(
+                        children: [
+                          for (final r in others)
+                            row(
+                              title: Text(
+                                '${s.provider(r.providerId)!.emoji} '
+                                '${modelDisplayName(s, r)}',
+                              ),
+                              subtitle: Text(s.provider(r.providerId)!.name),
+                              onTap: () => _pick(r),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (s.readyProviders.where((p) => !p.local).length <=
+                        2) ...[
+                      const SizedBox(height: 14),
+                      GroupedCard(
+                        children: [
+                          row(
+                            title: const Text('Ajouter des modèles'),
+                            subtitle: Text(
+                              _ref.providerId == 'pollinations'
+                                  ? 'Sans compte, Pollinations n\'a qu\'un modèle et '
+                                        'coupe chaque réponse à 1 500 tokens (NEXORA '
+                                        'demande la suite tout seul). Une clé gratuite '
+                                        '(Groq, Gemini, OpenRouter…) en ajoute des dizaines.'
+                                  : 'Ajoutez la clé d\'un fournisseur (beaucoup sont '
+                                        'gratuits) pour choisir parmi ses modèles.',
+                            ),
+                            trailing: Icon(
+                              Icons.key_rounded,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            onTap: () {
+                              final nav = Navigator.of(context);
+                              nav.pop();
+                              nav.push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ProvidersScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     GroupedCard(
                       children: [
@@ -353,12 +426,16 @@ class ModelEffortButton extends StatelessWidget {
         children: [
           Text(p?.emoji ?? '🤖'),
           const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 190),
-            child: Text(
-              '${modelDisplayName(s, current)} · ${level.label}',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+          // Le nom rétrécit (avec « … ») plutôt que de déborder de la barre.
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 190),
+              child: Text(
+                '${modelDisplayName(s, current)} · ${level.label}',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
           const Icon(Icons.expand_more_rounded, size: 20),

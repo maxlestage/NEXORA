@@ -241,7 +241,10 @@ class SessionState extends ChangeNotifier {
       maxSteps: l.agentSteps,
       extraRepos: repos.skip(1).toList(),
       onHeaders: (h) => usage?.recordHeaders(p.id, h),
-      onUsage: (t) => usage?.recordUsage(p.id, model: model.model, usage: t),
+      onUsage: (t) {
+        usage?.recordUsage(p.id, model: model.model, usage: t);
+        usage?.refreshSoon(p, settings.key(p.id));
+      },
       onError: (e) => usage?.recordError(p.id, e),
     );
     run.autoCi = autoCi ?? settings.agentAutoCi;

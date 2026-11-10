@@ -35,7 +35,9 @@ class _ModelPicker extends StatefulWidget {
 class _ModelPickerState extends State<_ModelPicker> {
   String _q = '';
   bool _freeOnly = false;
-  bool _showAll = false;
+  // Peu de fournisseurs prêts : on les montre tous (avec « clé manquante »),
+  // sinon il n'y aurait presque rien à choisir.
+  late bool _showAll = context.read<SettingsState>().readyProviders.length <= 2;
   final Set<String> _loading = {};
 
   Future<void> _refresh(ProviderDef p) async {
@@ -53,7 +55,10 @@ class _ModelPickerState extends State<_ModelPicker> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<SettingsState>();
-    final providers = _showAll ? s.providers : s.readyProviders;
+    // Les fournisseurs prêts d'abord.
+    final providers = _showAll
+        ? [...s.readyProviders, ...s.providers.where((p) => !s.isReady(p))]
+        : s.readyProviders;
     final favorites = s.favorites
         .map(ModelRef.parse)
         .whereType<ModelRef>()
@@ -68,12 +73,14 @@ class _ModelPickerState extends State<_ModelPicker> {
             children: [
               Row(
                 children: [
-                  Text(
-                    'Choisir un modèle',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                  Expanded(
+                    child: Text(
+                      'Choisir un modèle',
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
                   ),
-                  const Spacer(),
                   FilterChip(
                     label: const Text('Gratuits'),
                     selected: _freeOnly,

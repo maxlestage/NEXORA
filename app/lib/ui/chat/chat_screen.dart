@@ -481,10 +481,20 @@ class _ChatScreenState extends State<ChatScreen> {
                     current: ref,
                     level: chat.levelFor(c, agent),
                     onModel: (r) {
+                      final wasRunning = chat.isRunning(c.id);
                       chat.setModel(c.id, r);
                       // Un agent qui impose son modèle est retiré, pour que le
                       // modèle choisi soit bien utilisé.
-                      if (agent?.model != null) chat.setAgent(c.id, null);
+                      final keep = agent?.model == null ? agent : null;
+                      if (agent != null && keep == null) {
+                        chat.setAgent(c.id, null);
+                      }
+                      // Changé pendant une réponse : elle repart tout de suite
+                      // avec le nouveau modèle.
+                      if (wasRunning) {
+                        chat.stop(c.id);
+                        chat.regenerate(c.id, agent: keep);
+                      }
                     },
                     onLevel: (l) => chat.setLevel(c.id, l),
                   ),
@@ -1055,94 +1065,99 @@ class _ErrorCard extends StatelessWidget {
     final p = ref == null ? null : settings.provider(ref.providerId);
     final help = explainError(message.content, p);
     final tt = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Nx.red.withValues(alpha: 0.08),
+    // Un Material (et pas une simple boîte colorée) : l'effet du toucher sur
+    // « Détail technique » reste visible.
+    return Material(
+      color: Nx.red.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Nx.red.withValues(alpha: 0.4)),
+        side: BorderSide(color: Nx.red.withValues(alpha: 0.4)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.error_outline, color: Nx.red, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  help.title,
-                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final a in help.advice)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('•  '),
-                  Expanded(child: Text(a)),
-                ],
-              ),
-            ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (onRetry != null)
-                FilledButton.tonalIcon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Réessayer'),
-                ),
-              if (help.suggestOtherModel && onChangeModel != null)
-                OutlinedButton.icon(
-                  onPressed: onChangeModel,
-                  icon: const Icon(Icons.swap_horiz, size: 18),
-                  label: const Text('Autre modèle'),
-                ),
-              if (p != null && help.suggestSettings)
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ProviderDetailScreen(providerId: p.id),
-                    ),
-                  ),
-                  icon: const Icon(Icons.key, size: 18),
-                  label: Text('Réglages ${p.name}'),
-                ),
-              if (p != null && help.suggestQuota)
-                OutlinedButton.icon(
-                  onPressed: () => showQuotaSheet(context, p.id),
-                  icon: const Icon(Icons.speed, size: 18),
-                  label: const Text('Voir le crédit'),
-                ),
-            ],
-          ),
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              dense: true,
-              title: Text('Détail technique', style: tt.labelMedium),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: SelectableText(
-                    message.content,
-                    style: const TextStyle(fontFamily: Nx.mono, fontSize: 12),
+                const Icon(Icons.error_outline, color: Nx.red, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    help.title,
+                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            for (final a in help.advice)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('•  '),
+                    Expanded(child: Text(a)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (onRetry != null)
+                  FilledButton.tonalIcon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Réessayer'),
+                  ),
+                if (help.suggestOtherModel && onChangeModel != null)
+                  OutlinedButton.icon(
+                    onPressed: onChangeModel,
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Autre modèle'),
+                  ),
+                if (p != null && help.suggestSettings)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProviderDetailScreen(providerId: p.id),
+                      ),
+                    ),
+                    icon: const Icon(Icons.key, size: 18),
+                    label: Text('Réglages ${p.name}'),
+                  ),
+                if (p != null && help.suggestQuota)
+                  OutlinedButton.icon(
+                    onPressed: () => showQuotaSheet(context, p.id),
+                    icon: const Icon(Icons.speed, size: 18),
+                    label: const Text('Voir le crédit'),
+                  ),
+              ],
+            ),
+            Theme(
+              data: Theme.of(context)
+                  .copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                dense: true,
+                title: Text('Détail technique', style: tt.labelMedium),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SelectableText(
+                      message.content,
+                      style: const TextStyle(fontFamily: Nx.mono, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
