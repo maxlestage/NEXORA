@@ -1951,6 +1951,18 @@ class AgentRun extends ChangeNotifier {
       hits = find((l) => words.every(l.contains));
       if (hits.isNotEmpty) note = ' (tous les mots, pas forcément côte à côte)';
     }
+    if (hits.isEmpty) {
+      // « compare versions » retrouve compareVersions, compare_versions…
+      final squashed = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (squashed.length > 2) {
+        hits = find(
+          (l) => l.replaceAll(RegExp(r'[^a-z0-9]'), '').contains(squashed),
+        );
+        if (hits.isNotEmpty) {
+          note = ' (en ignorant espaces, « _ » et majuscules)';
+        }
+      }
+    }
     final names = all
         .where(
           (f) =>
