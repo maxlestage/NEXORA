@@ -95,9 +95,37 @@ class SessionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Un autre modèle pour continuer quand celui de la session ne répond plus :
+  /// le modèle par défaut, puis chaque fournisseur qui a une clé (son meilleur
+  /// modèle), puis les modèles gratuits sans clé.
+  Future<(ProviderDef, String?, String)?> _fallback(
+    Object error,
+    Set<String> tried,
+  ) async {
+    final cands = <ModelRef>[
+      settings.resolve(settings.defaultModel),
+      for (final p in settings.providers)
+        if (!p.local &&
+            (!p.needsKey || (settings.key(p.id)?.isNotEmpty ?? false)))
+          for (final m in settings.models(p.id).take(2)) ModelRef(p.id, m.id),
+      const ModelRef('pollinations', 'openai'),
+      const ModelRef('pollinations', 'openai-fast'),
+    ];
+    for (final c in cands) {
+      if (tried.contains(c.key)) continue;
+      final p = settings.provider(c.providerId);
+      if (p == null) continue;
+      final key = settings.key(p.id);
+      if (p.needsKey && (key == null || key.isEmpty)) continue;
+      return (p, key, c.model);
+    }
+    return null;
+  }
+
   /// Donne à l'agent les skills et les sous-agents installés (à jour).
   void _equip(AgentRun run) {
     run
+      ..fallback = _fallback
       ..skills = agents.skills
       ..subagents = agents.all
       ..readSkillFile = (s, f) => agents.readSkillFile(github.api, s, f);
@@ -262,9 +290,17 @@ class SessionState extends ChangeNotifier {
       _changed(run);
       return;
     }
-    final report = await run.shipForCi();
+    var report = await run.shipForCi();
     _changed(run);
     if (report == null || !_sessions.contains(run)) return;
+    // Plusieurs essais sans succès : l'agent doit changer d'approche.
+    if (run.ciRounds % 4 == 0) {
+      report =
+          '$report\n\nTes ${run.ciRounds} derniers envois n\'ont pas suffi : '
+          'reprends depuis le début, cherche la VRAIE cause dans les journaux, et '
+          'change d\'approche (autre correction, simplification, mise à jour de '
+          'la configuration ou des dépendances).';
+    }
     await _drive(run, followUp: report);
   }
 
