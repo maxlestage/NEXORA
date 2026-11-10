@@ -187,6 +187,35 @@ List<CodeBlock> codeBlocks(String text) {
   return out;
 }
 
+/// Une réponse dont le JSON (« demande », « thought »…) ne contient aucune
+/// action : sa réflexion, lisible (« 🎯 demande », puis la réflexion), ou
+/// null si la réponse n'a pas de tel JSON.
+String? actionlessThought(String reply) {
+  Map<String, dynamic>? obj;
+  for (final b in codeBlocks(reply)) {
+    if (b.lang == 'json' ||
+        (b.lang.isEmpty && b.body.trimLeft().startsWith('{'))) {
+      obj = _tryJson(b.body);
+      if (obj != null) break;
+    }
+  }
+  if (obj == null) {
+    final start = reply.indexOf('{');
+    final end = reply.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      obj = _tryJson(reply.substring(start, end + 1));
+    }
+  }
+  if (obj == null) return null;
+  final goal = (obj['demande'] ?? obj['goal'] ?? '').toString().trim();
+  final thought = (obj['thought'] ?? '').toString().trim();
+  if (goal.isEmpty && thought.isEmpty) return null;
+  return [
+    if (goal.isNotEmpty) '🎯 $goal',
+    if (thought.isNotEmpty) thought,
+  ].join('\n');
+}
+
 /// Lit l'action dans la réponse du modèle : un objet JSON (dans un bloc ```json ou
 /// nu), et pour `write_file`, le contenu dans le bloc de code qui suit.
 ToolCall? parseToolCall(String reply) {
@@ -771,6 +800,15 @@ class AgentRun extends ChangeNotifier {
   Future<String> _spec(String text) async {
     if (!compile) return '';
     final before = requests.where((r) => r != text).toList();
+    // Le traducteur voit les vrais fichiers : il ne devine plus un chemin
+    // (« lib/… » au lieu de « app/lib/… ») que l'agent suivrait ensuite.
+    var files = '';
+    try {
+      final tree = await _files();
+      files = tree.length > 300
+          ? '${tree.take(300).join('\n')}\n… (${tree.length - 300} de plus)'
+          : tree.join('\n');
+    } catch (_) {}
     try {
       final out = await _askOnce(
         system:
@@ -780,9 +818,18 @@ class AgentRun extends ChangeNotifier {
             'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
             'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
             'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
+            'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
+            'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
+            'fichier des utilitaires ») sans inventer de chemin. De même, ne '
+            'nomme une fonction, une classe ou une variable que si la demande la '
+            'nomme : sinon décris-la (« la fonction qui compare les versions »), '
+            'car un nom deviné envoie l\'agent chercher ce qui n\'existe pas. '
+            'N\'écris pas de '
+            'code : l\'agent le fera après avoir lu le dépôt. '
             'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
         prompt:
             'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
+            '${files.isEmpty ? '' : 'Fichiers du dépôt :\n$files\n'}'
             '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
             'Demande à traduire : « $text »',
       ).timeout(const Duration(seconds: 90));
@@ -812,7 +859,10 @@ class AgentRun extends ChangeNotifier {
     final spec = i < specs.length ? specs[i] : '';
     return spec.isEmpty
         ? '« $text »'
-        : '« $text »\n   En langage NEXORA :\n${spec.split('\n').map((l) => '   $l').join('\n')}';
+        : '« $text »\n   En langage NEXORA (une aide : si un nom ou un chemin '
+              'cité n\'existe pas dans le dépôt, ce sont les mots de '
+              'l\'utilisateur qui comptent) :\n'
+              '${spec.split('\n').map((l) => '   $l').join('\n')}';
   }
 
   /// Les demandes, redonnées à l'agent à CHAQUE étape (dans ses instructions) :
@@ -881,6 +931,14 @@ class AgentRun extends ChangeNotifier {
         'du langage NEXORA, qu\'il est rempli (relis les passages modifiés si '
         'besoin).';
   }
+
+  /// Les actions qui ne font que regarder le dépôt.
+  static const _explore = {
+    'list_files',
+    'read_file',
+    'find_in_file',
+    'search_code',
+  };
 
   /// Tests obligatoires et relecture finale (désactivables dans les tests
   /// unitaires qui ne portent pas dessus).
@@ -1307,6 +1365,13 @@ class AgentRun extends ChangeNotifier {
       // La dernière série d'actions, pour repérer une boucle.
       String? lastSig;
       var repeats = 0;
+      // Les recherches et lectures déjà faites (brouillons identiques) : un
+      // agent qui tourne en rond entre quelques recherches est repéré, même
+      // quand il les alterne.
+      final seen = <String>{};
+      var stale = 0;
+      // Les réponses de suite sans aucune action.
+      var idle = 0;
       do {
         again = false;
         // Une instruction arrivée pendant le tour de fin relance le travail : il
@@ -1365,18 +1430,46 @@ class AgentRun extends ChangeNotifier {
           history.add(LlmMessage('assistant', reply));
           final calls = parseToolCalls(reply);
           if (calls.isEmpty) {
-            _add(AgentStep(StepKind.thought, reply));
+            idle++;
+            final bare = actionlessThought(reply);
+            // Lisible : la réflexion, pas le JSON brut.
+            _add(AgentStep(StepKind.thought, bare ?? reply));
+            // Plusieurs réponses de suite sans action : ce modèle tourne en
+            // rond, un autre prend la suite ; sinon la session s'arrête au lieu
+            // de gaspiller toutes ses étapes.
+            if (idle == 3 && await _switchModel('aucune action')) {
+              idle = 0;
+            } else if (idle >= 5) {
+              _add(
+                AgentStep(
+                  StepKind.error,
+                  'Le modèle répond sans jamais choisir d\'action (5 fois de '
+                  'suite). Changez de modèle au-dessus du champ, puis envoyez '
+                  '« continue ».',
+                ),
+              );
+              ended = true;
+              break;
+            }
             dropReminders(history);
             history.add(
               LlmMessage(
                 'user',
-                'Je n\'ai pas trouvé d\'action. Réponds avec un bloc ```json '
-                    '{"demande": …, "thought": …, "tool": …, "args": {…}}```.'
-                    '$reminder',
+                bare != null
+                    ? 'Ton bloc JSON n\'a pas de champ "tool" : aucune action '
+                          'n\'a été faite. Ajoute "tool" et "args" (un des outils '
+                          'listés). Un obstacle ? Prends une autre voie (autre '
+                          'outil, autre fichier, autre approche) et continue. Si '
+                          'la demande est vraiment impossible, appelle finish en '
+                          'expliquant pourquoi.$reminder'
+                    : 'Je n\'ai pas trouvé d\'action. Réponds avec un bloc '
+                          '```json {"demande": …, "thought": …, "tool": …, '
+                          '"args": {…}}```.$reminder',
               ),
             );
             continue;
           }
+          idle = 0;
           final goal = calls.first.goal;
           final thought = calls.first.thought;
           if (restate &&
@@ -1407,15 +1500,34 @@ class AgentRun extends ChangeNotifier {
             history.add(
               LlmMessage(
                 'user',
-                'Tu viens de refaire exactement la même action qu\'au tour '
-                    'précédent : son résultat est juste au-dessus, inutile de la '
-                    'répéter. Si ce que tu cherches n\'y est pas, change '
-                    'd\'approche (cherche sans "path" dans tout le dépôt, lis le '
-                    'fichier autour d\'une ligne avec read_file et "line", ou fais '
-                    'la modification). Si la demande est remplie, appelle '
-                    'finish.$reminder',
+                repeats == 1
+                    ? 'Tu viens de refaire exactement la même action qu\'au tour '
+                          'précédent : son résultat est juste au-dessus, inutile de '
+                          'la répéter. Si ce que tu cherches n\'y est pas, change '
+                          'd\'approche (cherche sans "path" dans tout le dépôt, lis '
+                          'le fichier autour d\'une ligne avec read_file et "line", '
+                          'ou fais la modification). Si la demande est remplie, '
+                          'appelle finish.$reminder'
+                    : 'STOP : c\'est la ${repeats + 1}e fois que tu fais cette même '
+                          'action, et son résultat ne changera pas. Ce que tu '
+                          'cherches N\'EXISTE PAS sous ce nom ou à cet endroit : un '
+                          'nom ou un chemin supposé (par toi ou par la traduction en '
+                          'langage NEXORA) est faux. Fie-toi aux résultats déjà '
+                          'obtenus et suis les mots de l\'utilisateur : pars du code '
+                          'qui existe vraiment (liste les fichiers, lis le plus '
+                          'proche du sujet), crée ce qui manque si la demande '
+                          'l\'implique, ou appelle finish en expliquant précisément '
+                          'ce qui n\'existe pas. Choisis une AUTRE action '
+                          'maintenant.$reminder',
               ),
             );
+            // Ce modèle reste bloqué malgré les relances : un autre modèle
+            // disponible reprend la suite (avec tout le travail déjà fait).
+            if (repeats >= 3 &&
+                await _switchModel('même action répétée en boucle')) {
+              repeats = 0;
+              continue;
+            }
             if (repeats >= 3) {
               _add(
                 AgentStep(
@@ -1431,11 +1543,54 @@ class AgentRun extends ChangeNotifier {
           }
           lastSig = sig;
           repeats = 0;
+          var circling = '';
+          if (work.isNotEmpty) {
+            final stamp = Object.hashAll(
+              changes.entries.map((e) => '${e.key}\u0000${e.value}'),
+            );
+            final looks = work.every((c) => _explore.contains(c.tool));
+            final fresh = work
+                .where((c) => seen.add(jsonEncode([c.tool, c.args, stamp])))
+                .length;
+            if (!looks) {
+              stale = 0;
+            } else if (fresh == 0) {
+              stale++;
+            }
+            if (stale >= 7) {
+              _add(
+                AgentStep(
+                  StepKind.error,
+                  'L\'agent tourne en rond : il refait les mêmes recherches sans '
+                  'avancer. Arrêté ; ses brouillons sont gardés. Envoyez une '
+                  'précision (le fichier ou la fonction visés) ou « continue ».',
+                ),
+              );
+              ended = true;
+              break;
+            }
+            if (stale == 5 &&
+                await _switchModel('mêmes recherches refaites en boucle')) {
+              stale = 0;
+            }
+            if (stale >= 3) {
+              circling =
+                  '\n\nATTENTION : tu tournes en rond, ces recherches et '
+                  'lectures ont DÉJÀ été faites, avec les mêmes résultats. Ce que '
+                  'tu cherches n\'existe pas sous la forme supposée. Arrête de '
+                  'chercher : décide avec ce que tu sais déjà. Fais la '
+                  'modification demandée à partir du code qui existe (crée ce qui '
+                  'manque si la demande l\'implique), ou appelle finish en '
+                  'expliquant précisément ce qui n\'existe pas.';
+            }
+          }
           actsSince += work.length;
           final results = await _execAll(work);
           if (results.isNotEmpty) {
             dropReminders(history);
-            history.add(LlmMessage('user', '${results.join('\n\n')}$reminder'));
+            history.add(
+              LlmMessage('user', '${results.join('\n\n')}$circling$reminder'),
+            );
             compactHistory(history);
           }
           final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
@@ -2362,21 +2517,35 @@ class AgentRun extends ChangeNotifier {
         final n = known == null ? null : int.tryParse(known.split('/').last);
         if (n != null) {
           try {
-            final (state, _) = await github.pullStatus(t.owner, t.name, n);
+            final (state, merged, prHead) = await github.pullStatus(
+              t.owner,
+              t.name,
+              n,
+            );
             if (state != 'open') {
               pulls.remove(t.fullName);
-              // Sa branche a pu être supprimée après la fusion : on la recrée
-              // depuis la branche principale (ignoré si elle existe encore).
               final head = heads[t.fullName];
               if (head != null && head != t.branch) {
-                try {
-                  await github.createBranch(
-                    t.owner,
-                    t.name,
-                    head,
-                    from: t.branch,
-                  );
-                } catch (_) {}
+                if (await _mergedWhole(t, head, merged, prHead)) {
+                  // Tout le travail de la branche est déjà dans la branche
+                  // principale : l'envoi repart d'elle, sur une branche neuve
+                  // (pas d'anciens commits ré-proposés, pas de faux conflit).
+                  final old = heads.remove(t.fullName)!;
+                  try {
+                    await github.deleteBranch(t.owner, t.name, old);
+                  } catch (_) {}
+                } else {
+                  // Sa branche a pu être supprimée : on la recrée depuis la
+                  // branche principale (ignoré si elle existe encore).
+                  try {
+                    await github.createBranch(
+                      t.owner,
+                      t.name,
+                      head,
+                      from: t.branch,
+                    );
+                  } catch (_) {}
+                }
               }
             }
           } catch (_) {}
@@ -2713,11 +2882,51 @@ class AgentRun extends ChangeNotifier {
       final n = url == null ? null : int.tryParse(url.split('/').last);
       if (n == null) continue;
       try {
-        final (state, _) = await github.pullStatus(t.owner, t.name, n);
-        if (state != 'open') pulls.remove(t.fullName);
+        final (state, wasMerged, prHead) = await github.pullStatus(
+          t.owner,
+          t.name,
+          n,
+        );
+        if (state != 'open') {
+          pulls.remove(t.fullName);
+          final head = heads[t.fullName];
+          // Fusionnée telle quelle (sur GitHub) : rien n'attend sur sa branche,
+          // la suite repart de la branche principale.
+          if (head != null &&
+              head != t.branch &&
+              await _mergedWhole(t, head, wasMerged, prHead)) {
+            heads.remove(t.fullName);
+            merged.add('${t.fullName} → ${t.branch}');
+            _forget(t);
+            _tree = null;
+            // Sa branche ne sert plus : la supprimer évite qu'un prochain envoi
+            // y reparte avec d'anciens commits.
+            try {
+              await github.deleteBranch(t.owner, t.name, head);
+            } catch (_) {}
+          }
+        }
       } catch (_) {}
     }
     notifyListeners();
+  }
+
+  /// Vrai si la pull request a été fusionnée et que sa branche n'a rien reçu
+  /// depuis (ou a été supprimée) : tout son travail est dans la branche
+  /// principale.
+  Future<bool> _mergedWhole(
+    RepoTarget t,
+    String head,
+    bool merged,
+    String? prHead,
+  ) async {
+    if (!merged) return false;
+    try {
+      final tip = await github.branchTip(t.owner, t.name, head);
+      return tip == null || tip == prHead;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Les dépôts dont le travail est sur une branche de la session sans pull

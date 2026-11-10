@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
@@ -180,6 +181,8 @@ class LlmClient {
     };
   }
 
+  static final _seeds = Random();
+
   Map<String, dynamic> _body(
     ProviderDef p,
     String model,
@@ -230,6 +233,14 @@ class LlmClient {
           if (stream && _streamUsage.contains(p.id))
             'stream_options': {'include_usage': true},
           if (p.id == 'openrouter') 'usage': {'include': true},
+          // Pollinations garde en cache la réponse d'une requête identique : sans
+          // graine nouvelle, un nouvel essai rejouerait la même panne et
+          // « Régénérer » la même réponse. Et vos échanges restent hors de son
+          // fil public.
+          if (p.id == 'pollinations') ...{
+            'seed': _seeds.nextInt(1 << 31),
+            'private': true,
+          },
           ...extra,
         };
     }

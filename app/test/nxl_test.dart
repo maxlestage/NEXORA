@@ -108,6 +108,63 @@ void main() {
     expect(run.toJson()['specs'], [spec1, spec2]);
   });
 
+  test('le traducteur voit les vrais fichiers du dépôt : il n\'invente ni '
+      'chemin ni code', () async {
+    final requests = <String>[];
+    final replies = [
+      spec2,
+      for (var k = 0; k < 4; k++) act('finish', {'summary': 'ok'}),
+    ];
+    var i = 0;
+    var trees = 0;
+    final run = AgentRun(
+      llm: LlmClient(
+        clientFactory: () => MockClient.streaming((req, body) async {
+          requests.add(await body.bytesToString());
+          return sse(replies[i++]);
+        }),
+      ),
+      github: GitHubApi(
+        't',
+        client: MockClient((req) async {
+          if (req.url.path.contains('/git/trees/')) trees++;
+          return http.Response(
+            jsonEncode({
+              'tree': [
+                {'path': 'app/lib/utils/format.dart', 'type': 'blob'},
+                {'path': 'app/test/format_test.dart', 'type': 'blob'},
+              ],
+            }),
+            200,
+          );
+        }),
+      ),
+      provider: providersCatalog.firstWhere((p) => p.id == 'groq'),
+      apiKey: 'k',
+      model: 'm',
+      owner: 'max',
+      repo: 'site',
+      branch: 'main',
+      task: 'ajoute une fonction qui formate une durée',
+    );
+    await run.run();
+    final ask = jsonDecode(requests.first) as Map;
+    final prompt = jsonEncode(ask['messages']);
+    expect(prompt, contains('Fichiers du dépôt'));
+    expect(prompt, contains('app/lib/utils/format.dart'));
+    expect(prompt, contains('sans inventer de chemin'));
+    expect(prompt, contains('N\'écris pas de code'));
+    // Pas de nom de fonction deviné : l'agent le chercherait en vain.
+    expect(prompt, contains('ne nomme une fonction'));
+    expect(prompt, contains('la fonction qui compare les versions'));
+    // Pour l'agent, la traduction est une aide : les mots de l'utilisateur
+    // priment si un nom cité n'existe pas.
+    expect(requests[1], contains('mots de l\'utilisateur qui comptent'));
+    // La liste est lue une seule fois, puis resservie à l'agent.
+    expect(trees, 1);
+    expect(requests[1], contains('app/test/format_test.dart'));
+  });
+
   test('traduction ratée : l\'agent travaille avec la demande brute', () async {
     final replies = [
       'Désolé, je ne sais pas.', // pas au format
