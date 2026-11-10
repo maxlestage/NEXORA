@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.33 — 10 novembre 2026 — L'agent ne s'arrête plus sur une recherche sans issue
+- Corrigé : quand l'agent cherchait en boucle une fonction ou un fichier qui n'existe pas (souvent un nom supposé), la session s'arrêtait net avec « L'agent répète la même action en boucle ».
+- À la deuxième répétition, l'agent est relancé fermement : ce qu'il cherche n'existe pas sous ce nom, il repart du code qui existe vraiment, crée ce qui manque si votre demande l'implique, ou explique précisément ce qui manque.
+- S'il reste bloqué, un autre modèle disponible prend la suite avec tout le travail déjà fait, au lieu d'arrêter la session.
+
 ## 2.2.32 — 10 novembre 2026 — « Ce que l'agent a compris » colle à votre dépôt
 - Avant de traduire votre demande en langage NEXORA, l'agent lit la liste des fichiers du dépôt : les fichiers cités sont les vrais (par exemple « app/lib/… » et plus « lib/… » au hasard), et l'agent ne part plus sur un mauvais chemin.
 - La traduction ne contient plus de code inventé à l'avance : elle dit quoi faire, et l'agent écrit le code après avoir lu le dépôt.
