@@ -62,22 +62,15 @@ fn ips(fps: State<u32>) -> impl Fn() -> String + 'static {
     }
 }
 
-/// Le fond du héros : un téléphone 3D relié à ses fournisseurs d'IA en orbite.
+/// Le fond de l'en-tête : un disque de lumière en 3D autour du logo NEXORA.
 pub fn hero3d(_props: &str) -> Node {
     let fps = use_state(0u32);
     let r = Reglages::default();
-    fragment([
-        canvas()
-            .class("hero-canvas")
-            .attr("aria-hidden", "true")
-            .use_action(move |canvas| lancer(canvas, Scene3d::Hero, fps, r)),
-        p().class("hud")
-            .attr("aria-hidden", "true")
-            .child(span().class("hud-dot"))
-            .text("paquets::scene · WebGL 2 · ")
-            .text_dyn(ips(fps))
-            .text(" ips"),
-    ])
+    canvas()
+        .class("hero-canvas")
+        .attr("aria-hidden", "true")
+        .use_action(move |canvas| lancer(canvas, Scene3d::Hero, fps, r))
+        .into()
 }
 
 /// La galaxie des modèles : chaque fournisseur est une planète ; les gratuits ont un

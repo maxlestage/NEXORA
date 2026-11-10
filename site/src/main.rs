@@ -607,10 +607,9 @@ fn carte_fournisseur(i: usize, f: &Fournisseur) -> Element {
 /// nom NEXORA, au-dessus de la scène 3D.
 fn embleme() -> Element {
     div()
-        .id("hero-stage")
         .class("hero-emblem")
         .attr("data-reveal", "up")
-        .attr("style", "--d:300ms")
+        .attr("style", "--d:200ms")
         .child(
             div()
                 .class("emblem-tilt tilt")
@@ -620,45 +619,16 @@ fn embleme() -> Element {
                         .class("emblem-logo")
                         .attr("src", "/icons/logo-hero.webp")
                         .attr("alt", "Logo NEXORA")
-                        .attr("width", "360")
-                        .attr("height", "360"),
+                        .attr("width", "420")
+                        .attr("height", "420"),
                 ),
         )
         .child(
-            p().class("emblem-name")
-                .attr("aria-hidden", "true")
-                .text("NEXORA"),
-        )
-}
-
-/// L'encadré « Quoi de neuf » de l'en-tête : la dernière version et ses
-/// changements, étiquetés.
-fn quoi_de_neuf(v: &Version) -> Element {
-    div()
-        .class("hero-news")
-        .attr("data-reveal", "up")
-        .attr("style", "--d:720ms")
-        .child(
-            div()
-                .class("hero-news-head")
-                .child(span().class("hero-news-label").text("Quoi de neuf"))
-                .child(span().class("release-ver").text(format!("v{}", v.numero)))
-                .child(span().class("release-date").text(v.date)),
-        )
-        .child(p().class("hero-news-title").text(v.titre))
-        .child(
-            ul().class("changes")
-                .children(v.points.iter().take(3).map(|p| {
-                    let (etiquette, classe) = nature(p);
-                    li().child(span().class(format!("tag {classe}")).text(etiquette))
-                        .child(span().class("clamp").text(sans_etiquette(p)))
-                })),
-        )
-        .child(
-            a().class("hero-news-more")
-                .href("/nouveautes")
-                .text("Toutes les nouveautés")
-                .child(fleche()),
+            p().class("emblem-name").child(span().text("NEXORA")).child(
+                span()
+                    .class("emblem-tag")
+                    .text("Toute l'IA, sur votre téléphone"),
+            ),
         )
 }
 
@@ -801,64 +771,57 @@ async fn accueil(_req: Request) -> Page {
             div()
                 .class("container hero-inner")
                 .child(
-                    a().class("pill")
-                        .href("/nouveautes")
-                        .attr("data-reveal", "down")
-                        .child(span().class("pill-tag").text(format!("v{}", derniere.numero)))
-                        .text(derniere.titre)
-                        .child(fleche()),
-                )
-                .child(mots(
-                    h1().class("hero-title"),
-                    "Toute l'IA. Vos agents. *Dans* *votre* *poche.*",
-                ))
-                .child(
-                    p().class("lead hero-lead")
-                        .attr("data-reveal", "up")
-                        .attr("style", "--d:500ms")
-                        .text(
-                            "NEXORA réunit Ollama, OpenRouter, Groq, Gemini, Mistral, Claude et des dizaines d'autres dans une app iPhone et Android. Installez des agents, lancez des instructions sur GitHub et codez vos projets, où que vous soyez.",
-                        ),
-                )
-                .child(
                     div()
-                        .class("actions")
-                        .attr("data-reveal", "up")
-                        .attr("style", "--d:650ms")
+                        .class("hero-copy")
                         .child(
-                            a().class("btn btn-primary btn-lg magnetic")
-                                .href("/telecharger")
-                                .text("Télécharger gratuitement")
+                            a().class("pill")
+                                .href("/nouveautes")
+                                .attr("data-reveal", "down")
+                                .child(span().class("pill-tag").text(format!("v{}", derniere.numero)))
+                                .text(derniere.titre)
                                 .child(fleche()),
                         )
+                        .child(mots(
+                            h1().class("hero-title"),
+                            "Toute l'IA. Vos agents. *Dans* *votre* *poche.*",
+                        ))
                         .child(
-                            a().class("btn btn-ghost btn-lg magnetic")
-                                .href("#demo")
-                                .child(span().class("play").html(icone("play")))
-                                .text("Voir la démo"),
+                            p().class("lead hero-lead")
+                                .attr("data-reveal", "up")
+                                .attr("style", "--d:500ms")
+                                .text(
+                                    "Ollama, OpenRouter, Groq, Gemini, Mistral, Claude et des dizaines d'autres, réunis dans une app iPhone et Android. Installez des agents, lancez-les sur vos dépôts GitHub, et codez où que vous soyez.",
+                                ),
+                        )
+                        .child(
+                            div()
+                                .class("actions")
+                                .attr("data-reveal", "up")
+                                .attr("style", "--d:650ms")
+                                .child(
+                                    a().class("btn btn-primary btn-lg magnetic")
+                                        .href("/telecharger")
+                                        .text("Télécharger gratuitement")
+                                        .child(fleche()),
+                                )
+                                .child(
+                                    a().class("btn btn-ghost btn-lg magnetic")
+                                        .href("#demo")
+                                        .child(span().class("play").html(icone("play")))
+                                        .text("Voir la démo"),
+                                ),
+                        )
+                        .child(
+                            ul().class("hero-proof")
+                                .attr("data-reveal", "up")
+                                .attr("style", "--d:800ms")
+                                .child(li().child(strong().text("21")).text(" fournisseurs"))
+                                .child(li().child(strong().text("0 €")).text(" modèles gratuits"))
+                                .child(li().child(strong().text("0")).text(" serveur, 0 compte")),
                         ),
                 )
-                // L'emblème NEXORA : le logo néon en relief et le nom (à droite du
-                // titre sur ordinateur, sous les boutons sur téléphone).
-                .child(embleme())
-                // Les nouveautés, dès l'arrivée sur le site.
-                .child(quoi_de_neuf(derniere))
-                .child(
-                    ul().class("hero-proof")
-                        .attr("data-reveal", "up")
-                        .attr("style", "--d:800ms")
-                        .child(li().child(strong().text("21")).text(" fournisseurs"))
-                        .child(li().child(strong().text("0 €")).text(" modèles gratuits"))
-                        .child(li().child(strong().text("0")).text(" serveur, 0 compte")),
-                ),
-        )
-        .child(cube_css("hero-cube"))
-        .child(cube_css("hero-cube c2"))
-        .child(
-            a().class("scroll-hint")
-                .href("#marques")
-                .attr("aria-label", "Défiler vers la suite")
-                .child(span().class("mouse").child(span())),
+                // L'emblème NEXORA : le logo néon en relief et le nom.
+                .child(embleme()),
         );
 
     let marques = section()
@@ -1943,11 +1906,11 @@ mod tests {
         let nouveautes = client.get("/nouveautes").await.text();
         let v = &versions()[0];
         assert!(nouveautes.contains(&format!("v{}", v.numero)));
-        // Les nouveautés sont dans l'en-tête de l'accueil.
+        // L'emblème est dans l'en-tête, les nouveautés juste dessous.
         let accueil = client.get("/").await.text();
-        assert!(accueil.contains("hero-news"));
         assert!(accueil.contains("emblem-logo"));
-        assert!(accueil.contains("Quoi de neuf"));
+        assert!(accueil.contains("id=\"nouveautes\""));
+        assert!(accueil.contains(&format!("v{}", v.numero)));
         // Chaque changement a son étiquette.
         assert!(nouveautes.contains("class=\"tag tag-"));
         // Le titre est échappé dans le HTML (apostrophes, guillemets…).

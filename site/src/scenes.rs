@@ -272,75 +272,105 @@ fn ancre(canvas: &web_sys::Element, selecteur: &str) -> Option<(f32, f32, f32)> 
     ))
 }
 
+/// La couleur de la marque à l'angle `a` du disque : cyan, violet, rose, puis
+/// retour au cyan.
+fn teinte(a: f32) -> u32 {
+    let t = (a / TAU).rem_euclid(1.0) * 3.0;
+    let (de, vers, k) = if t < 1.0 {
+        (CYAN, VIOLET, t)
+    } else if t < 2.0 {
+        (VIOLET, MAGENTA, t - 1.0)
+    } else {
+        (MAGENTA, CYAN, t - 2.0)
+    };
+    let canal = |s: u32| {
+        let a = ((de >> s) & 0xff) as f32;
+        let b = ((vers >> s) & 0xff) as f32;
+        ((a + (b - a) * k).round() as u32).min(255) << s
+    };
+    canal(16) | canal(8) | canal(0)
+}
+
 fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> Running {
     let calme = if reduced_motion() { 0.15 } else { 1.0 };
     let mut hasard = Hasard::new();
     let mut scene = Scene::new();
-    // Tout gravite autour du logo NEXORA (en HTML, au-dessus du canvas).
+    // Le disque gravite autour du logo NEXORA (en HTML, au-dessus du canvas).
     let monde = scene.add(Group::new());
+    let disque = scene.add_to(monde, Group::new());
 
-    // Trois orbites fines, inclinées, derrière le logo.
-    let mut orbites = Vec::new();
-    for (rayon, couleur, opacite, rx, ry) in [
-        (2.55f32, CYAN, 0.55f32, 1.2f32, 0.25f32),
-        (3.05, VIOLET, 0.45, 1.05, -0.45),
-        (3.6, MAGENTA, 0.35, 1.35, 0.6),
-    ] {
+    // Un disque de lumière : des centaines de grains, plus denses près du logo,
+    // aux couleurs de la marque selon l'angle.
+    let grain = SphereGeometry::new(1.0, 8, 6);
+    let mut grains = Vec::new();
+    for _ in 0..520 {
+        let a = hasard.range(0.0, TAU);
+        let u = hasard.next();
+        let r = 2.05 + u * u * 2.1;
+        let couleur = teinte(a + hasard.range(-0.25, 0.25));
         let id = scene.add_to(
-            monde,
+            disque,
             Mesh::new(
-                TorusGeometry::new(rayon, 0.012, 6, 200),
+                grain.clone(),
+                MeshBasicMaterial::new()
+                    .color(couleur)
+                    .transparent(true)
+                    .opacity(hasard.range(0.35, 0.95) * (1.15 - u * 0.6).min(1.0)),
+            ),
+        );
+        let taille = hasard.range(0.006, 0.02);
+        scene[id].scale.set(taille, taille, taille);
+        let h = hasard.range(-0.06, 0.06) * (1.0 + u * 2.0);
+        grains.push((id, a, r, h, 0.06 + 0.22 / r));
+    }
+    // Deux anneaux très fins qui bordent le disque.
+    for (rayon, couleur, opacite) in [(2.0f32, CYAN, 0.35f32), (4.25, VIOLET, 0.16)] {
+        scene.add_to(
+            disque,
+            Mesh::new(
+                TorusGeometry::new(rayon, 0.006, 4, 220),
                 MeshBasicMaterial::new()
                     .color(couleur)
                     .transparent(true)
                     .opacity(opacite),
             ),
         );
-        scene[id].rotation.x = rx;
-        scene[id].rotation.y = ry;
-        orbites.push(id);
     }
+    scene[disque].rotation.x = 1.18;
+    scene[disque].rotation.z = -0.32;
 
-    // Les fournisseurs : de petites planètes lumineuses sur ces orbites.
-    let sphere = SphereGeometry::new(0.1, 24, 12);
-    let mut planetes = Vec::new();
-    for (i, f) in FOURNISSEURS.iter().take(12).enumerate() {
-        let couleur = if f.gratuit { f.couleur } else { MAGENTA };
+    // Un ciel discret : de petits points ronds, sans éclat.
+    let ciel = scene.add(Group::new());
+    let point = SphereGeometry::new(1.0, 5, 3);
+    for _ in 0..170 {
         let id = scene.add_to(
-            monde,
+            ciel,
             Mesh::new(
-                sphere.clone(),
-                MeshStandardMaterial::new()
-                    .color(couleur)
-                    .metalness(0.3)
-                    .roughness(0.25)
-                    .emissive(Color::from(couleur).scale(0.7)),
+                point.clone(),
+                MeshBasicMaterial::new()
+                    .color(hasard.pick(&[0xffffff, 0xc7d2fe, 0xa5f3fc]))
+                    .transparent(true)
+                    .opacity(hasard.range(0.15, 0.6)),
             ),
         );
-        let taille = hasard.range(0.7, 1.25);
-        scene[id].scale.set(taille, taille, taille);
-        planetes.push((id, i % 3, hasard.range(0.0, TAU), hasard.range(0.12, 0.3)));
+        let t = hasard.range(0.012, 0.03);
+        scene[id].scale.set(t, t, t);
+        scene[id].position.set(
+            hasard.range(-16.0, 16.0),
+            hasard.range(-10.0, 10.0),
+            hasard.range(-12.0, -2.0),
+        );
     }
-    let ciel = etoiles(&mut scene, &mut hasard, 240, (9.0, 24.0));
-
-    scene.add(AmbientLight::new(0xa5b4fc, 0.6));
-    let soleil = scene.add(DirectionalLight::new(0xffffff, 2.0));
-    scene[soleil].position.set(3.0, 4.0, 6.0);
-    let lumiere_cyan = scene.add(PointLight::new(CYAN, 40.0));
-    scene[lumiere_cyan].position.set(-4.0, 1.5, 3.0);
-    let lumiere_rose = scene.add(PointLight::new(MAGENTA, 30.0));
-    scene[lumiere_rose].position.set(4.0, -2.0, 2.5);
 
     let mut camera = PerspectiveCamera::new(46.0, 0.0, 0.1, 100.0);
     camera.position.set(0.0, 0.0, 11.0);
     let (pointeur, listener) = suivre_le_pointeur();
 
-    let rayons = [2.55f32, 3.05, 3.6];
-    let inclinaisons = [(1.2f32, 0.25f32), (1.05, -0.45), (1.35, 0.6)];
     let mut fps = Fps::new();
     let mut horloge = Horloge(0.0);
     let mut lisse = (0.0f32, 0.0f32);
     let mut place = (0.0f32, 0.0f32, 1.0f32);
+    let mut premier = true;
     let boucle = animation_loop(move |time| {
         let dt = horloge.dt(time, 0.1);
         if !visible(&canvas) {
@@ -350,45 +380,35 @@ fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> R
         let t = time as f32 / 1000.0 * calme;
 
         let (px, py) = pointeur.get();
-        lisse.0 += (px - lisse.0) * (dt * 3.0).min(1.0);
-        lisse.1 += (py - lisse.1) * (dt * 3.0).min(1.0);
-
-        // La caméra reste fixe (le logo est en HTML) ; seules les orbites suivent
-        // un peu la souris.
+        lisse.0 += (px - lisse.0) * (dt * 2.5).min(1.0);
+        lisse.1 += (py - lisse.1) * (dt * 2.5).min(1.0);
         camera.position.set(0.0, 0.0, 11.0);
         camera.look_at(Vector3::new(0.0, 0.0, 0.0));
 
-        // Centré sur le logo, à sa taille (les orbites l'entourent).
-        let cible = match ancre(&canvas, ".emblem-tilt") {
-            Some((x, y, h)) => (x, y, h / 3.6),
-            None => (0.0, -2.6, 0.6),
-        };
-        let k = (dt * 6.0).min(1.0);
-        place.0 += (cible.0 - place.0) * k;
-        place.1 += (cible.1 - place.1) * k;
-        place.2 += (cible.2 - place.2) * k;
-        scene[monde].position.set(place.0, place.1, -1.0);
+        // Centré sur le logo, à sa taille : le disque l'entoure.
+        if let Some((x, y, h)) = ancre(&canvas, ".emblem-tilt") {
+            let cible = (x, y, h / 3.4);
+            let k = if premier { 1.0 } else { (dt * 6.0).min(1.0) };
+            premier = false;
+            place.0 += (cible.0 - place.0) * k;
+            place.1 += (cible.1 - place.1) * k;
+            place.2 += (cible.2 - place.2) * k;
+        }
+        scene[monde].position.set(place.0, place.1, -0.5);
         scene[monde].scale.set(place.2, place.2, place.2);
-        scene[monde].rotation.y = lisse.0 * 0.35;
-        scene[monde].rotation.x = lisse.1 * 0.2;
+        scene[monde].rotation.y = lisse.0 * 0.22;
+        scene[monde].rotation.x = lisse.1 * 0.12;
 
-        for (n, id) in orbites.iter().enumerate() {
-            scene[*id].rotation.z =
-                t * (0.12 + n as f32 * 0.05) * if n % 2 == 0 { 1.0 } else { -1.0 };
+        // Les grains tournent, plus vite près du centre ; le disque respire.
+        for (id, a, r, h, v) in &grains {
+            let a = a + t * v;
+            let r = r * (1.0 + (t * 0.6 + a * 3.0).sin() * 0.012);
+            scene[*id].position.set(a.cos() * r, a.sin() * r, *h);
         }
-        for (id, o, phase, vitesse) in &planetes {
-            let a = phase + t * vitesse;
-            let r = rayons[*o];
-            let (rx, ry) = inclinaisons[*o];
-            // Un point du cercle de l'orbite, incliné comme elle.
-            let (x, y) = (a.cos() * r, a.sin() * r);
-            let (y1, z1) = (y * rx.cos(), y * rx.sin());
-            let (x2, z2) = (x * ry.cos() + z1 * ry.sin(), -x * ry.sin() + z1 * ry.cos());
-            scene[*id].position.set(x2, y1, z2);
-        }
-        scene[ciel].rotation.y = t * 0.02;
-        scene[lumiere_cyan].position.x = (t * 0.7).cos() * 4.5;
-        scene[lumiere_cyan].position.z = (t * 0.7).sin() * 4.5;
+        scene[disque].rotation.y = (t * 0.2).sin() * 0.05;
+        scene[ciel].rotation.z = t * 0.004;
+        scene[ciel].position.x = -lisse.0 * 0.4;
+        scene[ciel].position.y = lisse.1 * 0.3;
 
         renderer.render(&scene, &camera);
     });

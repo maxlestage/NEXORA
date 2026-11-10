@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.41 — 10 novembre 2026 — Un en-tête de site entièrement repensé
+- Amélioré : l'accueil du site a un nouvel en-tête, plus épuré, avec le texte à gauche et l'emblème NEXORA à droite (en haut sur téléphone).
+- Le logo néon flotte au centre d'un disque de lumière en 3D : des centaines de grains aux couleurs de la marque tournent autour de lui. Les grosses boules et les orbites qui traversaient le titre ont disparu.
+- Le nom NEXORA et sa signature sont sous le logo, le titre est plus lisible, et les chiffres clés sont alignés proprement.
+- Corrigé : plus de coupure de fond ni de grand vide en bas de l'en-tête. Les nouveautés suivent juste dessous.
+
 ## 2.2.40 — 10 novembre 2026 — Le vrai logo NEXORA, bien mis en avant
 - Amélioré : l'en-tête du site met maintenant en avant le vrai logo NEXORA en grand, avec son néon net. Il flotte, brille et s'incline en suivant la souris, au lieu de l'emblème en blocs 3D de la version précédente.
 - Le nom NEXORA est écrit sous le logo dans la typographie du site, en dégradé lumineux.
