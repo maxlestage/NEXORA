@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.23 — 10 novembre 2026 — Routines : à activer, désactiver et configurer
+- Nouveau : les routines (Sessions → Routines). Une mission relancée toute seule à intervalle régulier, par exemple « optimise l'app et corrige les bugs » toutes les heures à partir de 11 h.
+- Un interrupteur par routine pour l'activer ou la désactiver. Touchez-la pour tout configurer : mission, dépôts, fréquence (de 30 min à 1 jour), heure de départ, plage horaire ou 24 h/24, modèle et effort, CI et fusion automatiques. Vous pouvez aussi la lancer tout de suite.
+- Sur le téléphone, la routine lance une session de l'agent quand l'app tourne. Un passage manqué est rattrapé au retour, et un passage ne démarre jamais tant que le précédent travaille encore.
+- Sur GitHub 24 h/24, un workflow planifié est écrit dans le dépôt, avec l'agent cloud de votre choix : il tourne même téléphone éteint, et l'interrupteur l'active ou le désactive directement sur GitHub.
+- Corrigé : l'écran de choix d'un agent cloud ne déborde plus sur les petits écrans.
+
 ## 2.2.22 — 10 novembre 2026 — L'agent retrouve le code même mal nommé
 - Recherche dans le code plus maligne : si l'agent cherche « compare versions », il retrouve aussi compareVersions ou compare_versions, au lieu de conclure que la fonction n'existe pas.
 - Moins de tours perdus à chercher : l'agent trouve plus vite le bon fichier à modifier ou à tester.
