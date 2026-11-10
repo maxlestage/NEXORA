@@ -603,6 +603,34 @@ fn carte_fournisseur(i: usize, f: &Fournisseur) -> Element {
 }
 
 /// Une version : numéro, date, résumé et ses nouveautés.
+/// L'emblème de l'en-tête : le logo néon (qui s'incline avec la souris) et le
+/// nom NEXORA, au-dessus de la scène 3D.
+fn embleme() -> Element {
+    div()
+        .id("hero-stage")
+        .class("hero-emblem")
+        .attr("data-reveal", "up")
+        .attr("style", "--d:300ms")
+        .child(
+            div()
+                .class("emblem-tilt tilt")
+                .child(div().class("emblem-halo").attr("aria-hidden", "true"))
+                .child(
+                    img()
+                        .class("emblem-logo")
+                        .attr("src", "/icons/logo-hero.webp")
+                        .attr("alt", "Logo NEXORA")
+                        .attr("width", "360")
+                        .attr("height", "360"),
+                ),
+        )
+        .child(
+            p().class("emblem-name")
+                .attr("aria-hidden", "true")
+                .text("NEXORA"),
+        )
+}
+
 /// L'encadré « Quoi de neuf » de l'en-tête : la dernière version et ses
 /// changements, étiquetés.
 fn quoi_de_neuf(v: &Version) -> Element {
@@ -810,8 +838,9 @@ async fn accueil(_req: Request) -> Page {
                                 .text("Voir la démo"),
                         ),
                 )
-                // Sur un téléphone : la place de l'emblème 3D NEXORA.
-                .child(div().id("hero-stage").attr("aria-hidden", "true"))
+                // L'emblème NEXORA : le logo néon en relief et le nom (à droite du
+                // titre sur ordinateur, sous les boutons sur téléphone).
+                .child(embleme())
                 // Les nouveautés, dès l'arrivée sur le site.
                 .child(quoi_de_neuf(derniere))
                 .child(
@@ -1917,6 +1946,7 @@ mod tests {
         // Les nouveautés sont dans l'en-tête de l'accueil.
         let accueil = client.get("/").await.text();
         assert!(accueil.contains("hero-news"));
+        assert!(accueil.contains("emblem-logo"));
         assert!(accueil.contains("Quoi de neuf"));
         // Chaque changement a son étiquette.
         assert!(nouveautes.contains("class=\"tag tag-"));

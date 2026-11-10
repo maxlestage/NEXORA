@@ -165,13 +165,6 @@ fn maintenant() -> f64 {
         .unwrap_or(12345.0)
 }
 
-/// Le défilement vertical de la page.
-fn defilement() -> f32 {
-    web_sys::window()
-        .and_then(|w| w.scroll_y().ok())
-        .unwrap_or(0.0) as f32
-}
-
 /// Le pointeur, de -1 à 1 sur chaque axe, suivi sur toute la fenêtre.
 fn suivre_le_pointeur() -> (Rc<Cell<(f32, f32)>>, Option<Listener>) {
     let pointeur = Rc::new(Cell::new((0.0f32, 0.0f32)));
@@ -256,234 +249,61 @@ fn etoiles(scene: &mut Scene, hasard: &mut Hasard, nombre: usize, rayon: (f32, f
 // Le héros : le téléphone et ses fournisseurs
 // ————————————————————————————————————————————————————————————————————————————
 
-struct Noeud {
-    id: ObjectId,
-    lien: ObjectId,
-    rayon: f32,
-    angle: f32,
-    vitesse: f32,
-    hauteur: f32,
-    phase: f32,
-}
-
-/// La place réservée à l'emblème sur un téléphone (#hero-stage) : son centre
-/// vertical et sa hauteur, en unités de la scène (caméra à 11, champ de 46°).
-fn scene_reservee(canvas: &web_sys::Element, selecteur: &str) -> Option<(f32, f32)> {
-    let stage = web_sys::window()?
+/// Le centre et la taille d'un élément de la page, en unités de la scène (caméra
+/// à 11, champ de 46°) : (x, y, hauteur).
+fn ancre(canvas: &web_sys::Element, selecteur: &str) -> Option<(f32, f32, f32)> {
+    let el = web_sys::window()?
         .document()?
         .query_selector(selecteur)
         .ok()??;
-    let r = stage.get_bounding_client_rect();
+    let r = el.get_bounding_client_rect();
     let c = canvas.get_bounding_client_rect();
-    if r.height() < 10.0 || c.height() < 10.0 {
+    if r.height() < 10.0 || c.height() < 10.0 || c.width() < 10.0 {
         return None;
     }
     let demi = (23.0f32).to_radians().tan() * 11.0;
-    let centre = ((r.top() + r.height() / 2.0 - c.top()) / c.height()) as f32;
-    let y = (1.0 - 2.0 * centre) * demi;
-    let hauteur = (r.height() / c.height()) as f32 * 2.0 * demi;
-    Some((y, hauteur))
-}
-
-/// Les traits d'une lettre NEXORA, dans une case de 1 × 1,4 (x, y de départ et
-/// d'arrivée).
-fn traits_lettre(c: char) -> &'static [(f32, f32, f32, f32)] {
-    match c {
-        'N' => &[
-            (0.0, 0.0, 0.0, 1.4),
-            (1.0, 0.0, 1.0, 1.4),
-            (0.0, 1.4, 1.0, 0.0),
-        ],
-        'E' => &[
-            (0.0, 0.0, 0.0, 1.4),
-            (0.0, 1.4, 0.92, 1.4),
-            (0.0, 0.7, 0.75, 0.7),
-            (0.0, 0.0, 0.92, 0.0),
-        ],
-        'X' => &[(0.0, 0.0, 1.0, 1.4), (0.0, 1.4, 1.0, 0.0)],
-        'O' => &[
-            (0.0, 0.0, 0.0, 1.4),
-            (1.0, 0.0, 1.0, 1.4),
-            (0.0, 1.4, 1.0, 1.4),
-            (0.0, 0.0, 1.0, 0.0),
-        ],
-        'R' => &[
-            (0.0, 0.0, 0.0, 1.4),
-            (0.0, 1.4, 0.92, 1.4),
-            (0.92, 1.4, 0.92, 0.7),
-            (0.0, 0.7, 0.92, 0.7),
-            (0.4, 0.7, 1.0, 0.0),
-        ],
-        'A' => &[
-            (0.0, 0.0, 0.5, 1.4),
-            (0.5, 1.4, 1.0, 0.0),
-            (0.22, 0.55, 0.78, 0.55),
-        ],
-        _ => &[],
-    }
-}
-
-/// Une barre lumineuse entre deux points du plan (x, y), dans le groupe `parent`.
-fn barre(
-    scene: &mut Scene,
-    parent: ObjectId,
-    (x1, y1, x2, y2): (f32, f32, f32, f32),
-    epaisseur: f32,
-    couleur: u32,
-    eclat: f32,
-) -> ObjectId {
-    let dx = x2 - x1;
-    let dy = y2 - y1;
-    let longueur = (dx * dx + dy * dy).sqrt() + epaisseur;
-    let id = scene.add_to(
-        parent,
-        Mesh::new(
-            BoxGeometry::new(1.0, epaisseur, epaisseur * 1.2),
-            MeshStandardMaterial::new()
-                .color(couleur)
-                .metalness(0.3)
-                .roughness(0.25)
-                .emissive(Color::from(couleur).scale(eclat)),
-        ),
-    );
-    let o = &mut scene[id];
-    o.position.set((x1 + x2) / 2.0, (y1 + y2) / 2.0, 0.0);
-    o.scale.x = longueur;
-    o.rotation.z = dy.atan2(dx);
-    id
-}
-
-/// Le dégradé de la marque : du cyan au violet puis au rose, selon `t` (0 → 1).
-fn degrade(t: f32) -> u32 {
-    let (a, b, k) = if t < 0.5 {
-        (CYAN, VIOLET, t * 2.0)
-    } else {
-        (VIOLET, MAGENTA, (t - 0.5) * 2.0)
-    };
-    let mix = |sa: u32, sb: u32| {
-        let ca = ((a >> sa) & 0xff) as f32;
-        let cb = ((b >> sb) & 0xff) as f32;
-        (ca + (cb - ca) * k).round().clamp(0.0, 255.0) as u32
-    };
-    (mix(16, 16) << 16) | (mix(8, 8) << 8) | mix(0, 0)
+    let aspect = (c.width() / c.height()) as f32;
+    let cx = ((r.left() + r.width() / 2.0 - c.left()) / c.width()) as f32;
+    let cy = ((r.top() + r.height() / 2.0 - c.top()) / c.height()) as f32;
+    Some((
+        (2.0 * cx - 1.0) * demi * aspect,
+        (1.0 - 2.0 * cy) * demi,
+        (r.height() / c.height()) as f32 * 2.0 * demi,
+    ))
 }
 
 fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> Running {
     let calme = if reduced_motion() { 0.15 } else { 1.0 };
     let mut hasard = Hasard::new();
     let mut scene = Scene::new();
+    // Tout gravite autour du logo NEXORA (en HTML, au-dessus du canvas).
     let monde = scene.add(Group::new());
 
-    // L'emblème NEXORA : l'hexagone néon, le « N », le point cyan et son orbite
-    // (le logo de l'app, en vrai 3D).
-    let embleme = scene.add_to(monde, Group::new());
-    let plaque = scene.add_to(
-        embleme,
-        Mesh::new(
-            CylinderGeometry::new(1.72, 1.72, 0.22, 6),
-            MeshStandardMaterial::new()
-                .color(0x0b0b1e)
-                .metalness(0.85)
-                .roughness(0.22)
-                .emissive(Color::from(VIOLET).scale(0.06)),
-        ),
-    );
-    scene[plaque].rotation.x = FRAC_PI_2;
-    let hexagone = scene.add_to(
-        embleme,
-        Mesh::new(
-            TorusGeometry::new(1.9, 0.11, 10, 6),
-            MeshStandardMaterial::new()
-                .color(VIOLET)
-                .metalness(0.4)
-                .roughness(0.2)
-                .emissive(Color::from(MAGENTA).scale(0.85)),
-        ),
-    );
-    scene[hexagone].rotation.z = FRAC_PI_2;
-    let halo = scene.add_to(
-        embleme,
-        Mesh::new(
-            TorusGeometry::new(2.25, 0.025, 6, 6),
-            MeshBasicMaterial::new()
-                .color(CYAN)
-                .transparent(true)
-                .opacity(0.45),
-        ),
-    );
-    scene[halo].rotation.z = FRAC_PI_2;
-    // Le « N », en dégradé cyan → rose, devant la plaque.
-    let lettre_n = scene.add_to(embleme, Group::new());
-    for (k, t) in traits_lettre('N').iter().enumerate() {
-        barre(&mut scene, lettre_n, *t, 0.24, degrade(k as f32 / 2.0), 0.9);
+    // Trois orbites fines, inclinées, derrière le logo.
+    let mut orbites = Vec::new();
+    for (rayon, couleur, opacite, rx, ry) in [
+        (2.55f32, CYAN, 0.55f32, 1.2f32, 0.25f32),
+        (3.05, VIOLET, 0.45, 1.05, -0.45),
+        (3.6, MAGENTA, 0.35, 1.35, 0.6),
+    ] {
+        let id = scene.add_to(
+            monde,
+            Mesh::new(
+                TorusGeometry::new(rayon, 0.012, 6, 200),
+                MeshBasicMaterial::new()
+                    .color(couleur)
+                    .transparent(true)
+                    .opacity(opacite),
+            ),
+        );
+        scene[id].rotation.x = rx;
+        scene[id].rotation.y = ry;
+        orbites.push(id);
     }
-    scene[lettre_n].position.set(-0.62, -0.87, 0.28);
-    scene[lettre_n].scale.set(1.24, 1.24, 1.0);
-    // Le point cyan, en haut à droite, et sa lueur.
-    let point = scene.add_to(
-        embleme,
-        Mesh::new(
-            SphereGeometry::new(0.24, 24, 12),
-            MeshStandardMaterial::new()
-                .color(CYAN)
-                .emissive(Color::from(CYAN).scale(1.0)),
-        ),
-    );
-    scene[point].position.set(1.45, 1.35, 0.3);
-    let lueur = scene.add_to(
-        embleme,
-        Mesh::new(
-            SphereGeometry::new(0.42, 20, 10),
-            MeshBasicMaterial::new()
-                .color(CYAN)
-                .transparent(true)
-                .opacity(0.18),
-        ),
-    );
-    scene[lueur].position = scene[point].position;
-    // L'orbite inclinée et sa petite lune.
-    let orbite = scene.add_to(embleme, Group::new());
-    scene.add_to(
-        orbite,
-        Mesh::new(
-            TorusGeometry::new(2.9, 0.018, 6, 160),
-            MeshBasicMaterial::new()
-                .color(MAGENTA)
-                .transparent(true)
-                .opacity(0.75),
-        ),
-    );
-    let lune = scene.add_to(
-        orbite,
-        Mesh::new(
-            SphereGeometry::new(0.11, 16, 8),
-            MeshStandardMaterial::new()
-                .color(0xffffff)
-                .emissive(Color::from(MAGENTA).scale(0.8)),
-        ),
-    );
-    scene[orbite].rotation.x = 1.15;
-    scene[orbite].rotation.y = -0.35;
 
-    // Le mot NEXORA, en lettres 3D lumineuses sous l'emblème.
-    let mot = scene.add_to(monde, Group::new());
-    let mut lettres = Vec::new();
-    for (i, c) in "NEXORA".chars().enumerate() {
-        let g = scene.add_to(mot, Group::new());
-        let couleur = degrade(i as f32 / 5.0);
-        for t in traits_lettre(c) {
-            barre(&mut scene, g, *t, 0.17, couleur, 0.75);
-        }
-        let x = i as f32 * 1.42 - 2.5 * 1.42 - 0.5;
-        scene[g].position.set(x, 0.0, 0.0);
-        lettres.push((g, x));
-    }
-    scene[mot].position.set(0.0, -3.3, 0.6);
-    scene[mot].scale.set(0.46, 0.46, 0.46);
-
-    // Les fournisseurs : des sphères en orbite, reliées à l'emblème.
-    let sphere = SphereGeometry::new(0.18, 24, 12);
-    let mut noeuds = Vec::new();
+    // Les fournisseurs : de petites planètes lumineuses sur ces orbites.
+    let sphere = SphereGeometry::new(0.1, 24, 12);
+    let mut planetes = Vec::new();
     for (i, f) in FOURNISSEURS.iter().take(12).enumerate() {
         let couleur = if f.gratuit { f.couleur } else { MAGENTA };
         let id = scene.add_to(
@@ -492,47 +312,34 @@ fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> R
                 sphere.clone(),
                 MeshStandardMaterial::new()
                     .color(couleur)
-                    .metalness(0.4)
-                    .roughness(0.3)
-                    .emissive(Color::from(couleur).scale(0.5)),
+                    .metalness(0.3)
+                    .roughness(0.25)
+                    .emissive(Color::from(couleur).scale(0.7)),
             ),
         );
-        let taille = hasard.range(0.7, 1.3);
+        let taille = hasard.range(0.7, 1.25);
         scene[id].scale.set(taille, taille, taille);
-        let lien = scene.add_to(
-            monde,
-            trait_lumineux(if i % 3 == 0 { MAGENTA } else { CYAN }, 0.22),
-        );
-        noeuds.push(Noeud {
-            id,
-            lien,
-            rayon: hasard.range(3.4, 5.0),
-            angle: i as f32 / 12.0 * TAU,
-            vitesse: hasard.range(0.1, 0.24),
-            hauteur: hasard.range(-2.0, 2.4),
-            phase: hasard.range(0.0, TAU),
-        });
+        planetes.push((id, i % 3, hasard.range(0.0, TAU), hasard.range(0.12, 0.3)));
     }
-    let ciel = etoiles(&mut scene, &mut hasard, 220, (9.0, 24.0));
+    let ciel = etoiles(&mut scene, &mut hasard, 240, (9.0, 24.0));
 
-    scene.add(AmbientLight::new(0xa5b4fc, 0.55));
-    let soleil = scene.add(DirectionalLight::new(0xffffff, 2.2));
+    scene.add(AmbientLight::new(0xa5b4fc, 0.6));
+    let soleil = scene.add(DirectionalLight::new(0xffffff, 2.0));
     scene[soleil].position.set(3.0, 4.0, 6.0);
-    let lumiere_cyan = scene.add(PointLight::new(CYAN, 45.0));
+    let lumiere_cyan = scene.add(PointLight::new(CYAN, 40.0));
     scene[lumiere_cyan].position.set(-4.0, 1.5, 3.0);
-    let lumiere_rose = scene.add(PointLight::new(MAGENTA, 35.0));
+    let lumiere_rose = scene.add(PointLight::new(MAGENTA, 30.0));
     scene[lumiere_rose].position.set(4.0, -2.0, 2.5);
-    let lumiere_face = scene.add(PointLight::new(VIOLET, 25.0));
-    scene[lumiere_face].position.set(0.0, 0.0, 4.0);
 
     let mut camera = PerspectiveCamera::new(46.0, 0.0, 0.1, 100.0);
     camera.position.set(0.0, 0.0, 11.0);
     let (pointeur, listener) = suivre_le_pointeur();
 
+    let rayons = [2.55f32, 3.05, 3.6];
+    let inclinaisons = [(1.2f32, 0.25f32), (1.05, -0.45), (1.35, 0.6)];
     let mut fps = Fps::new();
     let mut horloge = Horloge(0.0);
     let mut lisse = (0.0f32, 0.0f32);
-    let mut defile = 0.0f32;
     let mut place = (0.0f32, 0.0f32, 1.0f32);
     let boucle = animation_loop(move |time| {
         let dt = horloge.dt(time, 0.1);
@@ -545,81 +352,39 @@ fn hero(mut renderer: Renderer, canvas: web_sys::Element, info: State<u32>) -> R
         let (px, py) = pointeur.get();
         lisse.0 += (px - lisse.0) * (dt * 3.0).min(1.0);
         lisse.1 += (py - lisse.1) * (dt * 3.0).min(1.0);
-        defile += (defilement() - defile) * (dt * 6.0).min(1.0);
-        let s = (defile / 900.0).min(1.5);
 
-        camera.position.x = lisse.0 * 1.4;
-        camera.position.y = -lisse.1 * 1.0 + s * 1.4;
-        camera.position.z = 11.0 + s * 4.0;
-        camera.look_at(Vector3::new(0.0, s * 0.8, 0.0));
+        // La caméra reste fixe (le logo est en HTML) ; seules les orbites suivent
+        // un peu la souris.
+        camera.position.set(0.0, 0.0, 11.0);
+        camera.look_at(Vector3::new(0.0, 0.0, 0.0));
 
-        // Sur un écran large, l'emblème se range à droite du titre ; sur un
-        // téléphone, dans la place qui lui est réservée sous les boutons
-        // (#hero-stage), à la bonne taille.
-        let aspect = renderer.aspect();
-        let demi = (23.0f32).to_radians().tan() * 11.0;
-        // Comme la feuille de style : un téléphone en dessous de 761 px de large.
-        let large = web_sys::window()
-            .and_then(|w| w.inner_width().ok())
-            .and_then(|w| w.as_f64())
-            .is_some_and(|w| w > 760.0);
-        let cible = if large {
-            // À droite, à hauteur du titre et du texte.
-            let x = demi * aspect * 0.5;
-            match scene_reservee(&canvas, ".hero-lead") {
-                Some((y, _)) => (x, y + 1.6, 0.68),
-                None => (x, 0.9, 0.68),
-            }
-        } else {
-            match scene_reservee(&canvas, "#hero-stage") {
-                Some((y, hauteur)) => (0.0, y + 0.55 * hauteur / 6.6, hauteur / 6.6),
-                None => (0.0, -2.6, 0.6),
-            }
+        // Centré sur le logo, à sa taille (les orbites l'entourent).
+        let cible = match ancre(&canvas, ".emblem-tilt") {
+            Some((x, y, h)) => (x, y, h / 3.6),
+            None => (0.0, -2.6, 0.6),
         };
-        let k = (dt * 4.0).min(1.0);
+        let k = (dt * 6.0).min(1.0);
         place.0 += (cible.0 - place.0) * k;
         place.1 += (cible.1 - place.1) * k;
         place.2 += (cible.2 - place.2) * k;
-        scene[monde].position.set(place.0, place.1 + s * 1.2, 0.0);
+        scene[monde].position.set(place.0, place.1, -1.0);
         scene[monde].scale.set(place.2, place.2, place.2);
-        scene[monde].rotation.y = lisse.0 * 0.3 + s * 0.9;
-        scene[monde].rotation.x = lisse.1 * 0.15;
+        scene[monde].rotation.y = lisse.0 * 0.35;
+        scene[monde].rotation.x = lisse.1 * 0.2;
 
-        // L'emblème flotte, se tourne doucement et respire.
-        scene[embleme].rotation.y = (t * 0.45).sin() * 0.5;
-        scene[embleme].rotation.x = (t * 0.6).cos() * 0.08;
-        scene[embleme].position.y = (t * 1.1).sin() * 0.14;
-        let souffle = 1.0 + (t * 1.6).sin() * 0.025;
-        scene[hexagone].scale.set(souffle, souffle, 1.0);
-        let h = 1.0 + (t * 0.9).sin() * 0.04;
-        scene[halo].scale.set(h, h, 1.0);
-        scene[halo].rotation.z = FRAC_PI_2 + t * 0.15;
-        let p = 1.0 + (t * 3.0).sin().abs() * 0.18;
-        scene[point].scale.set(p, p, p);
-        let l = 1.0 + (t * 3.0).sin().abs() * 0.45;
-        scene[lueur].scale.set(l, l, l);
-        let a = t * 0.9;
-        scene[lune].position.set(a.cos() * 2.9, a.sin() * 2.9, 0.0);
-        scene[orbite].rotation.z = t * 0.12;
-        // Les lettres ondulent l'une après l'autre.
-        for (i, (g, x)) in lettres.iter().enumerate() {
-            let o = &mut scene[*g];
-            o.position.x = *x;
-            o.position.y = (t * 2.0 - i as f32 * 0.55).sin() * 0.12;
-            o.rotation.y = (t * 1.2 - i as f32 * 0.4).sin() * 0.25;
+        for (n, id) in orbites.iter().enumerate() {
+            scene[*id].rotation.z =
+                t * (0.12 + n as f32 * 0.05) * if n % 2 == 0 { 1.0 } else { -1.0 };
         }
-        scene[mot].rotation.y = -scene[monde].rotation.y * 0.6;
-
-        let centre = scene[embleme].position;
-        for n in &noeuds {
-            let a = n.angle + t * n.vitesse;
-            let p = Vector3::new(
-                a.cos() * n.rayon,
-                n.hauteur + (t * 0.8 + n.phase).sin() * 0.35,
-                a.sin() * n.rayon,
-            );
-            scene[n.id].position = p;
-            relier(&mut scene, n.lien, centre, p);
+        for (id, o, phase, vitesse) in &planetes {
+            let a = phase + t * vitesse;
+            let r = rayons[*o];
+            let (rx, ry) = inclinaisons[*o];
+            // Un point du cercle de l'orbite, incliné comme elle.
+            let (x, y) = (a.cos() * r, a.sin() * r);
+            let (y1, z1) = (y * rx.cos(), y * rx.sin());
+            let (x2, z2) = (x * ry.cos() + z1 * ry.sin(), -x * ry.sin() + z1 * ry.cos());
+            scene[*id].position.set(x2, y1, z2);
         }
         scene[ciel].rotation.y = t * 0.02;
         scene[lumiere_cyan].position.x = (t * 0.7).cos() * 4.5;

@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.40 — 10 novembre 2026 — Le vrai logo NEXORA, bien mis en avant
+- Amélioré : l'en-tête du site met maintenant en avant le vrai logo NEXORA en grand, avec son néon net. Il flotte, brille et s'incline en suivant la souris, au lieu de l'emblème en blocs 3D de la version précédente.
+- Le nom NEXORA est écrit sous le logo dans la typographie du site, en dégradé lumineux.
+- Autour du logo, des orbites fines et les fournisseurs d'IA tournent en 3D.
+- Sur ordinateur, le logo est à droite du titre. Sur téléphone, il a sa propre place sous les boutons.
+
 ## 2.2.39 — 10 novembre 2026 — NEXORA mis en avant, en 3D
 - Nouveau : l'en-tête du site affiche l'emblème NEXORA en 3D, avec l'hexagone néon, le « N » en dégradé, le point cyan et son orbite, comme le logo de l'app. Le mot NEXORA apparaît dessous en lettres 3D lumineuses qui ondulent.
 - L'emblème flotte, se tourne avec la souris et respire doucement, entouré des fournisseurs d'IA en orbite.
