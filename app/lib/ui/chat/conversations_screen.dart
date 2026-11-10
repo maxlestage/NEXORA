@@ -8,6 +8,7 @@ import '../../state/chat_state.dart';
 import '../../state/settings_state.dart';
 import '../help/getting_started.dart';
 import '../help/help_screen.dart';
+import '../settings/whats_new_screen.dart';
 import '../home_shell.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
@@ -95,6 +96,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 ),
               ),
               actions: [
+                // Les nouveautés de chaque version, toujours à portée de main.
+                ActionChip(
+                  avatar: const Icon(Icons.auto_awesome, size: 16),
+                  label: Text('v$currentVersion'),
+                  tooltip: 'Nouveautés de chaque version',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WhatsNewScreen()),
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Aide et guides',
                   icon: const Icon(Icons.help_outline),

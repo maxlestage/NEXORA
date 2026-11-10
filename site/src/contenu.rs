@@ -930,6 +930,48 @@ pub struct Version {
 pub const NOUVEAUTES: &str = include_str!("nouveautes.md");
 
 /// Les versions, de la plus récente à la plus ancienne.
+/// La nature d'un changement : (étiquette, classe CSS), d'après la façon dont
+/// le point est écrit (« Corrigé : … », « Nouveau : … »). Même règle que l'app.
+pub fn nature(point: &str) -> (&'static str, &'static str) {
+    let p = point.trim().to_lowercase();
+    if ["corrig", "réparé", "bug"].iter().any(|m| p.starts_with(m)) {
+        ("Corrigé", "tag-fix")
+    } else if ["nouveau", "nouvelle", "ajout", "arrivée"]
+        .iter()
+        .any(|m| p.starts_with(m))
+    {
+        ("Nouveau", "tag-new")
+    } else {
+        ("Amélioré", "tag-up")
+    }
+}
+
+/// Le point sans son étiquette écrite (« Corrigé : », « Nouveau : »), avec
+/// une majuscule au début.
+pub fn sans_etiquette(point: &str) -> String {
+    let mut texte = point;
+    for e in [
+        "Corrigé",
+        "Corrigés",
+        "Nouveau",
+        "Nouvelle",
+        "Amélioré",
+        "Améliorée",
+    ] {
+        if let Some(reste) = point.strip_prefix(e)
+            && let Some(r) = reste.trim_start().strip_prefix(':')
+        {
+            texte = r.trim_start();
+            break;
+        }
+    }
+    let mut lettres = texte.chars();
+    match lettres.next() {
+        Some(c) => c.to_uppercase().chain(lettres).collect(),
+        None => String::new(),
+    }
+}
+
 pub fn versions() -> Vec<Version> {
     let mut out: Vec<Version> = Vec::new();
     for ligne in NOUVEAUTES.lines().map(str::trim) {
@@ -999,3 +1041,17 @@ pub const CONFIDENTIALITE: [(&str, &str, &str); 5] = [
         "Le site ne collecte aucune donnée vous concernant. Pour toute question, ouvrez une issue sur le dépôt GitHub.",
     ),
 ];
+
+#[cfg(test)]
+mod tests_nature {
+    use super::*;
+
+    #[test]
+    fn etiquettes() {
+        assert_eq!(nature("Nouveau : les routines").0, "Nouveau");
+        assert_eq!(nature("Corrigé : le bouton").0, "Corrigé");
+        assert_eq!(nature("Plus rapide").0, "Amélioré");
+        assert_eq!(sans_etiquette("Corrigé : le bouton"), "Le bouton");
+        assert_eq!(sans_etiquette("Plus rapide"), "Plus rapide");
+    }
+}

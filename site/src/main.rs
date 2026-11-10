@@ -619,10 +619,11 @@ fn carte_version(i: usize, v: &Version) -> Element {
                 .child(span().class("release-date").text(v.date)),
         )
         .child(h3().text(v.titre))
-        .child(
-            ul().class("checks")
-                .children(v.points.iter().map(|p| li().text(*p))),
-        )
+        .child(ul().class("changes").children(v.points.iter().map(|p| {
+            let (etiquette, classe) = nature(p);
+            li().child(span().class(format!("tag {classe}")).text(etiquette))
+                .child(span().text(sans_etiquette(p)))
+        })))
 }
 
 fn chiffres() -> Element {
@@ -1878,6 +1879,8 @@ mod tests {
         let nouveautes = client.get("/nouveautes").await.text();
         let v = &versions()[0];
         assert!(nouveautes.contains(&format!("v{}", v.numero)));
+        // Chaque changement a son étiquette.
+        assert!(nouveautes.contains("class=\"tag tag-"));
         // Le titre est échappé dans le HTML (apostrophes, guillemets…).
         let accueil = client.get("/").await.text();
         let premier_mot = v.titre.split(['\'', '"', '&', '<']).next().unwrap_or("");
