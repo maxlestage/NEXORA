@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.24 — 10 novembre 2026 — Routines GitHub : les bons horaires, rien de plus
+- Corrigé : une routine sur GitHub dont la plage commence à une demi-heure (par exemple 11:30 à 23:00 toutes les 30 min) se déclenchait aussi à des heures en trop (11:00, 23:30). Le planning écrit dans le dépôt colle maintenant exactement aux heures affichées.
+- Corrigé : le calcul du prochain passage reste juste lors du changement d'heure été/hiver.
+
 ## 2.2.23 — 10 novembre 2026 — Routines : à activer, désactiver et configurer
 - Nouveau : les routines (Sessions → Routines). Une mission relancée toute seule à intervalle régulier, par exemple « optimise l'app et corrige les bugs » toutes les heures à partir de 11 h.
 - Un interrupteur par routine pour l'activer ou la désactiver. Touchez-la pour tout configurer : mission, dépôts, fréquence (de 30 min à 1 jour), heure de départ, plage horaire ou 24 h/24, modèle et effort, CI et fusion automatiques. Vous pouvez aussi la lancer tout de suite.

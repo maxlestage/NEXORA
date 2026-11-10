@@ -78,6 +78,34 @@ void main() {
     );
   });
 
+  test('cron : des minutes différentes ne se mélangent pas', () {
+    // 11:30, 12:00, 12:30 … 23:00 : un seul cron ajouterait 11:00 et 23:30.
+    final r = routine(start: 11 * 60 + 30, end: 23 * 60, every: 30);
+    final lines = r.crons(Duration.zero);
+    expect(lines, [
+      '0 12,13,14,15,16,17,18,19,20,21,22,23 * * *',
+      '30 11,12,13,14,15,16,17,18,19,20,21,22 * * *',
+    ]);
+    // Chaque heure prévue est couverte par une ligne, et rien de plus.
+    final fired = <int>{};
+    for (final l in lines) {
+      final f = l.split(' ');
+      for (final m in f[0].split(',')) {
+        for (final h in f[1].split(',')) {
+          fired.add(int.parse(h) * 60 + int.parse(m));
+        }
+      }
+    }
+    expect(fired.toList()..sort(), r.times);
+    final y = routine(
+      runner: RoutineRunner.github,
+      start: 11 * 60 + 30,
+      end: 23 * 60,
+      every: 30,
+    ).workflowYaml(Duration.zero);
+    expect(RegExp('- cron:').allMatches(y), hasLength(2));
+  });
+
   test('workflow GitHub : planifié, avec la mission par défaut', () {
     final y = routine(runner: RoutineRunner.github)
         .workflowYaml(const Duration(hours: 1));
