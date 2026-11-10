@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.19 — 10 novembre 2026 — L'agent se débrouille, partout
+- Conflits réglés par l'agent : si master a avancé, la branche est d'abord mise à jour automatiquement. S'il y a un vrai conflit, l'agent reçoit ce que master a changé, intègre les deux versions, puis renvoie le tout sur une branche à jour. L'ancienne pull request est fermée et sa branche supprimée.
+- Problèmes GitHub réglés tout seuls : pannes passagères et limites de débit réessayées, branche qui a bougé pendant l'envoi, pull request déjà ouverte reprise, méthode de fusion interdite remplacée par une autre.
+- Un refus de GitHub (envoi ou fusion) est transmis à l'agent, qui en cherche la cause et la règle. Seule une règle qui exige un humain (relecture obligatoire) vous est signalée.
+- Nouvel outil github pour l'agent : il examine les pull requests, la CI et ses journaux, relance des workflows… sur les dépôts de la mission uniquement. Il ne peut jamais toucher aux réglages, aux secrets, aux protections de branche, ni modifier master directement.
+- Jusqu'à 10 essais automatiques par instruction pour que tout passe.
+
 ## 2.2.18 — 10 novembre 2026 — L'agent fusionne dans master quand tout est vert
 - Quand la CI est entièrement verte, l'agent fusionne lui-même sa pull request dans la branche principale (master, main…), en un seul commit avec son message, puis supprime sa branche de travail.
 - La session affiche « CI entièrement verte ✅ et fusionné dans master 🎉 ». Une nouvelle instruction repart de master à jour, sur une nouvelle branche.
