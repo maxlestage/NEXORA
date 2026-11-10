@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.35 — 10 novembre 2026 — Ce qui change à chaque version, bien visible
+- Nouveau : chaque changement porte son étiquette, Nouveau, Amélioré ou Corrigé, dans l'app (Réglages → Nouveautés) comme sur le site.
+- Après une mise à jour, la fenêtre « Quoi de neuf » montre toutes les versions que vous n'avez pas encore vues, et pas seulement la dernière. Un résumé indique combien de nouveautés, d'améliorations et de corrections elles apportent.
+- Un bouton « v2.2.35 » en haut de l'accueil ouvre les nouveautés à tout moment.
+- Les nouveautés se filtrent par type (Tout, Nouveau, Amélioré, Corrigé), et la version installée est indiquée.
+
 ## 2.2.34 — 10 novembre 2026 — L'agent ne tourne plus en rond entre ses recherches
 - Corrigé : l'agent pouvait alterner sans fin les mêmes recherches (« compare », puis « fn compare », puis encore « compare »…) et consommer toutes ses étapes sans rien faire. Il est maintenant repéré, même quand les recherches sont alternées.
 - Repéré, l'agent est sommé de décider avec ce qu'il sait déjà : faire la modification à partir du code qui existe, ou expliquer précisément ce qui manque. S'il insiste, un autre modèle disponible prend la suite ; sinon la session s'arrête vite avec une explication, au lieu de gaspiller votre crédit.
