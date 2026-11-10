@@ -986,6 +986,17 @@ class GitHubApi {
     body: {'ref': ref, 'inputs': inputs},
   );
 
+  /// Active ou désactive un workflow (une routine planifiée sur GitHub).
+  Future<void> setWorkflowEnabled(
+    String owner,
+    String repo,
+    String workflowFile,
+    bool enabled,
+  ) => _req(
+    'PUT',
+    '/repos/$owner/$repo/actions/workflows/${Uri.encodeComponent(workflowFile)}/${enabled ? 'enable' : 'disable'}',
+  );
+
   Future<void> rerun(String owner, String repo, int runId) =>
       _req('POST', '/repos/$owner/$repo/actions/runs/$runId/rerun');
 

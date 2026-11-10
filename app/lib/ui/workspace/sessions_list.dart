@@ -5,6 +5,7 @@ import '../../services/agent_runner.dart';
 import '../../state/session_state.dart';
 import '../theme.dart';
 import '../widgets/fx.dart';
+import 'routines_screen.dart';
 import 'session_screen.dart';
 
 String statusLabel(SessionStatus s) => switch (s) {
@@ -51,7 +52,8 @@ class SessionsList extends StatelessWidget {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const SizedBox(height: 40),
+          const RoutinesBanner(),
+          const SizedBox(height: 24),
           const Icon(Icons.terminal_rounded, size: 56),
           const SizedBox(height: 12),
           Text(
@@ -82,8 +84,9 @@ class SessionsList extends StatelessWidget {
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
-      itemCount: list.length,
-      itemBuilder: (context, i) => SessionTile(run: list[i]),
+      itemCount: list.length + 1,
+      itemBuilder: (context, i) =>
+          i == 0 ? const RoutinesBanner() : SessionTile(run: list[i - 1]),
     );
   }
 }
