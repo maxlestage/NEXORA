@@ -800,6 +800,15 @@ class AgentRun extends ChangeNotifier {
   Future<String> _spec(String text) async {
     if (!compile) return '';
     final before = requests.where((r) => r != text).toList();
+    // Le traducteur voit les vrais fichiers : il ne devine plus un chemin
+    // (« lib/… » au lieu de « app/lib/… ») que l'agent suivrait ensuite.
+    var files = '';
+    try {
+      final tree = await _files();
+      files = tree.length > 300
+          ? '${tree.take(300).join('\n')}\n… (${tree.length - 300} de plus)'
+          : tree.join('\n');
+    } catch (_) {}
     try {
       final out = await _askOnce(
         system:
@@ -809,9 +818,14 @@ class AgentRun extends ChangeNotifier {
             'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
             'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
             'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
+            'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
+            'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
+            'fichier des utilitaires ») sans inventer de chemin. N\'écris pas de '
+            'code : l\'agent le fera après avoir lu le dépôt. '
             'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
         prompt:
             'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
+            '${files.isEmpty ? '' : 'Fichiers du dépôt :\n$files\n'}'
             '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
             'Demande à traduire : « $text »',
       ).timeout(const Duration(seconds: 90));
