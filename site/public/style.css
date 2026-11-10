@@ -943,3 +943,7 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .hero-news .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hero-news-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: #a5b4fc; text-decoration: none; }
 .hero-news-more:hover { color: #fff; }
+
+/* Sur un téléphone, la place de l'emblème 3D NEXORA, entre les boutons et les nouveautés. */
+#hero-stage { display: none; }
+@media (max-width: 760px) { #hero-stage { display: block; height: 330px; margin-top: 8px; } }
