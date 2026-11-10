@@ -3,6 +3,39 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.34 — 10 novembre 2026 — L'agent ne tourne plus en rond entre ses recherches
+- Corrigé : l'agent pouvait alterner sans fin les mêmes recherches (« compare », puis « fn compare », puis encore « compare »…) et consommer toutes ses étapes sans rien faire. Il est maintenant repéré, même quand les recherches sont alternées.
+- Repéré, l'agent est sommé de décider avec ce qu'il sait déjà : faire la modification à partir du code qui existe, ou expliquer précisément ce qui manque. S'il insiste, un autre modèle disponible prend la suite ; sinon la session s'arrête vite avec une explication, au lieu de gaspiller votre crédit.
+- « Ce que l'agent a compris » n'invente plus de nom de fonction : il décrit la fonction visée (« la fonction qui compare les versions ») et l'agent cherche ce qui existe vraiment.
+- Si un nom ou un chemin de cette traduction n'existe pas dans le dépôt, l'agent suit vos mots à vous.
+
+## 2.2.33 — 10 novembre 2026 — L'agent ne s'arrête plus sur une recherche sans issue
+- Corrigé : quand l'agent cherchait en boucle une fonction ou un fichier qui n'existe pas (souvent un nom supposé), la session s'arrêtait net avec « L'agent répète la même action en boucle ».
+- À la deuxième répétition, l'agent est relancé fermement : ce qu'il cherche n'existe pas sous ce nom, il repart du code qui existe vraiment, crée ce qui manque si votre demande l'implique, ou explique précisément ce qui manque.
+- S'il reste bloqué, un autre modèle disponible prend la suite avec tout le travail déjà fait, au lieu d'arrêter la session.
+
+## 2.2.32 — 10 novembre 2026 — « Ce que l'agent a compris » colle à votre dépôt
+- Avant de traduire votre demande en langage NEXORA, l'agent lit la liste des fichiers du dépôt : les fichiers cités sont les vrais (par exemple « app/lib/… » et plus « lib/… » au hasard), et l'agent ne part plus sur un mauvais chemin.
+- La traduction ne contient plus de code inventé à l'avance : elle dit quoi faire, et l'agent écrit le code après avoir lu le dépôt.
+- Aucune attente en plus : la liste des fichiers lue pour la traduction est réutilisée tout de suite par l'agent.
+
+## 2.2.31 — 10 novembre 2026 — Pollinations : un nouvel essai qui en est vraiment un
+- Corrigé : avec le fournisseur gratuit Pollinations, quand une réponse échouait (« invalid or omitted terminal usage »), chaque nouvel essai renvoyait exactement la même panne, car Pollinations gardait la réponse ratée en mémoire. La session s'arrêtait alors en plein travail.
+- Chaque requête porte maintenant une graine nouvelle : le nouvel essai obtient une vraie nouvelle réponse et l'agent continue son travail.
+- Dans le chat, « Régénérer » avec Pollinations donne enfin une autre réponse, au lieu de la même.
+- Vos échanges avec Pollinations sont marqués privés : ils n'apparaissent plus dans son fil public.
+
+## 2.2.30 — 10 novembre 2026 — L'agent ne tourne plus en rond sans agir
+- Corrigé : quand le modèle répondait sans choisir d'action (il redisait la demande et sa réflexion, sans rien faire), la session répétait la même relance jusqu'à épuiser toutes ses étapes.
+- L'agent est maintenant relancé avec une consigne précise : ajouter son action, contourner l'obstacle par une autre voie, ou expliquer pourquoi c'est impossible.
+- Au bout de trois réponses sans action, un autre modèle disponible prend la suite ; sinon la session s'arrête vite avec une explication claire, au lieu de consommer votre crédit pour rien.
+- Les réflexions de l'agent s'affichent en texte lisible, plus en JSON brut.
+
+## 2.2.29 — 10 novembre 2026 — Plus de fausse alerte après une fusion sur GitHub
+- Corrigé : après avoir fusionné vous-même la pull request d'une session sur GitHub, la session affichait à tort « Du travail de l'agent attend sur une branche ». Elle reconnaît maintenant que tout est déjà dans master.
+- La branche de travail devenue inutile est supprimée, et le prochain envoi de l'agent part d'une branche neuve créée depuis master : pas d'anciens commits proposés à nouveau, pas de faux conflit.
+- Le vrai travail resté en attente (envoyé après la fusion) est toujours repéré et récupérable d'un geste.
+
 ## 2.2.28 — 10 novembre 2026 — Le travail de l'agent arrive toujours dans master
 - Corrigé : si la pull request d'une session avait déjà été fusionnée sur GitHub, les envois suivants de l'agent partaient sur sa branche et n'arrivaient jamais dans master. L'app vérifie maintenant l'état de la pull request avant chaque envoi et en ouvre une nouvelle si besoin.
 - Récupération du travail en attente : quand du travail de l'agent est resté sur une branche sans pull request, la session l'affiche. Un bouton ouvre la pull request, fait passer la CI et fusionne.
