@@ -3610,10 +3610,20 @@ class AgentRun extends ChangeNotifier {
     }
   }
   if (n == 0) {
+    // Les mêmes lignes, seule l'indentation diffère (un modèle qui l'a perdue
+    // ou changée) : remplacées en gardant l'indentation du fichier.
+    final reindented = _reindentedEdit(text, old, replacement);
+    if (reindented != null) {
+      return (reindented, '1 remplacement, indentation du fichier gardée');
+    }
+    final near = nearestPassage(text, old);
     return (
       null,
       'passage introuvable. Relis le fichier (read_file avec start/end ou '
-          'find_in_file) et recopie old exactement, espaces compris.',
+          'find_in_file) et recopie old exactement, espaces compris.'
+          '${near == null ? '' : '\nLe passage le plus proche dans le fichier '
+                    '(à recopier exactement dans old, sans les numéros de '
+                    'ligne) :\n$near'}',
     );
   }
   if (n > 1 && !all) {
@@ -3627,4 +3637,97 @@ class AgentRun extends ChangeNotifier {
       ? source.replaceAll(needle, replacement)
       : source.replaceFirst(needle, replacement);
   return (out, all && n > 1 ? '$n remplacements' : '1 remplacement');
+}
+
+/// Les lignes d'un passage, sans les lignes vides du début et de la fin.
+List<String> _passageLines(String s) {
+  final lines = s.replaceAll('\r\n', '\n').split('\n');
+  while (lines.isNotEmpty && lines.first.trim().isEmpty) {
+    lines.removeAt(0);
+  }
+  while (lines.isNotEmpty && lines.last.trim().isEmpty) {
+    lines.removeLast();
+  }
+  return lines;
+}
+
+String _indentOf(String line) =>
+    line.substring(0, line.length - line.trimLeft().length);
+
+/// [old] se retrouve une seule fois dans [text] ligne pour ligne, aux espaces
+/// du début et de la fin près : rend le texte où ces lignes sont remplacées
+/// par [replacement], réindenté comme le fichier. `null` sinon.
+String? _reindentedEdit(String text, String old, String replacement) {
+  final want = _passageLines(old).map((l) => l.trim()).toList();
+  if (want.isEmpty || want.every((l) => l.isEmpty)) return null;
+  final lines = text.replaceAll('\r\n', '\n').split('\n');
+  final trimmed = [for (final l in lines) l.trim()];
+  int? at;
+  for (var i = 0; i + want.length <= lines.length; i++) {
+    var ok = true;
+    for (var j = 0; j < want.length && ok; j++) {
+      ok = trimmed[i + j] == want[j];
+    }
+    if (!ok) continue;
+    if (at != null) return null; // pas unique
+    at = i;
+  }
+  if (at == null) return null;
+  final oldIndent = _indentOf(
+    _passageLines(old).firstWhere((l) => l.trim().isNotEmpty),
+  );
+  final fileIndent = _indentOf(lines[at]);
+  final repl = [
+    for (final l in _passageLines(replacement))
+      if (l.trim().isEmpty)
+        ''
+      else if (l.startsWith(oldIndent))
+        '$fileIndent${l.substring(oldIndent.length)}'
+      else
+        '$fileIndent${l.trimLeft()}',
+  ];
+  return [
+    ...lines.take(at),
+    ...repl,
+    ...lines.skip(at + want.length),
+  ].join('\n');
+}
+
+/// Le passage de [text] qui ressemble le plus à [old] (mêmes mots, dans le
+/// même ordre de lignes), avec ses numéros de ligne : de quoi recopier `old`
+/// exactement après un remplacement raté. `null` si rien ne lui ressemble.
+@visibleForTesting
+String? nearestPassage(String text, String old) {
+  final words = RegExp(r'[\p{L}\p{N}_]+', unicode: true);
+  Set<String> tokens(String l) =>
+      words.allMatches(l.toLowerCase()).map((m) => m[0]!).toSet();
+  final want = [for (final l in _passageLines(old)) tokens(l)];
+  if (want.isEmpty || want.every((t) => t.isEmpty)) return null;
+  final lines = text.replaceAll('\r\n', '\n').split('\n');
+  if (lines.length > 20000) return null;
+  final have = [for (final l in lines) tokens(l)];
+  double sim(Set<String> a, Set<String> b) {
+    if (a.isEmpty && b.isEmpty) return 1;
+    if (a.isEmpty || b.isEmpty) return 0;
+    final common = a.intersection(b).length;
+    return common / (a.length + b.length - common);
+  }
+
+  final span = want.length.clamp(1, 40);
+  var best = -1.0;
+  var at = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var score = 0.0;
+    for (var j = 0; j < span && i + j < lines.length; j++) {
+      score += sim(have[i + j], want[j]);
+    }
+    if (score > best) {
+      best = score;
+      at = i;
+    }
+  }
+  if (best / span < 0.3) return null;
+  final from = (at - 1).clamp(0, lines.length - 1);
+  final to = (at + span + 1).clamp(0, lines.length);
+  return [for (var i = from; i < to; i++) '${i + 1}: ${lines[i]}'].join('\n');
 }
