@@ -133,6 +133,13 @@ class SessionState extends ChangeNotifier {
 
   final Map<String, VoidCallback> _listeners = {};
 
+  /// Ajoute une session telle quelle (tests et captures d'écran).
+  @visibleForTesting
+  void debugAdd(AgentRun run) {
+    _attach(run);
+    notifyListeners();
+  }
+
   void _attach(AgentRun run) {
     _sessions.add(run);
     void listener() => _changed(run);
@@ -360,6 +367,20 @@ class SessionState extends ChangeNotifier {
     run.ciRounds = 0;
     run.cancelled = false;
     unawaited(_autoShip(run));
+  }
+
+  /// Change le modèle (et l'effort) d'une session : pris en compte dès sa
+  /// prochaine réponse, même pendant le travail.
+  void setModel(AgentRun run, ModelRef ref, ThinkLevel level) {
+    final p = settings.provider(ref.providerId);
+    if (p == null) return;
+    run
+      ..provider = p
+      ..apiKey = settings.key(p.id)
+      ..model = ref.model
+      ..level = level;
+    _changed(run);
+    run.notifyListeners();
   }
 
   void stop(String id) => byId(id)?.stop();

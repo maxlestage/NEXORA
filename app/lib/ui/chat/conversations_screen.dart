@@ -79,9 +79,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              pinned: true,
-              expandedHeight: 300,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              // Transparente : le fond animé continue sous l'en-tête, sans bande.
+              expandedHeight: 345,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
               title: const GradientText(
                 'NEXORA',
                 style: TextStyle(
@@ -103,32 +105,42 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 background: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 48),
-                    child: Column(
-                      children: [
-                        NexusOrb(
-                          size: 180,
-                          pulse: chat.conversations.any(
-                            (c) => chat.isRunning(c.id),
+                    // Rétrécit au besoin (grands textes) au lieu de déborder.
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topCenter,
+                      child: Column(
+                        children: [
+                          NexusOrb(
+                            size: 180,
+                            pulse: chat.conversations.any(
+                              (c) => chat.isRunning(c.id),
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Que voulez-vous créer aujourd\'hui ?',
-                          style: tt.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                          // L'orbite dépasse du globe : le titre reste en dessous.
+                          const SizedBox(height: 36),
+                          Text(
+                            'Que voulez-vous créer aujourd\'hui ?',
+                            style: tt.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${provider?.emoji ?? ''} ${modelDisplayName(settings, current)} · '
-                          '${settings.readyProviders.length} fournisseurs prêts',
-                          style: tt.bodySmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                          const SizedBox(height: 6),
+                          Text(
+                            '${provider?.emoji ?? ''} ${modelDisplayName(settings, current)} · '
+                            '${settings.readyProviders.length} fournisseurs prêts',
+                            style: tt.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        QuotaBadge(providerId: current.providerId, dense: true),
-                      ],
+                          QuotaBadge(
+                            providerId: current.providerId,
+                            dense: true,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -197,13 +209,17 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             if (list.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: EmptyState(
-                  icon: const Text('💬', style: TextStyle(fontSize: 48)),
-                  title: _q.isEmpty ? 'Aucune conversation' : 'Rien trouvé',
-                  text: _q.isEmpty
-                      ? 'Lancez-vous : Pollinations répond gratuitement, sans clé. '
-                            'Ajoutez d\'autres fournisseurs dans l\'onglet Modèles.'
-                      : 'Essayez un autre mot.',
+                // De la place pour le bouton « Nouveau chat » en bas.
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 90),
+                  child: EmptyState(
+                    icon: const Text('💬', style: TextStyle(fontSize: 48)),
+                    title: _q.isEmpty ? 'Aucune conversation' : 'Rien trouvé',
+                    text: _q.isEmpty
+                        ? 'Lancez-vous : Pollinations répond gratuitement, sans clé. '
+                              'Ajoutez d\'autres fournisseurs dans l\'onglet Modèles.'
+                        : 'Essayez un autre mot.',
+                  ),
                 ),
               )
             else

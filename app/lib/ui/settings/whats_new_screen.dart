@@ -138,7 +138,12 @@ Future<void> showWhatsNewOnce(BuildContext context) async {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          // Passe sur deux lignes si les textes sont grands.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               TextButton(
                 onPressed: () {
@@ -149,7 +154,6 @@ Future<void> showWhatsNewOnce(BuildContext context) async {
                 },
                 child: const Text('Toutes les nouveautés'),
               ),
-              const Spacer(),
               FilledButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Super !'),

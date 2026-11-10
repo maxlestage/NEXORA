@@ -44,6 +44,8 @@ void main() {
       'conversations': '[{"id":"a","title":"Projet Flutter","messages":[{"role":"user","content":"Salut"}]}]',
     });
     final storage = (await tester.runAsync(Storage.open))!;
+    // Un écran d'iPhone (l'en-tête de l'accueil est haut).
+    await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpWidget(
       NexoraApp(
         storage: storage,
@@ -53,5 +55,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Projet Flutter'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    await tester.binding.setSurfaceSize(null);
   });
 }
