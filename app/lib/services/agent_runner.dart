@@ -2022,6 +2022,74 @@ class AgentRun extends ChangeNotifier {
 
   /// Un fichier, ou une plage de ses lignes. Un long fichier est donné par
   /// morceaux de 600 lignes, avec ce qu'il faut pour lire la suite.
+  /// Les lignes que le modèle veut lire, quels que soient les noms qu'il donne
+  /// aux arguments : start/end, offset/limit, line_start/line_end,
+  /// start_line/end_line, from/to, lines « 10-20 » ou [10, 20]… Sans eux, le
+  /// début du fichier revenait à chaque lecture, et l'agent tournait en rond.
+  /// Rend (début, fin, autour) : « autour » quand seul « line » est donné.
+  @visibleForTesting
+  static (int?, int?, int?) readSpan(Map<String, dynamic> a) {
+    int? n(Object? v) =>
+        v is num ? v.toInt() : int.tryParse('${v ?? ''}'.trim());
+    Object? pick(List<String> keys) {
+      for (final k in keys) {
+        if (a[k] != null) return a[k];
+      }
+      return null;
+    }
+
+    var start = n(
+      pick([
+        'start',
+        'line_start',
+        'start_line',
+        'startLine',
+        'lineStart',
+        'from',
+        'from_line',
+        'begin',
+        'offset',
+      ]),
+    );
+    var end = n(
+      pick([
+        'end',
+        'line_end',
+        'end_line',
+        'endLine',
+        'lineEnd',
+        'to',
+        'to_line',
+        'until',
+      ]),
+    );
+    final lines = pick(['lines', 'range', 'line_range']);
+    if (start == null && lines != null) {
+      if (lines is List && lines.isNotEmpty) {
+        start = n(lines.first);
+        if (lines.length > 1) end ??= n(lines[1]);
+      } else {
+        final m = RegExp(r'(\d+)\s*(?:-|–|:|\.\.|à|to)\s*(\d+)')
+            .firstMatch('$lines');
+        if (m != null) {
+          start = int.parse(m.group(1)!);
+          end ??= int.parse(m.group(2)!);
+        } else {
+          start = n(lines);
+        }
+      }
+    }
+    final line = n(a['line'] ?? a['around']);
+    if (start == null && line != null) {
+      // « line » avec une fin : c'est le début de la plage.
+      if (end == null) return (null, null, line);
+      start = line;
+    }
+    final limit = n(a['limit'] ?? a['count'] ?? a['num_lines']);
+    if (end == null && limit != null) end = (start ?? 1) + limit;
+    return (start, end, null);
+  }
+
   static String _range(String p, String text, Object? start, Object? end) {
     final lines = text.split('\n');
     final total = lines.length;
@@ -2274,11 +2342,9 @@ class AgentRun extends ChangeNotifier {
         final p = path();
         final (text, problem) = await _current(p);
         if (text == null) return problem!;
-        // « line » : les lignes autour (ce qu'on veut après une recherche).
-        final around = int.tryParse(
-          '${call.args['line'] ?? call.args['around'] ?? ''}',
-        );
-        if (around != null && call.args['start'] == null) {
+        final (start, end, around) = readSpan(call.args);
+        // « line » seul : les lignes autour (ce qu'on veut après une recherche).
+        if (around != null) {
           return _range(
             p,
             text,
@@ -2286,16 +2352,7 @@ class AgentRun extends ChangeNotifier {
             around + 40,
           );
         }
-        return _range(
-          p,
-          text,
-          call.args['start'] ?? call.args['offset'],
-          call.args['end'] ??
-              (call.args['limit'] != null && call.args['offset'] != null
-                  ? (int.tryParse('${call.args['offset']}') ?? 1) +
-                        (int.tryParse('${call.args['limit']}') ?? 400)
-                  : null),
-        );
+        return _range(p, text, start, end);
       case 'find_in_file':
         final p = path();
         final pattern = (call.args['pattern'] ?? call.args['query'] ?? '')
