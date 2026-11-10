@@ -250,14 +250,17 @@ class SessionState extends ChangeNotifier {
   void continueSession(String id, String instruction) {
     final run = byId(id);
     if (run == null) return;
-    // Pendant le travail : l'instruction est lue au tour suivant.
-    if (run.running) {
+    // Pendant le travail ou l'envoi : l'instruction est mise en file et lue au
+    // tour suivant (jamais deux travaux en même temps sur une session).
+    if (run.running || run.shipping) {
       run.steer(instruction);
       return;
     }
-    // Une nouvelle instruction : la boucle CI repart de zéro.
+    // Une nouvelle instruction : la boucle CI repart de zéro, et un arrêt
+    // précédent est levé.
     run.ciRounds = 0;
     run.ciNote = '';
+    run.cancelled = false;
     // La clé ou le compte ont pu changer depuis.
     run
       ..github = github.api
@@ -269,18 +272,34 @@ class SessionState extends ChangeNotifier {
   /// Fait travailler l'agent, puis (si la session le prévoit) envoie son travail
   /// sur une branche de travail, attend la CI GitHub et lui renvoie chaque échec,
   /// jusqu'à ce que tout soit vert.
-  Future<void> _drive(AgentRun run, {String? followUp}) async {
-    await run.run(followUp: followUp);
+  Future<void> _drive(
+    AgentRun run, {
+    String? followUp,
+    bool fromApp = false,
+  }) async {
+    await run.run(followUp: followUp, fromApp: fromApp);
     await _autoShip(run);
   }
 
   Future<void> _autoShip(AgentRun run) async {
+    // Rien à envoyer, sauf une CI à revérifier (l'agent a pu relancer un job).
+    final recheck =
+        run.accepted.isEmpty &&
+        run.ci.values.any(
+          (r) => r.state == CiState.failed || r.state == CiState.none,
+        );
     if (!run.autoCi ||
         !run.finished ||
         run.running ||
-        run.accepted.isEmpty ||
+        run.shipping ||
+        run.cancelled ||
+        (run.accepted.isEmpty && !recheck) ||
         !_sessions.contains(run) ||
         !github.signedIn) {
+      // Des instructions arrivées pendant l'envoi : l'agent s'en occupe.
+      if (run.hasQueued && !run.running && !run.cancelled) {
+        await _drive(run);
+      }
       return;
     }
     if (run.ciRounds >= AgentRun.maxCiRounds) {
@@ -290,9 +309,24 @@ class SessionState extends ChangeNotifier {
       _changed(run);
       return;
     }
-    var report = await run.shipForCi();
-    _changed(run);
-    if (report == null || !_sessions.contains(run)) return;
+    String? report;
+    run.shipping = true;
+    try {
+      report = await run.shipForCi();
+    } catch (e) {
+      report =
+          'Problème pendant l\'envoi ou la fusion : $e\nTrouve la cause et '
+          'règle-la (outil github), puis termine.';
+    } finally {
+      run.shipping = false;
+      _changed(run);
+    }
+    if (!_sessions.contains(run) || run.cancelled) return;
+    if (report == null) {
+      // Des instructions sont arrivées pendant l'envoi : on les traite.
+      if (run.hasQueued) await _drive(run);
+      return;
+    }
     // Plusieurs essais sans succès : l'agent doit changer d'approche.
     if (run.ciRounds % 4 == 0) {
       report =
@@ -301,20 +335,28 @@ class SessionState extends ChangeNotifier {
           'change d\'approche (autre correction, simplification, mise à jour de '
           'la configuration ou des dépendances).';
     }
-    await _drive(run, followUp: report);
+    await _drive(run, followUp: report, fromApp: true);
   }
 
   /// Après un envoi : suit les tests GitHub, et s'ils échouent, renvoie l'agent
   /// corriger avec la fin des journaux (ses corrections reviennent en brouillons).
   Future<void> verify(AgentRun run) async {
+    if (run.shipping) return;
     final report = await run.watchCi();
-    if (report == null || !_sessions.contains(run) || run.running) return;
-    continueSession(run.id, report);
+    if (report == null ||
+        !_sessions.contains(run) ||
+        run.running ||
+        run.shipping ||
+        run.cancelled) {
+      return;
+    }
+    unawaited(_drive(run, followUp: report, fromApp: true));
   }
 
   /// Reprend la boucle CI d'une session (après une limite atteinte).
   void retryCi(AgentRun run) {
     run.ciRounds = 0;
+    run.cancelled = false;
     unawaited(_autoShip(run));
   }
 
