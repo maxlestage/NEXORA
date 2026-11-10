@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'widgets/credit_bar.dart';
+
 import '../state/settings_state.dart';
 
 import 'agents/agents_screen.dart';
@@ -113,23 +115,37 @@ class _HomeShellState extends State<HomeShell> {
               ],
             ),
             const VerticalDivider(width: 1),
-            Expanded(child: body),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: body),
+                  const CreditBar(),
+                ],
+              ),
+            ),
           ],
         ),
       );
     }
     return Scaffold(
       body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: visible.indexOf(current),
-        onDestinationSelected: select,
-        destinations: [
-          for (final (icon, sel, label) in destinations)
-            NavigationDestination(
-              icon: Icon(icon),
-              selectedIcon: Icon(sel),
-              label: label,
-            ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Le crédit restant, visible sur tous les onglets.
+          const CreditBar(),
+          NavigationBar(
+            selectedIndex: visible.indexOf(current),
+            onDestinationSelected: select,
+            destinations: [
+              for (final (icon, sel, label) in destinations)
+                NavigationDestination(
+                  icon: Icon(icon),
+                  selectedIcon: Icon(sel),
+                  label: label,
+                ),
+            ],
+          ),
         ],
       ),
     );

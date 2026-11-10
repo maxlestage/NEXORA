@@ -531,19 +531,30 @@ class _SessionScreenState extends State<SessionScreen> {
           // Le modèle et l'effort de la session : à changer à tout moment.
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ModelEffortButton(
-                current: ModelRef(run.provider.id, run.model),
-                level: run.level ?? ThinkLevel.moyen,
-                onModel: (m) =>
-                    sessions.setModel(run, m, run.level ?? ThinkLevel.moyen),
-                onLevel: (l) => sessions.setModel(
-                  run,
-                  ModelRef(run.provider.id, run.model),
-                  l,
+            child: Row(
+              children: [
+                Flexible(
+                  child: ModelEffortButton(
+                    current: ModelRef(run.provider.id, run.model),
+                    level: run.level ?? ThinkLevel.moyen,
+                    onModel: (m) => sessions.setModel(
+                      run,
+                      m,
+                      run.level ?? ThinkLevel.moyen,
+                    ),
+                    onLevel: (l) => sessions.setModel(
+                      run,
+                      ModelRef(run.provider.id, run.model),
+                      l,
+                    ),
+                  ),
                 ),
-              ),
+                // Le crédit restant chez le fournisseur de la session.
+                const SizedBox(width: 4),
+                Flexible(
+                  child: QuotaBadge(providerId: run.provider.id, dense: true),
+                ),
+              ],
             ),
           ),
           _FollowUpBar(

@@ -486,6 +486,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     onLevel: (l) => chat.setLevel(c.id, l),
                   ),
                 ),
+                // Le crédit restant, toujours en vue.
+                const SizedBox(width: 4),
+                Flexible(
+                  child: QuotaBadge(providerId: ref.providerId, dense: true),
+                ),
               ],
             ),
           ),
