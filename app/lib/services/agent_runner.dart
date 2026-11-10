@@ -850,6 +850,10 @@ class AgentRun extends ChangeNotifier {
             'nomme une fonction, une classe ou une variable que si la demande la '
             'nomme : sinon décris-la (« la fonction qui compare les versions »), '
             'car un nom deviné envoie l\'agent chercher ce qui n\'existe pas. '
+            'Si la demande décrit un fichier par son rôle (« le fichier qui gère '
+            'les nouveautés ») sans le nommer, ne le choisis pas d\'après son '
+            'nom : garde la description, l\'agent le trouvera en lisant le code. '
+            'Ne mets dans CONTRAINTES que les fichiers que l\'utilisateur nomme. '
             'N\'écris pas de '
             'code : l\'agent le fera après avoir lu le dépôt. '
             'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
@@ -860,10 +864,107 @@ class AgentRun extends ChangeNotifier {
             'Demande à traduire : « $text »',
       ).timeout(const Duration(seconds: 90));
       final spec = (out ?? '').trim();
-      return spec.contains('OBJECTIF') ? spec : '';
+      if (!spec.contains('OBJECTIF')) return '';
+      return markGuesses(spec, [...before, text].join('\n'), files.split('\n'));
     } catch (_) {
       return '';
     }
+  }
+
+  static final _pathLike = RegExp(
+    r'(?<![\w/.-])((?:[\w.-]+/)*[\w-]+\.[A-Za-z][A-Za-z0-9]{0,5})(?![\w/])',
+  );
+
+  /// Les fichiers que la traduction cite sans que l'utilisateur les ait
+  /// nommés sont des suppositions : un fichier deviné d'après son nom
+  /// (« export.rs » pour « le fichier qui gère les nouveautés ») devenait une
+  /// contrainte (« le fichier modifié doit être exactement… ») que l'agent
+  /// suivait même après avoir trouvé le bon. Ces lignes passent dans
+  /// INTERPRÉTATIONS, et la traduction dit quels fichiers sont à vérifier.
+  @visibleForTesting
+  static String markGuesses(
+    String spec,
+    String said, [
+    Iterable<String> files = const [],
+  ]) {
+    final heard = said.toLowerCase();
+    final known = files.map((f) => f.trim()).where((f) => f.isNotEmpty).toSet();
+    bool isFile(String c) =>
+        c.contains('/') ||
+        known.contains(c) ||
+        known.any((f) => f.endsWith('/$c'));
+    bool named(String c) {
+      final l = c.toLowerCase();
+      final base = l.split('/').last;
+      return heard.contains(l) || heard.contains(base);
+    }
+
+    List<String> guessesIn(String line) => [
+      for (final m in _pathLike.allMatches(
+        line.replaceAll(RegExp(r'[*`]'), ''),
+      ))
+        if (isFile(m[1]!) && !named(m[1]!)) m[1]!,
+    ];
+
+    final guessed = <String>[];
+    final moved = <String>[];
+    final out = <String>[];
+    var section = '';
+    var interpAt = -1;
+    for (final line in spec.split('\n')) {
+      final head = RegExp(
+        r'^\W*(OBJECTIF|DEMANDES|CONTRAINTES|CRIT[ÈE]RES DE R[ÉE]USSITE|INTERPR[ÉE]TATIONS)\b',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (head != null) {
+        section = head[1]!.toUpperCase();
+        out.add(line);
+        if (section.startsWith('INTERPR')) interpAt = out.length;
+        continue;
+      }
+      final g = guessesIn(line);
+      for (final f in g) {
+        if (!guessed.contains(f)) guessed.add(f);
+      }
+      if (g.isNotEmpty && section == 'CONTRAINTES') {
+        moved.add(line.replaceFirst(RegExp(r'^\s*[-•*]?\s*'), ''));
+        continue;
+      }
+      out.add(line);
+    }
+    if (guessed.isEmpty) return spec;
+    // Une section de contraintes vidée : « aucune ».
+    final ci = out.indexWhere(
+      (l) => l.trimLeft().toUpperCase().startsWith('CONTRAINTES'),
+    );
+    if (ci >= 0 &&
+        (ci + 1 >= out.length ||
+            RegExp(r'^\W*[A-ZÉÈ ]{6,}\s*:').hasMatch(out[ci + 1]))) {
+      out.insert(ci + 1, '- aucune');
+      if (interpAt > ci) interpAt++;
+    }
+    final notes = [
+      for (final m in moved) '- Supposé (à vérifier dans le dépôt) : $m',
+      '- Fichiers supposés par cette traduction, non nommés par '
+          'l\'utilisateur : ${guessed.join(', ')}. Vérifie en lisant le code '
+          'que ce sont les bons ; sinon, modifie le bon fichier.',
+    ];
+    if (interpAt < 0) {
+      out
+        ..add('INTERPRÉTATIONS :')
+        ..addAll(notes);
+    } else {
+      // « aucune » n'a plus de sens à côté de ces notes.
+      if (interpAt < out.length &&
+          RegExp(
+            r'^\W*aucune\W*$',
+            caseSensitive: false,
+          ).hasMatch(out[interpAt])) {
+        out.removeAt(interpAt);
+      }
+      out.insertAll(interpAt, notes);
+    }
+    return out.join('\n');
   }
 
   /// Traduit une nouvelle demande et l'affiche comme « ce que l'agent a compris ».
@@ -886,8 +987,8 @@ class AgentRun extends ChangeNotifier {
     return spec.isEmpty
         ? '« $text »'
         : '« $text »\n   En langage NEXORA (une aide : si un nom ou un chemin '
-              'cité n\'existe pas dans le dépôt, ce sont les mots de '
-              'l\'utilisateur qui comptent) :\n'
+              'cité n\'existe pas dans le dépôt, ou n\'est pas celui que '
+              'décrit l\'utilisateur, ce sont ses mots qui comptent) :\n'
               '${spec.split('\n').map((l) => '   $l').join('\n')}';
   }
 

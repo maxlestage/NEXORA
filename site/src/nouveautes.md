@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.45 — 10 novembre 2026 — L'agent ne se fie plus à un fichier deviné
+- Corrigé : quand vous décriviez un fichier par son rôle (« le fichier qui gère les nouveautés ») sans le nommer, « Ce que l'agent a compris » pouvait choisir un fichier d'après son seul nom et en faire une règle stricte. L'agent modifiait alors le mauvais fichier, même après avoir trouvé le bon.
+- Un fichier que vous n'avez pas nommé n'est plus jamais une contrainte : il est marqué « supposé, à vérifier », et l'agent le confirme en lisant le code avant d'y toucher.
+- Les fichiers que vous nommez vous-même restent respectés au mot près.
+
 ## 2.2.44 — 10 novembre 2026 — L'agent lit enfin les lignes qu'il demande
 - Corrigé : quand le modèle demandait des lignes précises d'un fichier avec ses propres mots (« line_start » et « line_end », « start_line », « lines: 10-20 »…), l'agent recevait toujours le début du fichier. Il relisait alors sans fin les mêmes lignes et la session s'arrêtait avec « L'agent tourne en rond ».
 - Toutes ces façons de demander des lignes sont maintenant comprises : l'agent voit exactement le passage voulu et peut le modifier.
