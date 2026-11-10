@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.25 — 10 novembre 2026 — Sessions plus belles, et le modèle à portée de main
+- Choisissez le modèle et l'effort directement dans une session, juste au-dessus du champ d'instruction, comme dans le chat. Le changement est pris en compte dès la prochaine réponse de l'agent, même pendant son travail.
+- Sessions redessinées : chaque action de l'agent tient dans une carte compacte (« Lit index.html », « Modifie site.css ») avec ✓ ou ⚠️. Touchez-la pour voir le résultat.
+- Les réflexions de l'agent sont discrètes et se déplient d'un geste, vos messages apparaissent en bulles, et le résumé de fin est mis en avant.
+- « Ce que l'agent a compris » est plus lisible : chaque rubrique (Objectif, Demandes, Critères de réussite…) sur sa propre ligne.
+- Accueil corrigé : le titre ne chevauche plus l'orbite, plus de bande de couleur sous l'en-tête, et le bouton « Nouveau chat » ne cache plus le texte. La fenêtre des nouveautés ne déborde plus avec de grands textes.
+
 ## 2.2.24 — 10 novembre 2026 — Routines GitHub : les bons horaires, rien de plus
 - Corrigé : une routine sur GitHub dont la plage commence à une demi-heure (par exemple 11:30 à 23:00 toutes les 30 min) se déclenchait aussi à des heures en trop (11:00, 23:30). Le planning écrit dans le dépôt colle maintenant exactement aux heures affichées.
 - Corrigé : le calcul du prochain passage reste juste lors du changement d'heure été/hiver.
