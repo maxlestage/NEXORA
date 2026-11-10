@@ -103,6 +103,8 @@ String act(String tool, Map args, [String? content]) =>
     '${content == null ? '' : '\n```html\n$content\n```'}';
 
 void main() {
+  // Les tests obligatoires et la relecture finale ont leurs propres tests.
+  AgentRun.checks = false;
   test('plusieurs dépôts : un dossier par dépôt', () async {
     final run = multiRun(LlmClient());
     expect(run.multi, isTrue);

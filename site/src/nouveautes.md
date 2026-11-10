@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.16 — 10 novembre 2026 — L'agent teste tout ce qu'il modifie
+- Tests obligatoires : pour chaque modification, l'agent écrit ou met à jour les tests qui la vérifient, avec le framework de test du dépôt (ou le plus simple s'il n'y en a pas). S'il oublie, il est renvoyé les écrire avant de terminer.
+- Il s'assure que ces tests sont lancés sur GitHub à chaque envoi, et ajoute un workflow s'il n'y en a pas.
+- Relecture finale : avant de terminer, il relit toutes ses modifications (le diff de chaque fichier) comme un relecteur exigeant, et corrige ce qui ne va pas.
+- Après l'envoi, la session suit les tests GitHub en direct (en cours, réussis ✅, échoués ❌). S'ils échouent, l'agent reçoit la fin des journaux et corrige tout seul. Il ne vous reste qu'à valider ses corrections.
+
 ## 2.2.15 — 10 novembre 2026 — L'agent va jusqu'au bout, sans excuses
 - Vos demandes sont des ordres : l'agent vise le résultat voulu, avec bon sens. Il cherche la vraie cause et la corrige partout où il faut (toutes les pages, tous les fichiers concernés).
 - Il fait aussi ce qu'un bon développeur ferait pour que ce soit vraiment réglé (cas oubliés, tests liés à la demande), sans attendre qu'on le lui précise.

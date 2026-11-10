@@ -26,6 +26,8 @@ http.StreamedResponse sse(String text) => http.StreamedResponse(
 );
 
 void main() {
+  // Les tests obligatoires et la relecture finale ont leurs propres tests.
+  AgentRun.checks = false;
   // Un style.css de plus de 49 000 caractères, comme celui de STRATYX.
   final css = StringBuffer();
   for (var i = 0; i < 1800; i++) {

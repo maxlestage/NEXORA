@@ -143,6 +143,43 @@ class FileChange {
 }
 
 /// Le client de l'API REST de GitHub.
+/// Une vérification sur un commit (un job de GitHub Actions, en général).
+class CheckRun {
+  const CheckRun({
+    required this.id,
+    required this.name,
+    required this.status,
+    this.conclusion,
+    this.url,
+    this.summary,
+  });
+
+  factory CheckRun.fromJson(Map j) => CheckRun(
+    id: j['id'] as int? ?? 0,
+    name: j['name'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    conclusion: j['conclusion'] as String?,
+    url: j['html_url'] as String?,
+    summary: (j['output'] as Map?)?['summary'] as String?,
+  );
+
+  final int id;
+  final String name;
+
+  /// queued, in_progress, completed.
+  final String status;
+
+  /// success, failure, cancelled, skipped, neutral, timed_out…
+  final String? conclusion;
+  final String? url;
+  final String? summary;
+
+  bool get done => status == 'completed';
+  bool get failed =>
+      done &&
+      const {'failure', 'timed_out', 'startup_failure'}.contains(conclusion);
+}
+
 class GitHubApi {
   GitHubApi(this.token, {http.Client? client})
     : _http = client ?? http.Client();
@@ -564,6 +601,69 @@ class GitHubApi {
         .whereType<Map>()
         .map((e) => e['path'] as String)
         .toList();
+  }
+
+  // —— Tests (GitHub Actions et autres vérifications) ————————————————————
+
+  /// Les vérifications lancées sur un commit (une par job de GitHub Actions).
+  Future<List<CheckRun>> checkRuns(
+    String owner,
+    String repo,
+    String sha,
+  ) async {
+    final j = await _req(
+      'GET',
+      '/repos/$owner/$repo/commits/$sha/check-runs',
+      query: {'per_page': '100'},
+    ) as Map;
+    return ((j['check_runs'] as List?) ?? const [])
+        .whereType<Map>()
+        .map(CheckRun.fromJson)
+        .toList();
+  }
+
+  /// La fin du journal d'un job de GitHub Actions (son id est celui de la
+  /// vérification), ou `null` s'il est illisible.
+  Future<String?> jobLog(
+    String owner,
+    String repo,
+    int jobId, {
+    int lines = 200,
+  }) async {
+    try {
+      // GitHub renvoie vers une adresse signée : on la suit sans le jeton.
+      final req =
+          http.Request(
+              'GET',
+              Uri.parse('$_api/repos/$owner/$repo/actions/jobs/$jobId/logs'),
+            )
+            ..headers.addAll(_headers)
+            ..followRedirects = false;
+      final res = await http.Response.fromStream(
+        await _http.send(req).timeout(const Duration(seconds: 30)),
+      );
+      String text;
+      final to = res.headers['location'];
+      if (res.statusCode >= 300 && res.statusCode < 400 && to != null) {
+        final log = await _http
+            .get(Uri.parse(to))
+            .timeout(const Duration(seconds: 30));
+        if (log.statusCode != 200) return null;
+        text = utf8.decode(log.bodyBytes, allowMalformed: true);
+      } else if (res.statusCode == 200) {
+        text = utf8.decode(res.bodyBytes, allowMalformed: true);
+      } else {
+        return null;
+      }
+      // Sans l'horodatage de chaque ligne.
+      final all = text
+          .split('\n')
+          .map((l) => l.replaceFirst(RegExp(r'^\d{4}-\d\d-\d\dT[\d:.]+Z '), ''))
+          .toList();
+      return all.skip(all.length > lines ? all.length - lines : 0).join('\n');
+    } catch (_) {
+      return null;
+    }
   }
 
   // —— Branches ——————————————————————————————————————————————————
