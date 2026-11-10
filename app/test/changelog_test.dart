@@ -36,4 +36,30 @@ void main() {
     expect(r.first.title, 'Début');
     expect(r.first.points, ['a', 'b']);
   });
+
+  test('chaque changement est étiqueté : Nouveau, Amélioré, Corrigé', () {
+    expect(kindOf('Nouveau : les routines'), ChangeKind.nouveau);
+    expect(kindOf('Nouvelle recherche dans le code'), ChangeKind.nouveau);
+    expect(
+      kindOf('Corrigé : le bouton ne cache plus le texte'),
+      ChangeKind.corrige,
+    );
+    expect(kindOf('Plus d\'étapes par session'), ChangeKind.ameliore);
+    expect(withoutTag('Corrigé : le bouton'), 'Le bouton');
+    expect(withoutTag('Plus rapide'), 'Plus rapide');
+  });
+
+  test('les versions manquées depuis la dernière vue', () {
+    expect(compareVersions('2.2.10', '2.2.9'), greaterThan(0));
+    expect(compareVersions('2.2.9+1', '2.2.9'), 0);
+    final all = parseChangelog(
+      '## 2.2.28 — d — c\n- x\n## 2.2.27 — d — b\n- y\n## 2.2.26 — d — a\n- z\n',
+    );
+    expect(releasesSince(all, '2.2.26').map((r) => r.version), [
+      '2.2.28',
+      '2.2.27',
+    ]);
+    expect(releasesSince(all, '2.2.28').map((r) => r.version), ['2.2.28']);
+    expect(releasesSince(all, null).map((r) => r.version), ['2.2.28']);
+  });
 }

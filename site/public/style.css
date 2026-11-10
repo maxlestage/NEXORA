@@ -924,3 +924,11 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .release .checks li { padding-top: 5px; padding-bottom: 5px; font-size: 0.92rem; }
 .pill-tag { white-space: nowrap; }
 .logo-mark img { display: block; width: 36px; height: 36px; border-radius: 9px; box-shadow: 0 0 18px rgba(139, 92, 246, 0.45); }
+
+/* Nouveautés : chaque changement avec son étiquette. */
+.changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.changes li { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+.changes .tag { flex: none; margin-top: 2px; padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; border: 1px solid; white-space: nowrap; }
+.tag-new { color: #34d399; background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.45); }
+.tag-up { color: #a78bfa; background: rgba(167, 139, 250, 0.12); border-color: rgba(167, 139, 250, 0.45); }
+.tag-fix { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.45); }
