@@ -603,9 +603,14 @@ class AgentRun extends ChangeNotifier {
         'tests qui la vérifient, avec le framework déjà utilisé par le dépôt '
         '(cherche les tests existants : test/, tests/, *_test.*, *.test.*, spec). '
         'S\'il n\'y en a pas, mets en place le plus simple pour ce langage. '
-        'Vérifie qu\'ils sont lancés sur GitHub (.github/workflows) : sinon, '
-        'ajoute ou complète un workflow qui les lance à chaque push. Mets aussi à '
-        'jour les tests existants que ta modification touche.\n'
+        'Mets aussi à jour les tests existants que ta modification touche.\n'
+        '- CI GITHUB OBLIGATOIRE : le dépôt doit avoir un workflow '
+        '(.github/workflows/ci.yml) déclenché par « on: push » (toutes les '
+        'branches) et « pull_request », qui installe les dépendances, construit '
+        'le projet, et lance TOUS les tests (et le lint s\'il existe). Crée-le ou '
+        'complète-le. La CI doit passer ENTIÈREMENT : après ton travail, l\'app '
+        'l\'envoie sur une branche, attend la CI et te renvoie chaque échec à '
+        'corriger jusqu\'à ce que tout soit vert.\n'
         '- Ta correction ne doit rien casser ni cacher (contenu coupé, fonction '
         'retirée, mise en page abîmée) : préfère la correction à la racine à un '
         'pansement.\n'
@@ -635,13 +640,35 @@ class AgentRun extends ChangeNotifier {
 
   static final _testFile = RegExp(
     r'((^|/)(test|tests|spec|specs|__tests__|e2e|integration_test|cypress|'
-    r'playwright)/|[._-](test|spec)\.[a-z]+$|_test\.[a-z]+$|(^|/)test_[^/]+$|'
-    r'(^|/)\.github/workflows/)',
+    r'playwright)/|[._-](test|spec)\.[a-z]+$|_test\.[a-z]+$|(^|/)test_[^/]+$)',
     caseSensitive: false,
   );
 
-  /// Est-ce un fichier de tests (ou un workflow qui les lance) ?
+  /// Est-ce un fichier de tests ?
   static bool isTestFile(String path) => _testFile.hasMatch(path);
+
+  /// Les dépôts modifiés qui n'ont aucun workflow GitHub (ni dans le dépôt, ni
+  /// dans les brouillons).
+  Future<List<String>> _withoutWorkflow() async {
+    final tree = await _files();
+    final all = {
+      ...tree,
+      ...changes.entries.where((e) => e.value != null).map((e) => e.key),
+    };
+    final out = <String>[];
+    for (final t in targets) {
+      final prefix = multi ? '${mountOf(t)}/' : '';
+      final touched = changes.keys.any((p) => p.startsWith(prefix));
+      if (!touched) continue;
+      final has = all.any(
+        (f) =>
+            f.startsWith('$prefix.github/workflows/') &&
+            (f.endsWith('.yml') || f.endsWith('.yaml')),
+      );
+      if (!has) out.add(t.fullName);
+    }
+    return out;
+  }
 
   /// Les fichiers de code modifiés, s'il n'y a aucun test dans les brouillons.
   List<String> _untested() {
@@ -863,6 +890,7 @@ class AgentRun extends ChangeNotifier {
   Future<void> run({String? followUp}) async {
     if (running) return;
     running = true;
+    finished = false;
     interrupted = false;
     _stop = false;
     if (history.isEmpty) {
@@ -909,6 +937,7 @@ class AgentRun extends ChangeNotifier {
       // Déjà renvoyé écrire les tests, déjà relu.
       var testsAsked = false;
       var reviewed = false;
+      var ciAsked = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
       // Fini par finish (ou arrêté pour une raison déjà affichée).
@@ -924,6 +953,7 @@ class AgentRun extends ChangeNotifier {
             excused = false;
             testsAsked = false;
             reviewed = false;
+            ciAsked = false;
             restate = true;
           }
           _readInbox();
@@ -1048,6 +1078,28 @@ class AgentRun extends ChangeNotifier {
             );
             continue;
           }
+          // Un dépôt modifié sans workflow GitHub : l'agent est renvoyé l'écrire.
+          final noCi = finish == null || ciAsked || !checks
+              ? const <String>[]
+              : await _withoutWorkflow();
+          if (finish != null && noCi.isNotEmpty) {
+            ciAsked = true;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Aucun workflow GitHub dans ${noCi.join(', ')}. Écris maintenant '
+                    '${multi ? '<dossier du dépôt>/' : ''}.github/workflows/ci.yml : '
+                    '« on: push » (toutes les branches) et « pull_request », '
+                    'installation des dépendances, construction, et TOUS les tests '
+                    '(et le lint s\'il existe), avec les versions d\'outils du projet. '
+                    'Puis rappelle finish.$reminder',
+              ),
+            );
+            actsSince = 0;
+            nudged = true;
+            continue;
+          }
           // Du code modifié sans aucun test : l'agent est renvoyé les écrire.
           final untested = finish == null || testsAsked || !checks
               ? const <String>[]
@@ -1119,6 +1171,7 @@ class AgentRun extends ChangeNotifier {
             _add(
               AgentStep(StepKind.done, summary.isEmpty ? 'Terminé.' : summary),
             );
+            finished = true;
             ended = true;
             break;
           }
@@ -1934,6 +1987,23 @@ class AgentRun extends ChangeNotifier {
   /// Les tests GitHub après le dernier envoi, par dépôt.
   final Map<String, CiReport> ci = {};
 
+  /// Après chaque fin de travail : envoi automatique sur une branche de travail
+  /// (avec pull request), puis CI suivie et échecs renvoyés à l'agent jusqu'à ce
+  /// que tout soit vert.
+  bool autoCi = true;
+
+  /// Les envois automatiques faits pour faire passer la CI.
+  int ciRounds = 0;
+
+  /// Au plus, avant de rendre la main.
+  static const maxCiRounds = 6;
+
+  /// Où en est la boucle « envoyer, attendre la CI, corriger ».
+  String ciNote = '';
+
+  /// Le dernier travail s'est terminé par finish (pas arrêté ni en erreur).
+  bool finished = false;
+
   /// Le dernier commit envoyé sur chaque dépôt.
   Map<String, String> get lastCommits => {
     for (final c in commits)
@@ -2022,6 +2092,49 @@ class AgentRun extends ChangeNotifier {
     return out.toString();
   }
 
+  /// Un tour de la boucle CI : envoie le travail sur la branche de travail (avec
+  /// pull request, jamais sur la branche principale), attend la CI GitHub et
+  /// rend le rapport à donner à l'agent pour qu'il corrige, ou `null` si la CI
+  /// est entièrement verte (ou si l'envoi est impossible : voir [ciNote]).
+  Future<String?> shipForCi({
+    Duration every = const Duration(seconds: 15),
+    Duration noneAfter = const Duration(minutes: 3),
+  }) async {
+    ciRounds++;
+    ciNote = 'Envoi sur la branche de travail (essai $ciRounds)…';
+    notifyListeners();
+    try {
+      await commitAll(
+        message: commitMessage.isEmpty ? task : commitMessage,
+        targetBranch: 'nexora/${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
+        openPr: true,
+      );
+    } catch (e) {
+      ciNote = 'Envoi impossible : $e';
+      notifyListeners();
+      return null;
+    }
+    ciNote = 'CI GitHub en cours sur la branche de travail…';
+    notifyListeners();
+    final report = await watchCi(every: every, noneAfter: noneAfter);
+    final states = ci.values.map((r) => r.state).toSet();
+    if (report == null && states.every((s) => s == CiState.passed)) {
+      ciNote = 'CI entièrement verte ✅ : la pull request est prête à être fusionnée.';
+      notifyListeners();
+      return null;
+    }
+    ciNote = 'CI en échec : l\'agent corrige (essai $ciRounds/$maxCiRounds)…';
+    notifyListeners();
+    return report ??
+        (states.contains(CiState.none)
+            ? 'Aucune CI ne s\'est lancée sur GitHub après ton envoi. Écris ou '
+                  'corrige .github/workflows/ci.yml (« on: push » sur toutes les '
+                  'branches et « pull_request ») pour qu\'elle construise le projet '
+                  'et lance tous les tests, puis termine.'
+            : 'La CI GitHub n\'a pas fini à temps. Vérifie le workflow (durée, '
+                  'étapes bloquées), corrige, puis termine.');
+  }
+
   /// Lignes ajoutées et retirées par les brouillons (comparées aux originaux
   /// connus).
   (int, int) get stats {
@@ -2089,6 +2202,8 @@ class AgentRun extends ChangeNotifier {
     'pulls': pulls,
     'commits': commits,
     'interrupted': running || interrupted,
+    'autoCi': autoCi,
+    'ciRounds': ciRounds,
   };
 
   /// Recrée une session enregistrée (à l'arrêt : elle peut être continuée).
@@ -2154,6 +2269,8 @@ class AgentRun extends ChangeNotifier {
     );
     run.commits.addAll(((j['commits'] as List?) ?? const []).cast<String>());
     run.interrupted = j['interrupted'] as bool? ?? false;
+    run.autoCi = j['autoCi'] as bool? ?? true;
+    run.ciRounds = j['ciRounds'] as int? ?? 0;
     run.updatedAt =
         DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? run.createdAt;
     return run;

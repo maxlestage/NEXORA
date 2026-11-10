@@ -230,13 +230,31 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: s.agentAutoCi,
+            onChanged: s.setAgentAutoCi,
+            title: const Text('Faire passer la CI GitHub'),
+            subtitle: const Text(
+              'L\'agent écrit les tests et le workflow, envoie son travail sur une '
+              'branche avec une pull request, et corrige jusqu\'à ce que la CI soit '
+              'entièrement verte. Votre branche principale n\'est jamais modifiée.',
+            ),
+          ),
+          const SizedBox(height: 8),
           Glass(
             child: Text(
-              'L\'agent explore les dépôts, lit et modifie des fichiers en '
-              'brouillon. Rien n\'est envoyé sur GitHub sans votre accord. La '
-              'session continue si vous quittez l\'écran, reste enregistrée, et '
-              'vous pouvez lui donner de nouvelles instructions ensuite.',
+              s.agentAutoCi
+                  ? 'L\'agent explore les dépôts et modifie les fichiers, puis '
+                        'envoie son travail sur une branche de travail avec une pull '
+                        'request : vous la relisez et la fusionnez quand la CI est '
+                        'verte. La session continue si vous quittez l\'écran.'
+                  : 'L\'agent explore les dépôts, lit et modifie des fichiers en '
+                        'brouillon. Rien n\'est envoyé sur GitHub sans votre accord. '
+                        'La session continue si vous quittez l\'écran, reste '
+                        'enregistrée, et vous pouvez lui donner de nouvelles '
+                        'instructions ensuite.',
               style: tt.bodySmall,
             ),
           ),

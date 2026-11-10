@@ -357,6 +357,28 @@ class _SessionScreenState extends State<SessionScreen> {
                             ),
                         ],
                       ),
+                      if (run.ciNote.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Glass(
+                            glow: run.ciNote.contains('✅')
+                                ? Nx.green
+                                : Nx.violet,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_outlined),
+                                const SizedBox(width: 10),
+                                Expanded(child: Text(run.ciNote)),
+                                if (run.ciRounds >= AgentRun.maxCiRounds &&
+                                    !run.running)
+                                  TextButton(
+                                    onPressed: () => sessions.retryCi(run),
+                                    child: const Text('Relancer'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       for (final e in run.ci.entries)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
