@@ -603,6 +603,37 @@ fn carte_fournisseur(i: usize, f: &Fournisseur) -> Element {
 }
 
 /// Une version : numéro, date, résumé et ses nouveautés.
+/// L'encadré « Quoi de neuf » de l'en-tête : la dernière version et ses
+/// changements, étiquetés.
+fn quoi_de_neuf(v: &Version) -> Element {
+    div()
+        .class("hero-news")
+        .attr("data-reveal", "up")
+        .attr("style", "--d:720ms")
+        .child(
+            div()
+                .class("hero-news-head")
+                .child(span().class("hero-news-label").text("Quoi de neuf"))
+                .child(span().class("release-ver").text(format!("v{}", v.numero)))
+                .child(span().class("release-date").text(v.date)),
+        )
+        .child(p().class("hero-news-title").text(v.titre))
+        .child(
+            ul().class("changes")
+                .children(v.points.iter().take(3).map(|p| {
+                    let (etiquette, classe) = nature(p);
+                    li().child(span().class(format!("tag {classe}")).text(etiquette))
+                        .child(span().class("clamp").text(sans_etiquette(p)))
+                })),
+        )
+        .child(
+            a().class("hero-news-more")
+                .href("/nouveautes")
+                .text("Toutes les nouveautés")
+                .child(fleche()),
+        )
+}
+
 fn carte_version(i: usize, v: &Version) -> Element {
     article()
         .class(if i == 0 {
@@ -779,6 +810,8 @@ async fn accueil(_req: Request) -> Page {
                                 .text("Voir la démo"),
                         ),
                 )
+                // Les nouveautés, dès l'arrivée sur le site.
+                .child(quoi_de_neuf(derniere))
                 .child(
                     ul().class("hero-proof")
                         .attr("data-reveal", "up")
@@ -1011,8 +1044,8 @@ async fn accueil(_req: Request) -> Page {
         "NEXORA : l'application iPhone et Android pour utiliser Ollama, OpenRouter, Groq, Gemini, Mistral, Claude et 20+ API d'IA gratuites, installer des agents et coder sur GitHub.",
         vec![
             hero.into(),
-            marques.into(),
             nouveautes.into(),
+            marques.into(),
             etapes.into(),
             fonctions.into(),
             demo.into(),
@@ -1879,6 +1912,10 @@ mod tests {
         let nouveautes = client.get("/nouveautes").await.text();
         let v = &versions()[0];
         assert!(nouveautes.contains(&format!("v{}", v.numero)));
+        // Les nouveautés sont dans l'en-tête de l'accueil.
+        let accueil = client.get("/").await.text();
+        assert!(accueil.contains("hero-news"));
+        assert!(accueil.contains("Quoi de neuf"));
         // Chaque changement a son étiquette.
         assert!(nouveautes.contains("class=\"tag tag-"));
         // Le titre est échappé dans le HTML (apostrophes, guillemets…).
