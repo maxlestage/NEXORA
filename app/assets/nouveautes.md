@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.44 — 10 novembre 2026 — L'agent lit enfin les lignes qu'il demande
+- Corrigé : quand le modèle demandait des lignes précises d'un fichier avec ses propres mots (« line_start » et « line_end », « start_line », « lines: 10-20 »…), l'agent recevait toujours le début du fichier. Il relisait alors sans fin les mêmes lignes et la session s'arrêtait avec « L'agent tourne en rond ».
+- Toutes ces façons de demander des lignes sont maintenant comprises : l'agent voit exactement le passage voulu et peut le modifier.
+- Une lecture « de la ligne 1 à la ligne 400 » rend bien ces 400 lignes, et plus seulement les 40 premières.
+
 ## 2.2.43 — 10 novembre 2026 — Des dégradés sans aucune ligne de séparation
 - Corrigé : le badge de version et les pastilles du site ne montrent plus de coupure nette entre le rose et le bleu, le dégradé boucle en douceur.
 - Corrigé : la jauge de crédit de l'app n'a plus de ligne de séparation quand elle dépasse 83 %.
