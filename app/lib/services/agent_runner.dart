@@ -1206,6 +1206,60 @@ class AgentRun extends ChangeNotifier {
     return changed.where(_codeFile.hasMatch).toList();
   }
 
+  /// Où en est le travail, pour un agent qui tourne en rond : ce qui est déjà
+  /// fait (à ne plus chercher) et ce qui reste, avec l'action à faire tout de
+  /// suite (par exemple le test demandé, et où l'écrire).
+  @visibleForTesting
+  String progressNote() {
+    if (changes.isEmpty) {
+      return '\n\nOÙ TU EN ES : aucune modification faite pour l\'instant. Fais '
+          'MAINTENANT la première modification demandée (edit_file ou '
+          'write_file), à partir du code déjà lu.';
+    }
+    final done = changes.keys.take(8).join(', ');
+    final untested = checks ? _untested() : const <String>[];
+    if (untested.isEmpty) {
+      return '\n\nOÙ TU EN ES : déjà fait en brouillon (ne le refais pas et ne '
+          'le recherche plus) : $done. S\'il reste une partie de la demande, '
+          'fais-la MAINTENANT ; sinon appelle finish.';
+    }
+    final target = testPathFor(untested.first, _tree ?? const []);
+    final where = target == null
+        ? ' dans le dossier de tests du projet'
+        : ' dans $target';
+    return '\n\nOÙ TU EN ES : déjà fait en brouillon (ne le refais pas et ne le '
+        'recherche plus) : $done. Il reste le test de '
+        '${untested.take(4).join(', ')} : écris-le MAINTENANT avec write_file'
+        '$where, à partir du code déjà lu, sans chercher d\'autre exemple '
+        '(un test simple qui vérifie ta modification suffit).';
+  }
+
+  /// Où écrire le test d'un fichier : le dossier de tests du même projet
+  /// (`app/lib/a/b.dart` → `app/test/b_test.dart`), s'il existe. `null` sinon.
+  @visibleForTesting
+  static String? testPathFor(String file, List<String> tree) {
+    final m = RegExp(r'^(.*?)(?:^|/)(?:lib|src)/').firstMatch(file);
+    var root = m == null ? '' : m[1]!;
+    if (root.isNotEmpty) root = '$root/';
+    final dir = [
+      for (final d in ['test', 'tests'])
+        if (tree.any((f) => f.startsWith('$root$d/'))) '$root$d/',
+    ].firstOrNull;
+    if (dir == null) return null;
+    final name = file.split('/').last;
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0) return dir;
+    final base = name.substring(0, dot);
+    final ext = name.substring(dot + 1);
+    return switch (ext) {
+      'dart' => '$dir${base}_test.dart',
+      'py' => '${dir}test_$base.py',
+      'rs' => '$dir$base.rs',
+      'js' || 'ts' || 'jsx' || 'tsx' => '$dir$base.test.$ext',
+      _ => dir,
+    };
+  }
+
   /// Toutes les modifications, en diff compact, pour la relecture finale.
   String _reviewDiff({int budget = 14000}) {
     final out = StringBuffer();
@@ -1645,7 +1699,7 @@ class AgentRun extends ChangeNotifier {
                           'proche du sujet), crée ce qui manque si la demande '
                           'l\'implique, ou appelle finish en expliquant précisément '
                           'ce qui n\'existe pas. Choisis une AUTRE action '
-                          'maintenant.$reminder',
+                          'maintenant.${progressNote()}$reminder',
               ),
             );
             // Ce modèle reste bloqué malgré les relances : un autre modèle
@@ -1708,7 +1762,7 @@ class AgentRun extends ChangeNotifier {
                   'chercher : décide avec ce que tu sais déjà. Fais la '
                   'modification demandée à partir du code qui existe (crée ce qui '
                   'manque si la demande l\'implique), ou appelle finish en '
-                  'expliquant précisément ce qui n\'existe pas.';
+                  'expliquant précisément ce qui n\'existe pas.${progressNote()}';
             }
           }
           actsSince += work.length;

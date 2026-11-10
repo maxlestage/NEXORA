@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.48 — 10 novembre 2026 — L'agent ne s'arrête plus avant d'écrire le test
+- Corrigé : quand l'agent avait déjà fait la modification mais cherchait sans fin un exemple pour écrire le test demandé, la session s'arrêtait avec « L'agent tourne en rond », sans le test.
+- Dès qu'il tourne en rond, l'agent reçoit maintenant un point clair : ce qui est déjà fait (à ne plus chercher) et ce qui reste à faire tout de suite.
+- S'il manque le test, l'agent sait où l'écrire : le dossier de tests de votre projet, avec le nom habituel (par exemple app/test/chat_screen_test.dart).
+
 ## 2.2.47 — 10 novembre 2026 — Les réponses vont jusqu'au bout, le crédit bouge
 - Corrigé : une réponse coupée par la limite de longueur du modèle n'est plus laissée en plan. NEXORA demande la suite tout seul et la raccorde au même message, sans doublon ni bloc de code rouvert. Pollinations, gratuit, coupe chaque réponse à 1 500 tokens.
 - Corrigé : une réponse dont la connexion a été coupée en route continue elle aussi.
