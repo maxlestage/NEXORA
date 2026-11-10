@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.32 — 10 novembre 2026 — « Ce que l'agent a compris » colle à votre dépôt
+- Avant de traduire votre demande en langage NEXORA, l'agent lit la liste des fichiers du dépôt : les fichiers cités sont les vrais (par exemple « app/lib/… » et plus « lib/… » au hasard), et l'agent ne part plus sur un mauvais chemin.
+- La traduction ne contient plus de code inventé à l'avance : elle dit quoi faire, et l'agent écrit le code après avoir lu le dépôt.
+- Aucune attente en plus : la liste des fichiers lue pour la traduction est réutilisée tout de suite par l'agent.
+
 ## 2.2.31 — 10 novembre 2026 — Pollinations : un nouvel essai qui en est vraiment un
 - Corrigé : avec le fournisseur gratuit Pollinations, quand une réponse échouait (« invalid or omitted terminal usage »), chaque nouvel essai renvoyait exactement la même panne, car Pollinations gardait la réponse ratée en mémoire. La session s'arrêtait alors en plein travail.
 - Chaque requête porte maintenant une graine nouvelle : le nouvel essai obtient une vraie nouvelle réponse et l'agent continue son travail.
