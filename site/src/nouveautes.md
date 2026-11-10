@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.22 — 10 novembre 2026 — L'agent retrouve le code même mal nommé
+- Recherche dans le code plus maligne : si l'agent cherche « compare versions », il retrouve aussi compareVersions ou compare_versions, au lieu de conclure que la fonction n'existe pas.
+- Moins de tours perdus à chercher : l'agent trouve plus vite le bon fichier à modifier ou à tester.
+
 ## 2.2.21 — 10 novembre 2026 — Le langage NEXORA, et une vérification complète
 - Langage NEXORA : avant de travailler, chaque demande est traduite dans un format précis, que tous les modèles comprennent sans ambiguïté (objectif, demandes numérotées, contraintes au mot près, critères de réussite, interprétations choisies). Vous le voyez dans « Ce que l'agent a compris », et l'agent vérifie chaque critère avant de terminer.
 - Vérification complète de l'agent, et 15 défauts corrigés. Les principaux : un brouillon modifié pendant l'envoi n'est plus perdu, une instruction envoyée pendant l'envoi est mise en file au lieu de lancer un second travail, et « Arrêter » arrête aussi l'envoi, la CI et la fusion.
