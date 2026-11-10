@@ -65,6 +65,11 @@ void main() {
           'path': 'lib/somme.dart',
         }, 'int somme(a, b) => a + b;'),
         act('finish', {'summary': 'Fait'}),
+        // Renvoyé écrire le workflow GitHub.
+        act('write_file', {
+          'path': '.github/workflows/ci.yml',
+        }, 'on: [push, pull_request]'),
+        act('finish', {'summary': 'Fait, avec CI'}),
         // Renvoyé écrire les tests.
         act('write_file', {
           'path': 'test/somme_test.dart',
@@ -76,11 +81,13 @@ void main() {
       await run.run();
       expect(run.summary, 'Fait, avec tests, relu');
       expect(run.changes.keys, contains('test/somme_test.dart'));
-      expect(requests[2], contains('sans écrire de test'));
+      expect(run.changes.keys, contains('.github/workflows/ci.yml'));
+      expect(requests[2], contains('Aucun workflow GitHub'));
+      expect(requests[4], contains('sans écrire de test'));
       // La relecture montre le diff de chaque fichier.
-      expect(requests[4], contains('relis TOUTES tes modifications'));
-      expect(requests[4], contains('### lib/somme.dart'));
-      expect(requests[4], contains('+1: int somme(a, b) => a + b;'));
+      expect(requests[6], contains('relis TOUTES tes modifications'));
+      expect(requests[6], contains('### lib/somme.dart'));
+      expect(requests[6], contains('+1: int somme(a, b) => a + b;'));
     },
   );
 
@@ -90,13 +97,13 @@ void main() {
       'src/a.test.ts',
       'tests/test_a.py',
       'e2e/largeur.spec.js',
-      '.github/workflows/ci.yml',
       'crates/x/tests/it.rs',
     ]) {
       expect(AgentRun.isTestFile(p), isTrue, reason: p);
     }
     expect(AgentRun.isTestFile('src/main.rs'), isFalse);
     expect(AgentRun.isTestFile('site/style.css'), isFalse);
+    expect(AgentRun.isTestFile('.github/workflows/ci.yml'), isFalse);
   });
 
   test('tests GitHub : échec → rapport avec la fin du journal', () async {
@@ -182,5 +189,101 @@ void main() {
       isNull,
     );
     expect(run.ci['max/site']!.state, CiState.none);
+  });
+
+  test('boucle CI : envoi sur une branche avec pull request, échec puis vert', () async {
+    var round = 0;
+    final pushed = <String>[];
+    final pulls = <String>[];
+    final gh = MockClient((req) async {
+      final p = req.url.path;
+      Map body() => req.body.isEmpty ? {} : jsonDecode(req.body) as Map;
+      if (p.contains('/git/ref/heads/')) {
+        return http.Response(
+          jsonEncode({
+            'object': {'sha': 'p0'},
+          }),
+          200,
+        );
+      }
+      if (p.contains('/git/commits/') && req.method == 'GET') {
+        return http.Response(
+          jsonEncode({
+            'tree': {'sha': 't0'},
+          }),
+          200,
+        );
+      }
+      if (p.endsWith('/git/trees')) {
+        return http.Response(jsonEncode({'sha': 't1'}), 201);
+      }
+      if (p.endsWith('/git/commits')) {
+        round++;
+        return http.Response(jsonEncode({'sha': 'c$round'}), 201);
+      }
+      if (p.contains('/git/refs/heads/') && req.method == 'PATCH') {
+        pushed.add(p.split('/git/refs/heads/').last);
+        return http.Response('{}', 200);
+      }
+      if (p.endsWith('/git/refs')) {
+        return http.Response(jsonEncode({'ref': body()['ref']}), 201);
+      }
+      if (p.endsWith('/pulls')) {
+        pulls.add(body()['head'] as String);
+        return http.Response(
+          jsonEncode({
+            'number': 1,
+            'title': 't',
+            'html_url': 'https://github.com/max/site/pull/1',
+            'state': 'open',
+            'user': {'login': 'max'},
+          }),
+          201,
+        );
+      }
+      if (p.contains('/check-runs')) {
+        // Premier envoi : les tests échouent ; second : tout passe.
+        final ok = p.contains('/commits/c2/');
+        return http.Response(
+          jsonEncode({
+            'check_runs': [
+              {
+                'id': 9,
+                'name': 'tests',
+                'status': 'completed',
+                'conclusion': ok ? 'success' : 'failure',
+              },
+            ],
+          }),
+          200,
+        );
+      }
+      if (p.endsWith('/actions/jobs/9/logs')) {
+        return http.Response('Error: somme(1, 2) vaut 4', 200);
+      }
+      if (p.contains('/git/trees/')) {
+        return http.Response('{"tree":[]}', 200);
+      }
+      return http.Response('{"message":"Not Found"}', 404);
+    });
+    final run = build([], gh: gh);
+    run.changes['lib/somme.dart'] = 'int somme(a, b) => a + b + 1;\n';
+    run.commitMessage = 'Somme';
+
+    final report = await run.shipForCi(every: Duration.zero);
+    expect(report, contains('Error: somme(1, 2) vaut 4'));
+    expect(run.ciNote, contains('l\'agent corrige'));
+    expect(pulls, hasLength(1));
+    final branch = pulls.single;
+    expect(branch, startsWith('nexora/'));
+    expect(pushed, [branch]); // jamais la branche principale
+
+    // L'agent a corrigé : second envoi, sur la même branche, sans nouvelle PR.
+    run.changes['lib/somme.dart'] = 'int somme(a, b) => a + b;\n';
+    expect(await run.shipForCi(every: Duration.zero), isNull);
+    expect(run.ciNote, contains('entièrement verte'));
+    expect(pushed, [branch, branch]);
+    expect(pulls, hasLength(1));
+    expect(run.ciRounds, 2);
   });
 }

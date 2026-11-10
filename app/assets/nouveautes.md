@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.17 — 10 novembre 2026 — L'agent fait passer la CI, entièrement
+- CI GitHub obligatoire : l'agent écrit ou complète un workflow (.github/workflows/ci.yml), lancé à chaque push et pull request, qui construit le projet et lance tous les tests. S'il l'oublie, il est renvoyé l'écrire avant de terminer.
+- Boucle jusqu'au vert : quand l'agent a fini, son travail part sur une branche de travail avec une pull request. Votre branche principale n'est jamais modifiée.
+- La session attend la CI GitHub. En cas d'échec, l'agent reçoit les journaux, corrige, renvoie, et recommence (jusqu'à 6 essais) jusqu'à ce que la CI soit entièrement verte ✅.
+- Vous suivez tout dans la session, puis vous fusionnez la pull request quand elle est verte. Option « Faire passer la CI GitHub » à la création d'une session (activée par défaut).
+
 ## 2.2.16 — 10 novembre 2026 — L'agent teste tout ce qu'il modifie
 - Tests obligatoires : pour chaque modification, l'agent écrit ou met à jour les tests qui la vérifient, avec le framework de test du dépôt (ou le plus simple s'il n'y en a pas). S'il oublie, il est renvoyé les écrire avant de terminer.
 - Il s'assure que ces tests sont lancés sur GitHub à chaque envoi, et ajoute un workflow s'il n'y en a pas.

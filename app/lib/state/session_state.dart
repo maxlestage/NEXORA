@@ -207,11 +207,12 @@ class SessionState extends ChangeNotifier {
       onUsage: (t) => usage?.recordUsage(p.id, model: model.model, usage: t),
       onError: (e) => usage?.recordError(p.id, e),
     );
+    run.autoCi = settings.agentAutoCi;
     _equip(run);
     _attach(run);
     _trim();
     notifyListeners();
-    run.run();
+    unawaited(_drive(run));
     return run;
   }
 
@@ -225,12 +226,45 @@ class SessionState extends ChangeNotifier {
       run.steer(instruction);
       return;
     }
+    // Une nouvelle instruction : la boucle CI repart de zéro.
+    run.ciRounds = 0;
+    run.ciNote = '';
     // La clé ou le compte ont pu changer depuis.
     run
       ..github = github.api
       ..apiKey = settings.key(run.provider.id);
     _equip(run);
-    run.run(followUp: instruction);
+    unawaited(_drive(run, followUp: instruction));
+  }
+
+  /// Fait travailler l'agent, puis (si la session le prévoit) envoie son travail
+  /// sur une branche de travail, attend la CI GitHub et lui renvoie chaque échec,
+  /// jusqu'à ce que tout soit vert.
+  Future<void> _drive(AgentRun run, {String? followUp}) async {
+    await run.run(followUp: followUp);
+    await _autoShip(run);
+  }
+
+  Future<void> _autoShip(AgentRun run) async {
+    if (!run.autoCi ||
+        !run.finished ||
+        run.running ||
+        run.accepted.isEmpty ||
+        !_sessions.contains(run) ||
+        !github.signedIn) {
+      return;
+    }
+    if (run.ciRounds >= AgentRun.maxCiRounds) {
+      run.ciNote =
+          'La CI échoue encore après ${AgentRun.maxCiRounds} essais : relisez '
+          'la pull request, ou donnez une précision à l\'agent.';
+      _changed(run);
+      return;
+    }
+    final report = await run.shipForCi();
+    _changed(run);
+    if (report == null || !_sessions.contains(run)) return;
+    await _drive(run, followUp: report);
   }
 
   /// Après un envoi : suit les tests GitHub, et s'ils échouent, renvoie l'agent
@@ -239,6 +273,12 @@ class SessionState extends ChangeNotifier {
     final report = await run.watchCi();
     if (report == null || !_sessions.contains(run) || run.running) return;
     continueSession(run.id, report);
+  }
+
+  /// Reprend la boucle CI d'une session (après une limite atteinte).
+  void retryCi(AgentRun run) {
+    run.ciRounds = 0;
+    unawaited(_autoShip(run));
   }
 
   void stop(String id) => byId(id)?.stop();

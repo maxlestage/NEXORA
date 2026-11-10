@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.16';
+const String currentVersion = '2.2.17';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
@@ -120,6 +120,16 @@ class SettingsState extends ChangeNotifier {
 
   /// Touche Entrée pour envoyer (clavier physique, web, tablette).
   bool sendOnEnter = false;
+
+  /// Sessions : envoyer le travail de l'agent sur une branche de travail (avec
+  /// pull request) et lui faire corriger la CI GitHub jusqu'à ce qu'elle passe.
+  bool agentAutoCi = true;
+
+  Future<void> setAgentAutoCi(bool v) async {
+    agentAutoCi = v;
+    await storage.setBool('agent_auto_ci', v);
+    notifyListeners();
+  }
 
   // —— Voix ————————————————————————————————————————————————————
   /// Lire toutes les réponses à voix haute (sinon : seulement si vous avez parlé
@@ -225,6 +235,7 @@ class SettingsState extends ChangeNotifier {
     assistantName = storage.getString('assistant_name') ?? 'NEXORA';
     contextTokens = storage.getInt('context_tokens', fallback: 32000);
     speakReplies = storage.getBool('voice_speak');
+    agentAutoCi = storage.getBool('agent_auto_ci', fallback: true);
     voiceConversation = storage.getBool('voice_conversation', fallback: true);
     voiceAutoSend = storage.getBool('voice_autosend', fallback: true);
     voiceRate = storage.getDouble('voice_rate', fallback: 0.5);
