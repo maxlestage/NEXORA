@@ -820,7 +820,11 @@ class AgentRun extends ChangeNotifier {
             'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
             'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
             'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
-            'fichier des utilitaires ») sans inventer de chemin. N\'écris pas de '
+            'fichier des utilitaires ») sans inventer de chemin. De même, ne '
+            'nomme une fonction, une classe ou une variable que si la demande la '
+            'nomme : sinon décris-la (« la fonction qui compare les versions »), '
+            'car un nom deviné envoie l\'agent chercher ce qui n\'existe pas. '
+            'N\'écris pas de '
             'code : l\'agent le fera après avoir lu le dépôt. '
             'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
         prompt:
@@ -855,7 +859,10 @@ class AgentRun extends ChangeNotifier {
     final spec = i < specs.length ? specs[i] : '';
     return spec.isEmpty
         ? '« $text »'
-        : '« $text »\n   En langage NEXORA :\n${spec.split('\n').map((l) => '   $l').join('\n')}';
+        : '« $text »\n   En langage NEXORA (une aide : si un nom ou un chemin '
+              'cité n\'existe pas dans le dépôt, ce sont les mots de '
+              'l\'utilisateur qui comptent) :\n'
+              '${spec.split('\n').map((l) => '   $l').join('\n')}';
   }
 
   /// Les demandes, redonnées à l'agent à CHAQUE étape (dans ses instructions) :
@@ -924,6 +931,14 @@ class AgentRun extends ChangeNotifier {
         'du langage NEXORA, qu\'il est rempli (relis les passages modifiés si '
         'besoin).';
   }
+
+  /// Les actions qui ne font que regarder le dépôt.
+  static const _explore = {
+    'list_files',
+    'read_file',
+    'find_in_file',
+    'search_code',
+  };
 
   /// Tests obligatoires et relecture finale (désactivables dans les tests
   /// unitaires qui ne portent pas dessus).
@@ -1350,6 +1365,11 @@ class AgentRun extends ChangeNotifier {
       // La dernière série d'actions, pour repérer une boucle.
       String? lastSig;
       var repeats = 0;
+      // Les recherches et lectures déjà faites (brouillons identiques) : un
+      // agent qui tourne en rond entre quelques recherches est repéré, même
+      // quand il les alterne.
+      final seen = <String>{};
+      var stale = 0;
       // Les réponses de suite sans aucune action.
       var idle = 0;
       do {
@@ -1523,11 +1543,54 @@ class AgentRun extends ChangeNotifier {
           }
           lastSig = sig;
           repeats = 0;
+          var circling = '';
+          if (work.isNotEmpty) {
+            final stamp = Object.hashAll(
+              changes.entries.map((e) => '${e.key}\u0000${e.value}'),
+            );
+            final looks = work.every((c) => _explore.contains(c.tool));
+            final fresh = work
+                .where((c) => seen.add(jsonEncode([c.tool, c.args, stamp])))
+                .length;
+            if (!looks) {
+              stale = 0;
+            } else if (fresh == 0) {
+              stale++;
+            }
+            if (stale >= 7) {
+              _add(
+                AgentStep(
+                  StepKind.error,
+                  'L\'agent tourne en rond : il refait les mêmes recherches sans '
+                  'avancer. Arrêté ; ses brouillons sont gardés. Envoyez une '
+                  'précision (le fichier ou la fonction visés) ou « continue ».',
+                ),
+              );
+              ended = true;
+              break;
+            }
+            if (stale == 5 &&
+                await _switchModel('mêmes recherches refaites en boucle')) {
+              stale = 0;
+            }
+            if (stale >= 3) {
+              circling =
+                  '\n\nATTENTION : tu tournes en rond, ces recherches et '
+                  'lectures ont DÉJÀ été faites, avec les mêmes résultats. Ce que '
+                  'tu cherches n\'existe pas sous la forme supposée. Arrête de '
+                  'chercher : décide avec ce que tu sais déjà. Fais la '
+                  'modification demandée à partir du code qui existe (crée ce qui '
+                  'manque si la demande l\'implique), ou appelle finish en '
+                  'expliquant précisément ce qui n\'existe pas.';
+            }
+          }
           actsSince += work.length;
           final results = await _execAll(work);
           if (results.isNotEmpty) {
             dropReminders(history);
-            history.add(LlmMessage('user', '${results.join('\n\n')}$reminder'));
+            history.add(
+              LlmMessage('user', '${results.join('\n\n')}$circling$reminder'),
+            );
             compactHistory(history);
           }
           final finish = calls.where((c) => c.tool == 'finish').firstOrNull;
