@@ -295,6 +295,22 @@ void main() {
   });
 
   test(
+    'search_code retrouve un nom collé : unProjet → « Un projet. »',
+    () async {
+      final run = build([
+        () => text(act('search_code', {'query': 'unProjet'})),
+        () => text(act('finish', {'summary': 'ok'})),
+      ]);
+      await run.run();
+      final result = run.history
+          .firstWhere((m) => m.content.startsWith('Résultat de search_code'))
+          .content;
+      expect(result, contains('ignorant espaces'));
+      expect(result, contains('>3: Un projet.'));
+    },
+  );
+
+  test(
     'conversation trop longue : historique allégé, l\'agent continue',
     () async {
       var calls = 0;
