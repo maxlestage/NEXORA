@@ -58,6 +58,10 @@ class ChatState extends ChangeNotifier {
 
   final List<Conversation> _conversations = [];
   final Map<String, StreamSubscription<ChatDelta>> _running = {};
+
+  /// Pour chaque réponse en cours : de quoi la terminer proprement si elle est
+  /// arrêtée (le texte reçu depuis le dernier rafraîchissement, une bulle vide).
+  final Map<String, void Function()> _onStop = {};
   final Map<String, Timer> _saveTimers = {};
   Timer? _indexTimer;
   Timer? _notifyTimer;
@@ -388,6 +392,7 @@ class ChatState extends ChangeNotifier {
     final sub = _running.remove(id);
     if (sub == null) return;
     sub.cancel();
+    _onStop.remove(id)?.call();
     VoiceService.instance.stopSpeaking();
     BackgroundWork.instance.release('chat:$id');
     final c = byId(id);
@@ -533,6 +538,7 @@ class ChatState extends ChangeNotifier {
           },
           onDone: () {
             _running.remove(c.id);
+            _onStop.remove(c.id);
             BackgroundWork.instance.release(
               'chat:${c.id}',
               doneTitle: answer.error ? 'Réponse interrompue' : 'Réponse prête',
@@ -609,6 +615,19 @@ class ChatState extends ChangeNotifier {
           cancelOnError: false,
         );
     _running[c.id] = sub;
+    // Arrêtée en route : le texte déjà reçu est gardé en entier (il n'était
+    // recopié qu'à chaque image), et une réponse encore vide disparaît au lieu
+    // de laisser une bulle sans contenu.
+    _onStop[c.id] = () {
+      if (!answer.error) {
+        answer
+          ..content = text.toString()
+          ..thinking = thinking.toString();
+      }
+      if (answer.content.trim().isEmpty && answer.thinking.trim().isEmpty) {
+        c.messages.remove(answer);
+      }
+    };
   }
 
   /// Les skills dans la consigne : celles déjà chargées (en entier) et la liste
