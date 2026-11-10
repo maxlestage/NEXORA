@@ -125,7 +125,7 @@ void main() {
       changes: [FileChange.write('index.html', '<canvas>')],
     );
     expect(sha, 'f1');
-    expect(calls.last, 'PUT /repos/max/galerie/contents/index.html');
+    expect(calls, contains('PUT /repos/max/galerie/contents/index.html'));
   });
 
   test('instruction pendant le travail : lue au tour suivant', () async {

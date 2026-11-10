@@ -251,7 +251,7 @@ class _SessionScreenState extends State<SessionScreen> {
         titleSpacing: 0,
         title: Text(run.task, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          if (run.running)
+          if (run.running || run.shipping)
             TextButton.icon(
               onPressed: run.stop,
               icon: const Icon(Icons.stop_circle_outlined, color: Nx.red),
@@ -533,7 +533,7 @@ class _SessionScreenState extends State<SessionScreen> {
           ),
           _FollowUpBar(
             controller: _input,
-            running: run.running,
+            running: run.running || run.shipping,
             onSend: () => _followUp(run),
             onStop: run.stop,
           ),

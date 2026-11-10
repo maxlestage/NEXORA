@@ -3,6 +3,13 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.21 — 10 novembre 2026 — Le langage NEXORA, et une vérification complète
+- Langage NEXORA : avant de travailler, chaque demande est traduite dans un format précis, que tous les modèles comprennent sans ambiguïté (objectif, demandes numérotées, contraintes au mot près, critères de réussite, interprétations choisies). Vous le voyez dans « Ce que l'agent a compris », et l'agent vérifie chaque critère avant de terminer.
+- Vérification complète de l'agent, et 15 défauts corrigés. Les principaux : un brouillon modifié pendant l'envoi n'est plus perdu, une instruction envoyée pendant l'envoi est mise en file au lieu de lancer un second travail, et « Arrêter » arrête aussi l'envoi, la CI et la fusion.
+- Conflits plus sûrs : le travail envoyé est gardé même après une relance de l'app, et rien n'est plus remplacé par une vieille version après une fusion ou une mise à jour de branche.
+- Garde-fous de l'outil github renforcés : chemins piégés (« .. ») refusés, fusion directe interdite. Une CI annulée ne compte plus comme réussie.
+- Plus fiable au quotidien : les fichiers qui contiennent eux-mêmes des blocs de code restent entiers, les scripts gardent leur droit d'exécution, et une lecture après une modification voit la nouvelle version.
+
 ## 2.2.20 — 10 novembre 2026 — Face à un blocage, l'agent trouve toujours une solution
 - Règle d'or : face à un échec, l'agent ne s'arrête jamais. Il comprend la cause et essaie autre chose (autre méthode, contournement, simplification, découpage). « Impossible » ou « je n'ai pas pu » dans son résumé le renvoie chercher une solution.
 - Limite d'étapes atteinte : il fait le point (ce qui est fait, ce qui reste, le chemin le plus direct) et continue tout seul, jusqu'à 4 fois.

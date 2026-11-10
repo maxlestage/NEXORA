@@ -175,9 +175,11 @@ class CheckRun {
   final String? summary;
 
   bool get done => status == 'completed';
+
+  /// Terminé sans succès : échec, annulé, délai dépassé, action requise… (seuls
+  /// success, neutral et skipped comptent comme réussis).
   bool get failed =>
-      done &&
-      const {'failure', 'timed_out', 'startup_failure'}.contains(conclusion);
+      done && !const {'success', 'neutral', 'skipped'}.contains(conclusion);
 }
 
 class GitHubApi {
@@ -613,7 +615,18 @@ class GitHubApi {
         branch: branch,
       );
       final rest = changes.where((c) => !identical(c, first)).toList();
-      if (rest.isEmpty) return sha;
+      if (rest.isEmpty) {
+        // Le sha du commit (pas celui du fichier) : c'est lui que la CI suit.
+        try {
+          final r = await _req(
+            'GET',
+            '/repos/$owner/$repo/git/ref/heads/${_enc(branch)}',
+          ) as Map;
+          return (r['object'] as Map)['sha'] as String;
+        } catch (_) {
+          return sha;
+        }
+      }
       return commitFiles(
         owner,
         repo,
@@ -626,19 +639,44 @@ class GitHubApi {
     final parentCommit =
         await _req('GET', '/repos/$owner/$repo/git/commits/$parent') as Map;
     final baseTree = (parentCommit['tree'] as Map)['sha'] as String;
+    // Les modes des fichiers existants (un script exécutable le reste), et ceux
+    // qui existent (supprimer un fichier absent ferait échouer le commit).
+    final modes = <String, String>{};
+    try {
+      final t = await _req(
+        'GET',
+        '/repos/$owner/$repo/git/trees/$baseTree',
+        query: {'recursive': '1'},
+      ) as Map;
+      for (final e in (t['tree'] as List? ?? const []).whereType<Map>()) {
+        if (e['type'] == 'blob') {
+          modes[e['path'] as String] = e['mode'] as String;
+        }
+      }
+    } catch (_) {}
+    final entries = [
+      for (final c in changes)
+        if (!c.delete || modes.isEmpty || modes.containsKey(c.path)) c,
+    ];
+    if (entries.isEmpty) return parent;
     final tree = await _req(
       'POST',
       '/repos/$owner/$repo/git/trees',
       body: {
         'base_tree': baseTree,
         'tree': [
-          for (final c in changes)
+          for (final c in entries)
             if (c.delete)
-              {'path': c.path, 'mode': '100644', 'type': 'blob', 'sha': null}
+              {
+                'path': c.path,
+                'mode': modes[c.path] ?? '100644',
+                'type': 'blob',
+                'sha': null,
+              }
             else
               {
                 'path': c.path,
-                'mode': '100644',
+                'mode': modes[c.path] ?? '100644',
                 'type': 'blob',
                 'content': c.content,
               },

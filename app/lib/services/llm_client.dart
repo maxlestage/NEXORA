@@ -534,6 +534,9 @@ class LlmClient {
         if (choices is List && choices.isNotEmpty) {
           final m = choices.first['message'];
           if (m is Map && m['content'] is String) return m['content'] as String;
+          // Pas de texte (seulement des appels d'outils) : réponse vide, pas
+          // le JSON brut.
+          if (m is Map) return '';
         }
       }
     } catch (_) {}

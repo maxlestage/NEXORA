@@ -47,7 +47,8 @@ const Map<String, String> agentTools = {
       'fusion est faite par l\'app quand la CI est verte.',
   'finish':
       'Termine, quand TOUT est fait. args: {"summary": "ce qui a été fait, '
-      'demande par demande (pas de « limites » ni de propositions)", '
+      'demande par demande et critère par critère (✅), sans « limites » ni '
+      'propositions", '
       '"commit_message": "..."}',
 };
 
@@ -116,6 +117,76 @@ class ToolCall {
   final String goal;
 }
 
+/// Un bloc de code d'une réponse : ```lang … ``` (ou plus de 3 accents graves).
+class CodeBlock {
+  const CodeBlock(this.start, this.end, this.lang, this.body);
+
+  final int start;
+  final int end;
+  final String lang;
+
+  /// Le contenu, avec un retour à la ligne final s'il n'est pas vide.
+  final String body;
+}
+
+/// Les blocs de code d'un texte, lus ligne par ligne comme en Markdown : la
+/// barrière de fermeture a au moins autant d'accents graves que l'ouverture,
+/// donc un fichier qui contient lui-même des blocs ``` reste entier s'il est
+/// entouré de ````. Fins de ligne CRLF acceptées.
+List<CodeBlock> codeBlocks(String text) {
+  final out = <CodeBlock>[];
+  final open = RegExp(r'^ {0,3}(`{3,})([^`]*)$');
+  var pos = 0;
+  int? start;
+  var fence = 0;
+  var lang = '';
+  final body = <String>[];
+  while (pos <= text.length) {
+    var nl = text.indexOf('\n', pos);
+    final last = nl < 0;
+    if (last) nl = text.length;
+    var line = text.substring(pos, nl);
+    if (line.endsWith('\r')) line = line.substring(0, line.length - 1);
+    if (start == null) {
+      final m = open.firstMatch(line);
+      if (m != null) {
+        start = pos;
+        fence = m[1]!.length;
+        final info = m[2]!.trim();
+        lang = info.isEmpty
+            ? ''
+            : RegExp(r'^[\w+#.-]*').firstMatch(info)![0]!.toLowerCase();
+        body.clear();
+      }
+    } else {
+      final close = RegExp('^ {0,3}`{$fence,}\\s*\$').hasMatch(line);
+      if (close) {
+        out.add(
+          CodeBlock(
+            start,
+            last ? nl : nl + 1,
+            lang,
+            body.isEmpty ? '' : '${body.join('\n')}\n',
+          ),
+        );
+        start = null;
+      } else {
+        body.add(line);
+      }
+    }
+    if (last) break;
+    pos = nl + 1;
+  }
+  if (out.isEmpty) {
+    // Un bloc qui ne commence pas en début de ligne (« Voici : ```json ») : on
+    // le lit quand même.
+    for (final m in RegExp(r'```(\w*)\r?\n([\s\S]*?)```').allMatches(text)) {
+      out.add(CodeBlock(m.start, m.end, m[1] ?? '', m[2] ?? ''));
+    }
+  }
+  return out;
+}
+
 /// Lit l'action dans la réponse du modèle : un objet JSON (dans un bloc ```json ou
 /// nu), et pour `write_file`, le contenu dans le bloc de code qui suit.
 ToolCall? parseToolCall(String reply) {
@@ -133,13 +204,12 @@ List<ToolCall> parseToolCalls(String reply) {
     return o['tool'] != null || o['actions'] is List;
   }
 
-  final fence = RegExp(r'```(\w*)\n([\s\S]*?)```');
-  final blocks = fence.allMatches(reply).toList();
+  final blocks = codeBlocks(reply);
   Map<String, dynamic>? obj;
   int afterIndex = 0;
   for (final b in blocks) {
-    final lang = b.group(1) ?? '';
-    final body = b.group(2) ?? '';
+    final lang = b.lang;
+    final body = b.body;
     if (lang == 'json' || (lang.isEmpty && body.trimLeft().startsWith('{'))) {
       final cand = _tryJson(body);
       if (wanted(cand)) {
@@ -177,7 +247,7 @@ List<ToolCall> parseToolCalls(String reply) {
   // Les blocs de code après le JSON : les contenus des fichiers, dans l'ordre.
   final contents = [
     for (final b in blocks)
-      if (b.start >= afterIndex) b.group(2) ?? '',
+      if (b.start >= afterIndex) b.body,
   ];
   var next = 0;
   final calls = <ToolCall>[];
@@ -635,8 +705,19 @@ class AgentRun extends ChangeNotifier {
   List<String>? _tree;
 
   /// Arrête l'agent tout de suite, même au milieu d'une réponse du modèle.
+  /// Arrêté par l'utilisateur : plus d'envoi, de CI ni de fusion automatiques
+  /// jusqu'à sa prochaine instruction.
+  bool cancelled = false;
+
+  /// L'app envoie le travail, attend la CI ou fusionne (l'agent ne travaille pas).
+  bool shipping = false;
+
+  /// Des instructions attendent d'être lues.
+  bool get hasQueued => _inbox.isNotEmpty;
+
   void stop() {
     _stop = true;
+    cancelled = true;
     final c = _cancel;
     if (c != null && !c.isCompleted) c.complete(null);
     notifyListeners();
@@ -657,15 +738,85 @@ class AgentRun extends ChangeNotifier {
       if (s.kind == StepKind.user && s.text.trim().isNotEmpty) s.text.trim(),
   ];
 
+  /// Chaque demande traduite en « langage NEXORA » (même ordre que [requests]) :
+  /// objectif, demandes numérotées, contraintes, critères de réussite. Vide si la
+  /// traduction a échoué (la demande brute sert alors).
+  final List<String> specs = [];
+
+  /// Traduire les demandes en langage NEXORA avant de travailler (désactivé dans
+  /// les tests unitaires qui ne portent pas dessus).
+  @visibleForTesting
+  static bool compile = true;
+
+  /// Le langage NEXORA : un format précis, que tous les modèles comprennent sans
+  /// ambiguïté, dans lequel chaque demande est réécrite avant le travail.
+  static const nxlFormat =
+      'OBJECTIF : <le résultat final voulu, en une phrase>\n'
+      'DEMANDES :\n1. <action précise et vérifiable>\n2. …\n'
+      'CONTRAINTES :\n- <à respecter au mot près : textes, valeurs, noms, '
+      'fichiers ; ce qui ne doit pas changer> (ou « aucune »)\n'
+      'CRITÈRES DE RÉUSSITE :\n- <comment vérifier que c\'est fait, '
+      'concrètement>\n'
+      'INTERPRÉTATIONS :\n- <ambiguïté → interprétation la plus sensée '
+      'choisie> (ou « aucune »)';
+
+  /// Réécrit une demande en langage NEXORA (une courte requête au modèle).
+  Future<String> _spec(String text) async {
+    if (!compile) return '';
+    final before = requests.where((r) => r != text).toList();
+    try {
+      final out = await _askOnce(
+        system:
+            'Tu traduis la demande d\'un utilisateur en LANGAGE NEXORA, un format '
+            'précis que les agents de code comprennent sans ambiguïté. Reste '
+            'FIDÈLE : n\'invente aucun besoin, n\'en retire aucun, garde ses mots '
+            'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
+            'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
+            'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
+            'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
+        prompt:
+            'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
+            '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
+            'Demande à traduire : « $text »',
+      ).timeout(const Duration(seconds: 90));
+      final spec = (out ?? '').trim();
+      return spec.contains('OBJECTIF') ? spec : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Traduit une nouvelle demande et l'affiche comme « ce que l'agent a compris ».
+  Future<void> _understand(String text) async {
+    final spec = await _spec(text);
+    // Sa place dans [requests] (les instructions envoyées pendant le travail
+    // sont déjà dans la liste).
+    var i = requests.lastIndexOf(text);
+    if (i < 0) i = requests.length - 1;
+    while (specs.length <= i) {
+      specs.add('');
+    }
+    specs[i] = spec;
+    if (spec.isNotEmpty) _add(AgentStep(StepKind.goal, spec));
+  }
+
+  /// La demande n° i : ses mots, et sa traduction en langage NEXORA.
+  String _withSpec(int i, String text) {
+    final spec = i < specs.length ? specs[i] : '';
+    return spec.isEmpty
+        ? '« $text »'
+        : '« $text »\n   En langage NEXORA :\n${spec.split('\n').map((l) => '   $l').join('\n')}';
+  }
+
   /// Les demandes, redonnées à l'agent à CHAQUE étape (dans ses instructions) :
   /// elles ne se perdent jamais dans un long historique, et la dernière prime.
   String get _requestsPrompt {
     final r = requests;
     final list = r.length == 1
-        ? '« ${r.first} »'
+        ? _withSpec(0, r.first)
         : [
             for (final (i, t) in r.indexed)
-              '${i + 1}. « $t »${i == r.length - 1 ? '  ← la plus récente' : ''}',
+              '${i + 1}. ${_withSpec(i, t)}${i == r.length - 1 ? '\n   ← la plus récente' : ''}',
           ].join('\n');
     return 'DEMANDES DE L\'UTILISATEUR (ta seule mission, à garder en tête du '
         'début à la fin) :\n$list\n\n'
@@ -719,8 +870,9 @@ class AgentRun extends ChangeNotifier {
         '- AU TOUT DÉBUT (ton premier tour, et le premier tour après chaque '
         'nouvelle instruction), avant toute action : redis-toi dans "demande" '
         'TOUT ce que l\'utilisateur veut, point par point, avec ses mots.\n'
-        '- Avant finish, vérifie demande par demande qu\'elle est faite (relis les '
-        'passages modifiés si besoin).';
+        '- Avant finish, vérifie demande par demande, et CHAQUE critère de réussite '
+        'du langage NEXORA, qu\'il est rempli (relis les passages modifiés si '
+        'besoin).';
   }
 
   /// Tests obligatoires et relecture finale (désactivables dans les tests
@@ -747,6 +899,10 @@ class AgentRun extends ChangeNotifier {
   /// seulement les dépôts de la mission, jamais leurs réglages, secrets ou
   /// protections, ni la branche principale, ni la fusion (faite par l'app).
   String? githubDenied(String method, String path) {
+    // Pas de « .. » (ni encodé) : le chemin vérifié doit être celui envoyé.
+    if (RegExp(r'\.\.|%2e|%2f|\\', caseSensitive: false).hasMatch(path)) {
+      return 'chemin invalide (« .. » ou caractères encodés interdits).';
+    }
     final m = RegExp(r'^/repos/([^/]+)/([^/?]+)(/[^?]*)?').firstMatch(path);
     if (m == null) {
       return 'chemin hors des dépôts de la mission (attendu : /repos/owner/repo/…).';
@@ -767,7 +923,8 @@ class AgentRun extends ChangeNotifier {
     if (RegExp(
       r'^/(hooks|keys|collaborators|invitations|transfer|actions/(secrets|'
       r'variables|permissions)|environments|branches/[^/]+/protection|'
-      r'rulesets|pages|deployments|security|vulnerability|autolinks|topics)',
+      r'rulesets|pages|deployments|security|vulnerability|autolinks|topics|'
+      r'merges|branches/[^/]+/rename|dispatches|import|lfs)',
     ).hasMatch(rest)) {
       return 'réglages, secrets et protections du dépôt : interdit depuis une '
           'session.';
@@ -852,7 +1009,8 @@ class AgentRun extends ChangeNotifier {
     final changed = changes.entries
         .where((e) => e.value != null)
         .map((e) => e.key);
-    if (changed.any(isTestFile)) return const [];
+    // Des tests écrits dans cette session (déjà envoyés ou en brouillon) comptent.
+    if (changed.any(isTestFile) || bases.keys.any(isTestFile)) return const [];
     return changed.where(_codeFile.hasMatch).toList();
   }
 
@@ -897,8 +1055,12 @@ class AgentRun extends ChangeNotifier {
         ? '\nPuis, dans l\'ordre (la dernière prime en cas de contradiction) :\n'
               '${[for (final (i, t) in r.skip(1).indexed) '${i + 2}. « $t »'].join('\n')}'
         : '';
+    final spec = specs.isEmpty ? '' : specs.last;
+    final criteria = spec.contains('CRITÈRES DE RÉUSSITE')
+        ? '\nCritères de réussite à remplir :\n${spec.split('CRITÈRES DE RÉUSSITE').last.split('INTERPRÉTATIONS').first.replaceFirst(RegExp(r'^\s*:\s*'), '').trim()}'
+        : '';
     return '$reminderMark'
-        'Ce que l\'utilisateur t\'a demandé au tout début : « ${r.first} »$next\n'
+        'Ce que l\'utilisateur t\'a demandé au tout début : « ${r.first} »$next$criteria\n'
         'Répète-toi cette demande dans "demande", et fais uniquement ce qui la '
         'sert. Quand elle est entièrement faite, appelle finish (ne refais pas '
         'une action déjà réussie).';
@@ -1064,13 +1226,20 @@ class AgentRun extends ChangeNotifier {
   }
 
   /// Lance la session, ou la continue avec une nouvelle instruction.
-  Future<void> run({String? followUp}) async {
+  /// [fromApp] : [followUp] vient de l'app (rapport de CI, conflit), pas de
+  /// l'utilisateur : il n'est pas compté comme une de ses demandes.
+  Future<void> run({String? followUp, bool fromApp = false}) async {
     if (running) return;
+    // Arrêté par l'utilisateur : l'app ne relance rien d'elle-même.
+    if (fromApp && cancelled) return;
     running = true;
     finished = false;
     interrupted = false;
     _stop = false;
     if (history.isEmpty) {
+      // La demande est d'abord traduite en langage NEXORA (comprise sans
+      // ambiguïté), et affichée.
+      if (specs.isEmpty) await _understand(task);
       // Les fichiers sont donnés tout de suite : un aller-retour de moins.
       var files = '';
       try {
@@ -1089,8 +1258,14 @@ class AgentRun extends ChangeNotifier {
               'directement les fichiers utiles (plusieurs à la fois).',
         ),
       );
+    } else if (followUp != null && followUp.trim().isNotEmpty && fromApp) {
+      // Un rapport de l'app : dans l'historique, affiché comme un résultat.
+      final first = followUp.trim().split('\n').first;
+      _add(AgentStep(StepKind.result, '🧪 $first', tool: 'ci'));
+      history.add(LlmMessage('user', followUp.trim()));
     } else if (followUp != null && followUp.trim().isNotEmpty) {
       _add(AgentStep(StepKind.user, followUp.trim()));
+      await _understand(followUp.trim());
       final note =
           'NOUVELLE INSTRUCTION DE L\'UTILISATEUR (même session, les brouillons '
           'en cours sont gardés). Fais-la maintenant, exactement comme demandé : '
@@ -1127,8 +1302,15 @@ class AgentRun extends ChangeNotifier {
       var repeats = 0;
       do {
         again = false;
+        // Une instruction arrivée pendant le tour de fin relance le travail : il
+        // n'est plus fini.
+        ended = false;
+        finished = false;
         for (var i = 0; i < maxSteps && !_stop; i++) {
           if (_inbox.isNotEmpty) {
+            for (final t in List.of(_inbox)) {
+              await _understand(t);
+            }
             actsSince = 0;
             nudged = false;
             excused = false;
@@ -1190,7 +1372,9 @@ class AgentRun extends ChangeNotifier {
           }
           final goal = calls.first.goal;
           final thought = calls.first.thought;
-          if (restate && goal.isNotEmpty) {
+          if (restate &&
+              goal.isNotEmpty &&
+              (specs.isEmpty || specs.last.isEmpty)) {
             restate = false;
             _add(AgentStep(StepKind.goal, goal));
             if (thought.isNotEmpty) _add(AgentStep(StepKind.thought, thought));
@@ -1430,15 +1614,18 @@ class AgentRun extends ChangeNotifier {
     }
 
     final out = List<String>.filled(calls.length, '');
-    final reads = [
-      for (final (i, c) in calls.indexed)
-        if (_readOnly.contains(c.tool)) (i, one(c)),
-    ];
-    for (final (i, c) in calls.indexed) {
-      if (!_readOnly.contains(c.tool)) out[i] = await one(c);
-    }
-    for (final (i, f) in reads) {
-      out[i] = await f;
+    if (calls.every((c) => _readOnly.contains(c.tool))) {
+      // Que des lectures : en parallèle.
+      final all = await Future.wait(calls.map(one));
+      for (final (i, r) in all.indexed) {
+        out[i] = r;
+      }
+    } else {
+      // Des écritures : dans l'ordre demandé (une lecture après une écriture
+      // voit le nouveau contenu).
+      for (final (i, c) in calls.indexed) {
+        out[i] = await one(c);
+      }
     }
     final results = <String>[];
     for (final (i, c) in calls.indexed) {
@@ -2143,6 +2330,8 @@ class AgentRun extends ChangeNotifier {
         paths.putIfAbsent(w.$1, () => []).add(p);
       }
     }
+    // Ce qui part : un brouillon modifié pendant l'envoi reste un brouillon.
+    final sent = Map<String, String?>.of(accepted);
     final results = <ShipResult>[];
     try {
       for (final g in groups.entries) {
@@ -2180,7 +2369,10 @@ class AgentRun extends ChangeNotifier {
         if (target != t.branch) heads[t.fullName] = target;
         for (final p in paths[t] ?? const <String>[]) {
           bases.putIfAbsent(p, () => originals[p]);
-          originals[p] = changes.remove(p);
+          if (changes.containsKey(p) && changes[p] == sent[p]) {
+            changes.remove(p);
+          }
+          originals[p] = sent[p];
         }
         final existing = pulls[t.fullName];
         if (existing != null) {
@@ -2289,11 +2481,17 @@ class AgentRun extends ChangeNotifier {
     final shas = lastCommits;
     if (shas.isEmpty) return null;
     for (final e in shas.entries) {
-      if (ci[e.key]?.sha != e.value) ci[e.key] = CiReport(e.value);
+      final r = ci[e.key];
+      // Même commit déjà jugé rouge ou sans CI : on revérifie (un job a pu être
+      // relancé). Un vert reste vert.
+      if (r == null || r.sha != e.value || r.state != CiState.passed) {
+        ci[e.key] = CiReport(e.value);
+      }
     }
     notifyListeners();
     final started = DateTime.now();
     while (true) {
+      if (cancelled) return null;
       var pending = false;
       for (final e in shas.entries) {
         final r = ci[e.key]!;
@@ -2369,6 +2567,10 @@ class AgentRun extends ChangeNotifier {
     Duration noneAfter = const Duration(minutes: 3),
   }) async {
     ciRounds++;
+    if (accepted.isEmpty) {
+      // Rien de nouveau à envoyer : on revérifie la CI du dernier envoi.
+      return _settleCi(every: every, noneAfter: noneAfter);
+    }
     ciNote = 'Envoi sur la branche de travail (essai $ciRounds)…';
     notifyListeners();
     try {
@@ -2385,8 +2587,18 @@ class AgentRun extends ChangeNotifier {
           'dépôt, ses branches et ses règles ; corrige les fichiers en cause, par '
           'exemple un workflow refusé), puis termine : l\'app renverra tout.';
     }
-    // Branche en retard ou fusion refusée : jusqu'à 3 mises à jour avant d'abandonner.
+    return _settleCi(every: every, noneAfter: noneAfter);
+  }
+
+  /// Attend la CI du dernier envoi, puis fusionne (avec mise à jour de la branche
+  /// si besoin). Rend le rapport pour l'agent, ou `null`.
+  Future<String?> _settleCi({
+    required Duration every,
+    required Duration noneAfter,
+  }) async {
+    // Branche en retard : jusqu'à 3 mises à jour avant d'abandonner.
     for (var pass = 0; pass < 4; pass++) {
+      if (cancelled) return null;
       ciNote = 'CI GitHub en cours sur la branche de travail…';
       notifyListeners();
       final report = await watchCi(every: every, noneAfter: noneAfter);
@@ -2409,7 +2621,16 @@ class AgentRun extends ChangeNotifier {
         notifyListeners();
         return null;
       }
-      final out = await mergeGreen();
+      if (cancelled) return null;
+      final MergeOutcome out;
+      try {
+        out = await mergeGreen(every: every);
+      } catch (e) {
+        ciNote = 'Problème pendant la fusion : l\'agent cherche la cause…';
+        notifyListeners();
+        return 'La CI est verte, mais la fusion a échoué : $e\nExamine la cause '
+            'avec l\'outil github et règle-la, puis termine.';
+      }
       if (out.conflict != null) {
         ciNote = 'Conflit avec la branche principale : l\'agent l\'intègre…';
         notifyListeners();
@@ -2444,7 +2665,9 @@ class AgentRun extends ChangeNotifier {
   /// mise à jour (la CI doit repasser) ; un vrai conflit est préparé pour que
   /// l'agent l'intègre ; une méthode de fusion refusée est remplacée par une
   /// autre.
-  Future<MergeOutcome> mergeGreen() async {
+  Future<MergeOutcome> mergeGreen({
+    Duration every = const Duration(seconds: 5),
+  }) async {
     final out = MergeOutcome();
     for (final t in targets) {
       final url = pulls[t.fullName];
@@ -2479,6 +2702,9 @@ class AgentRun extends ChangeNotifier {
         final head = heads.remove(t.fullName);
         pulls.remove(t.fullName);
         merged.add('${t.fullName} → ${t.branch}');
+        // Le travail est dans la branche principale : la suite repart de sa
+        // version (relue), pas des copies gardées.
+        _forget(t);
         if (head != null && head != t.branch) {
           try {
             await github.deleteBranch(t.owner, t.name, head);
@@ -2501,10 +2727,24 @@ class AgentRun extends ChangeNotifier {
       }
       // D'abord la mise à jour de la branche par GitHub (sans conflit réel).
       try {
+        final before = lastCommits[t.fullName];
         await github.updateBranch(t.owner, t.name, number);
-        await Future<void>.delayed(const Duration(seconds: 3));
-        final sha = await github.pullHead(t.owner, t.name, number);
+        // La mise à jour est asynchrone : on attend le nouveau commit.
+        var sha = before;
+        for (var k = 0; k < 24 && sha == before; k++) {
+          await Future<void>.delayed(every);
+          sha = await github.pullHead(t.owner, t.name, number);
+        }
+        if (sha == null || sha == before) {
+          out.blocked.add('${t.fullName} : la mise à jour de la branche tarde');
+          continue;
+        }
         commits.add('${t.fullName}@$sha');
+        // Les fichiers de la branche ont changé : ils seront relus.
+        final prefix = multi ? '${mountOf(t)}/' : '';
+        originals.removeWhere(
+          (k, _) => k.startsWith(prefix) && !changes.containsKey(k),
+        );
         out.updated = true;
         continue;
       } on GitHubException catch (u) {
@@ -2521,6 +2761,15 @@ class AgentRun extends ChangeNotifier {
     return out;
   }
 
+  /// Oublie les copies gardées des fichiers d'un dépôt (après une fusion).
+  void _forget(RepoTarget t) {
+    final prefix = multi ? '${mountOf(t)}/' : '';
+    bases.removeWhere((k, _) => k.startsWith(prefix));
+    originals.removeWhere(
+      (k, _) => k.startsWith(prefix) && !changes.containsKey(k),
+    );
+  }
+
   /// La version de chaque fichier avant que la session ne le modifie (pour voir
   /// ce que la branche principale a changé depuis).
   final Map<String, String?> bases = {};
@@ -2533,6 +2782,19 @@ class AgentRun extends ChangeNotifier {
   /// branche principale, et l'agent reçoit ce qui a changé de son côté.
   Future<String> prepareConflict(RepoTarget t) async {
     final prefix = multi ? '${mountOf(t)}/' : '';
+    // D'abord tout lire : en cas d'erreur, rien n'a encore changé.
+    final paths = bases.keys.where((k) => k.startsWith(prefix)).toList();
+    final current = <String, String?>{};
+    for (final p in paths) {
+      final inner = p.substring(prefix.length);
+      try {
+        final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
+        current[p] = f.binary ? originals[p] : f.text;
+      } on GitHubException catch (e) {
+        if (e.status != 404) rethrow;
+        current[p] = null;
+      }
+    }
     final oldPull = pulls.remove(t.fullName);
     final oldHead = heads.remove(t.fullName);
     if (oldPull != null) {
@@ -2540,16 +2802,9 @@ class AgentRun extends ChangeNotifier {
     }
     final report = StringBuffer();
     final conflicted = <String>[];
-    for (final p in bases.keys.where((k) => k.startsWith(prefix)).toList()) {
-      final inner = p.substring(prefix.length);
+    for (final p in paths) {
       final ours = originals[p];
-      String? theirs;
-      try {
-        final f = await github.readFile(t.owner, t.name, inner, ref: t.branch);
-        theirs = f.binary ? ours : f.text;
-      } on GitHubException catch (e) {
-        if (e.status != 404) rethrow;
-      }
+      final theirs = current[p];
       final base = bases[p];
       if (theirs != ours) changes[p] = ours;
       originals[p] = theirs;
@@ -2644,7 +2899,7 @@ class AgentRun extends ChangeNotifier {
     ],
     'changes': changes,
     'originals': {
-      for (final p in changes.keys)
+      for (final p in {...changes.keys, ...bases.keys})
         if (originals.containsKey(p)) p: originals[p],
     },
     'rejected': rejected.toList(),
@@ -2659,6 +2914,7 @@ class AgentRun extends ChangeNotifier {
     'ciRounds': ciRounds,
     'merged': merged,
     'bases': bases,
+    'specs': specs,
     'stalePulls': stalePulls,
   };
 
@@ -2731,6 +2987,7 @@ class AgentRun extends ChangeNotifier {
     (j['bases'] as Map?)?.forEach(
       (k, v) => run.bases[k as String] = v as String?,
     );
+    run.specs.addAll(((j['specs'] as List?) ?? const []).cast<String>());
     run.stalePulls.addAll(
       ((j['stalePulls'] as List?) ?? const []).cast<String>(),
     );
