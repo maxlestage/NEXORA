@@ -100,7 +100,7 @@ class Routine {
     final day = DateTime(after.year, after.month, after.day);
     for (var d = 0; d < 3; d++) {
       for (final m in times) {
-        final at = day.add(Duration(days: d, minutes: m));
+        final at = DateTime(day.year, day.month, day.day + d, m ~/ 60, m % 60);
         if (at.isAfter(after)) return at;
       }
     }
@@ -129,17 +129,30 @@ class Routine {
   }
 
   /// Le planning pour GitHub Actions (cron en UTC) ; [utcOffset] : le décalage
-  /// du téléphone avec UTC.
-  String cron(Duration utcOffset) {
-    final utc = [
-      for (final m in times)
-        ((m - utcOffset.inMinutes) % (24 * 60) + 24 * 60) % (24 * 60),
-    ];
-    final minutes = {for (final m in utc) m % 60}.toList()..sort();
-    final hours = {for (final m in utc) m ~/ 60}.toList()..sort();
-    final h = hours.length == 24 ? '*' : hours.join(',');
-    return '${minutes.join(',')} $h * * *';
+  /// du téléphone avec UTC. Une ligne par groupe d'heures partageant les mêmes
+  /// minutes : un cron seul mélangerait minutes et heures (11:30 et 12:00
+  /// donneraient aussi 11:00 et 12:30).
+  List<String> crons(Duration utcOffset) {
+    final byMinute = <int, Set<int>>{};
+    for (final m in times) {
+      final u = ((m - utcOffset.inMinutes) % (24 * 60) + 24 * 60) % (24 * 60);
+      byMinute.putIfAbsent(u % 60, () => {}).add(u ~/ 60);
+    }
+    // Les minutes qui ont exactement les mêmes heures sont regroupées.
+    final byHours = <String, List<int>>{};
+    for (final e in byMinute.entries) {
+      final hours = e.value.toList()..sort();
+      final h = hours.length == 24 ? '*' : hours.join(',');
+      byHours.putIfAbsent(h, () => []).add(e.key);
+    }
+    return [
+      for (final e in byHours.entries)
+        '${(e.value..sort()).join(',')} ${e.key} * * *',
+    ]..sort();
   }
+
+  /// Le planning en une ligne (la première si plusieurs sont nécessaires).
+  String cron(Duration utcOffset) => crons(utcOffset).first;
 
   /// Le fichier du workflow sur GitHub.
   String get workflowFile => 'nexora-routine-${slug(id)}.yml';
@@ -166,7 +179,7 @@ class Routine {
     );
     y = y.replaceFirst(
       RegExp(r'^on:\s*$', multiLine: true),
-      "on:\n  schedule:\n    - cron: '${cron(utcOffset)}'",
+      "on:\n  schedule:\n${[for (final c in crons(utcOffset)) "    - cron: '$c'"].join('\n')}",
     );
     // Lancé par le planning, l'instruction n'est pas obligatoire.
     y = y.replaceAll(
