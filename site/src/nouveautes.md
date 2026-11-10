@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.39 — 10 novembre 2026 — NEXORA mis en avant, en 3D
+- Nouveau : l'en-tête du site affiche l'emblème NEXORA en 3D, avec l'hexagone néon, le « N » en dégradé, le point cyan et son orbite, comme le logo de l'app. Le mot NEXORA apparaît dessous en lettres 3D lumineuses qui ondulent.
+- L'emblème flotte, se tourne avec la souris et respire doucement, entouré des fournisseurs d'IA en orbite.
+- Sur ordinateur, il est à droite du titre. Sur téléphone, il a sa propre place sous les boutons, sans rien cacher.
+
 ## 2.2.38 — 10 novembre 2026 — Le chat en bulles, avec une barre d'actions
 - Nouveau : les réponses de l'assistant sont dans des bulles, à gauche, et vos messages restent à droite, comme dans une messagerie.
 - Nouveau : sous chaque réponse, une barre d'actions pour copier (✓ une fois copié), donner votre avis (bonne ou mauvaise réponse), lire à voix haute et partager avec la feuille de partage du téléphone.
