@@ -220,9 +220,16 @@ List<ToolCall> parseToolCalls(String reply) {
     }
   }
   if (obj == null) {
-    final start = reply.indexOf('{');
     final end = reply.lastIndexOf('}');
-    if (start >= 0 && end > start) {
+    // Plusieurs accolades de départ possibles : du texte avant le JSON peut en
+    // contenir (« la fonction f() { … } »), la bonne n'est pas forcément la
+    // première.
+    var tried = 0;
+    for (
+      var start = reply.indexOf('{');
+      obj == null && start >= 0 && start < end && tried < 40;
+      start = reply.indexOf('{', start + 1), tried++
+    ) {
       // Cherche le plus petit objet JSON valide qui contient "tool" ou "actions".
       for (
         var e = reply.indexOf('}', start);

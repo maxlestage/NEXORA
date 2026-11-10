@@ -3,6 +3,10 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.27 — 10 novembre 2026 — L'agent ne rate plus une action après une accolade
+- Corrigé : quand l'agent écrivait une phrase contenant une accolade (par exemple du code « f() { … } ») juste avant son action, l'action n'était pas reconnue et il perdait un tour. Elle est maintenant retrouvée correctement.
+- Les sessions avancent donc plus droit, avec moins de relances inutiles.
+
 ## 2.2.26 — 10 novembre 2026 — Le crédit restant, toujours en vue
 - Le crédit restant chez votre fournisseur s'affiche en permanence en bas de l'écran, au-dessus des onglets, quel que soit l'onglet. Touchez-le pour le détail.
 - Dans le chat et dans chaque session, le crédit du modèle utilisé est affiché à côté du choix du modèle, juste au-dessus du champ de saisie.
