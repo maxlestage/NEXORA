@@ -18,7 +18,11 @@ class ChatMessage {
     this.by,
     this.skills = const [],
     this.command,
+    this.rating = 0,
   }) : at = at ?? DateTime.now();
+
+  /// Votre avis sur la réponse : 1 (bonne), -1 (mauvaise), 0 (aucun).
+  int rating;
 
   final Role role;
   String content;
@@ -61,6 +65,7 @@ class ChatMessage {
     if (by != null) 'by': by,
     if (skills.isNotEmpty) 'skills': skills,
     if (command != null) 'cmd': command,
+    if (rating != 0) 'rating': rating,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
@@ -80,6 +85,7 @@ class ChatMessage {
     by: j['by'] as String?,
     skills: (j['skills'] as List?)?.cast<String>() ?? const [],
     command: j['cmd'] as String?,
+    rating: j['rating'] as int? ?? 0,
   );
 }
 

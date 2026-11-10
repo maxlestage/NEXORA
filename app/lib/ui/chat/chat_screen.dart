@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models/agent.dart';
 import '../../models/chat.dart';
@@ -331,6 +332,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               final isLast = i == c.messages.length - 1;
                               final signature = (
                                 m.content.length,
+                                m.rating,
                                 m.thinking.length,
                                 m.error,
                                 m.tokensOut,
@@ -350,6 +352,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               final tile = _MessageTile(
                                 key: ValueKey('${c.id}-$i'),
                                 message: m,
+                                onRate: (v) => chat.rate(c.id, m, v),
                                 streaming: running && isLast,
                                 showThinking: settings.showThinking,
                                 onRegenerate:
@@ -634,7 +637,11 @@ class _MessageTile extends StatelessWidget {
     this.onRegenerate,
     this.onEdit,
     this.onChangeModel,
+    this.onRate,
   });
+
+  /// Votre avis sur la réponse (1 ou -1).
+  final ValueChanged<int>? onRate;
 
   final ChatMessage message;
   final bool streaming;
@@ -782,36 +789,14 @@ class _MessageTile extends StatelessWidget {
           else if (m.content.isEmpty && streaming)
             const SizedBox(height: 4)
           else
-            MarkdownView(m.content),
+            // La réponse dans sa bulle, à gauche (vos messages sont à droite).
+            _AssistantBubble(child: MarkdownView(m.content)),
           if (!streaming && m.content.isNotEmpty)
-            Row(
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Copier',
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  onPressed: () => copyText(context, m.content),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Lire à voix haute',
-                  icon: const Icon(Icons.volume_up_outlined, size: 18),
-                  onPressed: () {
-                    final v = VoiceService.instance;
-                    v.rate = context.read<SettingsState>().voiceRate;
-                    v.speaking ? v.stopSpeaking() : v.speak(m.content);
-                  },
-                ),
-                if (onRegenerate != null)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Régénérer',
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    onPressed: onRegenerate,
-                  ),
-                if (m.tokensIn + m.tokensOut > 0)
-                  Expanded(child: _CostLine(message: m)),
-              ],
+            _ActionBar(
+              message: m,
+              onRate: onRate,
+              onRegenerate: onRegenerate,
+              onChangeModel: onChangeModel,
             ),
         ],
       ),
@@ -1429,6 +1414,228 @@ class _VoiceModeBar extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// La bulle d'une réponse : à gauche, discrète, coins arrondis (comme vos
+/// messages, à droite).
+class _AssistantBubble extends StatelessWidget {
+  const _AssistantBubble({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(right: 24),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(6),
+          topRight: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Sous une réponse : copier, avis, lire à voix haute, partager, et plus.
+class _ActionBar extends StatefulWidget {
+  const _ActionBar({
+    required this.message,
+    this.onRate,
+    this.onRegenerate,
+    this.onChangeModel,
+  });
+
+  final ChatMessage message;
+  final ValueChanged<int>? onRate;
+  final VoidCallback? onRegenerate;
+  final VoidCallback? onChangeModel;
+
+  @override
+  State<_ActionBar> createState() => _ActionBarState();
+}
+
+class _ActionBarState extends State<_ActionBar> {
+  bool _copied = false;
+
+  ChatMessage get m => widget.message;
+
+  void _copy() {
+    Clipboard.setData(ClipboardData(text: m.content));
+    HapticFeedback.selectionClick();
+    setState(() => _copied = true);
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  Future<void> _share(BuildContext buttonContext) async {
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: m.content,
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
+  Future<void> _rate() async {
+    final v = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                m.rating == 1 ? Icons.thumb_up : Icons.thumb_up_outlined,
+                color: Nx.green,
+              ),
+              title: const Text('Bonne réponse'),
+              onTap: () => Navigator.pop(context, 1),
+            ),
+            ListTile(
+              leading: Icon(
+                m.rating == -1 ? Icons.thumb_down : Icons.thumb_down_outlined,
+                color: Nx.red,
+              ),
+              title: const Text('Mauvaise réponse'),
+              subtitle: widget.onRegenerate == null
+                  ? null
+                  : const Text('Vous pourrez la régénérer'),
+              onTap: () => Navigator.pop(context, -1),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (v == null || !mounted) return;
+    widget.onRate?.call(v);
+    if (v == -1 && m.rating == -1 && widget.onRegenerate != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Merci. Voulez-vous une autre réponse ?'),
+          action: SnackBarAction(
+            label: 'Régénérer',
+            onPressed: widget.onRegenerate!,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _more() async {
+    final cost = m.tokensIn + m.tokensOut > 0;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.onRegenerate != null)
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded),
+                title: const Text('Régénérer'),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  widget.onRegenerate!();
+                },
+              ),
+            if (widget.onChangeModel != null)
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: const Text('Réessayer avec un autre modèle'),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  widget.onChangeModel!();
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: const Text('Sélectionner le texte'),
+              onTap: () {
+                Navigator.pop(sheet);
+                showFullText(context, 'Réponse', m.content);
+              },
+            ),
+            if (cost)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: _CostLine(message: m),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    Widget button(
+      IconData icon,
+      String tip,
+      VoidCallback onTap, {
+      Color? color,
+    }) => IconButton(
+      visualDensity: VisualDensity.compact,
+      tooltip: tip,
+      icon: Icon(icon, size: 20, color: color ?? muted),
+      onPressed: onTap,
+    );
+    final voice = VoiceService.instance;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          button(
+            _copied ? Icons.check_rounded : Icons.content_copy_outlined,
+            _copied ? 'Copié' : 'Copier',
+            _copy,
+            color: _copied ? Nx.green : null,
+          ),
+          button(
+            m.rating == 1
+                ? Icons.thumb_up
+                : m.rating == -1
+                ? Icons.thumb_down
+                : Icons.thumbs_up_down_outlined,
+            'Votre avis',
+            _rate,
+            color: m.rating == 1
+                ? Nx.green
+                : m.rating == -1
+                ? Nx.red
+                : null,
+          ),
+          button(Icons.volume_up_outlined, 'Lire à voix haute', () {
+            voice.rate = context.read<SettingsState>().voiceRate;
+            voice.speaking ? voice.stopSpeaking() : voice.speak(m.content);
+          }),
+          Builder(
+            builder: (b) =>
+                button(Icons.ios_share_rounded, 'Partager', () => _share(b)),
+          ),
+          button(Icons.more_horiz, 'Plus', _more),
+          if (m.tokensIn + m.tokensOut > 0)
+            Expanded(child: _CostLine(message: m)),
+        ],
       ),
     );
   }
