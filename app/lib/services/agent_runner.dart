@@ -1998,6 +1998,13 @@ class AgentRun extends ChangeNotifier {
   /// Au plus, avant de rendre la main.
   static const maxCiRounds = 6;
 
+  /// Quand la CI est entièrement verte : fusionner la pull request dans la
+  /// branche principale (et supprimer la branche de travail).
+  bool autoMerge = true;
+
+  /// Les dépôts dont le travail a été fusionné (« owner/repo → branche »).
+  final List<String> merged = [];
+
   /// Où en est la boucle « envoyer, attendre la CI, corriger ».
   String ciNote = '';
 
@@ -2119,7 +2126,17 @@ class AgentRun extends ChangeNotifier {
     final report = await watchCi(every: every, noneAfter: noneAfter);
     final states = ci.values.map((r) => r.state).toSet();
     if (report == null && states.every((s) => s == CiState.passed)) {
-      ciNote = 'CI entièrement verte ✅ : la pull request est prête à être fusionnée.';
+      if (!autoMerge) {
+        ciNote = 'CI entièrement verte ✅ : la pull request est prête à être fusionnée.';
+        notifyListeners();
+        return null;
+      }
+      final problems = await mergeGreen();
+      ciNote = problems.isEmpty
+          ? 'CI entièrement verte ✅ et fusionné dans '
+                '${targets.where((t) => merged.any((m) => m.startsWith('${t.fullName} '))).map((t) => t.branch).toSet().join(', ')} 🎉'
+          : 'CI verte ✅, mais fusion impossible : ${problems.join(' ; ')}. '
+                'Fusionnez la pull request vous-même.';
       notifyListeners();
       return null;
     }
@@ -2133,6 +2150,45 @@ class AgentRun extends ChangeNotifier {
                   'et lance tous les tests, puis termine.'
             : 'La CI GitHub n\'a pas fini à temps. Vérifie le workflow (durée, '
                   'étapes bloquées), corrige, puis termine.');
+  }
+
+  /// Fusionne les pull requests dont la CI est verte dans la branche principale
+  /// de leur dépôt, puis supprime la branche de travail. Les envois suivants
+  /// repartent de la branche principale (nouvelle branche, nouvelle pull
+  /// request). Rend les problèmes rencontrés.
+  Future<List<String>> mergeGreen() async {
+    final problems = <String>[];
+    for (final t in targets) {
+      final url = pulls[t.fullName];
+      final report = ci[t.fullName];
+      if (url == null || report?.state != CiState.passed) continue;
+      final number = int.tryParse(url.split('/').last);
+      if (number == null) continue;
+      try {
+        await github.mergePull(
+          t.owner,
+          t.name,
+          number,
+          title: commitMessage.isEmpty ? task : commitMessage,
+        );
+      } on GitHubException catch (e) {
+        problems.add(
+          '${t.fullName} : ${e.status == 405 || e.status == 409 ? 'conflit avec ${t.branch}' : e.message}',
+        );
+        continue;
+      }
+      final head = heads.remove(t.fullName);
+      pulls.remove(t.fullName);
+      merged.add('${t.fullName} → ${t.branch}');
+      if (head != null && head != t.branch) {
+        try {
+          await github.deleteBranch(t.owner, t.name, head);
+        } catch (_) {}
+      }
+    }
+    _tree = null;
+    notifyListeners();
+    return problems;
   }
 
   /// Lignes ajoutées et retirées par les brouillons (comparées aux originaux
@@ -2203,7 +2259,9 @@ class AgentRun extends ChangeNotifier {
     'commits': commits,
     'interrupted': running || interrupted,
     'autoCi': autoCi,
+    'autoMerge': autoMerge,
     'ciRounds': ciRounds,
+    'merged': merged,
   };
 
   /// Recrée une session enregistrée (à l'arrêt : elle peut être continuée).
@@ -2270,6 +2328,8 @@ class AgentRun extends ChangeNotifier {
     run.commits.addAll(((j['commits'] as List?) ?? const []).cast<String>());
     run.interrupted = j['interrupted'] as bool? ?? false;
     run.autoCi = j['autoCi'] as bool? ?? true;
+    run.autoMerge = j['autoMerge'] as bool? ?? true;
+    run.merged.addAll(((j['merged'] as List?) ?? const []).cast<String>());
     run.ciRounds = j['ciRounds'] as int? ?? 0;
     run.updatedAt =
         DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? run.createdAt;

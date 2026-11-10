@@ -18,7 +18,7 @@ import '../services/storage.dart';
 
 /// Les réglages : fournisseurs (clés, adresses, modèles), modèle par défaut, thème.
 /// La version de l'app (comme dans pubspec.yaml).
-const String currentVersion = '2.2.17';
+const String currentVersion = '2.2.18';
 
 class SettingsState extends ChangeNotifier {
   SettingsState(this.storage, this.llm) {
@@ -124,6 +124,15 @@ class SettingsState extends ChangeNotifier {
   /// Sessions : envoyer le travail de l'agent sur une branche de travail (avec
   /// pull request) et lui faire corriger la CI GitHub jusqu'à ce qu'elle passe.
   bool agentAutoCi = true;
+
+  /// Sessions : fusionner dans la branche principale quand la CI est verte.
+  bool agentAutoMerge = true;
+
+  Future<void> setAgentAutoMerge(bool v) async {
+    agentAutoMerge = v;
+    await storage.setBool('agent_auto_merge', v);
+    notifyListeners();
+  }
 
   Future<void> setAgentAutoCi(bool v) async {
     agentAutoCi = v;
@@ -236,6 +245,7 @@ class SettingsState extends ChangeNotifier {
     contextTokens = storage.getInt('context_tokens', fallback: 32000);
     speakReplies = storage.getBool('voice_speak');
     agentAutoCi = storage.getBool('agent_auto_ci', fallback: true);
+    agentAutoMerge = storage.getBool('agent_auto_merge', fallback: true);
     voiceConversation = storage.getBool('voice_conversation', fallback: true);
     voiceAutoSend = storage.getBool('voice_autosend', fallback: true);
     voiceRate = storage.getDouble('voice_rate', fallback: 0.5);
