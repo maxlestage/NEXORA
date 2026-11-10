@@ -944,6 +944,17 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .hero-news-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: #a5b4fc; text-decoration: none; }
 .hero-news-more:hover { color: #fff; }
 
-/* Sur un téléphone, la place de l'emblème 3D NEXORA, entre les boutons et les nouveautés. */
-#hero-stage { display: none; }
-@media (max-width: 760px) { #hero-stage { display: block; height: 330px; margin-top: 8px; } }
+/* L'emblème NEXORA : le logo néon en relief et le nom, au-dessus de la 3D. */
+.hero-emblem { position: absolute; z-index: 3; right: 0; top: 30px; width: min(40vw, 470px); display: flex; flex-direction: column; align-items: center; pointer-events: auto; }
+.emblem-tilt { position: relative; width: 100%; aspect-ratio: 1; animation: emblem-float 7s ease-in-out infinite; }
+.emblem-logo { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 28px rgba(168, 85, 247, 0.55)) drop-shadow(0 0 60px rgba(34, 211, 238, 0.25)); transform: translateZ(40px); }
+.emblem-halo { position: absolute; inset: 12%; border-radius: 50%; background: radial-gradient(circle, rgba(139, 92, 246, 0.45), rgba(34, 211, 238, 0.12) 45%, transparent 70%); filter: blur(28px); animation: emblem-glow 4.5s ease-in-out infinite; }
+.emblem-name { margin: -6% 0 0; font: 800 clamp(2.2rem, 5vw, 3.6rem)/1 var(--display); letter-spacing: 0.32em; padding-left: 0.32em; background: linear-gradient(90deg, #22d3ee, #8b5cf6 50%, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(139, 92, 246, 0.55)); animation: emblem-name 6s ease-in-out infinite; }
+@keyframes emblem-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
+@keyframes emblem-glow { 0%, 100% { opacity: 0.75; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes emblem-name { 0%, 100% { filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.45)); } 50% { filter: drop-shadow(0 0 26px rgba(34, 211, 238, 0.6)); } }
+@media (max-width: 1100px) { .hero-emblem { width: min(36vw, 380px); top: 70px; } }
+@media (max-width: 760px) {
+  .hero-emblem { position: relative; right: auto; top: auto; width: min(78vw, 320px); margin: 26px auto 0; }
+}
+@media (prefers-reduced-motion: reduce) { .emblem-tilt, .emblem-halo, .emblem-name { animation: none; } }
