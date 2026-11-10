@@ -915,15 +915,33 @@ class GitHubApi {
     return j.isEmpty ? null : Issue(j.first as Map);
   }
 
-  /// L'état d'une pull request : « open » ou « closed », et si elle a été
-  /// fusionnée.
-  Future<(String, bool)> pullStatus(
+  /// L'état d'une pull request : « open » ou « closed », si elle a été
+  /// fusionnée, et son dernier commit (celui fusionné, si elle l'a été).
+  Future<(String, bool, String?)> pullStatus(
     String owner,
     String repo,
     int number,
   ) async {
     final j = await _req('GET', '/repos/$owner/$repo/pulls/$number') as Map;
-    return (j['state'] as String? ?? 'open', j['merged'] == true);
+    return (
+      j['state'] as String? ?? 'open',
+      j['merged'] == true,
+      (j['head'] as Map?)?['sha'] as String?,
+    );
+  }
+
+  /// Le dernier commit d'une branche, ou null si elle n'existe pas (ou plus).
+  Future<String?> branchTip(String owner, String repo, String branch) async {
+    try {
+      final r = await _req(
+        'GET',
+        '/repos/$owner/$repo/git/ref/heads/${_enc(branch)}',
+      ) as Map;
+      return (r['object'] as Map?)?['sha'] as String?;
+    } on GitHubException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
   }
 
   /// Le dernier commit d'une pull request.
