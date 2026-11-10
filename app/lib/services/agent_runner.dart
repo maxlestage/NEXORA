@@ -187,6 +187,35 @@ List<CodeBlock> codeBlocks(String text) {
   return out;
 }
 
+/// Une réponse dont le JSON (« demande », « thought »…) ne contient aucune
+/// action : sa réflexion, lisible (« 🎯 demande », puis la réflexion), ou
+/// null si la réponse n'a pas de tel JSON.
+String? actionlessThought(String reply) {
+  Map<String, dynamic>? obj;
+  for (final b in codeBlocks(reply)) {
+    if (b.lang == 'json' ||
+        (b.lang.isEmpty && b.body.trimLeft().startsWith('{'))) {
+      obj = _tryJson(b.body);
+      if (obj != null) break;
+    }
+  }
+  if (obj == null) {
+    final start = reply.indexOf('{');
+    final end = reply.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      obj = _tryJson(reply.substring(start, end + 1));
+    }
+  }
+  if (obj == null) return null;
+  final goal = (obj['demande'] ?? obj['goal'] ?? '').toString().trim();
+  final thought = (obj['thought'] ?? '').toString().trim();
+  if (goal.isEmpty && thought.isEmpty) return null;
+  return [
+    if (goal.isNotEmpty) '🎯 $goal',
+    if (thought.isNotEmpty) thought,
+  ].join('\n');
+}
+
 /// Lit l'action dans la réponse du modèle : un objet JSON (dans un bloc ```json ou
 /// nu), et pour `write_file`, le contenu dans le bloc de code qui suit.
 ToolCall? parseToolCall(String reply) {
@@ -1307,6 +1336,8 @@ class AgentRun extends ChangeNotifier {
       // La dernière série d'actions, pour repérer une boucle.
       String? lastSig;
       var repeats = 0;
+      // Les réponses de suite sans aucune action.
+      var idle = 0;
       do {
         again = false;
         // Une instruction arrivée pendant le tour de fin relance le travail : il
@@ -1365,18 +1396,46 @@ class AgentRun extends ChangeNotifier {
           history.add(LlmMessage('assistant', reply));
           final calls = parseToolCalls(reply);
           if (calls.isEmpty) {
-            _add(AgentStep(StepKind.thought, reply));
+            idle++;
+            final bare = actionlessThought(reply);
+            // Lisible : la réflexion, pas le JSON brut.
+            _add(AgentStep(StepKind.thought, bare ?? reply));
+            // Plusieurs réponses de suite sans action : ce modèle tourne en
+            // rond, un autre prend la suite ; sinon la session s'arrête au lieu
+            // de gaspiller toutes ses étapes.
+            if (idle == 3 && await _switchModel('aucune action')) {
+              idle = 0;
+            } else if (idle >= 5) {
+              _add(
+                AgentStep(
+                  StepKind.error,
+                  'Le modèle répond sans jamais choisir d\'action (5 fois de '
+                  'suite). Changez de modèle au-dessus du champ, puis envoyez '
+                  '« continue ».',
+                ),
+              );
+              ended = true;
+              break;
+            }
             dropReminders(history);
             history.add(
               LlmMessage(
                 'user',
-                'Je n\'ai pas trouvé d\'action. Réponds avec un bloc ```json '
-                    '{"demande": …, "thought": …, "tool": …, "args": {…}}```.'
-                    '$reminder',
+                bare != null
+                    ? 'Ton bloc JSON n\'a pas de champ "tool" : aucune action '
+                          'n\'a été faite. Ajoute "tool" et "args" (un des outils '
+                          'listés). Un obstacle ? Prends une autre voie (autre '
+                          'outil, autre fichier, autre approche) et continue. Si '
+                          'la demande est vraiment impossible, appelle finish en '
+                          'expliquant pourquoi.$reminder'
+                    : 'Je n\'ai pas trouvé d\'action. Réponds avec un bloc '
+                          '```json {"demande": …, "thought": …, "tool": …, '
+                          '"args": {…}}```.$reminder',
               ),
             );
             continue;
           }
+          idle = 0;
           final goal = calls.first.goal;
           final thought = calls.first.thought;
           if (restate &&
