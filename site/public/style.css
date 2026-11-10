@@ -20,6 +20,9 @@
   --amber: #fbbf24;
   --grad: linear-gradient(110deg, var(--cyan) 0%, var(--violet) 50%, var(--magenta) 100%);
   --grad-text: linear-gradient(110deg, #67e8f9 0%, #a78bfa 35%, #f472b6 65%, #67e8f9 100%);
+  /* Pour les dégradés animés (qui défilent) : il revient à sa couleur de départ,
+     donc jamais de ligne de séparation là où il se répète. */
+  --grad-loop: linear-gradient(110deg, var(--cyan) 0%, var(--violet) 33%, var(--magenta) 66%, var(--cyan) 100%);
   --radius: 20px;
   --radius-sm: 12px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -413,7 +416,7 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
   font-size: 0.82rem; color: var(--muted); transition: border-color 0.3s, color 0.3s; max-width: 100%;
 }
 .pill:hover { border-color: rgba(34, 211, 238, 0.7); color: var(--text); }
-.pill-tag { padding: 4px 9px; border-radius: 999px; background: var(--grad); background-size: 200%; color: #04121a; font-weight: 700; font-size: 0.7rem; animation: shine 5s linear infinite; }
+.pill-tag { padding: 4px 9px; border-radius: 999px; background: var(--grad-loop); background-size: 200% 100%; color: #04121a; font-weight: 700; font-size: 0.7rem; animation: shine 5s linear infinite; }
 .pill .arrow svg { width: 14px; height: 14px; transition: transform 0.3s var(--ease); }
 
 .hud {
@@ -917,7 +920,7 @@ html:not(.motion) [data-reveal], html:not(.motion) .split .wi, html:not(.motion)
 .releases-col { display: grid; gap: 18px; }
 .release { display: flex; flex-direction: column; gap: 6px; padding: 22px; }
 .release-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.release-ver { padding: 4px 11px; border-radius: 999px; background: var(--grad); background-size: 200%; color: #04121a; font: 700 0.78rem/1.4 var(--mono); animation: shine 5s linear infinite; }
+.release-ver { padding: 4px 11px; border-radius: 999px; background: var(--grad-loop); background-size: 200% 100%; color: #04121a; font: 700 0.78rem/1.4 var(--mono); animation: shine 5s linear infinite; }
 .release-date { color: var(--muted); font-size: 0.82rem; }
 .release h3 { margin: 4px 0 4px; }
 .release .checks { margin: 0; }

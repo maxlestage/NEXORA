@@ -776,6 +776,24 @@ class _Gauge extends StatelessWidget {
   }
 }
 
+/// Le dégradé de la jauge : pâle au début de l'arc, vif au bout.
+///
+/// L'arc va de 135° à 405° ; un SweepGradient ne connaît que 0–360°, donc posé
+/// tel quel, il repartait au début de ses couleurs à 3 h et coupait la jauge
+/// d'une ligne nette. Tourné pour que l'arc tienne dans 45°–315°, il n'y a
+/// plus de raccord sur l'arc (ni sur ses bouts arrondis).
+@visibleForTesting
+Shader gaugeShader(Rect r, Color color) {
+  const start = math.pi * 0.75, sweep = math.pi * 1.5;
+  const gap = math.pi * 2 - sweep;
+  return SweepGradient(
+    startAngle: gap / 2,
+    endAngle: gap / 2 + sweep,
+    colors: [color.withValues(alpha: 0.6), color],
+    transform: const GradientRotation(start - gap / 2),
+  ).createShader(r);
+}
+
 class _GaugePainter extends CustomPainter {
   _GaugePainter(this.v, this.color, {required this.known});
 
@@ -810,11 +828,7 @@ class _GaugePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 12
         ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: start,
-          endAngle: start + sweep,
-          colors: [color.withValues(alpha: 0.6), color],
-        ).createShader(r),
+        ..shader = gaugeShader(r, color),
     );
   }
 
