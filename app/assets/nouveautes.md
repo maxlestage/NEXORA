@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.87 — 11 novembre 2026 — L'agent repère le Rust qui ne compile pas
+- Corrigé : en essai réel, pour « slug() ignore les majuscules accentuées », l'agent récrivait le début d'un `match` sans retirer les anciennes branches. Le fichier gardait du code en double et une accolade en trop, et rien ne le signalait avant l'échec de la CI.
+- Le code Rust écrit par l'agent est maintenant relu à chaque modification, comme le Dart : accolade, parenthèse ou crochet en trop ou jamais fermé, chaîne jamais fermée. Le modèle est prévenu tout de suite, avec la ligne.
+- L'avertissement montre aussi où le décalage commence (la première fermeture mal alignée), pour corriger au bon endroit du premier coup.
+- L'agent ne peut pas terminer tant que ce code ne compile pas (deux rappels au plus). Aucune fausse alerte sur plus de 9 000 fichiers Rust réels.
+
 ## 2.2.86 — 11 novembre 2026 — Une réflexion qui radote est coupée tout de suite
 - Quand le modèle se met à répéter la même chose dans sa réflexion (le même motif des dizaines de fois, ou la même phrase ligne après ligne), NEXORA coupe la réponse aussitôt au lieu d'attendre sa limite de longueur.
 - Vous gagnez du temps et des tokens : en essai réel, une seule de ces boucles consommait jusqu'à 16 000 tokens avant de rendre une réponse vide.
