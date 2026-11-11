@@ -20,27 +20,22 @@ struct HomeShell: View {
         TabView(selection: $navigation.tab) {
             Tab("Chat", systemImage: "bubble.left.and.text.bubble.right", value: AppTab.chat) {
                 ConversationsView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
             }
             if !settings.hiddenTabs.contains("agents") {
                 Tab("Agents", systemImage: "person.2.badge.gearshape", value: AppTab.agents) {
                     AgentsView()
-                        .safeAreaInset(edge: .bottom) { CreditBar() }
                 }
             }
             if !settings.hiddenTabs.contains("github") {
                 Tab("Code", systemImage: "chevron.left.forwardslash.chevron.right", value: AppTab.github) {
                     GitHubView()
-                        .safeAreaInset(edge: .bottom) { CreditBar() }
                 }
             }
             Tab("Modèles", systemImage: "cpu", value: AppTab.models) {
                 ProvidersView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
             }
             Tab("Réglages", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
