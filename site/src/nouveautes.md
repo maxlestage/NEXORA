@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.79 — 11 novembre 2026 — Les tests Rust de l'agent compilent
+- Corrigé : en essai réel, pour tester une nouvelle route du site, l'agent écrivait un test dans site/tests/ avec « use nexora_site::app; ». Or app() est dans src/main.rs, le programme, que les tests de ce dossier ne voient pas : le test ne pouvait pas compiler, et l'avertissement prévu ne venait pas à cause de cet import.
+- L'agent est maintenant prévenu même quand il importe la fonction par le nom du crate : il met le test dans le module de tests de main.rs, avec les autres.
+- Rien ne change quand la fonction est vraiment dans la bibliothèque (src/lib.rs) ou qu'elle vient d'une autre dépendance.
+
 ## 2.2.78 — 11 novembre 2026 — L'agent ne cherche plus ce qui vient d'une bibliothèque
 - Corrigé : en essai réel, pour « ajoute une route /sante en texte brut », l'agent cherchait des dizaines de fois la définition de « Response », qui vient de la bibliothèque Paquets et n'est donc pas dans le dépôt. La session s'arrêtait sans rien livrer.
 - Quand l'agent cherche la définition d'un nom que le code utilise mais qui vient d'une dépendance, il l'apprend clairement et reçoit les endroits où le code existant s'en sert, pour faire pareil.
