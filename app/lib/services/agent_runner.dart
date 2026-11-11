@@ -4597,10 +4597,68 @@ class AgentRun extends ChangeNotifier {
       );
     }
   }
+  if (!all && n == 1) {
+    final moved = _insertAboveDocs(source, at, needle, replacement);
+    if (moved != null) return moved;
+  }
   final out = all
       ? source.replaceAll(needle, replacement)
       : source.replaceFirst(needle, replacement);
   return (out, all && n > 1 ? '$n remplacements' : '1 remplacement');
+}
+
+/// Un ajout de code juste AVANT une déclaration (new = ajout + old) : placé
+/// entre la déclaration et son commentaire de documentation (ou ses
+/// annotations), il lui volait ce commentaire. En essai réel, une nouvelle
+/// fonction s'est glissée sous la doc de `lineDiff`, qui décrivait alors la
+/// mauvaise fonction. L'ajout va au-dessus du commentaire, qui reste collé à
+/// sa déclaration. Null : rien à déplacer.
+(String, String)? _insertAboveDocs(
+  String source,
+  int at,
+  String needle,
+  String replacement,
+) {
+  if (replacement.length <= needle.length || !replacement.endsWith(needle)) {
+    return null;
+  }
+  final added = replacement.substring(0, replacement.length - needle.length);
+  // Un ajout sur la même ligne, ou un old qui ne commence pas une ligne.
+  if (!added.endsWith('\n') || (at > 0 && source[at - 1] != '\n')) {
+    return null;
+  }
+  final first = needle.trimLeft();
+  if (first.isEmpty || _isDocLine(first.split('\n').first)) return null;
+  // Remonte les lignes de commentaire et d'annotation collées au-dessus.
+  var start = at;
+  var inBlock = false;
+  while (start > 0) {
+    final lineStart = source.lastIndexOf('\n', start - 2) + 1;
+    final line = source.substring(lineStart, start - 1).trim();
+    if (inBlock) {
+      if (line.startsWith('/*')) inBlock = false;
+    } else if (line.endsWith('*/') && !line.startsWith('/*')) {
+      inBlock = true;
+    } else if (!_isDocLine(line)) {
+      break;
+    }
+    start = lineStart;
+  }
+  if (inBlock || start == at) return null;
+  return (
+    source.replaceRange(start, start, added),
+    '1 ajout, placé au-dessus du commentaire de la déclaration qui suit (il '
+        'reste collé à elle)',
+  );
+}
+
+bool _isDocLine(String line) {
+  final l = line.trim();
+  return l.startsWith('//') ||
+      // Attributs Rust ; pas « # … », qui est aussi un titre Markdown.
+      l.startsWith('#[') ||
+      l.startsWith('@') ||
+      (l.startsWith('/*') && l.endsWith('*/'));
 }
 
 /// Les lignes d'un passage, sans les lignes vides du début et de la fin.

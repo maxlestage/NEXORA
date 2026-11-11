@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.70 — 11 novembre 2026 — Chaque commentaire reste sur sa fonction
+- Corrigé : quand l'agent ajoutait une fonction juste avant une autre, il la glissait entre cette autre fonction et son commentaire de documentation. Le commentaire décrivait alors la mauvaise fonction.
+- Le nouvel ajout va maintenant au-dessus du commentaire, qui reste collé à sa fonction. Les annotations (@override, #[test], routes du site…) restent aussi à leur place.
+- Rien ne change pour une vraie modification, ni pour un texte Markdown.
+
 ## 2.2.69 — 11 novembre 2026 — L'agent reçoit toujours votre demande en entier
 - Corrigé : quand la réponse du modèle était coupée en route (connexion interrompue), la traduction de votre demande en langage NEXORA s'arrêtait au premier mot (« DEMANDES : 1. Dans »). L'agent travaillait ensuite avec une demande qui ne disait plus quoi faire.
 - Une traduction coupée ou inachevée est maintenant reconnue et redemandée aussitôt : l'agent reçoit la version complète.
