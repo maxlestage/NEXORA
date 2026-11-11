@@ -515,6 +515,8 @@ class LlmClient {
     void Function(String stop)? onStop,
   }) async {
     final b = StringBuffer();
+    final thinking = StringBuffer();
+    var checked = 0;
     var total = const TokenUsage(0, 0);
     String? stop;
     await for (final d in stream(
@@ -527,8 +529,19 @@ class LlmClient {
       onHeaders: onHeaders,
     )) {
       b.write(d.text);
+      thinking.write(d.thinking);
       if (d.usage != null) total = total + d.usage!;
       if (d.stop != null) stop = d.stop;
+      // Une réflexion qui tourne en rond, avant tout texte : on coupe tout de
+      // suite (la réponse est vide, et l'agent relance autrement) au lieu
+      // d'attendre la limite de longueur.
+      if (b.isEmpty && thinking.length - checked >= 400) {
+        checked = thinking.length;
+        if (thinkingLoops(thinking.toString())) {
+          stop = 'loop';
+          break;
+        }
+      }
     }
     if (stop case final s?) onStop?.call(s);
     if (onUsage != null) {
