@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.91 — 11 novembre 2026 — L'agent n'écrit plus « // ... existing code » à la place de votre code
+- Corrigé : en essai réel, pour « ajoute une route /version », le modèle remplaçait la première ligne d'une fonction par cette ligne, « // ... existing code », « } » et sa nouvelle fonction. Le vrai corps de la fonction restait à part, le fichier ne compilait plus, et l'agent cherchait l'erreur 110 lignes plus loin jusqu'à épuiser ses étapes.
+- Une modification qui contient un commentaire de remplissage (« // ... », « // existing code », « # rest of the file », « // reste du code inchangé »…) est maintenant refusée avant d'être écrite : le fichier reste intact.
+- Le modèle apprend tout de suite la bonne méthode pour ajouter une fonction ou un test : le nouveau code, suivi de la ligne qui doit venir après.
+- Prudent : un commentaire déjà présent dans le fichier, un vrai commentaire de code ou la documentation ne sont jamais visés (vérifié sur plus de 11 000 fichiers réels).
+
 ## 2.2.90 — 11 novembre 2026 — Une action à une accolade près n'est plus perdue
 - Corrigé : en essai réel, le modèle réécrivait un fichier de test mais oubliait une accolade à la fin de son action (« }]} » au lieu de « }}]} »). NEXORA répondait « je n'ai pas trouvé d'action » et tout le contenu du fichier était perdu.
 - Une fermeture oubliée juste avant une autre (accolade ou crochet) est maintenant remise : l'action est faite, avec son contenu intact.

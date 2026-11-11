@@ -4230,6 +4230,23 @@ class AgentRun extends ChangeNotifier {
           return 'Déjà fait : ce texte est déjà à la fin de $p (rien n\'a été '
               'ajouté une deuxième fois). Si la demande est remplie, appelle finish.';
         }
+        // Un commentaire « // ... existing code » à la place du code gardé :
+        // edit_file ne remplace que "old", ce commentaire serait écrit tel quel
+        // (essai réel : old = « async fn telecharger(…) { », new = cette ligne,
+        // « // ... existing code », « } » et une nouvelle fonction ; le vrai
+        // corps de telecharger restait orphelin et le fichier ne compilait plus).
+        final filler = doc ? null : placeholderLine(newText, oldText, text);
+        if (filler != null) {
+          return 'ERREUR : rien n\'est modifié. "new" contient « ${filler.trim()} », '
+              'un commentaire qui tient la place de code existant : edit_file '
+              'remplace seulement "old" par "new", ce commentaire serait écrit '
+              'tel quel et le code qu\'il est censé représenter resterait à part '
+              '(le fichier ne compilerait plus). Écris en entier ce qui doit être '
+              'dans "new". Pour AJOUTER du code (une fonction, un test) : mets '
+              'dans "old" une ligne qui le suit (par exemple la première ligne '
+              'de la fonction suivante, « async fn … { », ou « } » avec "line"), '
+              'et dans "new" le nouveau code suivi de cette même ligne.';
+        }
         final edited = applyEdit(
           text,
           oldText,
@@ -5451,6 +5468,48 @@ final _codeStart = RegExp(
   r'mixin|extension|enum|typedef|return|if|for|while|test|group|setUp|'
   r'tearDown|expect|assert)\b|[A-Z]\w*(<.*>)?\??\s+\w+\s*[(=;]|'
   r'\w+\s*\()',
+);
+
+/// Un commentaire qui tient la place de code existant (« // ... existing
+/// code », « # … reste inchangé », « /* ... */ ») : une ligne de [replacement]
+/// absente de [old] et du fichier [text]. Rend cette ligne, ou null.
+String? placeholderLine(String replacement, String old, String text) {
+  final known = {for (final l in '$old\n$text'.split('\n')) l.trim()};
+  for (final line in replacement.split('\n')) {
+    final t = line.trim();
+    if (t.isEmpty || known.contains(t)) continue;
+    final m = _commentText.firstMatch(t);
+    if (m == null) continue;
+    final body = m[1]!.trim().toLowerCase();
+    if (_fillerComment.hasMatch(body)) return line;
+  }
+  return null;
+}
+
+/// Le texte d'une ligne qui n'est qu'un commentaire (//, #, /* */, <!-- -->),
+/// hors commentaires de documentation (///, //!) et attributs Rust (#[…]).
+final _commentText = RegExp(
+  r'^(?://(?![/!])|#(?![\[!])|/\*+|<!--)\s*(.*?)\s*(?:\*+/|-->)?$',
+);
+
+/// Le contenu d'un commentaire de remplissage, et rien d'autre : « ... »,
+/// « ... other routes », « existing code unchanged », « rest of the file »,
+/// « reste du code inchangé », « code existant »… Une phrase qui continue
+/// (« ... and compare it », « le reste du fichier est gardé (au lieu…) »)
+/// n'en est pas un.
+final _fillerComment = RegExp(
+  // Rien que des points de suspension.
+  r'^(?:(?:\.{3,}|…)\s*$|(?:\.{3,}|…)?\s*\(?\s*(?:'
+  r'(?:the\s+)?(?:existing|unchanged|remaining|previous|other|original|more|'
+  r'same)\s+(?:\w+\s+)?(?:code|file|functions?|body|implementation|tests?|'
+  r'lines?|methods?|routes?|fields?|content|imports?|handlers?|cases?|logic)'
+  r'|(?:the\s+)?rest\s+of\s+(?:the\s+)?(?:\w+\s+)?(?:code|file|functions?|body|'
+  r'implementation|tests?|class|module|methods?|routes?)'
+  r'|(?:le\s+|la\s+)?(?:reste|suite)\s+(?:du|de\s+la|des)\s+(?:code|fichier|'
+  r'fonctions?|tests?|lignes?)'
+  r'|(?:le\s+)?(?:code|contenu|corps)\s+(?:existant|inchangé|précédent)'
+  r')(?:\s+(?:here|unchanged|remains?|stays?|as\s+before|goes|ici|inchangée?s?|'
+  r'existante?s?|comme\s+avant|\.{3,}|…))*\s*\)?\s*(?:\.{3,}|…)?[.;:]?$)',
 );
 
 /// Remplace `old` par `new` dans `text`. Rend (texte modifié, résumé) ou
