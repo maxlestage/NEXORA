@@ -55,8 +55,8 @@ public struct RateWindow: Sendable, Hashable {
         RateWindow(
             kind: j["kind"] as? String ?? "requêtes",
             window: j["window"] as? String ?? "",
-            limit: JSONValue.int(j["limit"]),
-            remaining: JSONValue.int(j["remaining"]),
+            limit: UsageJSON.int(j["limit"]),
+            remaining: UsageJSON.int(j["remaining"]),
             reset: j["reset"] as? String
         )
     }
@@ -175,20 +175,20 @@ public struct Balance: Sendable, Hashable {
 
     public func toJSON() -> [String: Any] {
         [
-            "remaining": JSONValue.any(remaining),
-            "total": JSONValue.any(total),
-            "used": JSONValue.any(used),
+            "remaining": UsageJSON.any(remaining),
+            "total": UsageJSON.any(total),
+            "used": UsageJSON.any(used),
             "currency": currency,
-            "freeTier": JSONValue.any(freeTier),
-            "note": JSONValue.any(note),
+            "freeTier": UsageJSON.any(freeTier),
+            "note": UsageJSON.any(note),
         ]
     }
 
     public static func fromJSON(_ j: [String: Any]) -> Balance {
         Balance(
-            remaining: JSONValue.double(j["remaining"]),
-            total: JSONValue.double(j["total"]),
-            used: JSONValue.double(j["used"]),
+            remaining: UsageJSON.double(j["remaining"]),
+            total: UsageJSON.double(j["total"]),
+            used: UsageJSON.double(j["used"]),
             currency: j["currency"] as? String ?? "USD",
             freeTier: j["freeTier"] as? Bool,
             note: j["note"] as? String
@@ -309,9 +309,9 @@ public struct ProviderUsage: Sendable, Hashable {
     public func toJSON() -> [String: Any] {
         [
             "windows": windows.map { $0.toJSON() },
-            "windowsAt": JSONValue.any(windowsAt.map(ISO8601.string)),
+            "windowsAt": UsageJSON.any(windowsAt.map(ISO8601.string)),
             "balance": balance.map { $0.toJSON() as Any } ?? NSNull(),
-            "balanceAt": JSONValue.any(balanceAt.map(ISO8601.string)),
+            "balanceAt": UsageJSON.any(balanceAt.map(ISO8601.string)),
             "day": day,
             "requestsToday": requestsToday,
             "tokensInToday": tokensInToday,
@@ -322,13 +322,13 @@ public struct ProviderUsage: Sendable, Hashable {
             "costToday": costToday,
             "month": month,
             "costMonth": costMonth,
-            "monthlyBudget": JSONValue.any(monthlyBudget),
-            "prepaid": JSONValue.any(prepaid),
+            "monthlyBudget": UsageJSON.any(monthlyBudget),
+            "prepaid": UsageJSON.any(prepaid),
             "prepaidSpent": prepaidSpent,
-            "prepaidAt": JSONValue.any(prepaidAt.map(ISO8601.string)),
-            "lastErrorStatus": JSONValue.any(lastErrorStatus),
-            "lastErrorMessage": JSONValue.any(lastErrorMessage),
-            "lastErrorAt": JSONValue.any(lastErrorAt.map(ISO8601.string)),
+            "prepaidAt": UsageJSON.any(prepaidAt.map(ISO8601.string)),
+            "lastErrorStatus": UsageJSON.any(lastErrorStatus),
+            "lastErrorMessage": UsageJSON.any(lastErrorMessage),
+            "lastErrorAt": UsageJSON.any(lastErrorAt.map(ISO8601.string)),
         ]
     }
 
@@ -340,20 +340,20 @@ public struct ProviderUsage: Sendable, Hashable {
         u.balance = (j["balance"] as? [String: Any]).map(Balance.fromJSON)
         u.balanceAt = date(j["balanceAt"])
         u.day = j["day"] as? String ?? ""
-        u.requestsToday = JSONValue.int(j["requestsToday"]) ?? 0
-        u.tokensInToday = JSONValue.int(j["tokensInToday"]) ?? 0
-        u.tokensOutToday = JSONValue.int(j["tokensOutToday"]) ?? 0
-        u.requestsTotal = JSONValue.int(j["requestsTotal"]) ?? 0
-        u.tokensTotal = JSONValue.int(j["tokensTotal"]) ?? 0
+        u.requestsToday = UsageJSON.int(j["requestsToday"]) ?? 0
+        u.tokensInToday = UsageJSON.int(j["tokensInToday"]) ?? 0
+        u.tokensOutToday = UsageJSON.int(j["tokensOutToday"]) ?? 0
+        u.requestsTotal = UsageJSON.int(j["requestsTotal"]) ?? 0
+        u.tokensTotal = UsageJSON.int(j["tokensTotal"]) ?? 0
         u.estimated = j["estimated"] as? Bool ?? false
-        u.costToday = JSONValue.double(j["costToday"]) ?? 0
+        u.costToday = UsageJSON.double(j["costToday"]) ?? 0
         u.month = j["month"] as? String ?? ""
-        u.costMonth = JSONValue.double(j["costMonth"]) ?? 0
-        u.monthlyBudget = JSONValue.double(j["monthlyBudget"])
-        u.prepaid = JSONValue.double(j["prepaid"])
-        u.prepaidSpent = JSONValue.double(j["prepaidSpent"]) ?? 0
+        u.costMonth = UsageJSON.double(j["costMonth"]) ?? 0
+        u.monthlyBudget = UsageJSON.double(j["monthlyBudget"])
+        u.prepaid = UsageJSON.double(j["prepaid"])
+        u.prepaidSpent = UsageJSON.double(j["prepaidSpent"]) ?? 0
         u.prepaidAt = date(j["prepaidAt"])
-        u.lastErrorStatus = JSONValue.int(j["lastErrorStatus"])
+        u.lastErrorStatus = UsageJSON.int(j["lastErrorStatus"])
         u.lastErrorMessage = j["lastErrorMessage"] as? String
         u.lastErrorAt = date(j["lastErrorAt"])
         return u
@@ -395,7 +395,7 @@ public enum UsageFormat {
 }
 
 /// Lecture indulgente des nombres d'un JSON décodé.
-enum JSONValue {
+enum UsageJSON {
     static func int(_ v: Any?) -> Int? {
         if let n = v as? Int { return n }
         if let d = v as? Double, d == d.rounded(), abs(d) < 1e15 { return Int(d) }

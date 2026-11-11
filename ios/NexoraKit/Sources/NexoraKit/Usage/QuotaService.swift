@@ -68,21 +68,21 @@ public struct QuotaService: Sendable {
         let d = (key as? [String: Any])?["data"] as? [String: Any] ?? [:]
         let c = (credits as? [String: Any])?["data"] as? [String: Any]
         let free = d["is_free_tier"] as? Bool
-        let totalCredits = JSONValue.double(c?["total_credits"])
-        let totalUsage = JSONValue.double(c?["total_usage"])
+        let totalCredits = UsageJSON.double(c?["total_credits"])
+        let totalUsage = UsageJSON.double(c?["total_usage"])
         if let totalCredits, let totalUsage, totalCredits > 0 {
             return Balance(remaining: totalCredits - totalUsage, total: totalCredits, used: totalUsage, freeTier: free)
         }
-        if let limit = JSONValue.double(d["limit"]) {
+        if let limit = UsageJSON.double(d["limit"]) {
             return Balance(
-                remaining: JSONValue.double(d["limit_remaining"]) ?? limit - (JSONValue.double(d["usage"]) ?? 0),
+                remaining: UsageJSON.double(d["limit_remaining"]) ?? limit - (UsageJSON.double(d["usage"]) ?? 0),
                 total: limit,
-                used: JSONValue.double(d["usage"]),
+                used: UsageJSON.double(d["usage"]),
                 freeTier: free
             )
         }
         return Balance(
-            used: JSONValue.double(d["usage"]),
+            used: UsageJSON.double(d["usage"]),
             freeTier: free,
             note: free == true
                 ? "Offre gratuite : modèles :free, environ 50 requêtes par jour (1 000 avec 10 $ de crédit acheté)"
@@ -96,7 +96,7 @@ public struct QuotaService: Sendable {
         guard let infos = (j["balance_infos"] as? [Any])?.compactMap({ $0 as? [String: Any] }), !infos.isEmpty else { return nil }
         let usd = infos.first { ($0["currency"] as? String) == "USD" } ?? infos[0]
         func n(_ v: Any?) -> Double? {
-            JSONValue.double(v) ?? Double((v.map { "\($0)" } ?? "").trimmingCharacters(in: .whitespaces))
+            UsageJSON.double(v) ?? Double((v.map { "\($0)" } ?? "").trimmingCharacters(in: .whitespaces))
         }
         return Balance(
             remaining: n(usd["total_balance"]),
