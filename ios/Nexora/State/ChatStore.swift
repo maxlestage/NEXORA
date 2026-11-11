@@ -14,6 +14,9 @@ final class ChatStore {
     private(set) var running: Set<String> = []
     /// Les messages laissés de côté lors de la dernière réponse (mémoire limitée).
     private(set) var trimmed: [String: Int] = [:]
+    /// Quand une réponse lue à voix haute est finie : sa conversation, et un compteur
+    /// qui change à chaque fois (pour la conversation vocale, qui écoute de nouveau).
+    private(set) var spokenTurn: (id: String, count: Int)?
 
     @ObservationIgnored private let store: ConversationStore
     @ObservationIgnored private let settings: SettingsStore
@@ -57,6 +60,25 @@ final class ChatStore {
     }
 
     func search(_ q: String) async -> [ConversationStore.Meta] { await store.search(q) }
+
+    /// Place occupée par les conversations, en octets.
+    func sizeOnDisk() async -> Int { await store.sizeOnDisk() }
+
+    /// Supprime les conversations non épinglées sans activité depuis `days` jours.
+    @discardableResult
+    func deleteOlderThan(_ days: Int) -> Int {
+        let old = ConversationStore.stale(index, days: days, running: running)
+        for id in old {
+            saveTasks.removeValue(forKey: id)?.cancel()
+            open[id] = nil
+        }
+        index.removeAll { old.contains($0.id) }
+        Task {
+            for id in old { try? await store.delete(id) }
+            await reloadIndex()
+        }
+        return old.count
+    }
 
     // MARK: - Modifications
 
@@ -139,7 +161,8 @@ final class ChatStore {
 
     // MARK: - Envoi et réponse
 
-    func send(_ id: String, text: String, context: String? = nil) {
+    /// Envoie `text`. `voice` : le message a été dicté (la réponse sera lue).
+    func send(_ id: String, text: String, context: String? = nil, voice: Bool = false) {
         guard let c = open[id], !isRunning(id) else { return }
         let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
@@ -156,7 +179,8 @@ final class ChatStore {
             c.updated = Date()
         }
         speech?.stopSpeaking()
-        respond(id, agent: agent, by: by, context: context)
+        let speak = ChatLogic.speaks(voice: voice, speakReplies: settings.speakReplies, text: text)
+        respond(id, agent: agent, by: by, context: context, speak: speak)
     }
 
     /// Refait la dernière réponse.
@@ -187,7 +211,7 @@ final class ChatStore {
         speech?.stopSpeaking()
     }
 
-    private func respond(_ id: String, agent: Agent?, by: String?, context: String?) {
+    private func respond(_ id: String, agent: Agent?, by: String?, context: String?, speak: Bool = false) {
         guard let c = open[id] else { return }
         let ref = settings.resolve(agent?.model ?? c.model)
         guard let provider = settings.provider(ref.providerId) else { return }
@@ -206,8 +230,9 @@ final class ChatStore {
         let runId = UUID()
         runIds[id] = runId
         let price = Catalog.price(provider: provider.id, model: ref.model)
-        let options = LLMOptions(temperature: settings.useTemperature ? settings.temperature : nil, maxTokens: level.maxTokens, level: level)
-        let speak = settings.speakReplies
+        let options = LLMOptions(temperature: settings.temperature, maxTokens: level.maxTokens, level: level)
+        let speech = self.speech
+        speech?.rate = settings.voiceRate
         let llm = self.llm
 
         tasks[id] = Task { @MainActor [weak self] in
@@ -233,7 +258,8 @@ final class ChatStore {
                     c.messages[i].cost = price?.cost(tin, tout)
                     c.updated = Date()
                 }
-                if speak, let speech = self.speech {
+                // La lecture à voix haute avance phrase par phrase pendant la réponse.
+                if speak, failed == nil, let speech {
                     spoken = speech.speakNew(text, from: spoken, all: final)
                 }
             }
@@ -285,19 +311,46 @@ final class ChatStore {
                 break
             }
             guard let self else { return }
+            let stopped = Task.isCancelled || self.runIds[id] != runId
             if let failed {
                 let msg = failed.localizedDescription
                 text = text.isEmpty ? msg : text + "\n\n⚠️ " + msg
             }
             flush(final: true)
             if failed != nil {
+                // Une réponse interrompue n'affiche pas de faux compteur.
                 self.mutate(id, now: true) { c in
-                    if let i = c.messages.firstIndex(where: { $0.id == answerId }) { c.messages[i].error = true }
+                    if let i = c.messages.firstIndex(where: { $0.id == answerId }) {
+                        c.messages[i].error = true
+                        c.messages[i].tokensIn = 0
+                        c.messages[i].tokensOut = 0
+                        c.messages[i].cost = nil
+                    }
                 }
             }
-            // Arrêtée en route avant tout texte : la bulle vide disparaît.
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && thinking.isEmpty {
-                self.mutate(id, now: true) { c in c.messages.removeAll { $0.id == answerId } }
+            if stopped {
+                // Arrêtée en route avant tout texte : la bulle vide disparaît.
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && thinking.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.mutate(id, now: true) { c in c.messages.removeAll { $0.id == answerId } }
+                }
+            } else if failed == nil && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                // Finie sans rien : le modèle est sans doute indisponible.
+                self.mutate(id, now: true) { c in
+                    if let i = c.messages.firstIndex(where: { $0.id == answerId }) {
+                        c.messages[i].error = true
+                        c.messages[i].content = ChatLogic.emptyAnswer(model: ref.model, provider: provider.name)
+                        c.messages[i].tokensIn = 0
+                        c.messages[i].tokensOut = 0
+                        c.messages[i].cost = nil
+                    }
+                }
+            } else if speak && failed == nil, let speech {
+                // Tout est lu : la conversation vocale peut écouter de nouveau.
+                speech.enqueue("") { [weak self] in
+                    guard let self else { return }
+                    self.spokenTurn = (id, (self.spokenTurn?.count ?? 0) + 1)
+                }
             }
             // Une nouvelle réponse a pu démarrer entre-temps : on ne touche qu'à la sienne.
             if self.runIds[id] == runId {

@@ -90,6 +90,14 @@ public struct ModelCatalog: Sendable, Hashable {
         providers[providerId]?.first { $0.id == model }
     }
 
+    /// Le prix d'un modèle dans le catalogue, s'il est connu.
+    public func price(_ providerId: String, _ model: String) -> ModelPrice? {
+        let m = model.lowercased()
+        guard let c = providers[providerId]?.first(where: { $0.id.lowercased() == m }),
+              let i = c.input, let o = c.output else { return nil }
+        return ModelPrice(input: i, output: o)
+    }
+
     /// Les prix du catalogue, par fournisseur (identifiants en minuscules).
     public var prices: [String: [String: ModelPrice]] {
         providers.mapValues { list in
