@@ -261,7 +261,7 @@ struct InstallAgentsView: View {
         .buttonStyle(.plain)
     }
 
-    private func itemRow(_ item: LibraryItem) -> some View {
+    private func itemRow(_ item: NexoraKit.LibraryItem) -> some View {
         let on = selected.contains(item.key)
         var details = [item.kind.label()]
         if let plugin = item.plugin { details.append("plugin \(plugin)") }
@@ -328,7 +328,7 @@ struct InstallAgentsView: View {
         }
     }
 
-    private func installSelected(_ items: [LibraryItem]) async {
+    private func installSelected(_ items: [NexoraKit.LibraryItem]) async {
         let todo = items.filter { selected.contains($0.key) }
         let api = github.api
         busy = true

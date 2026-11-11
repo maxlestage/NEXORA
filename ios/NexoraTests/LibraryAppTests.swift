@@ -19,9 +19,9 @@ struct LibraryAppTests {
     func persistence() {
         let d = freshDefaults()
         let lib = AgentLibrary(defaults: d)
-        let skill = LibraryItem(kind: .skill, owner: "o", repo: "r", ref: "main", path: "skills/pdf/SKILL.md", files: ["a.py"])
-        let command = LibraryItem(kind: .command, owner: "o", repo: "r", ref: "main", path: "commands/review.md")
-        let agent = LibraryItem(kind: .agent, owner: "o", repo: "r", ref: "main", path: "agents/secu.md")
+        let skill = NexoraKit.LibraryItem(kind: .skill, owner: "o", repo: "r", ref: "main", path: "skills/pdf/SKILL.md", files: ["a.py"])
+        let command = NexoraKit.LibraryItem(kind: .command, owner: "o", repo: "r", ref: "main", path: "commands/review.md")
+        let agent = NexoraKit.LibraryItem(kind: .agent, owner: "o", repo: "r", ref: "main", path: "agents/secu.md")
         #expect(lib.install(skill, text: "---\nname: pdf\ndescription: Crée des PDF\n---\nCorps"))
         #expect(lib.install(command, text: "Relis $ARGUMENTS"))
         #expect(lib.install(agent, text: "---\nname: Sécu Pro\n---\nTu audites."))

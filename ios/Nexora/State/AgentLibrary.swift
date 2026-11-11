@@ -124,14 +124,14 @@ final class AgentLibrary {
     func removeCommand(_ id: String) { update { $0.removeCommand(id) } }
 
     /// Est-il déjà installé (même fichier source) ?
-    func isInstalled(_ item: LibraryItem) -> Bool { library.isInstalled(item) }
+    func isInstalled(_ item: NexoraKit.LibraryItem) -> Bool { library.isInstalled(item) }
 
     /// Installe un élément d'un dépôt dont le fichier est déjà lu.
     @discardableResult
-    func install(_ item: LibraryItem, text: String) -> Bool { update { $0.install(item, text: text) } }
+    func install(_ item: NexoraKit.LibraryItem, text: String) -> Bool { update { $0.install(item, text: text) } }
 
     /// Télécharge et installe un élément d'un dépôt (le réinstaller le met à jour).
-    func installItem(_ api: GitHubAPI, _ item: LibraryItem) async -> Bool {
+    func installItem(_ api: GitHubAPI, _ item: NexoraKit.LibraryItem) async -> Bool {
         guard let text = try? await api.libraryRawFile(item.owner, item.repo, ref: item.ref, path: item.path) else { return false }
         return install(item, text: text)
     }
