@@ -23,7 +23,8 @@ const Map<String, String> agentTools = {
   'search_code':
       'Cherche un texte dans le CONTENU de tous les fichiers du dépôt : rend '
       'chaque ligne qui le contient (fichier:ligne: texte). Le meilleur moyen de '
-      'trouver où modifier. args: {"query": "texte exact", "path": "dossier '
+      'trouver où modifier. Une expression régulière marche aussi (« async fn .* '
+      '-> String »). args: {"query": "texte exact", "path": "dossier '
       'facultatif"}',
   'edit_file':
       'Modifie un passage d\'un fichier sans le réécrire (idéal pour les longs '
@@ -2789,6 +2790,29 @@ class AgentRun extends ChangeNotifier {
   /// Fichiers parcourus au plus par une recherche.
   static const searchLimit = 300;
 
+  static final _regexSigns = RegExp(
+    r'\.[*+?]|\\[sSwWdDb.()\[\]{}|*+?^$]|\||\(\?|^\^|\$$|[\w)\]]\{\d',
+  );
+
+  /// Une recherche écrite comme une expression régulière (« async fn .* ->
+  /// String », « get|post », « ^use »), compilée sans tenir compte des
+  /// majuscules ; null pour un texte simple, une expression invalide ou une
+  /// expression qui trouverait n'importe quelle ligne (« a || b »).
+  static RegExp? regexQuery(String query) {
+    if (!_regexSigns.hasMatch(query)) return null;
+    try {
+      // « (?i) » (sans majuscules, à la Python ou Rust) : déjà le cas ici, et
+      // Dart ne le comprend pas.
+      final re = RegExp(
+        query.replaceFirst(RegExp(r'^\(\?i\)'), ''),
+        caseSensitive: false,
+      );
+      return re.hasMatch('') ? null : re;
+    } on FormatException {
+      return null;
+    }
+  }
+
   /// Cherche un texte dans le contenu des fichiers (comme grep), sans dépendre de
   /// la recherche de GitHub (qui exige un compte, ignore les branches et les
   /// dépôts récents).
@@ -2841,6 +2865,14 @@ class AgentRun extends ChangeNotifier {
     ];
     var hits = find((l) => l.contains(q));
     var note = '';
+    // « async fn .* -> String », « fn (get|post) » : le modèle écrit souvent
+    // une expression régulière. Lue mot à mot, elle ne trouvait jamais rien et
+    // l'agent répétait la même recherche en tournant en rond.
+    final re = hits.isEmpty ? regexQuery(query) : null;
+    if (re != null) {
+      hits = find(re.hasMatch);
+      if (hits.isNotEmpty) note = ' (lu comme une expression régulière)';
+    }
     if (hits.isEmpty && words.length > 1) {
       hits = find((l) => words.every(l.contains));
       if (hits.isNotEmpty) note = ' (tous les mots, pas forcément côte à côte)';
@@ -3257,7 +3289,10 @@ class AgentRun extends ChangeNotifier {
         if (text == null) return problem!;
         RegExp re;
         try {
-          re = RegExp(pattern, caseSensitive: false);
+          re = RegExp(
+            pattern.replaceFirst(RegExp(r'^\(\?i\)'), ''),
+            caseSensitive: false,
+          );
         } catch (_) {
           re = RegExp(RegExp.escape(pattern), caseSensitive: false);
         }
