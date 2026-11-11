@@ -413,7 +413,7 @@ struct ProviderDetailView: View {
         defer { testing = false }
         let start = ContinuousClock.now
         do {
-            let answer = try await LLMClient().complete(
+            let (answer, _) = try await LLMClient().complete(
                 provider: current, apiKey: settings.key(p.id), model: first.id,
                 messages: [LLMMessage("user", "Réponds seulement « OK NEXORA » et rien d'autre.")],
                 options: LLMOptions(maxTokens: 1024)
