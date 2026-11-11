@@ -172,14 +172,17 @@ public enum LooseJSON {
                 stack.append(c)
                 out.append(c)
             } else if c == "}" || c == "]" {
-                // Une virgule juste avant la fermeture : retirée.
-                var sofar = String(out)
-                while let last = sofar.unicodeScalars.last, space.contains(last) {
-                    sofar.unicodeScalars.removeLast()
+                // Une virgule juste avant la fermeture : retirée (avec les blancs qui
+                // la suivent). Lu depuis la fin, sans recopier tout le texte écrit.
+                var end = out.endIndex
+                while end > out.startIndex {
+                    let before = out.index(before: end)
+                    guard space.contains(out[before]) else { break }
+                    end = before
                 }
-                if sofar.hasSuffix(",") {
-                    sofar.removeLast()
-                    out = sofar.unicodeScalars
+                if end > out.startIndex {
+                    let comma = out.index(before: end)
+                    if out[comma] == "," { out.removeSubrange(comma...) }
                 }
                 out.append(c)
                 if !stack.isEmpty { stack.removeLast() }
