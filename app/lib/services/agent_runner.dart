@@ -3037,6 +3037,18 @@ class AgentRun extends ChangeNotifier {
     return false;
   }
 
+  /// [query] est un nom de code composé (« format_octets », « formatDuree »,
+  /// « Slug::new ») et non un simple mot ou une phrase : introuvable, il
+  /// n'existe pas encore.
+  static bool isNewName(String query) {
+    final q = query.trim();
+    if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*$')
+        .hasMatch(q)) {
+      return false;
+    }
+    return RegExp(r'[A-Za-z0-9]_[A-Za-z0-9]|[a-z0-9][A-Z]|::').hasMatch(q);
+  }
+
   /// Les mots d'une ligne trouvée qui contiennent [q] (« outils »).
   static Iterable<String> otherWords(String hit, String q) =>
       RegExp(r'[\p{L}\p{N}_]+', unicode: true)
@@ -3053,6 +3065,9 @@ class AgentRun extends ChangeNotifier {
     // (une constante, une fonction dans un autre fichier).
     if (prefix.isNotEmpty && here.$2 <= 2) {
       final all = await _grepIn(query, '');
+      // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
+      // à créer est signalé comme tel, pas seulement « dans ce dossier »).
+      if (here.$2 == 0 && all.$2 == 0 && isNewName(query)) return all.$1;
       if (all.$2 > here.$2) {
         return '${here.$1}\n\nDans tout le dépôt (pas seulement $prefix) :\n${all.$1}';
       }
@@ -3171,6 +3186,26 @@ class AgentRun extends ChangeNotifier {
             '\nNe refais pas cette recherche : si la demande l\'implique, crée-le '
             '(write_file), en suivant l\'organisation des fichiers existants.'
             '$limited',
+        0,
+      );
+    }
+    // Un nom de code (« format_octets », « formatDuree ») introuvable dans
+    // tout le dépôt n'existe pas encore : c'est souvent ce que la demande dit
+    // de créer. Essai réel (« ajoute format_octets ») : la réponse « Essaie un
+    // mot plus court » invitait l'agent à chercher encore ce qu'il devait
+    // justement écrire.
+    if (hits.isEmpty &&
+        prefix.isEmpty &&
+        files.length <= searchLimit &&
+        !_stop &&
+        isNewName(query)) {
+      return (
+        'Aucune ligne ne contient « $query » (${texts.length} fichiers '
+            'parcourus, tout le dépôt) : « $query » n\'existe pas encore.'
+            '${names.isEmpty ? '' : '\nFichiers dont le nom correspond :\n${names.join('\n')}'}'
+            '\nNe le cherche plus : si la demande dit de le créer, crée-le '
+            'maintenant (write_file ou edit_file), à l\'endroit demandé ou en '
+            'suivant l\'organisation des fichiers existants.',
         0,
       );
     }
