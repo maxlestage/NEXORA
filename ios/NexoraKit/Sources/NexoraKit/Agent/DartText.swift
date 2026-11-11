@@ -225,11 +225,30 @@ final class DRegex: @unchecked Sendable {
 
     /// Rend `nil` si l'expression est invalide.
     init?(try pattern: String, caseSensitive: Bool = true) {
+        guard let r = DRegex.compiled(pattern, caseSensitive: caseSensitive) else { return nil }
+        re = r
+    }
+
+    /// Les expressions déjà compilées. Compiler coûte bien plus que chercher, et la
+    /// plupart des expressions sont écrites dans le code et reviennent sans cesse
+    /// (à chaque ligne du journal affichée, à chaque fichier vérifié…). Une
+    /// `NSRegularExpression` ne change plus une fois créée : elle se partage entre
+    /// fils. Le cache est vidé s'il grossit trop (expressions tirées de recherches).
+    private static let cache = Locked<[String: NSRegularExpression]>([:])
+    static let cacheLimit = 512
+
+    private static func compiled(_ pattern: String, caseSensitive: Bool) -> NSRegularExpression? {
+        let key = (caseSensitive ? "s:" : "i:") + pattern
+        if let r = cache.update({ $0[key] }) { return r }
         guard let r = try? NSRegularExpression(
-            pattern: DRegex.ascii(pattern),
+            pattern: ascii(pattern),
             options: caseSensitive ? [] : [.caseInsensitive]
         ) else { return nil }
-        re = r
+        cache.update { entries in
+            if entries.count >= cacheLimit { entries.removeAll(keepingCapacity: true) }
+            entries[key] = r
+        }
+        return r
     }
 
     /// Une expression écrite dans le code (forcément valide).

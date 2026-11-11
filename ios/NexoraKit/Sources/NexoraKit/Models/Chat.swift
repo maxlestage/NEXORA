@@ -215,27 +215,48 @@ public func newId() -> String {
 }
 
 /// Dates au format ISO 8601 (avec ou sans fractions de seconde, comme Dart).
+/// Créer un formateur coûte cher (bien plus que s'en servir) : ils sont créés une
+/// fois et partagés, sous verrou (une conversation de 600 messages en lisait 600).
 enum ISO8601 {
+    private final class Formatters {
+        let fractional: ISO8601DateFormatter = {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return f
+        }()
+        let plain: ISO8601DateFormatter = {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime]
+            return f
+        }()
+        /// Dart écrit l'heure locale sans fuseau : « 2026-11-11T08:30:00.123456 ».
+        let local: [DateFormatter] = ["yyyy-MM-dd'T'HH:mm:ss.SSSSSS", "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss"]
+            .map { format in
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = format
+                return f
+            }
+    }
+
+    private static let shared = Locked(Formatters())
+
     static func string(_ d: Date) -> String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f.string(from: d)
+        shared.update { $0.fractional.string(from: d) }
     }
 
     static func parse(_ s: String?) -> Date? {
         guard let s, !s.isEmpty else { return nil }
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return d }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: s) { return d }
-        // Dart écrit l'heure locale sans fuseau : « 2026-11-11T08:30:00.123456 ».
-        let local = DateFormatter()
-        local.locale = Locale(identifier: "en_US_POSIX")
-        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSSSS", "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss"] {
-            local.dateFormat = format
-            if let d = local.date(from: s) { return d }
+        return shared.update { f in
+            if let d = f.fractional.date(from: s) { return d }
+            if let d = f.plain.date(from: s) { return d }
+            // L'heure locale du moment (comme un formateur créé à l'instant).
+            let zone = TimeZone.current
+            for local in f.local {
+                if local.timeZone != zone { local.timeZone = zone }
+                if let d = local.date(from: s) { return d }
+            }
+            return nil
         }
-        return nil
     }
 }

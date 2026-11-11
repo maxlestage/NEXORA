@@ -100,9 +100,10 @@ final class ChatStore {
     // MARK: - Modifications
 
     private func mutate(_ id: String, now: Bool = false, _ f: (inout Conversation) -> Void) {
-        guard var c = open[id] else { return }
-        f(&c)
-        open[id] = c
+        guard open[id] != nil else { return }
+        // Modifiée sur place : la recopier puis la remettre dupliquait tout le
+        // tableau des messages à chaque morceau d'une réponse (toutes les 60 ms).
+        f(&open[id]!)
         scheduleSave(id, now: now)
     }
 
@@ -277,7 +278,11 @@ final class ChatStore {
         trimmed[id] = dropped
         // Les photos des derniers messages partent avec eux (dans un budget limité).
         let files = imageFiles
-        let history = ChatImages.attach(plain, from: c.messages, dropped: dropped, load: { files.llmImage($0) })
+        // Elles sont lues sur le disque et encodées en base64 (jusqu'à 15 Mo) hors du
+        // fil principal, au début de la tâche de réponse. Sans image, l'historique
+        // part tel quel (ce que rendrait `attach`).
+        let source = c.messages
+        let withImages = source.contains { !$0.images.isEmpty }
         let system = ChatLogic.systemPrompt(
             agent: agent, personal: settings.personalSystem(), customInstructions: settings.customInstructions,
             level: level,
@@ -300,6 +305,14 @@ final class ChatStore {
         let onHeaders = usage?.headersHandler(providerId: provider.id)
 
         tasks[id] = Task { @MainActor [weak self] in
+            let history: [LLMMessage]
+            if withImages {
+                history = await Task.detached {
+                    ChatImages.attach(plain, from: source, dropped: dropped, load: { files.llmImage($0) })
+                }.value
+            } else {
+                history = plain
+            }
             var text = ""
             var thinking = ""
             var tokens = TokenUsage.zero
@@ -313,7 +326,8 @@ final class ChatStore {
                 let tin = tokens.input > 0 ? tokens.input : (inputChars + 3) / 4
                 let tout = tokens.output > 0 && final ? tokens.output : (text.count + thinking.count + 3) / 4
                 self.mutate(id, now: final) { c in
-                    guard let i = c.messages.firstIndex(where: { $0.id == answerId }) else { return }
+                    // La réponse est à la fin : cherchée depuis la fin.
+                    guard let i = c.messages.lastIndex(where: { $0.id == answerId }) else { return }
                     c.messages[i].content = text
                     c.messages[i].thinking = thinking
                     c.messages[i].tokensIn = tin
