@@ -289,4 +289,87 @@ async fn version_route_returns_version() {
     expect(seen[1], contains('appelle app()'));
     expect(seen[1], contains('site/src/main.rs'));
   });
+
+  // Le test réellement écrit par Pollinations pour « ajoute une route /sante
+  // en texte brut, avec un test » : l'import ne rend pas app() visible.
+  const santeTest = '''
+use nexora_site::app;
+
+#[tokio::test]
+async fn sante_route_returns_ok() {
+    let client = app().test().await;
+    let res = client.get("/sante").await;
+    assert_eq!(res.status(), 200);
+}
+''';
+  const libRs = 'use paquets::prelude::*;\n\npub mod contenu;\n';
+
+  test('essai réel : « use nom_du_crate::app » ne cache plus qu\'app() est '
+      'dans main.rs', () {
+    final hint = AgentRun.rustTestHint(
+      'site/tests/sante_test.rs',
+      santeTest,
+      cargo: _cargo,
+      mainRs: mainRs,
+      libRs: libRs,
+    );
+    expect(hint, contains('appelle app()'));
+    expect(hint, contains('site/src/main.rs'));
+    expect(hint, contains('delete_file'));
+    // Pas de src/lib.rs du tout : l'import ne peut pas marcher non plus.
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/sante_test.rs',
+        santeTest,
+        cargo: _cargo,
+        mainRs: mainRs,
+      ),
+      contains('appelle app()'),
+    );
+  });
+
+  test('app() vraiment dans la bibliothèque, ou importé d\'une dépendance : '
+      'rien à signaler', () {
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/sante_test.rs',
+        santeTest,
+        cargo: _cargo,
+        mainRs: mainRs,
+        libRs: '$libRs\npub fn app() -> App { App::new() }\n',
+      ),
+      isNull,
+    );
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/a.rs',
+        'use autre_crate::app;\n#[test]\nfn t() { app(); }\n',
+        cargo: _cargo,
+        mainRs: mainRs,
+        libRs: libRs,
+      ),
+      isNull,
+    );
+  });
+
+  test('essai réel : write_file de ce test, le modèle est prévenu', () async {
+    final (llm, seen) = scripted([
+      '```json\n{"tool":"write_file","args":{"path":"site/tests/sante_test.rs",'
+          '"content":${jsonEncode(santeTest)}}}\n```',
+    ]);
+    final run = AgentRun(
+      llm: llm,
+      github: fake(main: mainRs),
+      provider: providersCatalog.firstWhere((p) => p.id == 'pollinations'),
+      apiKey: null,
+      model: 'openai',
+      owner: 'max',
+      repo: 'NEXORA',
+      branch: 'master',
+      task: 'Dans site/, ajoute une route /sante en texte brut, avec un test',
+    )..specs.add('déjà compris');
+    await run.run();
+    expect(seen[1], contains('enregistré en brouillon'));
+    expect(seen[1], contains('appelle app()'));
+  });
 }
