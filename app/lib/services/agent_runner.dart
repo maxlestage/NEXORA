@@ -502,6 +502,30 @@ String lostContentNote(String path) =>
     '$path avec le contenu complet dans args "content", ou dans un bloc de code '
     'juste après le bloc JSON, dans la même réponse.';
 
+/// Les lignes du fichier d'origine ([original]), encore présentes dans sa
+/// version actuelle ([current]), que [content] ferait disparaître — quand il en
+/// efface la plupart : write_file remplace tout le fichier, et un modèle qui
+/// n'y met que la fonction ajoutée efface tout le reste. `null` sinon.
+///
+/// Seules les lignes porteuses (au moins quatre caractères dont une lettre ou
+/// un chiffre) comptent ; les lignes que l'agent a déjà retirées lui-même
+/// (absentes de [current]) ne comptent pas.
+List<String>? erasedLines(String original, String current, String content) {
+  bool real(String l) => l.length >= 4 && RegExp(r'[A-Za-z0-9À-ÿ]').hasMatch(l);
+  final kept = content.split('\n').map((l) => l.trim()).toSet();
+  final now = current.split('\n').map((l) => l.trim()).toSet();
+  final lines = <String>{
+    for (final l in original.split('\n'))
+      if (real(l.trim()) && now.contains(l.trim())) l.trim(),
+  };
+  if (lines.length < 5) return null;
+  final gone = [
+    for (final l in lines)
+      if (!kept.contains(l)) l,
+  ];
+  return gone.length * 2 > lines.length ? gone : null;
+}
+
 /// Les tournures d'un résumé qui laisse du travail de côté.
 final unfinishedWork = RegExp(
   r"je (pourrais|peux aussi|pourrai)|si tu (le )?(veux|souhaites)|si vous (le )?"
@@ -4053,6 +4077,15 @@ class AgentRun extends ChangeNotifier {
         if (where == null || where.$2.isEmpty) return _mountHint;
         // Garde-fou : remplacer un long fichier par un texte bien plus court est
         // presque toujours une erreur (fichier lu en partie). On refuse.
+        // Le fichier d'origine est lu s'il ne l'a pas encore été (pour les
+        // garde-fous ci-dessous).
+        if (!changes.containsKey(p)) {
+          try {
+            await _current(p);
+          } catch (_) {
+            // GitHub injoignable : le fichier est écrit sans ces vérifications.
+          }
+        }
         final before = changes.containsKey(p) ? changes[p] : originals[p];
         if (before != null &&
             before.length > 8000 &&
@@ -4062,6 +4095,35 @@ class AgentRun extends ChangeNotifier {
               '${content.length} : la fin du fichier serait perdue. Utilise '
               'edit_file pour ne changer qu\'un passage (ou "force": true si tu '
               'veux vraiment le raccourcir).';
+        }
+        // Le contenu efface la plupart du code existant : le modèle n'a
+        // souvent écrit que son ajout (une fonction), et tout le reste du
+        // fichier disparaîtrait. On refuse, avec la bonne façon d'ajouter.
+        final original = originals[p];
+        final gone = original == null || before == null
+            ? null
+            : erasedLines(original, before, content);
+        if (gone != null && call.args['force'] != true) {
+          final total = erasedLines(original!, before!, '')!.length;
+          // Les lignes les plus parlantes d'abord : du code, pas un commentaire.
+          bool note(String l) => RegExp(r'^(//|#|\*|/\*|<!--)').hasMatch(l);
+          final shown =
+              ([...gone]..sort(
+                    (a, b) => note(a) != note(b)
+                        ? (note(a) ? 1 : -1)
+                        : b.length.compareTo(a.length),
+                  ))
+                  .take(3)
+                  .map((l) => '« $l »')
+                  .join(', ');
+          return 'ERREUR : rien n\'est écrit. write_file REMPLACE tout $p : ce '
+              'contenu effacerait ${gone.length} des $total lignes de code '
+              'existantes ($shown…). Pour AJOUTER du code, utilise edit_file '
+              '(dans "old" la ligne exacte après laquelle insérer, dans "new" '
+              'cette ligne suivie de l\'ajout) ou write_file avec "at_end": true '
+              'et seulement le texte ajouté. Pour réécrire le fichier, donne son '
+              'contenu COMPLET (le code existant gardé). Seulement si la demande '
+              'est de supprimer ce code : "force": true.';
         }
         changes[p] = tidyCode(
           p,

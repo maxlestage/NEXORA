@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.82 — 11 novembre 2026 — L'agent n'efface plus le code existant
+- Corrigé : en essai réel, pour « ajoute une fonction diffStats dans diff.dart », l'agent réécrivait le fichier avec seulement la nouvelle fonction. Tout le reste (DiffResult, lineDiff…) disparaissait du brouillon, sans aucune alerte.
+- Quand un contenu effacerait la plupart du code d'un fichier existant, rien n'est écrit : l'agent apprend quelles lignes il allait perdre et comment ajouter son code (à un endroit précis, ou à la fin).
+- Le fichier d'origine est maintenant vérifié même quand l'agent ne l'a pas lu avant de l'écrire.
+- Rien ne change pour une réécriture qui garde le code, pour un nouveau fichier, ni pour du code que l'agent a déjà retiré exprès ; une suppression vraiment demandée reste possible.
+
 ## 2.2.81 — 11 novembre 2026 — L'agent écrit des lignes que dart format accepte
 - Corrigé : en essai réel, pour « ajoute un getter totalWords », l'agent écrivait une ligne Dart de 86 caractères. Quand la CI vérifie « dart format », elle échouait en disant seulement « Changed lib/models/chat.dart », sans dire quoi changer.
 - Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture du fichier, avec chaque ligne trop longue et la façon de la couper comme le formateur.
