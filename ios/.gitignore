@@ -1,0 +1,7 @@
+# Générés par XcodeGen (`xcodegen generate`) et par SwiftPM.
+Nexora.xcodeproj/
+Nexora/Info.plist
+NexoraKit/.build/
+NexoraKit/.swiftpm/
+build/
+DerivedData/
