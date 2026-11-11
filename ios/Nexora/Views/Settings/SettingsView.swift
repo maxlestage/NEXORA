@@ -1,194 +1,218 @@
 import NexoraKit
 import SwiftUI
+import UIKit
 
-/// Les réglages : modèle et effort par défaut, mémoire, personnalisation, voix,
-/// apparence, données, nouveautés.
+/// L'onglet Réglages (`ui/settings/settings_screen.dart`) : aide, personnalisation,
+/// modèle par défaut, GitHub, données (place, ménage, export), à propos.
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(ChatStore.self) private var chats
+    @Environment(AgentLibrary.self) private var agents
+    @Environment(GitHubSession.self) private var github
     @State private var pickModel = false
     @State private var confirmDelete = false
     @State private var confirmReset = false
+    @State private var cleaning = false
+    @State private var editingClientId = false
+    @State private var clientId = ""
+    @State private var size: Int?
+    @State private var toast: Toast?
+
+    /// L'auteur de NEXORA.
+    static let author = "Maxime Nathan Lestage"
 
     var body: some View {
-        @Bindable var settings = settings
         NavigationStack {
-            Form {
-                Section("Réponses") {
+            List {
+                Section {
+                    NavigationLink {
+                        HelpView()
+                    } label: {
+                        card("🧭", "Aide et guides", "Clés gratuites, crédit, Ollama, agents, GitHub…")
+                    }
+                    NavigationLink {
+                        PersonalizeView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "paintpalette")
+                                .foregroundStyle(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Theme.gradient(settings.accent), in: .circle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Personnaliser").font(.subheadline.weight(.heavy))
+                                Text("Couleurs, thème, texte, animations, effort, messages, assistant, onglets…")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Modèle") {
                     Button {
                         pickModel = true
                     } label: {
-                        LabeledContent("Modèle par défaut", value: settings.resolve(nil).model)
+                        LabeledContent("Modèle par défaut", value: settings.displayName(settings.resolve(nil)))
                     }
-                    Picker("Effort par défaut", selection: $settings.defaultLevel) {
-                        ForEach(ThinkLevel.allCases) { l in
-                            Text("\(l.emoji) \(l.label)").tag(l)
+                }
+
+                Section("GitHub") {
+                    HStack {
+                        Label(github.connected ? "Connecté : @\(github.user?.login ?? "…")" : "Non connecté", systemImage: "person.crop.circle")
+                        Spacer()
+                        if github.connected {
+                            Button("Déconnexion") { github.signOut() }.buttonStyle(.borderless)
                         }
                     }
-                    Text(settings.defaultLevel.summary).font(.caption).foregroundStyle(.secondary)
-                    Picker("Mémoire de la conversation", selection: $settings.contextTokens) {
-                        Text("8 000 tokens").tag(8000)
-                        Text("32 000 tokens").tag(32000)
-                        Text("128 000 tokens").tag(128_000)
-                        Text("Tout").tag(0)
-                    }
-                    Toggle("Température personnalisée", isOn: $settings.useTemperature)
-                    if settings.useTemperature {
-                        VStack(alignment: .leading) {
-                            Slider(value: $settings.temperature, in: 0...2, step: 0.1)
-                            Text("Température : \(settings.temperature, specifier: "%.1f") (bas = précis, haut = créatif)").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    Toggle("Afficher le raisonnement", isOn: $settings.showThinking)
-                }
-
-                Section {
-                    NavigationLink("Personnaliser l'assistant") { PersonalizeView() }
-                }
-
-                Section("Voix et sensations") {
-                    Toggle("Lire les réponses à voix haute", isOn: $settings.speakReplies)
-                    Toggle("Retours haptiques", isOn: $settings.haptics)
-                }
-
-                Section("Apparence") {
-                    Picker("Thème", selection: $settings.theme) {
-                        Text("Système").tag("system")
-                        Text("Clair").tag("light")
-                        Text("Sombre").tag("dark")
-                    }
-                    Picker("Couleurs", selection: $settings.accent) {
-                        ForEach(Theme.palettes) { p in
-                            HStack {
-                                Circle().fill(LinearGradient(colors: p.colors, startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 18, height: 18)
-                                Text(p.name)
-                            }
-                            .tag(p.id)
+                    Button {
+                        clientId = settings.githubClientId
+                        editingClientId = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Client ID de l'OAuth App", systemImage: "app.connected.to.app.below.fill")
+                                .foregroundStyle(.primary)
+                            Text(settings.githubClientId.isEmpty ? "Pour « Se connecter avec GitHub » (flux device)" : settings.githubClientId)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
 
                 Section("Données") {
-                    LabeledContent("Conversations", value: "\(chats.index.count)")
-                    Button("Supprimer toutes les conversations", role: .destructive) { confirmDelete = true }
-                    Button("Tout réinitialiser (réglages et clés)", role: .destructive) { confirmReset = true }
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(chats.index.count) conversation\(chats.index.count > 1 ? "s" : "")")
+                                Text(size.map { "\(storageLabel($0)) sur l'appareil · messages chargés seulement à l'ouverture" } ?? "Calcul de la place…")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "internaldrive")
+                        }
+                        Spacer()
+                        Button {
+                            Task { size = await chats.sizeOnDisk() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Recalculer")
+                    }
+                    Button {
+                        cleaning = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Supprimer les anciennes conversations", systemImage: "sparkles.rectangle.stack")
+                            Text("Les conversations épinglées sont gardées").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Exporter mes agents (.md)", systemImage: "square.and.arrow.up") { exportAgents() }
+                    Button("Effacer toutes les conversations", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    Button(role: .destructive) {
+                        confirmReset = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Tout réinitialiser", systemImage: "exclamationmark.triangle")
+                            Text("Clés, jeton GitHub, agents, conversations").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 Section("À propos") {
-                    NavigationLink("Nouveautés") { WhatsNewView() }
-                    LabeledContent("Version", value: SettingsStore.appVersion)
-                    Link("Le site de NEXORA", destination: URL(string: "https://maxlestage.github.io/NEXORA/")!)
-                    Link("Code source sur GitHub", destination: URL(string: "https://github.com/maxlestage/NEXORA")!)
-                    Button("Revoir la présentation") { settings.onboarded = false }
+                    VStack(spacing: 6) {
+                        NexusOrb(size: 120, satellites: 8, interactive: false)
+                        GradientText("NEXORA", font: .title.weight(.black), tracking: 6)
+                        Text("Version \(SettingsStore.appVersion)").font(.caption).foregroundStyle(.secondary)
+                        Text("Conçu et développé par \(Self.author)")
+                            .font(.subheadline.weight(.bold))
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 6)
+                        Text("Aucun serveur intermédiaire : l'app parle directement aux fournisseurs et à GitHub. Vos clés restent sur l'appareil.")
+                            .font(.footnote)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    NavigationLink {
+                        WhatsNewView()
+                    } label: {
+                        Label("Nouveautés", systemImage: "sparkles")
+                    }
+                    Link(destination: URL(string: "https://github.com/maxlestage/NEXORA")!) {
+                        Label("Code source", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }
+                    Link(destination: URL(string: "https://maxlestage.github.io/NEXORA/")!) {
+                        Label("Le site de NEXORA", systemImage: "globe")
+                    }
+                    Button("Revoir la présentation", systemImage: "play.rectangle") { settings.onboarded = false }
                 }
             }
             .navigationTitle("Réglages")
+            .task { size = await chats.sizeOnDisk() }
             .sheet(isPresented: $pickModel) {
                 ModelPickerSheet(selected: settings.resolve(nil)) { settings.defaultModel = $0.key }
             }
-            .confirmationDialog("Supprimer toutes les conversations ?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Supprimer", role: .destructive) { chats.deleteAll() }
-            }
-            .confirmationDialog("Tout réinitialiser ?", isPresented: $confirmReset, titleVisibility: .visible) {
-                Button("Réinitialiser", role: .destructive) {
-                    settings.resetAll()
-                    chats.deleteAll()
+            .confirmationDialog("Supprimer les conversations inactives depuis…", isPresented: $cleaning, titleVisibility: .visible) {
+                ForEach([30, 90, 180, 365], id: \.self) { d in
+                    Button(d == 365 ? "1 an" : "\(d) jours") { clean(d) }
                 }
+            }
+            .alert("Effacer toutes les conversations ?", isPresented: $confirmDelete) {
+                Button("Annuler", role: .cancel) {}
+                Button("Confirmer", role: .destructive) { chats.deleteAll() }
+            }
+            .alert("Tout effacer de cet appareil ?", isPresented: $confirmReset) {
+                Button("Annuler", role: .cancel) {}
+                Button("Confirmer", role: .destructive) { resetAll() }
             } message: {
-                Text("Les réglages, les clés d'API et le jeton GitHub seront effacés de cet iPhone.")
+                Text("Action irréversible.")
+            }
+            .alert("OAuth App GitHub", isPresented: $editingClientId) {
+                TextField("Client ID", text: $clientId)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button("Annuler", role: .cancel) {}
+                Button("OK") { settings.githubClientId = clientId.trimmingCharacters(in: .whitespacesAndNewlines) }
+            } message: {
+                Text("GitHub → Settings → Developer settings → OAuth Apps → New. Cochez « Enable Device Flow », puis collez le Client ID (pas de secret nécessaire). L'app se crée sur github.com/settings/applications/new.")
+            }
+            .toast($toast)
+        }
+    }
+
+    private func card(_ emoji: String, _ title: String, _ text: String) -> some View {
+        HStack(spacing: 12) {
+            Text(emoji).font(.system(size: 26))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.heavy))
+                Text(text).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
-}
 
-/// Le nom de l'assistant et vos instructions personnelles.
-struct PersonalizeView: View {
-    @Environment(SettingsStore.self) private var settings
-
-    var body: some View {
-        @Bindable var settings = settings
-        Form {
-            Section("Nom de l'assistant") {
-                TextField("NEXORA", text: $settings.assistantName)
-            }
-            Section {
-                Toggle("Utiliser mes instructions", isOn: $settings.customInstructions)
-            }
-            Section {
-                TextEditor(text: $settings.aboutMe).frame(minHeight: 100)
-            } header: {
-                Text("À propos de vous")
-            } footer: {
-                Text("Métier, centres d'intérêt, langages préférés… L'assistant en tient compte dans ses réponses.")
-            }
-            Section {
-                TextEditor(text: $settings.responseStyle).frame(minHeight: 100)
-            } header: {
-                Text("Comment répondre")
-            } footer: {
-                Text("Ton, longueur, format (ex. « réponses courtes, exemples en Swift »).")
-            }
+    private func clean(_ days: Int) {
+        let n = chats.deleteOlderThan(days)
+        toast = Toast(text: n == 0 ? "Rien à supprimer (les épinglées sont gardées)." : "\(n) conversation(s) supprimée(s)")
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            size = await chats.sizeOnDisk()
         }
-        .navigationTitle("Personnaliser")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-/// Les nouveautés, lues dans le même fichier que le site et l'app Flutter.
-struct WhatsNewView: View {
-    private var text: String {
-        guard let url = Bundle.main.url(forResource: "nouveautes", withExtension: "md"),
-              let s = try? String(contentsOf: url, encoding: .utf8) else { return "Aucune nouveauté." }
-        // Sans le commentaire d'en-tête.
-        return s.replacingOccurrences(of: "<!--[\\s\\S]*?-->", with: "", options: .regularExpression)
     }
 
-    var body: some View {
-        ScrollView {
-            MarkdownView(text: text).padding()
+    private func exportAgents() {
+        let mine = agents.custom
+        guard !mine.isEmpty else {
+            toast = Toast(text: "Aucun agent perso à exporter.")
+            return
         }
-        .navigationTitle("Nouveautés")
-        .navigationBarTitleDisplayMode(.inline)
+        UIPasteboard.general.string = mine.map { $0.toMarkdown() }.joined(separator: "\n\n<!-- --- -->\n\n")
+        toast = Toast(text: "\(mine.count) agent(s) copiés")
     }
-}
 
-/// La présentation au premier lancement.
-struct OnboardingView: View {
-    @Environment(SettingsStore.self) private var settings
-    @State private var page = 0
-
-    private let pages: [(String, String, String)] = [
-        ("sparkles", "Toutes les IA dans votre poche", "Plus de 20 fournisseurs, dont des modèles gratuits. Pollinations répond tout de suite, sans clé ni compte."),
-        ("person.2.badge.gearshape", "Vos agents", "Des agents prêts à l'emploi, et les vôtres : créez-les ou importez-les depuis GitHub (format .claude/agents)."),
-        ("chevron.left.forwardslash.chevron.right", "Votre GitHub", "Parcourez et modifiez vos dépôts, gérez issues, pull requests et GitHub Actions depuis l'iPhone."),
-        ("lock.shield", "Vos clés restent chez vous", "Les clés d'API et le jeton GitHub sont rangés dans le trousseau de l'iPhone. Les conversations restent sur l'appareil."),
-    ]
-
-    var body: some View {
-        VStack {
-            TabView(selection: $page) {
-                ForEach(Array(pages.enumerated()), id: \.offset) { i, p in
-                    VStack(spacing: 20) {
-                        Image(systemName: p.0)
-                            .font(.system(size: 72))
-                            .foregroundStyle(Theme.gradient(settings.accent))
-                        Text(p.1).font(.title.bold()).multilineTextAlignment(.center)
-                        Text(p.2).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    }
-                    .padding(32)
-                    .tag(i)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
-            Button {
-                if page < pages.count - 1 { withAnimation { page += 1 } } else { settings.onboarded = true }
-            } label: {
-                Text(page < pages.count - 1 ? "Continuer" : "Commencer").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding()
-        }
+    private func resetAll() {
+        chats.deleteAll()
+        github.signOut()
+        settings.resetAll()
+        toast = Toast(text: "Réinitialisé. Relancez l'app.")
     }
 }
