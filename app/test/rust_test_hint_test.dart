@@ -35,7 +35,7 @@ mod tests {
 }
 ''';
 
-GitHubApi fake() => GitHubApi(
+GitHubApi fake({String? main}) => GitHubApi(
   't',
   client: MockClient((req) async {
     if (req.url.path.contains('/git/trees/')) {
@@ -44,6 +44,7 @@ GitHubApi fake() => GitHubApi(
           'tree': [
             {'path': 'site/Cargo.toml', 'type': 'blob'},
             {'path': 'site/src/lib.rs', 'type': 'blob'},
+            if (main != null) {'path': 'site/src/main.rs', 'type': 'blob'},
           ],
         }),
         200,
@@ -54,6 +55,16 @@ GitHubApi fake() => GitHubApi(
         jsonEncode({
           'sha': 's',
           'content': base64.encode(utf8.encode(_cargo)),
+          'encoding': 'base64',
+        }),
+        200,
+      );
+    }
+    if (main != null && req.url.path.endsWith('/contents/site/src/main.rs')) {
+      return http.Response(
+        jsonEncode({
+          'sha': 'm',
+          'content': base64.encode(utf8.encode(main)),
           'encoding': 'base64',
         }),
         200,
@@ -170,5 +181,112 @@ void main() {
     expect(seen[1], contains('enregistré en brouillon'));
     expect(seen[1], contains('test d\'intégration Rust'));
     expect(seen[1], contains('use nexora_site::'));
+  });
+
+  // Le test réellement écrit par Pollinations pour « ajoute une route
+  // /version au site, avec un test » : app() est dans src/main.rs.
+  const mainRs = '''
+fn app() -> App {
+    let mut app = App::new();
+    app.get("/version", version);
+    app
+}
+
+async fn version(_req: Request) -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tokio::main]
+async fn main() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}
+''';
+  const versionTest = '''
+use paquets::prelude::*;
+
+#[tokio::test]
+async fn version_route_returns_version() {
+    let client = app().test().await;
+    let res = client.get("/version").await;
+    assert_eq!(res.status(), 200);
+}
+''';
+
+  test('un test de tests/ qui appelle une fonction de main.rs est signalé, '
+      'avec la bonne place', () {
+    final hint = AgentRun.rustTestHint(
+      'site/tests/version_test.rs',
+      versionTest,
+      cargo: _cargo,
+      mainRs: mainRs,
+    );
+    expect(hint, contains('app()'));
+    expect(hint, contains('site/src/main.rs'));
+    expect(hint, contains('#[cfg(test)] mod tests'));
+    expect(hint, contains('delete_file'));
+    expect(hint, isNot(contains('version()')));
+  });
+
+  test('main.rs : ce qui est juste n\'est pas signalé', () {
+    // La fonction vient de la bibliothèque, importée.
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/a.rs',
+        'use nexora_site::app;\n#[test]\nfn t() { app(); }\n',
+        mainRs: mainRs,
+      ),
+      isNull,
+    );
+    // Définie dans le test lui-même, ou appelée par un chemin complet.
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/a.rs',
+        'fn app() {}\n#[test]\nfn t() { app(); nexora_site::version(); }\n',
+        mainRs: mainRs,
+      ),
+      isNull,
+    );
+    // Une méthode du même nom (client.get) ou un commentaire.
+    expect(
+      AgentRun.rustTestHint(
+        'site/tests/a.rs',
+        '// app() est dans main.rs\nfn t(c: C) { c.app(); }\n',
+        mainRs: mainRs,
+      ),
+      isNull,
+    );
+    // Un test dans src/ voit main.rs.
+    expect(
+      AgentRun.rustTestHint('site/src/a.rs', versionTest, mainRs: mainRs),
+      isNull,
+    );
+    // Pas de main.rs : rien à dire.
+    expect(AgentRun.rustTestHint('site/tests/a.rs', versionTest), isNull);
+  });
+
+  test('write_file d\'un test qui appelle main.rs : le modèle est prévenu '
+      'tout de suite', () async {
+    final (llm, seen) = scripted([
+      '```json\n{"tool":"write_file","args":{"path":"site/tests/version_test.rs",'
+          '"content":${jsonEncode(versionTest)}}}\n```',
+    ]);
+    final run = AgentRun(
+      llm: llm,
+      github: fake(main: mainRs),
+      provider: providersCatalog.firstWhere((p) => p.id == 'pollinations'),
+      apiKey: null,
+      model: 'openai',
+      owner: 'max',
+      repo: 'NEXORA',
+      branch: 'master',
+      task: 'Ajoute une route /version au site, avec un test',
+    )..specs.add('déjà compris');
+    await run.run();
+    expect(seen[1], contains('enregistré en brouillon'));
+    expect(seen[1], contains('appelle app()'));
+    expect(seen[1], contains('site/src/main.rs'));
   });
 }

@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.59 — 11 novembre 2026 — Les tests Rust de l'agent vont au bon endroit
+- Corrigé : dans un projet Rust, l'agent écrivait parfois un test dans le dossier « tests/ » qui appelait une fonction du programme principal (src/main.rs), par exemple « app() » pour tester une nouvelle route du site. Ce test ne peut pas compiler à cet endroit, et la CI échouait.
+- L'agent est prévenu dès qu'il écrit un tel test, avec la bonne place : le module de tests déjà présent dans src/main.rs, puis la suppression du fichier en trop.
+- Rien n'est signalé à tort : une fonction importée de la bibliothèque, définie dans le test lui-même ou appelée comme méthode reste acceptée.
+
 ## 2.2.58 — 11 novembre 2026 — Votre nouvelle instruction n'est plus perdue après un arrêt
 - Corrigé : quand une session s'arrêtait dès le départ (dépôt illisible, réseau coupé, arrêt pendant la lecture de la demande), l'instruction envoyée ensuite pour la relancer était ignorée sans prévenir : ni affichée, ni faite.
 - Elle s'affiche maintenant dans la session, est traduite en langage NEXORA et fait partie des demandes que l'agent doit faire entièrement, avec la mission de départ.
