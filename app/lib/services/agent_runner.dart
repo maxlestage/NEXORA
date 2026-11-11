@@ -319,9 +319,40 @@ List<ToolCall> parseToolCalls(String reply) {
     final raw = o['actions'] is List
         ? (o['actions'] as List).whereType<Map>().toList()
         : [o];
+    // Les arguments envoyés dans l'élément suivant de la liste, sans « tool »
+    // (essai réel : [{"tool":"edit_file","args":{"path":"README.md"}},
+    // {"old":"…","new":"…"}]) : ils étaient perdus, edit_file échouait
+    // (« il manque le texte ») et le modèle recommençait. Ils rejoignent les
+    // arguments de l'action qui les précède.
+    final merged = <Map<String, dynamic>>[];
     for (final a0 in raw) {
       final a = Map<String, dynamic>.from(a0);
       _normalizeAction(a);
+      final tool = canonicalTool(a['tool']?.toString());
+      if ((tool == null || tool.isEmpty) && merged.isNotEmpty) {
+        final prev = merged.last;
+        final given = prev['args'] ?? prev['arguments'] ?? prev['parameters'];
+        final args = given is Map
+            ? Map<String, dynamic>.from(given)
+            : given is String && given.trim().startsWith('{')
+            ? (_tryJson(given) ?? decodeToolArgs(given) ?? {'raw': given})
+            : <String, dynamic>{};
+        final extra = a['args'] is Map
+            ? Map<String, dynamic>.from(a['args'] as Map)
+            : a;
+        for (final e in extra.entries) {
+          if (e.key == 'thought' || e.key == 'tool') continue;
+          args.putIfAbsent(e.key, () => e.value);
+        }
+        prev
+          ..remove('arguments')
+          ..remove('parameters')
+          ..['args'] = args;
+        continue;
+      }
+      merged.add(a);
+    }
+    for (final a in merged) {
       final tool = canonicalTool(a['tool']?.toString());
       if (tool == null || tool.isEmpty) continue;
       // Les arguments écrits comme un texte JSON (« "args": "{\"path\": …}" ») :
