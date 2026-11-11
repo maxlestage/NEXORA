@@ -27,6 +27,8 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
     /// Une réponse calculée d'après la requête (n°, prompt complet, hôte) : prime
     /// sur la liste.
     var dynamic: (@Sendable (Int, String, String) -> Reply?)?
+    /// Une réponse calculée d'après la requête (n°, modèle demandé, dernier message).
+    var byModel: (@Sendable (Int, String, String) -> Reply?)?
     /// La raison d'arrêt envoyée à la fin de chaque réponse.
     var finish: String? = "stop"
     /// La réponse donnée quand la liste est épuisée (`nil` : une erreur).
@@ -96,6 +98,10 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
         }
         var reply: Reply?
         if let dyn { reply = dyn(n, Self.text(body), request.url?.host ?? "") }
+        if reply == nil, let f = lock.withLock({ byModel }) {
+            let last = (body["messages"] as? [[String: Any]])?.last?["content"] as? String ?? ""
+            reply = f(n, body["model"] as? String ?? "", last)
+        }
         if reply == nil {
             reply = lock.withLock { replies.isEmpty ? whenEmpty.map { .text($0) } : replies.removeFirst() }
         }
