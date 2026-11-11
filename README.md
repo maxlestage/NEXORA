@@ -334,10 +334,13 @@ sitemap).
 
 ## Version de test sur TestFlight (iPhone)
 
-Le workflow [`testflight.yml`](.github/workflows/testflight.yml) compile l'app iOS sur un Mac
-de GitHub, la signe et l'envoie sur TestFlight : pas besoin de Mac. Il se lance à chaque mise à
-jour de l'app sur `master` (donc après chaque fusion automatique), sur un tag `v*`, ou à la main
-(Actions → TestFlight → Run workflow). Tout se fait aussi depuis un iPhone, dans Safari.
+Le workflow [`testflight.yml`](.github/workflows/testflight.yml) compile l'**app iOS native**
+(Swift, dossier [`ios/`](ios/)) sur un Mac de GitHub, la signe et l'envoie sur TestFlight : pas
+besoin de Mac. Il se lance quand l'app iOS change sur `master` (donc après une fusion automatique
+qui la touche), sur un tag `v*`, ou à la main (Actions → TestFlight → Run workflow). Tout se fait
+aussi depuis un iPhone, dans Safari. L'ancien envoi de l'app Flutter sur iOS reste disponible à
+la main ([`testflight-flutter.yml`](.github/workflows/testflight-flutter.yml)) ; l'app Flutter
+reste l'app Android.
 
 1. **Compte développeur Apple** (99 $/an) : <https://developer.apple.com/programs/enroll/>.
    Notez votre **Team ID** (developer.apple.com → Account → Membership details).

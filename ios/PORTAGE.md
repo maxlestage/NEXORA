@@ -58,7 +58,7 @@ Légende : ✅ porté · 🟡 en partie · ⬜ à faire
 | Étape | État |
 |---|---|
 | CI : `swift test` sous Linux, `xcodebuild test` sur simulateur | ✅ |
-| Envoi sur TestFlight de l'app Swift (remplace l'app Flutter sur iOS) | 🟡 (workflow « TestFlight (Swift) », à lancer à la main ; l'envoi automatique reste celui de l'app Flutter) |
+| Envoi sur TestFlight de l'app Swift (remplace l'app Flutter sur iOS) | ✅ (testflight.yml envoie l'app Swift ; l'envoi de l'app Flutter, testflight-flutter.yml, est manuel) |
 
 ## Suivi de parité
 

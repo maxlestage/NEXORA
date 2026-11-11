@@ -1,7 +1,9 @@
-# Compile l'app iOS NATIVE (Swift, dossier ios/), la signe et l'envoie sur TestFlight,
-# sans Mac ni Xcode chez vous. Lancement à la main (Actions → TestFlight (Swift) → Run
-# workflow) : tant que la bascule n'est pas décidée, testflight.yml envoie l'app Flutter.
-# Même identifiant d'app : la version 3.x (Swift) remplace la 2.x (Flutter) chez les testeurs.
+# Ancien envoi de l'app FLUTTER sur TestFlight, gardé en secours et lancé seulement à la
+# main (Actions → TestFlight (Flutter) → Run workflow). L'app iOS envoyée aux testeurs est
+# désormais l'app Swift native (testflight.yml). Attention : un envoi d'ici remplace l'app
+# Swift chez les testeurs seulement si son numéro de version est plus élevé.
+#
+# Compile l'app iOS, la signe et l'envoie sur TestFlight, sans Mac ni Xcode chez vous.
 #
 # Secrets du dépôt (Settings → Secrets and variables → Actions) :
 #   APPLE_TEAM_ID    l'identifiant d'équipe Apple (10 caractères)
@@ -13,7 +15,7 @@
 # La clé (rôle Admin) permet à Xcode de créer lui-même certificats et profils : aucun
 # certificat à exporter. Sans les secrets, le workflow s'arrête proprement.
 
-name: TestFlight (Swift)
+name: TestFlight (Flutter)
 
 on:
   workflow_dispatch:
@@ -38,7 +40,7 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
       run:
-        working-directory: ios
+        working-directory: app
     steps:
       - name: Secrets présents ?
         id: secrets
@@ -53,6 +55,12 @@ jobs:
 
       - if: steps.secrets.outputs.ok == 'true'
         uses: actions/checkout@v7
+
+      - if: steps.secrets.outputs.ok == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
       - name: Clé d'API App Store Connect
         if: steps.secrets.outputs.ok == 'true'
@@ -163,31 +171,36 @@ jobs:
           # Ceux des builds précédents (« Created via API ») sont révoqués.
           python3 .github/scripts/asc_certs.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID"
 
-      - name: XcodeGen 2.46.0
+      - name: Équipe et identifiant de l'app dans le projet Xcode
         if: steps.secrets.outputs.ok == 'true'
         run: |
-          curl -sSfL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
-          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
-          "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate
+          # Seulement la cible Runner : une option en ligne de commande s'appliquerait
+          # aussi aux dépendances.
+          sed -i '' \
+            -e "s/PRODUCT_BUNDLE_IDENTIFIER = com\.maxlestage\.nexora;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID; DEVELOPMENT_TEAM = $TEAM_ID;/" \
+            -e "s/PRODUCT_BUNDLE_IDENTIFIER = com\.maxlestage\.nexora\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID.RunnerTests; DEVELOPMENT_TEAM = $TEAM_ID;/" \
+            ios/Runner.xcodeproj/project.pbxproj
+          grep -c "DEVELOPMENT_TEAM = $TEAM_ID" ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Archive signée (build n°${{ github.run_number }})
+      - name: Préparer le projet Flutter (build n°${{ github.run_number }})
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          flutter pub get
+          flutter build ios --release --config-only --build-number "$BUILD_NUMBER"
+
+      - name: Archive signée
         if: steps.secrets.outputs.ok == 'true'
         run: |
           xcodebuild archive \
-            -project Nexora.xcodeproj \
-            -scheme Nexora \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/Nexora.xcarchive" \
-            -skipPackagePluginValidation \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$TEAM_ID" \
-            IOS_BUNDLE_ID="$BUNDLE_ID" \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            GITHUB_CLIENT_ID="${{ vars.GITHUB_CLIENT_ID }}"
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
       - name: Envoi sur App Store Connect (TestFlight)
         if: steps.secrets.outputs.ok == 'true'
@@ -207,7 +220,7 @@ jobs:
           </plist>
           PLIST
           xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Nexora.xcarchive" \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \

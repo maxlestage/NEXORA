@@ -3,10 +3,14 @@ import SwiftUI
 
 /// Les versions publiées, lues dans le même fichier que le site et l'app Flutter.
 enum Releases {
+    /// Les nouveautés de l'app iOS (3.x), puis celles communes avec l'app Flutter.
     static let all: [Release] = {
-        guard let url = Bundle.main.url(forResource: "nouveautes", withExtension: "md"),
-              let s = try? String(contentsOf: url, encoding: .utf8) else { return [] }
-        return Changelog.parse(s)
+        func read(_ name: String) -> [Release] {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "md"),
+                  let s = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+            return Changelog.parse(s)
+        }
+        return Changelog.merged(read("nouveautes-ios"), read("nouveautes"))
     }()
 }
 

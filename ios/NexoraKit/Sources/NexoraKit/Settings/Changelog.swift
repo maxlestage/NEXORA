@@ -96,6 +96,15 @@ public enum Changelog {
         return 0
     }
 
+    /// Plusieurs fichiers de nouveautés réunis (l'app iOS 3.x et les versions
+    /// communes 2.x), du plus récent au plus ancien, sans doublon.
+    public static func merged(_ lists: [Release]...) -> [Release] {
+        var seen = Set<String>()
+        var out: [Release] = []
+        for r in lists.joined() where seen.insert(r.version).inserted { out.append(r) }
+        return out.sorted { compare($0.version, $1.version) > 0 }
+    }
+
     /// Les versions publiées depuis `seen` (la plus récente d'abord) ; au moins la
     /// dernière.
     public static func since(_ all: [Release], seen: String?) -> [Release] {
