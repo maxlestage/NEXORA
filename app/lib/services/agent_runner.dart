@@ -2566,6 +2566,71 @@ class AgentRun extends ChangeNotifier {
     return hits.isEmpty ? '' : '\nChemins proches :\n${hits.join('\n')}';
   }
 
+  static final _rustTest = RegExp(r'(^|/)tests/[^/]+\.rs$');
+  static final _innerPath = RegExp(r'\bcrate::(\w+)');
+
+  /// Le nom sous lequel un test d'intégration importe un crate Rust : le nom
+  /// de sa bibliothèque ([lib] name), sinon celui du paquet (tirets → « _ »).
+  /// Null s'il est introuvable.
+  static String? rustCrateName(String cargoToml) {
+    String? field(String section) {
+      var inside = false;
+      for (final raw in cargoToml.split('\n')) {
+        final l = raw.trim();
+        if (l.startsWith('[')) {
+          inside = l == '[$section]';
+        } else if (inside) {
+          final m = RegExp(r'^name\s*=\s*"([^"]+)"').firstMatch(l);
+          if (m != null) return m[1];
+        }
+      }
+      return null;
+    }
+
+    return (field('lib') ?? field('package'))?.replaceAll('-', '_');
+  }
+
+  /// Un test d'intégration Rust (dossier tests/ d'un crate) compilé à part :
+  /// `crate::` n'y désigne pas la bibliothèque, et le test ne compile pas. Rend l'avertissement à donner au modèle, ou null.
+  static String? rustTestHint(String path, String content, {String? cargo}) {
+    if (!_rustTest.hasMatch(path)) return null;
+    // crate::common… reste juste quand le test déclare lui-même « mod common ».
+    bool own(String name) =>
+        RegExp('\\b(mod|fn|struct|enum|const|static|trait|type)\\s+$name\\b')
+            .hasMatch(content);
+    final bad = content
+        .split('\n')
+        .map((l) => l.trim())
+        .where(
+          (l) =>
+              !l.startsWith('//') &&
+              _innerPath.allMatches(l).any((m) => !own(m[1]!)),
+        )
+        .firstOrNull;
+    if (bad == null) return null;
+    final name = cargo == null ? null : rustCrateName(cargo);
+    final use = name == null
+        ? 'le nom de la bibliothèque (celui de [lib] ou [package] dans '
+              'Cargo.toml, tirets remplacés par « _ »)'
+        : '« use $name::… »';
+    return '\n\nATTENTION : $path est un test d\'intégration Rust (dossier '
+        'tests/) : il est compilé à part, et « $bad » ne compilera pas '
+        '(crate:: n\'y désigne pas la bibliothèque). Importe-la '
+        'avec $use, rends publics les éléments testés (pub mod, pub fn), et '
+        'n\'enveloppe pas les tests dans « mod tests ». Corrige maintenant avec '
+        'edit_file.';
+  }
+
+  /// Les erreurs certaines repérées dans un brouillon, signalées tout de suite
+  /// au modèle (vide s'il n'y en a pas).
+  Future<String> _pitfalls(String p) async {
+    final text = changes[p];
+    if (text == null || !_rustTest.hasMatch(p)) return '';
+    final i = p.lastIndexOf('tests/');
+    final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
+    return rustTestHint(p, text, cargo: cargo) ?? '';
+  }
+
   String get _mountHint =>
       'ERREUR : commence le chemin par le dossier du dépôt '
       '(${_mounts.keys.map((m) => '$m/').join(', ')}).';
@@ -2838,7 +2903,7 @@ class AgentRun extends ChangeNotifier {
           if (oldText.isEmpty && !changes.containsKey(p)) {
             changes[p] = newText.endsWith('\n') ? newText : '$newText\n';
             notifyListeners();
-            return 'OK, $p créé en brouillon.';
+            return 'OK, $p créé en brouillon.${await _pitfalls(p)}';
           }
           return problem!;
         }
@@ -2874,7 +2939,7 @@ class AgentRun extends ChangeNotifier {
         changes[p] = edited.$1;
         notifyListeners();
         return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
-            'est inchangé.';
+            'est inchangé.${await _pitfalls(p)}';
       case 'github':
         return _githubTool(call.args);
       case 'search_code':
@@ -2960,7 +3025,8 @@ class AgentRun extends ChangeNotifier {
         }
         changes[p] = content.endsWith('\n') ? content : '$content\n';
         notifyListeners();
-        return 'OK, $p enregistré en brouillon (${content.length} caractères).';
+        return 'OK, $p enregistré en brouillon (${content.length} caractères).'
+            '${await _pitfalls(p)}';
       case 'delete_file':
         final p = path();
         final where = resolve(p);
