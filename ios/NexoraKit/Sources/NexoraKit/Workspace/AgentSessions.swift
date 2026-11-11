@@ -34,6 +34,13 @@ public protocol SessionHost: AnyObject, Sendable {
     func recordHeaders(_ provider: ProviderDef, _ headers: [String: String])
     func recordUsage(_ provider: ProviderDef, _ model: String, _ usage: TokenUsage)
     func recordError(_ provider: ProviderDef, _ error: Error)
+    /// Le fournisseur a déjà atteint sa limite ou épuisé son crédit (témoin de
+    /// crédit) : la session commence directement avec un autre modèle.
+    func blocked(_ providerId: String) -> Bool
+}
+
+public extension SessionHost {
+    func blocked(_ providerId: String) -> Bool { false }
 }
 
 /// Le choix d'un modèle de repli (`SessionState._fallback`).
@@ -60,7 +67,7 @@ public enum SessionFallback {
         key: (String) -> String?
     ) -> (ProviderDef, String?, String)? {
         for c in candidates {
-            if tried.contains(c.key) { continue }
+            if tried.contains(c.key) || tried.contains("\(c.providerId)::*") { continue }
             guard let p = provider(c.providerId) else { continue }
             let k = key(p.id)
             if p.needsKey && (k ?? "").isEmpty { continue }
@@ -160,6 +167,7 @@ public final class AgentSessions {
     private func equip(_ run: AgentRun) {
         let host = host
         run.fallback = { e, tried in await host.fallback(e, tried) }
+        run.isBlocked = { host.blocked($0) }
         run.skills = host.skills
         run.subagents = host.subagents
         run.readSkillFile = { s, f in try await host.readSkillFile(s, f) }

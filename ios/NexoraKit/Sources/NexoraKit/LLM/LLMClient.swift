@@ -217,6 +217,17 @@ public struct LLMClient: Sendable {
             var attempt = 1
             while attempt <= Self.maxRetries && Self.retryStatuses.contains(head.status) {
                 onHeaders?(head)
+                // Quota ou crédit épuisé (pas une simple limite de débit) : réessayer
+                // ne sert à rien, on rend l'erreur tout de suite (l'appelant peut
+                // passer à un autre modèle).
+                if head.status == 429 {
+                    let text = await lines.joined()
+                    let e = LLMError(errorFromBody(text), status: head.status)
+                    if e.quotaExhausted {
+                        out.finish(throwing: e)
+                        return
+                    }
+                }
                 let after = head.headers["retry-after"].flatMap { Int($0) }
                 try await Task.sleep(for: retryDelay(attempt, after))
                 (head, lines) = try await transport.lines(make(reasoning))

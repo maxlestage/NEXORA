@@ -66,6 +66,12 @@ final class AppSessionHost: SessionHost {
     func recordError(_ provider: ProviderDef, _ error: Error) {
         usage.recordError(provider.id, error)
     }
+
+    /// Limite atteinte ou crédit épuisé d'après le témoin : la session commence
+    /// avec un autre modèle.
+    func blocked(_ providerId: String) -> Bool {
+        usage.of(providerId).level(Date()) == .blocked
+    }
 }
 
 /// Les sessions de l'agent autonome (`state/session_state.dart`), comme dans

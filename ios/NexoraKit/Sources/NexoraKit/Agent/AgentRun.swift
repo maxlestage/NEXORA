@@ -123,6 +123,9 @@ public final class AgentRun {
     @ObservationIgnored public var fallback: (@MainActor (Error, Set<String>) async -> (ProviderDef, String?, String)?)?
 
     @ObservationIgnored var tried: Set<String> = []
+    /// Le fournisseur a-t-il déjà atteint sa limite (témoin de crédit) ? La
+    /// session passe alors tout de suite à un autre modèle.
+    @ObservationIgnored public var isBlocked: (@MainActor (String) -> Bool)?
 
     public let owner: String
     public let repo: String
@@ -327,12 +330,26 @@ public final class AgentRun {
     func switchModel(_ error: Error) async -> Bool {
         guard let f = fallback else { return false }
         tried.insert("\(provider.id)::\(model)")
+        // Clé refusée, quota ou crédit épuisé : les autres modèles du même
+        // fournisseur échoueraient aussi.
+        let wide = (error as? LLMError)?.providerWide ?? false
+        if wide { tried.insert("\(provider.id)::*") }
         guard let (p, key, m) = await f(error, tried) else { return false }
-        add(AgentStep(.error, "\(provider.name) · \(model) ne répond plus (\(error)). Je continue avec \(p.name) · \(m)."))
+        if let e = error as? LLMError, e.quotaExhausted {
+            add(AgentStep(.error, "\(provider.name) : limite ou crédit épuisé (\(Self.shortError(e))). Je continue avec \(p.name) · \(m)."))
+        } else {
+            add(AgentStep(.error, "\(provider.name) · \(model) ne répond plus (\(Self.shortError(error))). Je continue avec \(p.name) · \(m)."))
+        }
         provider = p
         apiKey = key
         model = m
         return true
+    }
+
+    /// Une erreur en une ligne courte, pour le journal.
+    static func shortError(_ e: Error) -> String {
+        let t = "\(e)".split(whereSeparator: \.isNewline).joined(separator: " ")
+        return t.count > 160 ? String(t.prefix(160)) + "…" : t
     }
 
     /// Une erreur de fournisseur qui veut dire « conversation trop longue ».
@@ -767,6 +784,12 @@ public final class AgentRun {
             let p = provider
             let m = model
             let key = apiKey
+            // Limite déjà atteinte chez ce fournisseur : on commence tout de suite
+            // avec un autre modèle (au lieu d'essuyer ses erreurs).
+            if attempt == 0, !tried.contains("\(p.id)::*"), isBlocked?(p.id) == true,
+               await switchModel(LLMError("quota épuisé, limite déjà atteinte", status: 429)) {
+                continue
+            }
             do {
                 if stopFlag { return nil }
                 let sys = system

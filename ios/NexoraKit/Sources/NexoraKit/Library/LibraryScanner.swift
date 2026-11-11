@@ -133,6 +133,46 @@ public enum LibraryScanner {
             "🦸"
         ),
         LibrarySource(
+            "openai/skills", "Skills d'OpenAI",
+            "Applications ChatGPT, déploiement sur Cloudflare, Figma, outils en ligne de commande, ASP.NET…",
+            "⚪"
+        ),
+        LibrarySource(
+            "vercel-labs/agent-skills", "Skills de Vercel",
+            "Bonnes pratiques React et React Native, transitions de vues, design web, déploiement sur Vercel.",
+            "▲"
+        ),
+        LibrarySource(
+            "mrgoonie/claudekit-skills", "ClaudeKit",
+            "Débogage systématique, recherche de la cause, revue de code, bases de données, back-end, multimodal…",
+            "🧰"
+        ),
+        LibrarySource(
+            "huggingface/skills", "Skills de Hugging Face",
+            "Modèles, jeux de données, entraînement et déploiement avec Hugging Face.",
+            "🤗"
+        ),
+        LibrarySource(
+            "microsoft/skills", "Skills de Microsoft",
+            "Azure et Kubernetes (AKS) : coûts, dépannage, réseau, déploiement… plus de 200 skills.",
+            "🪟"
+        ),
+        LibrarySource(
+            "K-Dense-AI/claude-scientific-skills", "Skills scientifiques (K-Dense)",
+            "Biologie, chimie, bio-informatique, analyse de données de recherche : plus de 170 skills.",
+            "🔬"
+        ),
+        LibrarySource(
+            "ComposioHQ/awesome-claude-skills", "Awesome Claude Skills (Composio)",
+            "Des centaines de skills : documents, design, contenu, et automatisation de services en ligne.",
+            "🌐"
+        ),
+        LibrarySource(
+            "alirezarezvani/claude-skills", "Skills métier (alirezarezvani)",
+            "Près de 500 skills par métier : produit, marketing, ingénierie, finance, direction…",
+            "💼"
+        ),
+        LibrarySource(
             "wshobson/agents", "Agents spécialistes (wshobson)",
             "Des dizaines de sous-agents : back-end, front-end, sécurité, données, DevOps, IA, langages…",
             "🧑‍💻"

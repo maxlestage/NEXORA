@@ -102,8 +102,11 @@ public struct UserLibrary: Sendable, Hashable {
                 text, id: "skill:\(newId())", fallbackName: item.name, source: item.source,
                 owner: item.owner, repo: item.repo, ref: item.ref, dir: item.dir, files: item.files
             ) else { return false }
+            // Une mise à jour garde le réglage « Toujours » de la skill.
+            var updated = sk
+            updated.always = skills.first { $0.source == item.source }?.always ?? false
             skills.removeAll { $0.source == item.source }
-            skills.append(sk)
+            skills.append(updated)
             return true
         case .command:
             guard let c = SlashCommand.fromMarkdown(text, id: "cmd:\(newId())", name: item.name, source: item.source) else { return false }
