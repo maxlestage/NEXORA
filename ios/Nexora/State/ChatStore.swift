@@ -278,7 +278,11 @@ final class ChatStore {
         trimmed[id] = dropped
         // Les photos des derniers messages partent avec eux (dans un budget limité).
         let files = imageFiles
-        let history = ChatImages.attach(plain, from: c.messages, dropped: dropped, load: { files.llmImage($0) })
+        // Elles sont lues sur le disque et encodées en base64 (jusqu'à 15 Mo) hors du
+        // fil principal, au début de la tâche de réponse. Sans image, l'historique
+        // part tel quel (ce que rendrait `attach`).
+        let source = c.messages
+        let withImages = source.contains { !$0.images.isEmpty }
         let system = ChatLogic.systemPrompt(
             agent: agent, personal: settings.personalSystem(), customInstructions: settings.customInstructions,
             level: level,
@@ -301,6 +305,14 @@ final class ChatStore {
         let onHeaders = usage?.headersHandler(providerId: provider.id)
 
         tasks[id] = Task { @MainActor [weak self] in
+            let history: [LLMMessage]
+            if withImages {
+                history = await Task.detached {
+                    ChatImages.attach(plain, from: source, dropped: dropped, load: { files.llmImage($0) })
+                }.value
+            } else {
+                history = plain
+            }
             var text = ""
             var thinking = ""
             var tokens = TokenUsage.zero

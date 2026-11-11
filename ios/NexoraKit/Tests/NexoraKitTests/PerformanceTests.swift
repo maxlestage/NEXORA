@@ -175,6 +175,27 @@ struct PerformanceTests {
         #expect(t < 2000)
     }
 
+    @Test("photos jointes : lues et encodées pour le modèle (travail retiré du fil principal)")
+    func attachImages() throws {
+        let files = ChatImageStore(directory: tempDir())
+        // Six photos JPEG de 2 Mo.
+        let jpeg = Data([0xFF, 0xD8, 0xFF]) + Data(repeating: 0x42, count: 2 * 1024 * 1024)
+        var messages: [ChatMessage] = []
+        for i in 0..<3 {
+            let names = try (0..<2).map { _ in try files.save(jpeg) }
+            messages.append(ChatMessage(role: .user, content: "Photo \(i)", images: names))
+            messages.append(ChatMessage(role: .assistant, content: "Vu \(i)"))
+        }
+        messages.append(ChatMessage(role: .user, content: "Et alors ?"))
+        let (plain, dropped) = ChatLogic.recentHistory(messages, budgetTokens: 0)
+        var out: [LLMMessage] = []
+        let t = ms { out = ChatImages.attach(plain, from: messages, dropped: dropped, load: { files.llmImage($0) }) }
+        report("ChatImages.attach (6 photos de 2 Mo)", t)
+        #expect(out.flatMap(\.images).count == 6)
+        #expect(t < 10000)
+        files.deleteAll()
+    }
+
     @Test("suggestions « / » et « @ » pendant la frappe")
     func suggestions() {
         let agents = Catalog.builtinAgents
