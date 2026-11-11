@@ -227,6 +227,10 @@ ToolCall? parseToolCall(String reply) {
 /// `{"thought": …, "actions": [{"tool": …, "args": {…}}, …]}`. Les contenus des
 /// `write_file` sont pris dans les blocs de code qui suivent, dans l'ordre.
 List<ToolCall> parseToolCalls(String reply) {
+  // Les jetons internes que certains modèles laissent passer (« <|start|>
+  // assistant<|channel|>commentary<|message|> ») : collés à la fin d'un bloc
+  // de code, ils empêchent de le fermer. Remplacés par des retours à la ligne.
+  reply = reply.replaceAll(_specialTokens, '\n');
   bool wanted(Map<String, dynamic>? o) {
     if (o == null) return false;
     _normalizeAction(o);
@@ -236,6 +240,8 @@ List<ToolCall> parseToolCalls(String reply) {
   final blocks = codeBlocks(reply);
   Map<String, dynamic>? obj;
   int afterIndex = 0;
+  // Trouvé dans un bloc de code : les blocs d'actions suivants comptent aussi.
+  var fromBlock = false;
   for (final b in blocks) {
     final lang = b.lang;
     final body = b.body;
@@ -244,6 +250,7 @@ List<ToolCall> parseToolCalls(String reply) {
       if (wanted(cand)) {
         obj = cand;
         afterIndex = b.end;
+        fromBlock = true;
         break;
       }
     }
@@ -296,67 +303,80 @@ List<ToolCall> parseToolCalls(String reply) {
   if (obj == null) return const [];
   final thought = (obj['thought'] ?? '').toString();
   final goal = (obj['demande'] ?? obj['goal'] ?? '').toString().trim();
-  final raw = obj['actions'] is List
-      ? (obj['actions'] as List).whereType<Map>().toList()
-      : [obj];
-  // Les blocs de code après le JSON : les contenus des fichiers, dans l'ordre.
-  final contents = [
-    for (final b in blocks)
-      if (b.start >= afterIndex) b.body,
-  ];
-  var next = 0;
+  // Les blocs de code après le JSON : d'abord les contenus attendus par les
+  // actions (fichiers, passages), dans l'ordre ; puis, si le modèle a écrit
+  // plusieurs blocs d'actions à la suite, les actions de chacun.
   final calls = <ToolCall>[];
-  for (final (i, a0) in raw.indexed) {
-    final a = Map<String, dynamic>.from(a0);
-    _normalizeAction(a);
-    final tool = canonicalTool(a['tool']?.toString());
-    if (tool == null || tool.isEmpty) continue;
-    final args = a['args'] is Map
-        ? Map<String, dynamic>.from(a['args'] as Map)
-        : <String, dynamic>{};
-    // Le contenu sous un autre nom (« contents », « code », « text »…).
-    if (tool == 'write_file' && args['content'] == null) {
-      for (final k in const [
-        'contents',
-        'file_content',
-        'code',
-        'text',
-        'body',
-        'data',
-      ]) {
-        if (args[k] is String) {
-          args['content'] = args.remove(k);
-          break;
+  final needs = <(Map<String, dynamic>, String)>[];
+  void take(Map<String, dynamic> o, {required bool first}) {
+    final raw = o['actions'] is List
+        ? (o['actions'] as List).whereType<Map>().toList()
+        : [o];
+    for (final a0 in raw) {
+      final a = Map<String, dynamic>.from(a0);
+      _normalizeAction(a);
+      final tool = canonicalTool(a['tool']?.toString());
+      if (tool == null || tool.isEmpty) continue;
+      final args = a['args'] is Map
+          ? Map<String, dynamic>.from(a['args'] as Map)
+          : <String, dynamic>{};
+      // Le contenu sous un autre nom (« contents », « code », « text »…).
+      if (tool == 'write_file' && args['content'] == null) {
+        for (final k in const [
+          'contents',
+          'file_content',
+          'code',
+          'text',
+          'body',
+          'data',
+        ]) {
+          if (args[k] is String) {
+            args['content'] = args.remove(k);
+            break;
+          }
         }
+        if (args['content'] == null) needs.add((args, 'content'));
       }
+      // edit_file : l'ancien passage puis le nouveau, dans deux blocs de code.
+      if (tool == 'edit_file' && args['old'] == null) needs.add((args, 'old'));
+      if (tool == 'edit_file' && args['new'] == null) needs.add((args, 'new'));
+      final head = first && calls.isEmpty;
+      calls.add(
+        ToolCall(
+          tool,
+          args,
+          thought: head
+              ? (thought.isNotEmpty ? thought : (a['thought'] ?? '').toString())
+              : '',
+          goal: head ? goal : '',
+        ),
+      );
     }
-    if (tool == 'write_file' &&
-        args['content'] == null &&
-        next < contents.length) {
-      args['content'] = contents[next++];
+  }
+
+  take(obj, first: true);
+  String block(String b) => b.endsWith('\n') ? b.substring(0, b.length - 1) : b;
+  for (final b in blocks) {
+    if (b.start < afterIndex) continue;
+    if (needs.isNotEmpty) {
+      final (args, key) = needs.removeAt(0);
+      args[key] = key == 'content' ? b.body : block(b.body);
+      continue;
     }
-    // edit_file : l'ancien passage puis le nouveau, dans deux blocs de code.
-    String block(String b) =>
-        b.endsWith('\n') ? b.substring(0, b.length - 1) : b;
-    if (tool == 'edit_file' && args['old'] == null && next < contents.length) {
-      args['old'] = block(contents[next++]);
+    if (!fromBlock) break;
+    final lang = b.lang;
+    final body = b.body;
+    if (lang == 'json' || (lang.isEmpty && body.trimLeft().startsWith('{'))) {
+      final cand = _tryLooseJson(body);
+      if (wanted(cand)) take(cand!, first: false);
     }
-    if (tool == 'edit_file' && args['new'] == null && next < contents.length) {
-      args['new'] = block(contents[next++]);
-    }
-    calls.add(
-      ToolCall(
-        tool,
-        args,
-        thought: i == 0
-            ? (thought.isNotEmpty ? thought : (a['thought'] ?? '').toString())
-            : '',
-        goal: i == 0 ? goal : '',
-      ),
-    );
   }
   return calls;
 }
+
+final _specialTokens = RegExp(
+  r'<\|(start|end|channel|message|call|return|constrain|im_start|im_end)\|>',
+);
 
 /// Le contenu d'un fichier envoyé seul, au tour qui suit un `write_file` arrivé
 /// sans contenu (les modèles habitués aux appels d'outils natifs envoient
@@ -364,6 +384,7 @@ List<ToolCall> parseToolCalls(String reply) {
 /// bloc de code qui n'est pas une action, ou toute la réponse si elle n'a ni
 /// bloc ni action. `null` si la réponse est une autre action.
 String? pendingContent(String reply) {
+  reply = reply.replaceAll(_specialTokens, '\n');
   final calls = parseToolCalls(reply);
   final empty =
       calls.isEmpty ||

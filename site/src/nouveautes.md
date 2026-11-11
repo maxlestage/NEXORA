@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.51 — 11 novembre 2026 — L'agent fait toutes les actions d'une même réponse
+- Corrigé : quand le modèle enchaînait plusieurs actions dans une même réponse (par exemple corriger le code, puis créer le test), seule la première était faite, et la suite était perdue sans prévenir.
+- Toutes les actions sont maintenant faites dans l'ordre, chacune avec son contenu.
+- Corrigé : les marques internes que certains modèles laissent parfois dans leur réponse ne cassent plus la lecture de ses actions.
+
 ## 2.2.50 — 11 novembre 2026 — L'agent crée vos fichiers même quand le modèle les envoie en deux fois
 - Corrigé : certains modèles (dont celui de Pollinations, gratuit) demandaient d'écrire un fichier, puis attendaient avant d'en envoyer le contenu. L'agent refusait sans cesse, s'arrêtait « en boucle », et le test demandé n'était jamais créé.
 - L'agent attend maintenant ce contenu, puis l'écrit dans le bon fichier au tour suivant, avec ou sans bloc de code.
