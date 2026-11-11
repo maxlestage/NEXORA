@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.62 — 11 novembre 2026 — L'agent s'y retrouve dans les longs fichiers
+- Corrigé : dans un long fichier (plus de 600 lignes, comme le programme du site), l'agent ne voyait que le début. Il cherchait ensuite au hasard où faire la modification, tournait en rond et finissait par s'arrêter sans rien faire.
+- Il reçoit maintenant, avec ce début, le plan du reste du fichier : chaque fonction, type, module et bloc de tests, avec son numéro de ligne. Il va tout droit au bon endroit.
+- Le plan reconnaît Rust, Dart, Python, JavaScript/TypeScript, Go, Kotlin, Swift et Java, sans commentaires ni lignes de code ordinaires.
+- Rien ne change pour un fichier court ou une plage de lignes demandée.
+
 ## 2.2.61 — 11 novembre 2026 — L'agent écrit les tests Rust à la seule place qui compile
 - Corrigé : après une modification de src/main.rs (le programme d'un projet Rust, comme le site), l'agent était renvoyé écrire le test dans le dossier « tests/ », où ce test ne peut pas compiler. La CI échouait ensuite.
 - L'agent est maintenant guidé vers le module de tests du fichier lui-même (#[cfg(test)]), avec l'outil à utiliser ; c'est aussi le cas des modules d'un projet Rust sans bibliothèque.

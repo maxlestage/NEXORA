@@ -2455,7 +2455,8 @@ class AgentRun extends ChangeNotifier {
     return (start, end, null);
   }
 
-  static String _range(String p, String text, Object? start, Object? end) {
+  @visibleForTesting
+  static String readRange(String p, String text, Object? start, Object? end) {
     final lines = text.split('\n');
     final total = lines.length;
     int? asInt(Object? v) => v is num ? v.toInt() : int.tryParse('${v ?? ''}');
@@ -2471,7 +2472,93 @@ class AgentRun extends ChangeNotifier {
               'suite avec "start": ${to + 1}, cherche avec find_in_file, et modifie '
               'avec edit_file (sans réécrire tout le fichier).'
         : '\n(Lignes $from à $to sur $total : fin du fichier.)';
+    // Un long fichier lu sans plage : l'agent ne voit que le début et cherchait
+    // ensuite au hasard (« router », « route »…) où se trouve ce qu'il doit
+    // modifier. Le plan du reste du fichier (ses définitions, avec leur ligne)
+    // lui permet d'aller tout droit au bon endroit.
+    if (start == null && (from > 1 || to < total)) {
+      final plan = outline(text, skipFrom: from, skipTo: to);
+      if (plan.isNotEmpty) {
+        return '$part$more\n\nPlan du reste du fichier (définitions et leur '
+            'ligne ; lis-en une avec read_file et "line") :\n$plan';
+      }
+    }
     return '$part$more';
+  }
+
+  /// Une ligne qui ouvre une définition : fonction, type, module, bloc de
+  /// tests… (Rust, Dart, Python, JavaScript/TypeScript, Go, Kotlin, Swift,
+  /// Java, C#).
+  static final _definition = RegExp(
+    r'^(?!(?:else|return|await|throw|new|case|yield|if|for|while|switch|catch|'
+    r'do|print|assert|required|let|var|final|const\s+\w+\s*=)\b)(?:'
+    r'#\[cfg\(test\)\]|'
+    r'(?:pub(?:\([^)]*\))?\s+)?(?:(?:async|const|unsafe|extern\s+"[^"]*")\s+)*'
+    r'(?:fn|struct|enum|trait|impl|mod|macro_rules!)[\s<!]|'
+    r'(?:(?:export|default|public|private|protected|internal|open|abstract|'
+    r'sealed|final|base|data|static|override|async|declare|partial)\s+)*'
+    r'(?:class|mixin|extension|interface|enum|typedef|object|protocol|struct|'
+    r'function|fun|func|def)\b|'
+    r'type\s+\w+[\s<=]|'
+    r'(?:test|testWidgets|group|describe|it)\s*\(|'
+    r'[\w<>?,\[\]. ]*[\w>?\]]\s+\w+\s*(?:<[^>]*>)?\([^;]*$'
+    r')',
+  );
+
+  /// Le plan d'un fichier : ses définitions peu indentées, avec leur numéro de
+  /// ligne (hors des lignes [skipFrom]–[skipTo], déjà montrées). Au plus [max]
+  /// entrées : les définitions de premier niveau d'abord.
+  @visibleForTesting
+  static String outline(
+    String text, {
+    int skipFrom = 0,
+    int skipTo = 0,
+    int max = 80,
+  }) {
+    final lines = text.split('\n');
+    final found = <(int, int)>[];
+    for (var i = 0; i < lines.length; i++) {
+      final n = i + 1;
+      if (n >= skipFrom && n <= skipTo) continue;
+      final line = lines[i];
+      if (line.length > 240) continue;
+      final body = line.trimLeft();
+      if (body.isEmpty) continue;
+      final indent = line
+          .substring(0, line.length - body.length)
+          .replaceAll('\t', '    ')
+          .length;
+      if (indent > 4) continue;
+      if ((body.startsWith('#') && !body.startsWith('#[cfg(test)]')) ||
+          body.startsWith('//') ||
+          body.startsWith('*') ||
+          body.startsWith('/*') ||
+          body.startsWith('@') ||
+          body.startsWith('<') ||
+          body.startsWith('"') ||
+          body.startsWith("'")) {
+        continue;
+      }
+      if (_definition.hasMatch(body)) found.add((i, indent));
+    }
+    if (found.isEmpty) return '';
+    var kept = found;
+    if (found.length > max) {
+      final top = found.where((f) => f.$2 == 0).take(max).toList();
+      final rest = found.where((f) => f.$2 > 0).take(max - top.length);
+      kept = [...top, ...rest]..sort((a, b) => a.$1.compareTo(b.$1));
+    }
+    String show(int i) {
+      final l = lines[i].trimRight();
+      return '${i + 1}: ${l.length > 160 ? '${l.substring(0, 160)}…' : l}';
+    }
+
+    return [
+      for (final (i, _) in kept) show(i),
+      if (found.length > kept.length)
+        '… (${found.length - kept.length} autres définitions : cherche-les '
+            'avec find_in_file)',
+    ].join('\n');
   }
 
   /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
@@ -2967,14 +3054,14 @@ class AgentRun extends ChangeNotifier {
         final (start, end, around) = readSpan(call.args);
         // « line » seul : les lignes autour (ce qu'on veut après une recherche).
         if (around != null) {
-          return _range(
+          return readRange(
             p,
             text,
             around - 40 < 1 ? 1 : around - 40,
             around + 40,
           );
         }
-        return _range(p, text, start, end);
+        return readRange(p, text, start, end);
       case 'find_in_file':
         final p = path();
         final pattern = (call.args['pattern'] ?? call.args['query'] ?? '')
