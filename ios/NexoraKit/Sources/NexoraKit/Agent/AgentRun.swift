@@ -834,3 +834,6 @@ public final class AgentRun {
         }
     }
 }
+
+/// Une session se liste directement dans SwiftUI (`ForEach(sessions)`).
+extension AgentRun: Identifiable {}
