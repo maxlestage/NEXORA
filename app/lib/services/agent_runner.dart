@@ -3366,12 +3366,13 @@ class AgentRun extends ChangeNotifier {
     String content, {
     String? cargo,
     String? mainRs,
+    String? libRs,
   }) {
     if (!_rustTest.hasMatch(path)) return null;
     final crate = cargo == null ? null : rustCrateName(cargo);
     final both = [
       ?_rustCrateHint(path, content, crate),
-      ?_rustBinHint(path, content, mainRs),
+      ?_rustBinHint(path, content, mainRs, libRs: libRs, crate: crate),
     ];
     return both.isEmpty ? null : both.join();
   }
@@ -3383,7 +3384,17 @@ class AgentRun extends ChangeNotifier {
   /// invisible depuis tests/ (essai réel : « app().test() » pour une route du
   /// site). Le test ne compile pas ; sa place est dans le module de tests de
   /// main.rs.
-  static String? _rustBinHint(String path, String content, String? mainRs) {
+  ///
+  /// Un `use nom_du_crate::app;` n'y change rien quand app() n'est pas dans
+  /// src/lib.rs (essai réel : l'avertissement ne venait plus, et le test
+  /// écrit par l'agent ne pouvait pas compiler).
+  static String? _rustBinHint(
+    String path,
+    String content,
+    String? mainRs, {
+    String? libRs,
+    String? crate,
+  }) {
     if (mainRs == null) return null;
     final code = content
         .split('\n')
@@ -3392,10 +3403,20 @@ class AgentRun extends ChangeNotifier {
     final mine = {for (final m in _fnDef.allMatches(code)) m[1]!};
     final imported = code
         .split('\n')
-        .where((l) => l.trim().startsWith('use '))
+        .map((l) => l.trim())
+        .where(
+          (l) =>
+              l.startsWith('use ') &&
+              (crate == null || !RegExp('^use\\s+(::)?$crate::').hasMatch(l)),
+        )
         .join(' ');
+    final inLib = {
+      if (libRs != null)
+        for (final m in _fnDef.allMatches(libRs)) m[1]!,
+    };
     final inMain = {for (final m in _fnDef.allMatches(mainRs)) m[1]!}
-      ..remove('main');
+      ..remove('main')
+      ..removeAll(inLib);
     final used = <String>[];
     for (final m in _call.allMatches(code)) {
       final name = m[1]!;
@@ -3454,7 +3475,9 @@ class AgentRun extends ChangeNotifier {
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
-    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs) ?? '';
+    final (libRs, _) = await _current('${p.substring(0, i)}src/lib.rs');
+    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
+        '';
   }
 
   /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
