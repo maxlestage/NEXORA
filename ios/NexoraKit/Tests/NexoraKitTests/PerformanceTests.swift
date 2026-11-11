@@ -155,6 +155,41 @@ struct PerformanceTests {
         #expect(t < 10000)
         try? FileManager.default.removeItem(at: dir)
     }
+
+    @Test("liste des modèles d'un fournisseur (400 modèles lus en direct)")
+    func modelList() throws {
+        let p = try #require(Catalog.providers.first { $0.id == "openrouter" })
+        let catalog = ModelCatalog.bundled
+        let cat = catalog.providers[p.id] ?? []
+        let live = cat.map { ModelInfo($0.id) } + (0..<(400 - min(cat.count, 400))).map { ModelInfo("vendor/model-\($0)") }
+        var list: [ModelInfo] = []
+        let t = ms {
+            for _ in 0..<20 {
+                list = ModelList.models(p, live: live, catalog: catalog) { id in
+                    catalog.price(p.id, id) ?? Catalog.price(provider: p.id, model: id)
+                }
+            }
+        } / 20
+        report("ModelList.models (\(live.count) modèles)", t)
+        #expect(list.count >= live.count)
+        #expect(t < 2000)
+    }
+
+    @Test("suggestions « / » et « @ » pendant la frappe")
+    func suggestions() {
+        let agents = Catalog.builtinAgents
+        let library = UserLibrary(commands: (0..<40).map { SlashCommand(id: "c\($0)", name: "cmd\($0)", description: "Commande \($0)", body: "Fais \($0)") })
+        var n = 0
+        let t = ms {
+            for i in 0..<2000 {
+                n = ChatLibrary.suggestions(for: i % 2 == 0 ? "/cm" : "@co", library: library, agents: agents)?.count ?? 0
+                _ = ChatLibrary.suggestions(for: "Une phrase ordinaire \(i)", library: library, agents: agents)
+            }
+        }
+        report("ChatLibrary.suggestions × 4000", t)
+        #expect(n >= 0)
+        #expect(t < 5000)
+    }
 }
 
 /// Les optimisations ne changent rien à ce que l'app voit.
@@ -301,5 +336,39 @@ struct OptimizationParityTests {
         #expect(ISO8601.parse("2026-11-10T08:30:00.000000") == local)
         #expect(ISO8601.parse("2026-11-10T08:30:00") == local)
         #expect(ISO8601.parse("pas une date") == nil && ISO8601.parse("") == nil)
+    }
+
+    @Test("catalogue : recherche par index identique à la recherche linéaire")
+    func catalogLookup() {
+        let list = [
+            CatalogModel(id: "GPT-5", input: 1, output: 2), CatalogModel(id: "gpt-5", input: 3, output: 4),
+            CatalogModel(id: "beam", name: "Beam 1"), CatalogModel(id: "beam", name: "Beam 2", input: 0, output: 0),
+            CatalogModel(id: "free", input: 0, output: 0),
+        ]
+        let c = ModelCatalog(updated: "2026-11-01", providers: ["x": list])
+        for id in ["GPT-5", "gpt-5", "Gpt-5", "beam", "BEAM", "free", "absent"] {
+            #expect(c.find("x", id) == list.first { $0.id == id })
+            let linear = list.first { $0.id.lowercased() == id.lowercased() }
+                .flatMap { m in m.input.flatMap { i in m.output.map { ModelPrice(input: i, output: $0) } } }
+            #expect(c.price("x", id) == linear)
+            #expect(c.find("y", id) == nil && c.price("y", id) == nil)
+        }
+        #expect(c == ModelCatalog(updated: "2026-11-01", providers: ["x": list]))
+        #expect(c != ModelCatalog(updated: "2026-11-02", providers: ["x": list]))
+        #expect(ModelCatalog.day("2026-11-01T10:00") == Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 1)))
+        #expect(ModelCatalog.day("") == nil && ModelCatalog.day("bientôt") == nil)
+    }
+
+    @Test("noms d'agents après @ : mêmes résultats que l'expression régulière")
+    func slugParity() {
+        for name in ["Code Reviewer", "  Testeur  Pro ", "Data\tScience", "A\u{00A0}B", "Idéo\u{3000}グラフ", "x\u{2028}y",
+                     "a\u{0B}b", "n\u{85}e", "🦀 Rust  Expert", "", "Un", "a - b"] {
+            let reference = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                .replacingOccurrences(of: #"\s+"#, with: "-", options: .regularExpression)
+            #expect(ChatLibrary.slug(name) == reference, "\(name.debugDescription)")
+        }
+        #expect(ChatLibrary.suggestions(for: "Bonjour", library: UserLibrary(), agents: Catalog.builtinAgents) == nil)
+        #expect(ChatLibrary.suggestions(for: " @code", library: UserLibrary(), agents: Catalog.builtinAgents) == nil)
+        #expect(ChatLibrary.suggestions(for: "@", library: UserLibrary(), agents: Catalog.builtinAgents)?.count == Catalog.builtinAgents.count)
     }
 }
