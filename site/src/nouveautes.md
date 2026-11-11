@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.67 — 11 novembre 2026 — L'agent trouve ce qu'il cherche du premier coup
+- Corrigé : quand l'agent cherchait dans le code avec un motif (« async fn .* -> String », « get|post »), la recherche le prenait mot à mot et ne trouvait jamais rien. Il répétait la même recherche, tournait en rond et perdait de longues minutes.
+- Ces motifs sont maintenant compris : l'agent voit tout de suite les lignes qui correspondent, avec le code autour.
+- Un texte simple est toujours cherché tel quel, et un motif qui trouverait n'importe quelle ligne est ignoré.
+- « (?i) » en tête d'un motif ne fait plus échouer la recherche dans un fichier.
+
 ## 2.2.66 — 11 novembre 2026 — Plus aucun fichier perdu en route par l'agent
 - Corrigé : quand l'agent écrivait le contenu d'un fichier (par exemple un test) juste avant de demander de l'écrire, ce contenu était ignoré. Le fichier restait « en attente », l'agent recommençait sans fin et la session s'arrêtait sans le test.
 - Corrigé : un contenu attendu envoyé en même temps qu'une autre action (relire un fichier…) était jeté. Le fichier est maintenant écrit d'abord, puis l'action est faite.
