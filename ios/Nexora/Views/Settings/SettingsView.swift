@@ -55,6 +55,8 @@ struct SettingsView: View {
                     }
                 }
 
+                ImageSettingsSection()
+
                 Section("Crédits et consommation") {
                     UsageSettingsRow()
                 }

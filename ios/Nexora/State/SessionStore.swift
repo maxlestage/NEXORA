@@ -114,14 +114,17 @@ final class SessionStore {
     @discardableResult
     func start(
         task: String, repos: [RepoTarget], model: ModelRef, agent: Agent? = nil, level: ThinkLevel? = nil,
-        autoCi: Bool? = nil, autoMerge: Bool? = nil
+        autoCi: Bool? = nil, autoMerge: Bool? = nil, images: [LLMImage] = []
     ) async -> AgentRun? {
-        await core.start(task: task, repos: repos, model: model, agent: agent, level: level, autoCi: autoCi, autoMerge: autoMerge)
+        await core.start(task: task, repos: repos, model: model, agent: agent, level: level, autoCi: autoCi, autoMerge: autoMerge, images: images)
     }
 
     /// Continue une session avec une nouvelle instruction (vide : reprend une
-    /// session interrompue là où l'agent s'était arrêté).
-    func continueSession(_ id: String, _ instruction: String) { core.continueSession(id, instruction) }
+    /// session interrompue là où l'agent s'était arrêté). `images` : des photos
+    /// jointes à l'instruction.
+    func continueSession(_ id: String, _ instruction: String, images: [LLMImage] = []) {
+        core.continueSession(id, instruction, images: images)
+    }
 
     /// Après un envoi : suit la CI et renvoie l'agent corriger si elle échoue.
     func verify(_ run: AgentRun) async { await core.verify(run) }

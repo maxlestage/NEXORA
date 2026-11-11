@@ -66,6 +66,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSMicrophoneUsageDescription: NEXORA utilise le micro pour dicter vos messages.
         NSSpeechRecognitionUsageDescription: NEXORA transcrit votre voix en texte pour dicter vos messages.
+        NSCameraUsageDescription: NEXORA utilise l'appareil photo pour joindre une photo à vos messages.
+        NSPhotoLibraryAddUsageDescription: NEXORA enregistre dans Photos les images que vous créez.
         NSLocalNetworkUsageDescription: NEXORA se connecte à Ollama, LM Studio ou votre serveur sur le Wi-Fi.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

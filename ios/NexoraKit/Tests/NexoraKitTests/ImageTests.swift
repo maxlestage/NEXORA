@@ -269,6 +269,31 @@ struct ImageChatTests {
     }
 }
 
+@Suite("Images : agent autonome")
+@MainActor
+struct ImageAgentTests {
+    @Test("les photos partent avec la demande, une seule fois")
+    func once() async {
+        let llm = ScriptLLM()
+        llm.whenEmpty = "```json\n{\"tool\": \"finish\", \"args\": {\"summary\": \"Vu\"}}\n```"
+        let run = makeRun(llm, hub: Routes { _ in (200, #"{"tree":[]}"#) }, task: "Refais cet écran", checks: false)
+        run.pendingImages = [LLMImage(base64: "QUJD")]
+        await run.run()
+        func withImages(_ i: Int) -> [[String: Any]] {
+            llm.rawMessages(i).filter { ($0["content"] as? [[String: Any]])?.contains { $0["type"] as? String == "image_url" } == true }
+        }
+        let sent = (0..<llm.count).filter { !withImages($0).isEmpty }
+        #expect(sent.count == 1)
+        if let i = sent.first {
+            let parts = withImages(i)[0]["content"] as? [[String: Any]]
+            #expect((parts?.first?["text"] as? String)?.contains("DEMANDE DE L'UTILISATEUR") == true)
+        }
+        #expect(run.pendingImages.isEmpty)
+        #expect(run.history.allSatisfy { $0.images.isEmpty })
+        #expect(run.history.first?.content.hasSuffix("(photo jointe, déjà vue)") == true)
+    }
+}
+
 @Suite("Images : création")
 struct ImageGenTests {
     @Test("/image [nombre] description")
