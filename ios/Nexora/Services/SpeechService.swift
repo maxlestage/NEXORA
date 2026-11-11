@@ -24,8 +24,26 @@ final class SpeechService: NSObject {
     /// La dernière erreur (micro refusé, pas de reconnaissance…).
     var error: String?
 
-    @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
-    @ObservationIgnored private let audioEngine = AVAudioEngine()
+    /// La synthèse et le moteur audio sont créés au premier usage, pas au lancement
+    /// de l'app (le service est créé avec elle, et la plupart des sessions ne lisent
+    /// ni n'écoutent rien).
+    @ObservationIgnored private var madeSynthesizer: AVSpeechSynthesizer?
+    @ObservationIgnored private var madeAudioEngine: AVAudioEngine?
+
+    private var synthesizer: AVSpeechSynthesizer {
+        if let madeSynthesizer { return madeSynthesizer }
+        let s = AVSpeechSynthesizer()
+        s.delegate = self
+        madeSynthesizer = s
+        return s
+    }
+
+    private var audioEngine: AVAudioEngine {
+        if let madeAudioEngine { return madeAudioEngine }
+        let e = AVAudioEngine()
+        madeAudioEngine = e
+        return e
+    }
     @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private var onPartial: ((String) -> Void)?
@@ -38,7 +56,6 @@ final class SpeechService: NSObject {
 
     override init() {
         super.init()
-        synthesizer.delegate = self
     }
 
     // MARK: - Texte lu
@@ -86,7 +103,8 @@ final class SpeechService: NSObject {
     func stopSpeaking() {
         onQueueDone = nil
         pending.removeAll()
-        if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
+        // Rien n'a jamais été lu : pas de synthèse à créer pour l'arrêter.
+        if let s = madeSynthesizer, s.isSpeaking { s.stopSpeaking(at: .immediate) }
         speaking = false
     }
 
@@ -228,8 +246,10 @@ final class SpeechService: NSObject {
     private func endAudio() {
         silence?.cancel()
         limit?.cancel()
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if let engine = madeAudioEngine {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+        }
         request?.endAudio()
         task?.cancel()
         request = nil

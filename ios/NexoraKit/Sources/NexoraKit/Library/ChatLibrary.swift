@@ -122,14 +122,35 @@ public enum ChatLibrary {
 
     /// Le nom d'un agent tel qu'on l'écrit après `@`.
     public static func slug(_ name: String) -> String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            .replacingOccurrences(of: #"\s+"#, with: "-", options: .regularExpression)
+        let s = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // Chaque suite de blancs devient « - » (`\s+` d'ICU = White_Space), sans
+        // expression régulière : appelé pour chaque agent à chaque frappe après « @ ».
+        // Pour U+000B et U+0085, où les définitions d'ICU divergent, l'expression
+        // tranche comme avant.
+        if s.unicodeScalars.contains(where: { $0 == "\u{0B}" || $0 == "\u{85}" }) {
+            return s.replacingOccurrences(of: #"\s+"#, with: "-", options: .regularExpression)
+        }
+        var out = String.UnicodeScalarView()
+        var blank = false
+        for c in s.unicodeScalars {
+            if c.properties.isWhitespace {
+                if !blank { out.append("-") }
+                blank = true
+            } else {
+                out.append(c)
+                blank = false
+            }
+        }
+        return String(out)
     }
 
     /// Les propositions pour la saisie en cours : les commandes après `/`, les
     /// agents après `@`. `nil` : rien à proposer (pas de `/` ni de `@` en tête).
     public static func suggestions(for text: String, library: UserLibrary, agents: [Agent]) -> [ChatSuggestion]? {
-        guard let re = try? NSRegularExpression(pattern: #"^([/@])([\w.:-]*)$"#),
+        // Appelé à chaque frappe : un texte ordinaire (sans « / » ni « @ » en tête)
+        // est écarté tout de suite, et l'expression n'est compilée qu'une fois.
+        guard let first = text.utf16.first, first == 0x2F || first == 0x40,
+              let re = suggestionPattern.get(),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
         let ns = text as NSString
         let q = ns.substring(with: m.range(at: 2)).lowercased()
@@ -142,10 +163,18 @@ public enum ChatLibrary {
                 )
             }
         }
-        return agents.filter { q.isEmpty || slug($0.name).contains(q) }.map { a in
-            ChatSuggestion(insert: "@\(slug(a.name)) ", title: "\(a.emoji) @\(slug(a.name))", subtitle: a.description)
+        // Le nom de chaque agent mis en forme une seule fois (c'était trois).
+        return agents.compactMap { a in
+            let s = slug(a.name)
+            guard q.isEmpty || s.contains(q) else { return nil }
+            return ChatSuggestion(insert: "@\(s) ", title: "\(a.emoji) @\(s)", subtitle: a.description)
         }
     }
+
+    /// `/commande` ou `@agent` en cours de frappe. Une `NSRegularExpression` ne
+    /// change plus une fois créée : elle se partage sans risque entre fils.
+    /// Gardée dans une boîte partageable (`Sendable` ou non selon la plateforme).
+    private static let suggestionPattern = Locked(try? NSRegularExpression(pattern: #"^([/@])([\w.:-]*)$"#))
 
     /// Le message quand rien ne correspond.
     public static func noSuggestion(for text: String) -> String {
