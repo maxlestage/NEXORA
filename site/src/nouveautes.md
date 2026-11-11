@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.58 — 11 novembre 2026 — Votre nouvelle instruction n'est plus perdue après un arrêt
+- Corrigé : quand une session s'arrêtait dès le départ (dépôt illisible, réseau coupé, arrêt pendant la lecture de la demande), l'instruction envoyée ensuite pour la relancer était ignorée sans prévenir : ni affichée, ni faite.
+- Elle s'affiche maintenant dans la session, est traduite en langage NEXORA et fait partie des demandes que l'agent doit faire entièrement, avec la mission de départ.
+- Une instruction envoyée pendant un nouvel échec est gardée pour la reprise suivante.
+- Un simple « continue » (ou « reprends », « vas-y ») relance la session sans compter comme une nouvelle demande.
+
 ## 2.2.57 — 11 novembre 2026 — L'agent trouve vos fichiers dans les dépôts à plusieurs projets
 - Corrigé : dans un dépôt qui contient plusieurs projets (par exemple app/ et site/), le modèle ajoutait parfois le dossier d'un projet à un fichier qui n'y est pas (« app/.github/workflows/ci.yml »). L'agent répondait « fichier introuvable » et perdait des étapes.
 - L'agent ouvre maintenant directement le bon fichier, aussi quand le dossier du projet est oublié (« lib/main.dart » pour « app/lib/main.dart »), et dit au modèle le chemin exact.

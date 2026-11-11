@@ -1558,6 +1558,16 @@ class AgentRun extends ChangeNotifier {
     history.add(LlmMessage('user', note));
   }
 
+  /// Un simple « continue » (ou « reprends », « vas-y »…) : pas une nouvelle
+  /// demande.
+  @visibleForTesting
+  static bool isResume(String text) => RegExp(
+    r'^\s*(continue[sz]?|continuer|reprends?|reprendre|relance[sz]?|relancer|'
+    r'vas[- ]y|go|ok|okay|oui|encore|suite|la suite|poursuis|poursuivre)'
+    r'\s*[.!…]*\s*$',
+    caseSensitive: false,
+  ).hasMatch(text);
+
   /// Lance la session, ou la continue avec une nouvelle instruction.
   /// [fromApp] : [followUp] vient de l'app (rapport de CI, conflit), pas de
   /// l'utilisateur : il n'est pas compté comme une de ses demandes.
@@ -1573,6 +1583,15 @@ class AgentRun extends ChangeNotifier {
       // La demande est d'abord traduite en langage NEXORA (comprise sans
       // ambiguïté), et affichée.
       if (specs.isEmpty) await _understand(task);
+      // Une instruction envoyée après un arrêt en tout début de session (dépôt
+      // illisible, arrêt pendant la traduction) : elle n'était ni affichée ni
+      // donnée à l'agent. Elle compte maintenant comme une demande, sauf un
+      // simple « continue ».
+      final extra = followUp?.trim() ?? '';
+      if (extra.isNotEmpty && !fromApp && !isResume(extra)) {
+        _add(AgentStep(StepKind.user, extra));
+        await _understand(extra);
+      }
       // Les fichiers sont donnés tout de suite : un aller-retour de moins.
       var files = '';
       try {
@@ -1598,10 +1617,17 @@ class AgentRun extends ChangeNotifier {
         notifyListeners();
         return;
       }
+      // Les instructions déjà envoyées (pas celles encore en file, lues au
+      // premier tour) : avec la mission, dès le premier message.
+      final more = [
+        for (final r in requests.skip(1))
+          if (!_inbox.contains(r)) r,
+      ];
       history.add(
         LlmMessage(
           'user',
           'DEMANDE DE L\'UTILISATEUR : « $task »\n\n'
+              '${more.isEmpty ? '' : 'INSTRUCTIONS AJOUTÉES ENSUITE (à faire aussi, la dernière prime) :\n${more.map((m) => '- « $m »').join('\n')}\n\n'}'
               '${files.isEmpty ? 'Explore le dépôt.' : 'Fichiers :\n$files'}\n\n'
               'Avant toute action, redis-toi dans "demande" tout ce que '
               'l\'utilisateur veut (« $task »), point par point. Puis lis '
