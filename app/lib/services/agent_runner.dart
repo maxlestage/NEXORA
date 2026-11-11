@@ -4882,7 +4882,131 @@ String tidyCode(String path, String text, {String? before}) {
       out = '${out.substring(0, end.start)}\n';
     }
   }
+  if (path.endsWith('.dart')) out = _dartLints(out, before);
   return out;
+}
+
+/// Deux remarques de `flutter analyze` (règles de flutter_lints) que l'agent
+/// provoquait à chaque essai réel, et que la CI refuse : des accolades
+/// inutiles dans un texte (`'${h} h'` au lieu de `'$h h'`) et un commentaire
+/// de documentation `///` en tête de fichier, rattaché à rien. Corrigées dans
+/// les lignes écrites par l'agent (celles du fichier d'origine restent telles
+/// quelles), jamais dans une chaîne brute (`r'${x}'` est du texte).
+String _dartLints(String text, String? before) {
+  final old = before == null ? const <String>{} : before.split('\n').toSet();
+  bool mine(int at) {
+    final s = text.lastIndexOf('\n', at - 1) + 1;
+    final e = text.indexOf('\n', at);
+    return !old.contains(text.substring(s, e < 0 ? text.length : e));
+  }
+
+  final cuts = <(int, int)>[];
+  for (final at in _plainInterpolations(text)) {
+    final m = RegExp(r'\$\{([A-Za-z_]\w*)\}').matchAsPrefix(text, at);
+    if (m == null) continue;
+    if (m.end < text.length && RegExp(r'[\w$]').hasMatch(text[m.end])) {
+      continue;
+    }
+    if (mine(at)) cuts.add((at, m.end));
+  }
+  var out = text;
+  for (final (s, e) in cuts.reversed) {
+    out =
+        '${out.substring(0, s)}\$${out.substring(s + 2, e - 1)}'
+        '${out.substring(e)}';
+  }
+  // `///` en tête, suivi d'une ligne vide ou d'un import : il ne documente
+  // rien (« dangling library doc comment »). Il devient un commentaire simple.
+  final head = RegExp(r'^(?:///[^\n]*\n)+').firstMatch(out);
+  if (head != null) {
+    final rest = out.substring(head.end);
+    final dangling =
+        RegExp(r'^\s*\n').hasMatch(rest) ||
+        RegExp(r'^(import|export|part)\b').hasMatch(rest);
+    final keep =
+        before != null && before.startsWith(head[0]!) ||
+        RegExp(r'^\s*library\b').hasMatch(rest);
+    if (dangling && !keep) {
+      out =
+          out
+              .substring(0, head.end)
+              .replaceAll(RegExp(r'^///', multiLine: true), '//') +
+          rest;
+    }
+  }
+  return out;
+}
+
+/// Les positions des `${` dans les textes Dart non bruts (pas dans le code,
+/// les commentaires ni les chaînes `r'…'`), interpolations imbriquées comprises.
+List<int> _plainInterpolations(String s) {
+  final found = <int>[];
+  // La pile : un texte ouvert (son délimiteur, brut ou non) ou du code
+  // d'interpolation (null, avec sa profondeur d'accolades).
+  final stack = <(String?, bool, int)>[];
+  var i = 0;
+  final n = s.length;
+  while (i < n) {
+    final top = stack.isEmpty ? null : stack.last;
+    if (top != null && top.$1 != null) {
+      // Dans un texte.
+      final q = top.$1!;
+      final raw = top.$2;
+      if (!raw && s[i] == r'\') {
+        i += 2;
+        continue;
+      }
+      if (s.startsWith(q, i)) {
+        stack.removeLast();
+        i += q.length;
+        continue;
+      }
+      if (!raw && s.startsWith(r'${', i)) {
+        found.add(i);
+        stack.add((null, false, 0));
+        i += 2;
+        continue;
+      }
+      if (q.length == 1 && s[i] == '\n') {
+        // Texte sur une ligne mal fermé : on s'arrête là, prudemment.
+        stack.removeLast();
+      }
+      i++;
+      continue;
+    }
+    // Dans du code (le fichier ou une interpolation).
+    if (s.startsWith('//', i)) {
+      final e = s.indexOf('\n', i);
+      i = e < 0 ? n : e;
+      continue;
+    }
+    if (s.startsWith('/*', i)) {
+      final e = s.indexOf('*/', i + 2);
+      i = e < 0 ? n : e + 2;
+      continue;
+    }
+    final c = s[i];
+    if (c == '{' && top != null) {
+      stack[stack.length - 1] = (null, false, top.$3 + 1);
+    } else if (c == '}' && top != null) {
+      if (top.$3 == 0) {
+        stack.removeLast();
+      } else {
+        stack[stack.length - 1] = (null, false, top.$3 - 1);
+      }
+    } else if (c == "'" || c == '"') {
+      final raw =
+          i > 0 &&
+          (s[i - 1] == 'r' || s[i - 1] == 'R') &&
+          (i < 2 || !RegExp(r'[\w$]').hasMatch(s[i - 2]));
+      final q = s.startsWith(c * 3, i) ? c * 3 : c;
+      stack.add((q, raw, 0));
+      i += q.length;
+      continue;
+    }
+    i++;
+  }
+  return found;
 }
 
 /// Une ligne qui finit une instruction, un bloc ou un commentaire.

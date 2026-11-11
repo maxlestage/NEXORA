@@ -58,4 +58,82 @@ void main() {
       );
     });
   });
+
+  group('remarques de flutter analyze dans le Dart de l\'agent', () {
+    test('essai réel : accolades inutiles et doc en tête de fichier', () {
+      const agent =
+          '/// Utility functions for duration formatting.\n\n'
+          '/// Formats a [Duration].\n'
+          'String formatDuree(Duration d) {\n'
+          '  final hours = d.inHours;\n'
+          "  final minutesStr = '\${d.inMinutes % 60}'.padLeft(2, '0');\n"
+          "  return '\${hours} h \${minutesStr} min';\n"
+          '}\n';
+      expect(
+        tidyCode('app/lib/utils/duration_utils.dart', agent),
+        '// Utility functions for duration formatting.\n\n'
+        '/// Formats a [Duration].\n'
+        'String formatDuree(Duration d) {\n'
+        '  final hours = d.inHours;\n'
+        "  final minutesStr = '\${d.inMinutes % 60}'.padLeft(2, '0');\n"
+        "  return '\$hours h \$minutesStr min';\n"
+        '}\n',
+      );
+    });
+
+    test('les accolades utiles restent', () {
+      const agent =
+          "final a = '\${n}s \${n}_x \${o.p} \${f()} \${n}\$m';\n"
+          "final b = '\\\${n} ';\n";
+      expect(tidyCode('lib/a.dart', agent), agent);
+    });
+
+    test('jamais dans une chaîne brute ni hors d\'un texte', () {
+      const agent =
+          "final a = r'\${n} ';\n"
+          'final b = r"""\n\${n} \n""";\n'
+          '// voir \${n} ici\n'
+          "final c = '''\n\${n} ok''';\n";
+      expect(
+        tidyCode('lib/a.dart', agent),
+        "final a = r'\${n} ';\n"
+        'final b = r"""\n\${n} \n""";\n'
+        '// voir \${n} ici\n'
+        "final c = '''\n\$n ok''';\n",
+      );
+    });
+
+    test('interpolations imbriquées', () {
+      const agent = "final s = '\${ok ? '\${a} !' : \"\${b}.\"} \${c}';\n";
+      expect(
+        tidyCode('lib/a.dart', agent),
+        "final s = '\${ok ? '\$a !' : \"\$b.\"} \$c';\n",
+      );
+    });
+
+    test('les lignes du fichier d\'origine restent telles quelles', () {
+      const before = "/// Outils.\n\nfinal a = '\${x} ';\n";
+      const agent = "/// Outils.\n\nfinal a = '\${x} ';\nfinal b = '\${y} ';\n";
+      expect(
+        tidyCode('lib/a.dart', agent, before: before),
+        "/// Outils.\n\nfinal a = '\${x} ';\nfinal b = '\$y ';\n",
+      );
+    });
+
+    test('une doc rattachée à quelque chose reste une doc', () {
+      const lib = "/// La bibliothèque.\nlibrary;\n\nimport 'a.dart';\n";
+      const fn = '/// Compte.\nint n() => 0;\n';
+      expect(tidyCode('lib/a.dart', lib), lib);
+      expect(tidyCode('lib/b.dart', fn), fn);
+      expect(
+        tidyCode('lib/c.dart', "/// Outils.\nimport 'a.dart';\n"),
+        "// Outils.\nimport 'a.dart';\n",
+      );
+    });
+
+    test('le Rust n\'est pas concerné', () {
+      const rust = '/// Doc.\n\nfn f() { format!("\${x}"); }\n';
+      expect(tidyCode('src/lib.rs', rust), rust);
+    });
+  });
 }
