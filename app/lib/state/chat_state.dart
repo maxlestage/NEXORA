@@ -250,6 +250,7 @@ class ChatState extends ChangeNotifier {
         .map((c) => c.id)
         .toList();
     for (final id in old) {
+      _saveTimers.remove(id)?.cancel();
       _conversations.removeWhere((c) => c.id == id);
       _store.delete(id);
     }

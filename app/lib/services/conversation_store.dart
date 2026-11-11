@@ -51,15 +51,21 @@ class FileConversationStore implements ConversationStore {
   final Map<String, Future<void>> _queue = {};
   int _n = 0;
 
-  Future<void> _write(File f, String content) {
+  Future<void> _write(File f, String content) => _enqueue(f, () async {
+    await dir.create(recursive: true);
+    // Un fichier temporaire unique, puis un renommage (atomique).
+    final tmp = File('${f.path}.${_n++}.tmp');
+    await tmp.writeAsString(content, flush: true);
+    await tmp.rename(f.path);
+  });
+
+  /// Passe une opération sur un fichier après celles qui l'attendent déjà : une
+  /// suppression attend la fin d'un enregistrement en cours, qui ne peut plus
+  /// recréer le fichier ensuite (une conversation supprimée pendant qu'elle
+  /// s'enregistrait restait sur l'appareil, invisible mais toujours là).
+  Future<void> _enqueue(File f, Future<void> Function() op) {
     final previous = _queue[f.path] ?? Future<void>.value();
-    final next = previous.catchError((_) {}).then((_) async {
-      await dir.create(recursive: true);
-      // Un fichier temporaire unique, puis un renommage (atomique).
-      final tmp = File('${f.path}.${_n++}.tmp');
-      await tmp.writeAsString(content, flush: true);
-      await tmp.rename(f.path);
-    });
+    final next = previous.catchError((_) {}).then((_) => op());
     _queue[f.path] = next;
     next.whenComplete(() {
       if (identical(_queue[f.path], next)) _queue.remove(f.path);
@@ -108,13 +114,20 @@ class FileConversationStore implements ConversationStore {
       _write(_index, jsonEncode(all.map((c) => c.toMeta()).toList()));
 
   @override
-  Future<void> delete(String id) async {
+  Future<void> delete(String id) {
     final f = _file(id);
-    if (await f.exists()) await f.delete();
+    return _enqueue(f, () async {
+      if (await f.exists()) await f.delete();
+    });
   }
 
   @override
   Future<void> deleteAll() async {
+    // Les enregistrements en cours finissent d'abord (sinon ils recréaient le
+    // dossier et des conversations juste après l'effacement).
+    while (_queue.isNotEmpty) {
+      await Future.wait([for (final q in _queue.values) q.catchError((_) {})]);
+    }
     if (await dir.exists()) await dir.delete(recursive: true);
   }
 

@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.56 — 11 novembre 2026 — Une conversation supprimée l'est vraiment
+- Corrigé : une conversation supprimée pendant qu'une réponse s'enregistrait pouvait rester sur votre téléphone, invisible dans l'app mais toujours là, avec tout son contenu.
+- Corrigé : « Tout supprimer » attend maintenant la fin des enregistrements en cours, et plus rien ne réapparaît juste après l'effacement.
+- La place occupée par les conversations, dans les Réglages, est donc de nouveau juste.
+
 ## 2.2.55 — 11 novembre 2026 — Les tests Rust écrits par l'agent compilent
 - Corrigé : dans un projet Rust, l'agent écrivait parfois ses tests dans le dossier « tests/ » avec « use crate::… », qui ne compile pas à cet endroit. La CI échouait pour une simple ligne d'import.
 - L'agent est prévenu dès qu'il écrit un tel test, avec le bon nom à utiliser (lu dans Cargo.toml, par exemple « use nexora_site::… »), et corrige aussitôt.
