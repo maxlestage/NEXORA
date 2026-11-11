@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.88 — 11 novembre 2026 — L'agent modifie des lignes par leurs numéros
+- Corrigé : en essai réel, le modèle demandait de modifier « les lignes 404 à 420 » de site/src/lib.rs sans envoyer de texte, quatre fois de suite. NEXORA répondait chaque fois « il manque le texte », et ces étapes étaient perdues.
+- Une modification qui ne donne qu'une plage de lignes montre maintenant ces lignes au modèle, puis remplace la plage par le texte qu'il envoie juste après.
+- Une plage avec le nouveau texte (sans l'ancien passage) remplace directement ces lignes ; une plage hors du fichier reçoit une erreur claire, avec le nombre de lignes.
+- Rien ne change quand l'ancien passage est donné : il reste la référence.
+
 ## 2.2.87 — 11 novembre 2026 — L'agent repère le Rust qui ne compile pas
 - Corrigé : en essai réel, pour « slug() ignore les majuscules accentuées », l'agent récrivait le début d'un `match` sans retirer les anciennes branches. Le fichier gardait du code en double et une accolade en trop, et rien ne le signalait avant l'échec de la CI.
 - Le code Rust écrit par l'agent est maintenant relu à chaque modification, comme le Dart : accolade, parenthèse ou crochet en trop ou jamais fermé, chaîne jamais fermée. Le modèle est prévenu tout de suite, avec la ligne.
