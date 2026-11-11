@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.74 — 11 novembre 2026 — Les modifications de l'agent ne se perdent plus en route
+- Corrigé : en essai réel, pour ajouter une section au README, le modèle envoyait l'action « modifier README.md » puis, à part, le texte à remplacer et le nouveau texte. Ce texte était perdu : la modification échouait (« il manque le texte ») et l'agent recommençait plusieurs fois.
+- Le texte envoyé juste après une action, sans nom d'action, est maintenant rattaché à cette action : la modification ou l'écriture du fichier réussit du premier coup.
+- Rien n'est écrasé : un argument déjà donné garde sa valeur.
+
 ## 2.2.73 — 11 novembre 2026 — L'agent travaille là où vous l'avez dit
 - Corrigé : en essai réel, « ajoute slugify dans app/lib/utils/ » devenait, une fois traduit en langage NEXORA, « dans le fichier utilitaire de l'application ». Le dossier demandé disparaissait et l'agent ne savait plus où créer le code.
 - Chaque chemin de fichier ou de dossier que vous écrivez est maintenant gardé tel quel dans la demande traduite, même s'il n'existe pas encore : l'agent le crée et y met le nouveau code.
