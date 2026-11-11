@@ -228,7 +228,7 @@ void main() {
       repo: 'galerie',
       branch: 'main',
       task: 't',
-      onUsage: seen.add,
+      onUsage: (_, _, t) => seen.add(t),
     );
     await run.run();
     expect(seen, hasLength(1));
