@@ -5256,14 +5256,30 @@ final _codeStart = RegExp(
     if (reindented != null) {
       return (reindented, '1 remplacement, indentation du fichier gardée');
     }
-    final near = nearestPassage(text, old);
+    // Les « \n » écrits DANS une chaîne du fichier (« "a\nb" ») : en JSON,
+    // le modèle les envoie souvent comme de vrais retours à la ligne. En essai
+    // réel, le passage n'était jamais trouvé (trois refus de suite pour insérer
+    // une route après robots()). On les remet en « \n », dans old et new.
+    final escapedOld = escapeStringNewlines(old);
+    if (escapedOld != old && count(text, escapedOld) > 0) {
+      final r = applyEdit(
+        text,
+        escapedOld,
+        escapeStringNewlines(replacement),
+        all: all,
+        near: near,
+      );
+      if (r.$1 == null) return r;
+      return (r.$1, '${r.$2}, « \\n » des chaînes gardés');
+    }
+    final closest = nearestPassage(text, old);
     return (
       null,
       'passage introuvable. Relis le fichier (read_file avec start/end ou '
           'find_in_file) et recopie old exactement, espaces compris.'
-          '${near == null ? '' : '\nLe passage le plus proche dans le fichier '
+          '${closest == null ? '' : '\nLe passage le plus proche dans le fichier '
                     '(à recopier exactement dans old, sans les numéros de '
-                    'ligne) :\n$near'}',
+                    'ligne) :\n$closest'}',
     );
   }
   // Un passage qui revient plusieurs fois (« ]; », « } »…) : en essai réel,
@@ -5337,6 +5353,111 @@ final _codeStart = RegExp(
       ? source.replaceAll(needle, replacement)
       : source.replaceRange(at, at + needle.length, replacement);
   return (out, all && n > 1 ? '$n remplacements' : '1 remplacement$where');
+}
+
+/// Remet en « \n » (deux caractères) les vrais retours à la ligne placés à
+/// l'intérieur d'une chaîne d'une ligne ("…" ou '…'), là où le code ne peut
+/// avoir qu'un « \n » écrit. Les commentaires, les chaînes sur plusieurs
+/// lignes ('''…''', """…""") et les chaînes brutes (r"…", r#"…"#, r'…') ne
+/// sont pas touchés.
+String escapeStringNewlines(String s) {
+  final out = StringBuffer();
+  final letter = RegExp(r'[\p{L}\p{N}_]', unicode: true);
+  final opening = RegExp(r'''r?('{3}|"{3})|r#+"|r"|r'|"|'|//''');
+  final charLiteral = RegExp(
+    r"b?'(\\(x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}|[^\n])|[^'\\\n])'",
+  );
+  var i = 0;
+
+  // Une chaîne d'une ligne : ses vrais retours à la ligne deviennent « \n ».
+  // Les interpolations Dart (${…}) sont du code, avec leurs propres chaînes.
+  late void Function({bool inner}) code;
+  void string(String quote) {
+    out.write(quote);
+    i++;
+    while (i < s.length && s[i] != quote) {
+      if (s[i] == '\\' && i + 1 < s.length) {
+        out.write(s.substring(i, i + 2));
+        i += 2;
+      } else if (s.startsWith(r'${', i)) {
+        out.write(r'${');
+        i += 2;
+        code(inner: true);
+      } else {
+        out.write(s[i] == '\n' ? r'\n' : s[i]);
+        i++;
+      }
+    }
+    if (i < s.length) {
+      out.write(quote);
+      i++;
+    }
+  }
+
+  code = ({bool inner = false}) {
+    var depth = 0;
+    while (i < s.length) {
+      final c = s[i];
+      if (inner && c == '{') depth++;
+      if (inner && c == '}' && depth-- == 0) {
+        out.write(c);
+        i++;
+        return;
+      }
+      final before = i == 0 ? '' : s[i - 1];
+      // Un caractère seul ('x', '\n', b'"') : recopié tel quel.
+      final char = letter.hasMatch(before)
+          ? null
+          : charLiteral.matchAsPrefix(s, i);
+      if (char != null) {
+        out.write(char[0]);
+        i = char.end;
+        continue;
+      }
+      final m = opening.matchAsPrefix(s, i);
+      // Une durée de vie Rust (&'a str, <'a>, 'static) n'est pas une chaîne.
+      final lifetime =
+          m?[0] == "'" &&
+          (before.isNotEmpty && '&<'.contains(before) ||
+              s.startsWith("'static", i));
+      // Un « r » ou une apostrophe au milieu d'un mot (« bar"… »,
+      // « l'agent ») n'ouvre rien.
+      // Les préfixes b"…" (octets) et r"…" (brute) font partie de la chaîne.
+      final glued =
+          letter.hasMatch(before) &&
+          !(m?[0] == '"' &&
+              i >= 1 &&
+              s[i - 1] == 'b' &&
+              (i < 2 || !letter.hasMatch(s[i - 2])));
+      if (m == null || lifetime || glued) {
+        out.write(c);
+        i++;
+        continue;
+      }
+      final open = m[0]!;
+      if (open.length == 1) {
+        string(open);
+        continue;
+      }
+      // Commentaire (jusqu'à la fin de la ligne), chaîne sur plusieurs lignes
+      // ou brute (jusqu'à sa fin) : recopié tel quel.
+      final close = open == '//'
+          ? '\n'
+          : open.contains('#')
+          ? '"${'#' * (open.length - 2)}'
+          : open.replaceFirst('r', '');
+      final end = s.indexOf(close, i + open.length);
+      final stop = end < 0
+          ? s.length
+          : open == '//'
+          ? end
+          : end + close.length;
+      out.write(s.substring(i, stop));
+      i = stop;
+    }
+  };
+  code();
+  return out.toString();
 }
 
 /// Numéro (à partir de 1) de la ligne où commence vraiment un passage trouvé

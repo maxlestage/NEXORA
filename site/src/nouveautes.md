@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.83 — 11 novembre 2026 — L'agent modifie le code qui contient des « \n »
+- Corrigé : en essai réel, pour ajouter une route /version au site, l'agent voulait insérer son code après robots(), dont le texte contient des « \n ». Le modèle les renvoyait comme de vrais retours à la ligne : le passage n'était jamais trouvé, trois refus de suite, et la session s'épuisait sans rien livrer.
+- Ces retours à la ligne placés dans une chaîne sont maintenant reconnus : la modification réussit du premier coup, et les « \n » du nouveau code sont écrits comme il faut.
+- Rien ne change quand le passage est recopié exactement ; les commentaires, les chaînes brutes ou sur plusieurs lignes ne sont jamais touchés.
+- Vérifié sur tous les fichiers Dart et Rust du dépôt : aucun n'est modifié à tort.
+
 ## 2.2.82 — 11 novembre 2026 — L'agent n'efface plus le code existant
 - Corrigé : en essai réel, pour « ajoute une fonction diffStats dans diff.dart », l'agent réécrivait le fichier avec seulement la nouvelle fonction. Tout le reste (DiffResult, lineDiff…) disparaissait du brouillon, sans aucune alerte.
 - Quand un contenu effacerait la plupart du code d'un fichier existant, rien n'est écrit : l'agent apprend quelles lignes il allait perdre et comment ajouter son code (à un endroit précis, ou à la fin).
