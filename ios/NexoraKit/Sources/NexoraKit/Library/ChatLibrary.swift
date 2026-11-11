@@ -150,7 +150,7 @@ public enum ChatLibrary {
         // Appelé à chaque frappe : un texte ordinaire (sans « / » ni « @ » en tête)
         // est écarté tout de suite, et l'expression n'est compilée qu'une fois.
         guard let first = text.utf16.first, first == 0x2F || first == 0x40,
-              let re = suggestionPattern,
+              let re = suggestionPattern.get(),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
         let ns = text as NSString
         let q = ns.substring(with: m.range(at: 2)).lowercased()
@@ -173,7 +173,8 @@ public enum ChatLibrary {
 
     /// `/commande` ou `@agent` en cours de frappe. Une `NSRegularExpression` ne
     /// change plus une fois créée : elle se partage sans risque entre fils.
-    nonisolated(unsafe) private static let suggestionPattern = try? NSRegularExpression(pattern: #"^([/@])([\w.:-]*)$"#)
+    /// Gardée dans une boîte partageable (`Sendable` ou non selon la plateforme).
+    private static let suggestionPattern = Locked(try? NSRegularExpression(pattern: #"^([/@])([\w.:-]*)$"#))
 
     /// Le message quand rien ne correspond.
     public static func noSuggestion(for text: String) -> String {
