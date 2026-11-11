@@ -72,6 +72,8 @@ final class SettingsStore {
     private(set) var customProviders: [ProviderDef]
     /// Les modèles lus en direct chez chaque fournisseur (gardés d'un lancement à l'autre).
     var liveModels: [String: [ModelInfo]] = [:] { didSet { saveModelsCache() } }
+    /// Les listes de modèles déjà calculées, par fournisseur (voir `models(for:)`).
+    @ObservationIgnored private var modelsMemo: [ProviderDef: (stamp: ModelsStamp, list: [ModelInfo])] = [:]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -213,13 +215,39 @@ final class SettingsStore {
     /// compte si elle a été chargée, sinon le catalogue des derniers modèles (avec les
     /// modèles ajoutés à la main en tête).
     func models(for p: ProviderDef) -> [ModelInfo] {
-        var q = p
+        // Lus d'abord dans tous les cas : un écran qui affiche la liste est redessiné
+        // quand ils changent, même si elle vient de la mémoire.
+        let live = liveModels[p.id]
         let extra = extraModels[p.id] ?? []
-        q.defaultModels = extra + p.defaultModels.filter { !extra.contains($0) }
         let catalog = catalog
-        return ModelList.models(q, live: liveModels[p.id], catalog: catalog) { id in
+        // La liste est gardée tant que rien de ce qui la compose n'a changé : le
+        // fournisseur, sa liste en direct, ses modèles ajoutés, le catalogue, les prix
+        // en direct, et la minute (« 🆕 » dépend de la date). Le choix du modèle la
+        // demandait plusieurs fois par affichage (des centaines de modèles chez
+        // OpenRouter).
+        let stamp = ModelsStamp(
+            live: live, extra: extra, catalog: catalog.providers[p.id],
+            prices: ModelPrices.liveVersion, minute: Int(Date().timeIntervalSince1970 / 60)
+        )
+        if let memo = modelsMemo[p], memo.stamp == stamp { return memo.list }
+        var q = p
+        q.defaultModels = extra + p.defaultModels.filter { !extra.contains($0) }
+        let list = ModelList.models(q, live: live, catalog: catalog) { id in
             catalog.price(p.id, id) ?? Catalog.price(provider: p.id, model: id)
         }
+        if modelsMemo.count >= 64 { modelsMemo.removeAll() }
+        modelsMemo[p] = (stamp, list)
+        return list
+    }
+
+    /// Ce dont dépend la liste des modèles d'un fournisseur (voir `models(for:)`).
+    struct ModelsStamp: Equatable {
+        let live: [ModelInfo]?
+        let extra: [String]
+        /// Les modèles du fournisseur dans le catalogue.
+        let catalog: [CatalogModel]?
+        let prices: Int
+        let minute: Int
     }
 
     /// Le modèle à utiliser : celui demandé s'il existe, sinon celui par défaut.
