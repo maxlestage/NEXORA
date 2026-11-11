@@ -14,18 +14,28 @@ struct NexusOrb: View {
 
     @Environment(SettingsStore.self) private var settings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var sim = OrbSimulation()
+    /// À l'écran (sinon l'animation s'arrête : écran poussé dessus, autre onglet,
+    /// ligne de liste sortie de l'écran).
+    @State private var onScreen = false
+    /// Le doigt fait tourner l'orbe : il suit même quand l'orbe est fixe.
+    @State private var dragging = false
 
     var body: some View {
         let motion = Motion(rawValue: settings.animations) ?? .full
-        // Le mouvement : la vitesse réglée, très ralentie si iOS demande moins de
-        // mouvement ; animations coupées : une image fixe.
+        // Le mouvement : la vitesse réglée ; animations coupées ou « Réduire les
+        // animations » d'iOS : une image fixe (qui tourne seulement sous le doigt).
         let rate = speed * motion.speed * (reduceMotion ? 0.15 : 1)
+        let still = motion.isOff || reduceMotion
+        let paused = (still && !dragging) || !onScreen || scenePhase != .active
         let colors = palette
         let sats = OrbSimulation.satellites(satellites)
         let strong = pulse
         let model = sim
-        let canvas = TimelineView(.animation(paused: motion.isOff)) { timeline in
+        // 30 images par seconde suffisent à sa rotation lente ; toute la fluidité
+        // de l'écran sous le doigt.
+        let canvas = TimelineView(.animation(minimumInterval: dragging ? nil : 1.0 / 30, paused: paused)) { timeline in
             let now = timeline.date
             Canvas { context, canvasSize in
                 model.step(now: now, speed: rate)
@@ -34,6 +44,8 @@ struct NexusOrb: View {
             }
         }
         .frame(width: size, height: size)
+        .onAppear { onScreen = true }
+        .onDisappear { onScreen = false }
         .accessibilityElement()
         .accessibilityLabel("Logo NEXORA")
         .accessibilityAddTraits(.isImage)
@@ -43,8 +55,14 @@ struct NexusOrb: View {
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 8)
-                        .onChanged { v in sim.drag(to: v.translation) }
-                        .onEnded { v in sim.release(velocity: v.velocity) }
+                        .onChanged { v in
+                            sim.drag(to: v.translation)
+                            if !dragging { dragging = true }
+                        }
+                        .onEnded { v in
+                            sim.release(velocity: v.velocity)
+                            dragging = false
+                        }
                 )
         } else {
             canvas
