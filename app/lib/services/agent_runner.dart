@@ -3470,7 +3470,9 @@ class AgentRun extends ChangeNotifier {
   Future<String> _pitfalls(String p) async {
     final text = changes[p];
     if (text == null) return '';
-    if (p.endsWith('.dart')) return await _dartPitfalls(p, text);
+    if (p.endsWith('.dart')) {
+      return await _dartPitfalls(p, text) + await _formatPitfalls(p, text);
+    }
     if (!_rustTest.hasMatch(p)) return '';
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
@@ -3478,6 +3480,130 @@ class AgentRun extends ChangeNotifier {
     final (libRs, _) = await _current('${p.substring(0, i)}src/lib.rs');
     return rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
         '';
+  }
+
+  /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule
+  /// fois chacun : pas de boucle si le modèle n'y arrive pas).
+  final Set<String> _longWarned = {};
+
+  /// Par dépôt : sa CI vérifie-t-elle `dart format` ?
+  final Map<String, bool> _formatChecked = {};
+
+  /// En essai réel, l'agent écrivait des lignes Dart de plus de 80 caractères.
+  /// Quand la CI du dépôt passe `dart format --set-exit-if-changed`, elle échoue
+  /// alors sans dire quoi changer (« Changed lib/x.dart »). Le modèle est
+  /// prévenu dès l'écriture, avec les lignes à couper.
+  Future<String> _formatPitfalls(String p, String text) async {
+    if (_longWarned.contains(p)) return '';
+    try {
+      if (!await _checksDartFormat(p)) return '';
+      final hint = dartFormatHint(
+        p,
+        text,
+        before: await original(p),
+        width: await _pageWidth(p),
+      );
+      if (hint == null) return '';
+      _longWarned.add(p);
+      return hint;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// La largeur de ligne de `dart format` pour [p] : `formatter: page_width`
+  /// du analysis_options.yaml le plus proche, sinon 80.
+  Future<int> _pageWidth(String p) async {
+    final files = (await _files()).toSet();
+    var dir = p;
+    while (true) {
+      final i = dir.lastIndexOf('/');
+      dir = i < 0 ? '' : dir.substring(0, i);
+      final f = '${dir.isEmpty ? '' : '$dir/'}analysis_options.yaml';
+      if (files.contains(f)) {
+        final (t, _) = await _current(f);
+        final m = RegExp(r'page_width:\s*(\d+)').firstMatch(t ?? '');
+        return m == null ? 80 : int.parse(m[1]!);
+      }
+      if (dir.isEmpty) return 80;
+    }
+  }
+
+  /// La CI du dépôt de [p] vérifie-t-elle le format Dart ?
+  Future<bool> _checksDartFormat(String p) async {
+    final where = resolve(p);
+    if (where == null) return false;
+    final prefix = multi ? '${mountOf(where.$1)}/' : '';
+    final known = _formatChecked[prefix];
+    if (known != null) return known;
+    var found = false;
+    for (final f in await _files()) {
+      if (!f.startsWith('$prefix.github/workflows/') ||
+          !(f.endsWith('.yml') || f.endsWith('.yaml'))) {
+        continue;
+      }
+      final (t, _) = await _current(f);
+      if (t != null &&
+          t.contains('dart format') &&
+          t.contains('set-exit-if-changed')) {
+        found = true;
+        break;
+      }
+    }
+    return _formatChecked[prefix] = found;
+  }
+
+  /// L'avertissement pour les lignes Dart de plus de 80 caractères écrites par
+  /// l'agent (celles du fichier d'origine ne comptent pas), ou null. Les
+  /// lignes que `dart format` laisse longues ne sont pas signalées : imports,
+  /// commentaires, texte seul sur sa ligne ou dans un texte sur plusieurs
+  /// lignes.
+  static String? dartFormatHint(
+    String path,
+    String text, {
+    String? before,
+    int width = 80,
+  }) {
+    if (!path.endsWith('.dart')) return null;
+    final old = before == null ? const <String>{} : before.split('\n').toSet();
+    final long = <String>[];
+    var inLong = false;
+    var off = false;
+    for (final (i, line) in text.split('\n').indexed) {
+      final mark = RegExp(r'^\s*// dart format (off|on)\b').firstMatch(line);
+      if (mark != null) off = mark[1] == 'off';
+      if (off) continue;
+      final quotes = RegExp("'''|\"\"\"").allMatches(line).length;
+      final wasIn = inLong;
+      if (quotes.isOdd) inLong = !inLong;
+      if (wasIn || quotes > 0 || line.length <= width || old.contains(line)) {
+        continue;
+      }
+      final t = line.trimLeft();
+      if (RegExp("^(//|/\\*|\\*|import |export |part |r?['\"])").hasMatch(t)) {
+        continue;
+      }
+      // dart format ne coupe jamais un texte : seule la longueur du code compte.
+      // Ni un commentaire en fin de ligne.
+      final code = line
+          .replaceAll(_stringLiteral, "''")
+          .replaceFirst(RegExp(r'\s*//.*$'), '');
+      if (code.length <= width) continue;
+      if (long.length < 5) {
+        final shown = line.length > 120 ? '${line.substring(0, 120)}…' : line;
+        long.add(
+          'ligne ${i + 1} (${line.length} caractères) : ${shown.trim()}',
+        );
+      }
+    }
+    if (long.isEmpty) return null;
+    return '\n\nATTENTION : la CI de ce dépôt vérifie « dart format » ($width '
+        'caractères au plus par ligne) et refusera $path. Lignes trop longues :\n'
+        '${long.join('\n')}\n'
+        'Coupe-les maintenant avec edit_file, comme dart format : retour à la '
+        'ligne après « = » ou « => » (4 espaces de plus), un argument par ligne '
+        'avec une virgule après le dernier (2 espaces de plus), ou chaque « .appel() » '
+        'd\'une chaîne sur sa propre ligne (4 espaces de plus).';
   }
 
   /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
@@ -5008,6 +5134,9 @@ List<int> _plainInterpolations(String s) {
   }
   return found;
 }
+
+/// Un texte entre guillemets simples ou doubles, sur une ligne.
+final _stringLiteral = RegExp(r'''r?'(?:\\.|[^'\\])*'|r?"(?:\\.|[^"\\])*"''');
 
 /// Une ligne qui finit une instruction, un bloc ou un commentaire.
 final _codeEnd = RegExp(r'(^\s*(//|#\[|@).*|[;{}\]),]|\*/)$');
