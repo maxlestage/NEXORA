@@ -345,17 +345,28 @@ func jv(_ x: Any?) -> Any? {
     return x
 }
 
+/// Un booléen JSON (`true`/`false`), pas un nombre : `JSONSerialization` rend des
+/// `NSNumber` pour les deux.
+func isJSONBool(_ x: Any) -> Bool {
+    if type(of: x) == Bool.self { return true }
+    guard let n = x as? NSNumber else { return false }
+    #if canImport(Darwin)
+    return CFGetTypeID(n) == CFBooleanGetTypeID()
+    #else
+    return String(cString: n.objCType) == "c"
+    #endif
+}
+
 /// `x.toString()` de Dart pour une valeur JSON (`null` → « null »).
 func dstr(_ x: Any?) -> String {
     guard let x = jv(x) else { return "null" }
     if let s = x as? String { return s }
-    if let b = x as? Bool, type(of: x) == Bool.self { return b ? "true" : "false" }
+    if isJSONBool(x) { return (x as? Bool) == true ? "true" : "false" }
     if let n = x as? NSNumber {
-        #if canImport(Darwin)
-        if CFGetTypeID(n) == CFBooleanGetTypeID() { return n.boolValue ? "true" : "false" }
-        #endif
         let d = n.doubleValue
-        if d.rounded() == d && abs(d) < 1e15 && !"\(n)".contains(".") { return "\(n.int64Value)" }
+        let objc = String(cString: n.objCType)
+        if objc != "d" && objc != "f" { return "\(n.int64Value)" }
+        if d.rounded() == d && abs(d) < 1e15 { return "\(Int64(d)).0" }
         return "\(d)"
     }
     if JSONSerialization.isValidJSONObject(x) { return LooseJSON.string(x) }
@@ -369,14 +380,7 @@ func dstrOr(_ x: Any?, _ fallback: String = "") -> String {
 
 /// `x == true` de Dart.
 func isTrue(_ x: Any?) -> Bool {
-    guard let x = jv(x) else { return false }
-    if let n = x as? NSNumber {
-        #if canImport(Darwin)
-        return CFGetTypeID(n) == CFBooleanGetTypeID() && n.boolValue
-        #else
-        return type(of: x) == Bool.self && n.boolValue
-        #endif
-    }
+    guard let x = jv(x), isJSONBool(x) else { return false }
     return (x as? Bool) == true
 }
 
@@ -384,11 +388,8 @@ func isTrue(_ x: Any?) -> Bool {
 func asInt(_ x: Any?) -> Int? {
     guard let x = jv(x) else { return nil }
     if let s = x as? String { return Int(s.trim()) }
-    if x is Bool { return nil }
+    if isJSONBool(x) { return nil }
     if let n = x as? NSNumber {
-        #if canImport(Darwin)
-        if CFGetTypeID(n) == CFBooleanGetTypeID() { return nil }
-        #endif
         let d = n.doubleValue
         if d.isNaN || d.isInfinite { return nil }
         return Int(d)
