@@ -65,6 +65,8 @@ struct ChatView: View {
                         chats.setLevel(conversationId, l)
                     }
                     Spacer(minLength: 0)
+                    // Le crédit de l'IA de CETTE conversation (et pas du modèle par défaut).
+                    QuotaBadge(providerId: ref.providerId, dense: true)
                 }
                 .padding(.horizontal, 10)
                 if !attachments.isEmpty { attachmentChips.padding(.horizontal, 10) }
