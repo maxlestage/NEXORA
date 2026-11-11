@@ -24,7 +24,7 @@ struct NexoraApp: App {
         _chats = State(initialValue: chats)
         let github = GitHubSession()
         _github = State(initialValue: github)
-        let sessions = SessionStore(settings: settings, agents: agents, account: github, usage: usage)
+        let sessions = SessionStore(settings: settings, agents: agents, github: github, usage: usage)
         _sessions = State(initialValue: sessions)
         _routines = State(initialValue: RoutineBook(sessions: sessions.core))
     }
