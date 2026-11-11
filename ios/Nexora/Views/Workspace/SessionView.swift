@@ -33,6 +33,9 @@ struct SessionView: View {
     /// L'utilisateur fait défiler (doigt posé ou élan) : pas de saut automatique.
     @State private var userScrolling = false
     @State private var distanceToEnd: CGFloat = 0
+    /// Les photos jointes à la prochaine instruction.
+    @State private var photos: [ChatPhotoDraft] = []
+    @State private var loadingPhotos = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -364,7 +367,11 @@ struct SessionView: View {
                 QuotaBadge(providerId: run.provider.id, dense: true)
                 Spacer(minLength: 0)
             }
+            if !photos.isEmpty || loadingPhotos {
+                PhotoDraftStrip(photos: $photos, loading: loadingPhotos)
+            }
             HStack(spacing: 8) {
+                PhotoAttachButton(photos: $photos, loading: $loadingPhotos)
                 TextField(
                     busy ? "Préciser pendant le travail…" : "Nouvelle instruction pour cette session",
                     text: $input,
@@ -399,9 +406,12 @@ struct SessionView: View {
 
     private func followUp(_ run: AgentRun) {
         let t = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.isEmpty { return }
-        sessions.continueSession(run.id, t)
+        if t.isEmpty && photos.isEmpty { return }
+        // Des photos sans texte : l'agent est invité à les regarder.
+        let instruction = t.isEmpty ? (photos.count > 1 ? "Regarde les photos jointes." : "Regarde la photo jointe.") : t
+        sessions.continueSession(run.id, instruction, images: photos.map { LLMImage(data: $0.data) })
         input = ""
+        photos.removeAll()
         focused = false
     }
 }

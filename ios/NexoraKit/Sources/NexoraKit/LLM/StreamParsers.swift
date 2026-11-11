@@ -60,10 +60,14 @@ public struct ChatDelta: Sendable, Hashable {
     /// Pourquoi le modèle s'est arrêté : `stop`, `length` / `max_tokens` (coupé par
     /// la limite de longueur)… et `cut` quand la connexion s'est fermée sans signal.
     public var stop: String?
+    /// Un avis à montrer à l'utilisateur (ex. : le modèle a refusé les images, la
+    /// réponse a été faite sans elles).
+    public var notice: String?
 
     public init(
         text: String = "", thinking: String = "", done: Bool = false,
-        usage: TokenUsage? = nil, toolCalls: [ToolCallPart] = [], stop: String? = nil
+        usage: TokenUsage? = nil, toolCalls: [ToolCallPart] = [], stop: String? = nil,
+        notice: String? = nil
     ) {
         self.text = text
         self.thinking = thinking
@@ -71,13 +75,14 @@ public struct ChatDelta: Sendable, Hashable {
         self.usage = usage
         self.toolCalls = toolCalls
         self.stop = stop
+        self.notice = notice
     }
 
     /// La réponse a été coupée avant la fin : il faut demander la suite.
     public var truncated: Bool { isCutStop(stop) }
 
     public var isEmpty: Bool {
-        text.isEmpty && thinking.isEmpty && !done && usage == nil && toolCalls.isEmpty && stop == nil
+        text.isEmpty && thinking.isEmpty && !done && usage == nil && toolCalls.isEmpty && stop == nil && notice == nil
     }
 }
 
