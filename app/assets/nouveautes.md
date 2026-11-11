@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.53 — 11 novembre 2026 — L'agent ajoute à la fin d'un fichier sans le réécrire
+- Corrigé : quand le modèle voulait ajouter quelques lignes à la fin d'un long fichier (« at_end », « append »), l'agent lui demandait tout le fichier. Pollinations, limité à 1 500 tokens, ne pouvait pas le renvoyer, et la session tournait en rond sans rien modifier.
+- Seul le texte à ajouter est maintenant demandé, puis ajouté à la fin : le reste du fichier est gardé tel quel.
+- Le même ajout envoyé deux fois n'est écrit qu'une fois.
+- Pour un long fichier envoyé sans contenu, l'agent rappelle au modèle la façon simple de faire : modifier seulement le passage voulu.
+
 ## 2.2.52 — 11 novembre 2026 — L'agent retrouve les fichiers mal nommés
 - Corrigé : quand le modèle oubliait le point d'un dossier caché (« github/workflows/ci.yml » au lieu de « .github/workflows/ci.yml »), l'agent répondait « fichier introuvable », le modèle recommençait, et la session s'arrêtait avec « L'agent tourne en rond ».
 - L'agent ouvre maintenant directement le bon fichier, et dit au modèle le chemin exact à utiliser ensuite.
