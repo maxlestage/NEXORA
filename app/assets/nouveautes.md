@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.69 — 11 novembre 2026 — L'agent reçoit toujours votre demande en entier
+- Corrigé : quand la réponse du modèle était coupée en route (connexion interrompue), la traduction de votre demande en langage NEXORA s'arrêtait au premier mot (« DEMANDES : 1. Dans »). L'agent travaillait ensuite avec une demande qui ne disait plus quoi faire.
+- Une traduction coupée ou inachevée est maintenant reconnue et redemandée aussitôt : l'agent reçoit la version complète.
+- Si elle échoue encore, l'agent travaille avec vos mots exacts, jamais avec une traduction tronquée.
+
 ## 2.2.68 — 11 novembre 2026 — Le test d'une route du site au bon endroit dès la traduction
 - Corrigé : pour « ajoute une route au site, avec son test », la traduction en langage NEXORA demandait encore de créer le test dans site/tests/, où il ne peut pas compiler. L'agent suivait ce chemin et cherchait longtemps comment faire.
 - La demande traduite indique maintenant directement le module de tests du programme (site/src/main.rs) : l'agent écrit le test là où il compile.
