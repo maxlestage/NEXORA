@@ -36,6 +36,8 @@ struct SessionView: View {
     /// Les photos jointes à la prochaine instruction.
     @State private var photos: [ChatPhotoDraft] = []
     @State private var loadingPhotos = false
+    /// Les étapes regroupées, recalculées seulement quand une étape arrive.
+    @State private var memo = SessionJournalMemo()
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -49,11 +51,12 @@ struct SessionView: View {
     private func content(_ run: AgentRun) -> some View {
         let stats = run.stats
         let busy = run.running || run.shipping
+        let journal = memo.journal(run.steps)
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     Color.clear.frame(height: 1).id("top")
-                    header(run, stats)
+                    header(run, stats, actions: journal.actions)
                     chips(run)
                     if !run.running && !run.shipping && !run.stranded.isEmpty { stranded(run) }
                     if !run.ciNote.isEmpty { ciNote(run) }
@@ -63,7 +66,7 @@ struct SessionView: View {
                     // La mission en entier, à relire ou copier.
                     StepTile(step: AgentStep(.user, run.task), full: $full)
                         .padding(.top, 4)
-                    ForEach(WorkspaceText.rows(run.steps)) { row in
+                    ForEach(journal.rows) { row in
                         switch row {
                         case let .tool(s, result, _):
                             ToolCard(tool: s, result: result, pending: run.running && result == nil, full: $full)
@@ -198,7 +201,7 @@ struct SessionView: View {
         .transition(.scale.combined(with: .opacity))
     }
 
-    private func header(_ run: AgentRun, _ stats: (added: Int, removed: Int)) -> some View {
+    private func header(_ run: AgentRun, _ stats: (added: Int, removed: Int), actions: Int) -> some View {
         GlassCard(glow: run.status.color) {
             HStack(spacing: 10) {
                 NexusOrb(size: 56, satellites: 6, interactive: false, pulse: run.running)
@@ -208,7 +211,7 @@ struct SessionView: View {
                         .fontWeight(.bold)
                         .lineLimit(3)
                     Text(WorkspaceText.header(
-                        run.status, actions: run.steps.filter { $0.kind == .tool }.count,
+                        run.status, actions: actions,
                         added: stats.added, removed: stats.removed
                     ))
                     .font(.caption)
@@ -621,7 +624,8 @@ private struct FollowKey: Equatable {
     @MainActor
     init(_ run: AgentRun) {
         steps = run.steps.count
-        last = run.steps.last?.text.count ?? 0
+        // `utf8.count` : immédiat (`count` parcourt tout le texte).
+        last = run.steps.last?.text.utf8.count ?? 0
         drafts = run.changes.count
         busy = run.running || run.shipping
         ci = run.ci.count
