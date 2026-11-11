@@ -25,7 +25,11 @@ targets:
     platform: iOS
     sources:
       - path: Nexora
+        excludes:
+          - Resources/nouveautes-ios.md
       - path: ../app/assets/nouveautes.md
+        buildPhase: resources
+      - path: Nexora/Resources/nouveautes-ios.md
         buildPhase: resources
     dependencies:
       - package: NexoraKit
