@@ -52,6 +52,11 @@ final class SettingsStore {
     var hiddenTabs: [String] { didSet { defaults.set(hiddenTabs, forKey: "hidden_tabs") } }
     /// Le Client ID d'une OAuth App GitHub (« Se connecter avec GitHub »).
     var githubClientId: String { didSet { defaults.set(githubClientId, forKey: "github_client_id") } }
+    /// Sessions de l'agent : faire passer la CI GitHub (branche de travail, pull
+    /// request, corrections jusqu'au vert).
+    var agentAutoCi: Bool { didSet { defaults.set(agentAutoCi, forKey: "agent_auto_ci") } }
+    /// … puis fusionner la pull request quand la CI est verte.
+    var agentAutoMerge: Bool { didSet { defaults.set(agentAutoMerge, forKey: "agent_auto_merge") } }
     /// Le catalogue des derniers modèles (livré, puis relu sur le site).
     var catalog: ModelCatalog = .bundled
     /// Adresses modifiées des fournisseurs du catalogue.
@@ -90,6 +95,9 @@ final class SettingsStore {
         voiceRate = defaults.object(forKey: "voice_rate") as? Double ?? 0.5
         hiddenTabs = defaults.stringArray(forKey: "hidden_tabs") ?? []
         githubClientId = defaults.string(forKey: "github_client_id") ?? ""
+        // Repris de l'app Flutter (`flutter.agent_auto_ci`) s'ils n'existent pas encore.
+        agentAutoCi = (defaults.object(forKey: "agent_auto_ci") ?? defaults.object(forKey: "flutter.agent_auto_ci")) as? Bool ?? true
+        agentAutoMerge = (defaults.object(forKey: "agent_auto_merge") ?? defaults.object(forKey: "flutter.agent_auto_merge")) as? Bool ?? true
         overrides = defaults.dictionary(forKey: "provider_urls") as? [String: String] ?? [:]
         extraModels = defaults.dictionary(forKey: "extra_models") as? [String: [String]] ?? [:]
         if let data = defaults.data(forKey: "custom_providers"),
