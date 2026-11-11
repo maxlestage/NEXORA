@@ -136,6 +136,56 @@ final class AgentLibrary {
         return install(item, text: text)
     }
 
+    /// Le résultat d'une installation depuis un lien.
+    enum SkillLinkResult {
+        /// Installées : le compte rendu à afficher.
+        case done(String)
+        /// Trop de skills pour tout installer d'un coup : à choisir dans la
+        /// bibliothèque, ouverte sur ce dépôt.
+        case choose(spec: String, count: Int)
+    }
+
+    /// Installe les skills d'un lien GitHub (dépôt, dossier, page ou fichier
+    /// SKILL.md). Au-delà de `SkillImport.maxDirect`, propose de choisir.
+    func installSkills(fromLink link: String, api: GitHubAPI) async throws -> SkillLinkResult {
+        guard let spec = SkillImport.spec(from: link) else {
+            throw GitHubError("Collez un lien GitHub : propriétaire/dépôt, un dossier, ou la page d'un SKILL.md.")
+        }
+        let scan = try await api.libraryScan(spec)
+        let found = SkillImport.skills(in: scan)
+        if found.isEmpty {
+            if !scan.isEmpty { return .choose(spec: spec, count: scan.items.count) }
+            throw GitHubError("Aucune skill (fichier SKILL.md) à cette adresse.")
+        }
+        if found.count > SkillImport.maxDirect { return .choose(spec: spec, count: found.count) }
+        let texts = await api.libraryTexts(found)
+        var installed = 0, already = 0, failed = 0
+        for (item, text) in zip(found, texts) {
+            let was = isInstalled(item)
+            if let text, install(item, text: text) {
+                if was { already += 1 } else { installed += 1 }
+            } else {
+                failed += 1
+            }
+        }
+        return .done(SkillImport.report(installed: installed, already: already, failed: failed))
+    }
+
+    /// Relit sur GitHub chaque skill installée depuis un dépôt (nouvelle version
+    /// des instructions), en gardant son réglage « Toujours ». Rend le compte rendu.
+    func updateSkills(api: GitHubAPI) async -> String {
+        let items = skills.compactMap(SkillImport.item(for:))
+        if items.isEmpty { return "Aucune skill venue de GitHub à mettre à jour." }
+        let texts = await api.libraryTexts(items)
+        var ok = 0, failed = 0
+        for (item, text) in zip(items, texts) {
+            if let text, install(item, text: text) { ok += 1 } else { failed += 1 }
+        }
+        var out = ok == 1 ? "1 skill à jour" : "\(ok) skills à jour"
+        if failed > 0 { out += " · \(failed) introuvable\(failed > 1 ? "s" : "") sur GitHub" }
+        return out + "."
+    }
+
     /// Le contenu d'un fichier d'une skill (scripts, références), lu sur GitHub.
     func readSkillFile(_ api: GitHubAPI, _ skill: Skill, _ file: String) async throws -> String {
         try await api.librarySkillFile(skill, file: file)

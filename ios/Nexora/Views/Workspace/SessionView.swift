@@ -18,6 +18,9 @@ struct SessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var input = ""
+    /// Demande de confirmation avant d'arrêter la session (le bouton est tout près
+    /// du menu : un toucher involontaire ne doit pas tout arrêter).
+    @State private var confirmStop = false
     @State private var toast: Toast?
     @State private var full: FullTextItem?
     @State private var reviewing = false
@@ -108,11 +111,17 @@ struct SessionView: View {
         }
         .navigationTitle(run.task)
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Arrêter la session ?", isPresented: $confirmStop, titleVisibility: .visible) {
+            Button("Arrêter", role: .destructive) { run.stop() }
+            Button("Continuer le travail", role: .cancel) {}
+        } message: {
+            Text("L'agent s'arrête là où il en est. Ses brouillons sont gardés : envoyez une instruction pour reprendre.")
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if busy {
                     Button(role: .destructive) {
-                        run.stop()
+                        confirmStop = true
                     } label: {
                         Label("Arrêter", systemImage: "stop.circle")
                     }
@@ -317,7 +326,7 @@ struct SessionView: View {
                 .accessibilityLabel(busy ? "Envoyer (lu au tour suivant)" : "Envoyer")
                 if busy {
                     Button {
-                        run.stop()
+                        confirmStop = true
                     } label: {
                         Image(systemName: "stop.circle.fill").font(.title)
                     }

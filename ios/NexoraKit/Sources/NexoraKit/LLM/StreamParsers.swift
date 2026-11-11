@@ -100,7 +100,32 @@ public struct LLMError: Error, Sendable, CustomStringConvertible, LocalizedError
     }
 
     /// Vaut-il la peine de réessayer (réseau, délai, saturation, limite de débit) ?
-    public var retryable: Bool { transient || [408, 429, 500, 502, 503, 504, 529].contains(status ?? 0) }
+    public var retryable: Bool {
+        if quotaExhausted { return false }
+        return transient || [408, 429, 500, 502, 503, 504, 529].contains(status ?? 0)
+    }
+
+    /// Quota ou crédit épuisé chez le fournisseur (et pas une simple limite de
+    /// débit) : réessayer ne sert à rien avant longtemps, il faut un autre modèle.
+    public var quotaExhausted: Bool {
+        if status == 402 { return true }
+        guard status == 429 || status == 403 || status == nil else { return false }
+        return LLMError.isQuotaText(message)
+    }
+
+    /// Le problème touche tout le fournisseur (clé refusée, quota ou crédit
+    /// épuisé) : ses autres modèles échoueront aussi.
+    public var providerWide: Bool { quotaExhausted || status == 401 || status == 403 }
+
+    /// Le texte d'erreur parle-t-il d'un quota ou d'un crédit épuisé ?
+    public static func isQuotaText(_ text: String) -> Bool {
+        let m = text.lowercased()
+        return ["exceeded your current quota", "insufficient_quota", "resource_exhausted", "quota exceeded",
+                "exceeded your quota", "insufficient credits", "insufficient balance", "credit balance is too low",
+                "billing", "payment required", "out of credits", "quota épuisé", "monthly limit", "daily limit",
+                "free tier", "requests per day"]
+            .contains { m.contains($0) }
+    }
 
     public var description: String { status.map { "HTTP \($0) · \(message)" } ?? message }
     public var errorDescription: String? { description }
@@ -117,7 +142,10 @@ func errorMessage(_ e: Any?) -> String {
 
 /// Le message d'erreur d'une réponse HTTP en échec, lisible par un humain.
 public func errorFromBody(_ body: String) -> String {
-    if let j = LooseJSON.object(body) as? [String: Any] {
+    var parsed = LooseJSON.object(body)
+    // Google Gemini renvoie une liste : `[{"error": {...}}]`.
+    if let list = parsed as? [Any], let first = list.first { parsed = first }
+    if let j = parsed as? [String: Any] {
         if let e = j["error"] { return errorMessage(e) }
         if let m = j["message"] { return "\(m)" }
         if let d = j["detail"] { return "\(d)" }

@@ -7,7 +7,13 @@ public enum Catalog {
     public static let providers: [ProviderDef] = load("providers", as: [ProviderDef].self) ?? []
 
     /// Les agents fournis avec NEXORA.
-    public static let builtinAgents: [Agent] = (load("agents", as: [Agent].self) ?? []).map {
+    /// Ceux de l'app Flutter (`agents.json`), puis ceux propres à l'app iOS
+    /// (`agents-ios.json`), sans doublon d'identifiant.
+    public static let builtinAgents: [Agent] = {
+        var seen = Set<String>()
+        return ((load("agents", as: [Agent].self) ?? []) + (load("agents-ios", as: [Agent].self) ?? []))
+            .filter { seen.insert($0.id).inserted }
+    }().map {
         var a = $0
         a.builtin = true
         a.source = "builtin"

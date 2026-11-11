@@ -46,6 +46,10 @@ struct AgentsView: View {
     @State private var showLibrary = false
     @State private var librarySpec: String?
     @State private var sessionAgent: Agent?
+    /// Le lien GitHub collé dans l'onglet Skills, et l'installation en cours.
+    @State private var skillLink = ""
+    @State private var skillBusy = false
+    @State private var skillNotice: String?
     @Environment(GitHubSession.self) private var github
 
     var body: some View {
@@ -263,8 +267,91 @@ struct AgentsView: View {
 
     // MARK: - Skills et commandes
 
+    /// Les sources de skills (sans les catalogues de sous-agents et de commandes).
+    private var skillSources: [LibrarySource] {
+        let notSkills: Set<String> = ["wshobson/agents", "VoltAgent/awesome-claude-code-subagents", "wshobson/commands", "anthropics/claude-code"]
+        return LibraryScanner.sources.filter { !notSkills.contains($0.spec) }
+    }
+
+    /// Coller un lien GitHub, ou choisir une source : les skills s'installent.
+    private var addSkillsSection: some View {
+        Section {
+            HStack(spacing: 8) {
+                TextField("Lien GitHub : dépôt, dossier ou SKILL.md", text: $skillLink)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .submitLabel(.go)
+                    .onSubmit { installSkillLink() }
+                if skillBusy {
+                    ProgressView()
+                } else {
+                    Button("Installer") { installSkillLink() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(skillLink.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            if let skillNotice {
+                Text(skillNotice).font(.footnote).foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(skillSources) { src in
+                        Button {
+                            openLibrary(src.spec)
+                        } label: {
+                            Text("\(src.emoji) \(src.title)").font(.footnote).lineLimit(1)
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .accessibilityHint(src.description)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            Text("Ajouter des skills depuis GitHub")
+        } footer: {
+            Text("Collez l'adresse d'un dépôt (anthropics/skills), d'un dossier ou d'une page SKILL.md, ou ouvrez une source pour choisir. L'assistant et l'agent autonome chargent une skill quand elle sert.")
+        }
+    }
+
+    private func installSkillLink() {
+        let link = skillLink
+        guard !link.trimmingCharacters(in: .whitespaces).isEmpty, !skillBusy else { return }
+        skillBusy = true
+        skillNotice = nil
+        let api = github.api
+        Task {
+            defer { skillBusy = false }
+            do {
+                switch try await agents.installSkills(fromLink: link, api: api) {
+                case let .done(report):
+                    skillNotice = report
+                    skillLink = ""
+                case let .choose(spec, count):
+                    skillNotice = "\(count) éléments dans ce dépôt : choisissez ceux à installer."
+                    openLibrary(spec)
+                }
+            } catch {
+                skillNotice = error.localizedDescription
+            }
+        }
+    }
+
+    private func updateAllSkills() {
+        guard !skillBusy else { return }
+        skillBusy = true
+        let api = github.api
+        Task {
+            skillNotice = await agents.updateSkills(api: api)
+            skillBusy = false
+        }
+    }
+
     @ViewBuilder
     private var skillList: some View {
+        addSkillsSection
         let skills = agents.skills.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query) }
         let commands = agents.commands.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query) }
         if agents.skills.isEmpty && agents.commands.isEmpty {
@@ -275,7 +362,7 @@ struct AgentsView: View {
                     Text("Une skill est un savoir-faire (créer un PDF, faire une revue de code, suivre une méthode…) que l'assistant charge seulement quand il sert. Une commande se lance avec /nom dans le chat.")
                 } actions: {
                     Button("Skills officielles d'Anthropic", systemImage: "square.and.arrow.down") { openLibrary("anthropics/skills") }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                 }
             }
             .listRowBackground(Color.clear)
@@ -354,6 +441,10 @@ struct AgentsView: View {
                 }
             }
             Section {
+                if agents.skills.contains(where: { SkillImport.item(for: $0) != nil }) {
+                    Button("Mettre à jour les skills", systemImage: "arrow.triangle.2.circlepath") { updateAllSkills() }
+                        .disabled(skillBusy)
+                }
                 Button("En ajouter depuis la bibliothèque", systemImage: "square.and.arrow.down") { openLibrary() }
             } footer: {
                 Text("Balayez vers la gauche ou appuyez longuement pour supprimer.")

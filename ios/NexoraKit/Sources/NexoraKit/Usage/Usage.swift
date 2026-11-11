@@ -295,6 +295,8 @@ public struct ProviderUsage: Sendable, Hashable {
         if budgetRatio == 0 || prepaidRatio == 0 { return .blocked }
         let fresh = windowsAt.map { UsageFormat.minutes(now, since: $0) < 10 } ?? false
         if fresh && windows.contains(where: { $0.remaining == 0 }) { return .blocked }
+        // Quota ou crédit épuisé (et pas une simple limite par minute) : bloqué.
+        if err && lastErrorStatus == 429 && LLMError.isQuotaText(lastErrorMessage ?? "") { return .blocked }
         if err && lastErrorStatus == 429 { return .low }
         var ratios: [Double] = []
         if let r = balance?.ratio { ratios.append(r) }
