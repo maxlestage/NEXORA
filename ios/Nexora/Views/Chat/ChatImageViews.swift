@@ -551,6 +551,26 @@ struct ImagePromptSheet: View {
     @State private var count = 1
     @FocusState private var focused: Bool
 
+    /// Le moteur qui sera vraiment utilisé, d'après le choix fait ici.
+    private var resolved: ImageGenEngine {
+        ImageGenEngine.named(settings.imageEngine).resolved(hasOpenAIKey: settings.hasOwnKey("openai"))
+    }
+
+    /// Ce que coûtera la demande, selon le moteur, la qualité, le format et le nombre.
+    private var costNote: String {
+        if ImageGenEngine.named(settings.imageEngine) == .openai && !settings.hasOwnKey("openai") {
+            return "Aucune clé OpenAI enregistrée : ajoutez-la dans Modèles → OpenAI, ou choisissez Pollinations (gratuit)."
+        }
+        guard resolved == .openai else { return "Pollinations : gratuit, sans clé." }
+        let shape = ImageGenShape.named(settings.imageShape)
+        let quality = ImageGenQuality.named(settings.imageQuality)
+        let images = "\(count) image\(count > 1 ? "s" : "")"
+        guard let each = quality.perImage(shape) else {
+            return "OpenAI choisit la qualité : jusqu'à ≈ \(ChatDisplay.cost((ImageGenQuality.high.perImage(shape) ?? 0) * Double(count))) pour \(images) (votre clé OpenAI)."
+        }
+        return "OpenAI, qualité \(quality.label.lowercased()) : ≈ \(ChatDisplay.cost(each * Double(count))) pour \(images) (votre clé OpenAI)."
+    }
+
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
@@ -574,11 +594,18 @@ struct ImagePromptSheet: View {
                     Picker("Format", selection: $settings.imageShape) {
                         ForEach(ImageGenShape.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
                     }
-                    LabeledContent("Moteur", value: engine.label)
+                    Picker("Moteur", selection: $settings.imageEngine) {
+                        ForEach(ImageGenEngine.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
+                    }
+                    if resolved == .openai {
+                        Picker("Qualité", selection: $settings.imageQuality) {
+                            ForEach(ImageGenQuality.allCases, id: \.self) { q in
+                                Text(q.priced(ImageGenShape.named(settings.imageShape))).tag(q.rawValue)
+                            }
+                        }
+                    }
                 } footer: {
-                    Text(engine == .openai
-                        ? "OpenAI : environ \(ChatDisplay.cost(ImageGenClient.openAICost(usage: nil, count: count, shape: ImageGenShape.named(settings.imageShape)))) pour \(count) image\(count > 1 ? "s" : "") (votre clé OpenAI). Moteur réglable dans Réglages → Images."
-                        : "Pollinations : gratuit, sans clé. Moteur réglable dans Réglages → Images.")
+                    Text(costNote)
                 }
             }
             .navigationTitle("Créer une image")
@@ -623,6 +650,13 @@ struct ImageSettingsSection: View {
                 }
             } label: {
                 Label("Format", systemImage: "aspectratio")
+            }
+            Picker(selection: $settings.imageQuality) {
+                ForEach(ImageGenQuality.allCases, id: \.self) { q in
+                    Text(q.priced(ImageGenShape.named(settings.imageShape))).tag(q.rawValue)
+                }
+            } label: {
+                Label("Qualité (OpenAI)", systemImage: "sparkles")
             }
         } header: {
             Text("Images")

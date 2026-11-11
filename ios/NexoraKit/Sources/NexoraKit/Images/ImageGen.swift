@@ -24,7 +24,7 @@ public enum ImageGenEngine: String, Sendable, CaseIterable, Codable {
         switch self {
         case .auto: "OpenAI si une clé OpenAI est enregistrée, sinon Pollinations."
         case .pollinations: "Gratuit et sans clé (modèle Flux). Une image à la fois par demande, en parallèle."
-        case .openai: "Meilleure qualité, payant (environ 0,04 à 0,06 $ par image), avec votre clé OpenAI."
+        case .openai: "Meilleure qualité, payant (de ≈ 0,01 $ à ≈ 0,25 $ par image selon la qualité choisie), avec votre clé OpenAI."
         }
     }
 
@@ -34,6 +34,45 @@ public enum ImageGenEngine: String, Sendable, CaseIterable, Codable {
     }
 
     public static func named(_ s: String?) -> ImageGenEngine { s.flatMap(ImageGenEngine.init(rawValue:)) ?? .auto }
+}
+
+/// La qualité des images OpenAI (`quality` de gpt-image-1) : plus elle est haute,
+/// plus l'image est soignée… et chère. Pollinations l'ignore (toujours gratuit).
+public enum ImageGenQuality: String, Sendable, CaseIterable, Codable {
+    case low, medium, high, auto
+
+    public var label: String {
+        switch self {
+        case .low: "Basse"
+        case .medium: "Moyenne"
+        case .high: "Haute"
+        case .auto: "Automatique"
+        }
+    }
+
+    /// Le prix d'une image d'après la grille d'OpenAI (gpt-image-1), en dollars ;
+    /// `nil` en automatique (OpenAI choisit la qualité, donc le prix).
+    public func perImage(_ shape: ImageGenShape) -> Double? {
+        let square = shape == .square
+        switch self {
+        case .low: return square ? 0.011 : 0.016
+        case .medium: return square ? 0.042 : 0.063
+        case .high: return square ? 0.167 : 0.25
+        case .auto: return nil
+        }
+    }
+
+    /// Le libellé avec son prix : « Haute · ≈ 0,17 $ / image ».
+    public func priced(_ shape: ImageGenShape) -> String {
+        guard let p = perImage(shape) else { return "\(label) · OpenAI choisit (jusqu'à ≈ \(ImageGenQuality.dollars(ImageGenQuality.high.perImage(shape) ?? 0)) / image)" }
+        return "\(label) · ≈ \(ImageGenQuality.dollars(p)) / image"
+    }
+
+    static func dollars(_ v: Double) -> String {
+        String(format: v < 0.1 ? "%.3f" : "%.2f", v).replacingOccurrences(of: ".", with: ",") + " $"
+    }
+
+    public static func named(_ s: String?) -> ImageGenQuality { s.flatMap(ImageGenQuality.init(rawValue:)) ?? .medium }
 }
 
 /// Le format des images créées.
@@ -186,7 +225,7 @@ public struct ImageGenClient: Sendable {
     /// Pollinations prend le relais.
     public func generate(
         prompt: String, count: Int, shape: ImageGenShape, engine: ImageGenEngine,
-        openAIKey: String?, openAIBase: String = ImageGenClient.openAIBase
+        openAIKey: String?, openAIBase: String = ImageGenClient.openAIBase, quality: ImageGenQuality = .medium
     ) async throws -> ImageGenResult {
         let n = min(max(count, 1), ImageGenCommand.maxCount)
         let p = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -196,7 +235,7 @@ public struct ImageGenClient: Sendable {
         switch engine.resolved(hasOpenAIKey: !key.isEmpty) {
         case .openai:
             do {
-                return try await openAI(prompt: p, count: n, shape: shape, apiKey: key, base: openAIBase)
+                return try await openAI(prompt: p, count: n, shape: shape, apiKey: key, base: openAIBase, quality: quality)
             } catch let e as LLMError where engine == .auto && !e.transient && !(e.status.map { $0 >= 500 } ?? false) {
                 // Automatique : OpenAI refuse, on passe à Pollinations (gratuit).
                 var r = try await pollinations(prompt: p, count: n, shape: shape)
@@ -285,7 +324,7 @@ public struct ImageGenClient: Sendable {
 
     // MARK: - OpenAI
 
-    public func openAI(prompt: String, count: Int, shape: ImageGenShape, apiKey: String, base: String = ImageGenClient.openAIBase) async throws -> ImageGenResult {
+    public func openAI(prompt: String, count: Int, shape: ImageGenShape, apiKey: String, base: String = ImageGenClient.openAIBase, quality: ImageGenQuality = .medium) async throws -> ImageGenResult {
         let root = base.hasSuffix("/") ? String(base.dropLast()) : base
         guard let url = URL(string: root + "/images/generations") else { throw LLMError("Adresse invalide : \(base)") }
         var r = URLRequest(url: url)
@@ -294,7 +333,7 @@ public struct ImageGenClient: Sendable {
         r.setValue("application/json", forHTTPHeaderField: "content-type")
         r.setValue("Bearer \(apiKey)", forHTTPHeaderField: "authorization")
         let body: [String: Any] = [
-            "model": Self.openAIModel, "prompt": prompt, "n": count, "size": shape.size, "quality": "medium",
+            "model": Self.openAIModel, "prompt": prompt, "n": count, "size": shape.size, "quality": quality.rawValue,
         ]
         r.httpBody = try? JSONSerialization.data(withJSONObject: body)
         let head: HTTPHead
@@ -323,15 +362,15 @@ public struct ImageGenClient: Sendable {
         if images.isEmpty { throw LLMError("OpenAI n'a renvoyé aucune image.", status: head.status) }
         return ImageGenResult(
             images: images, engine: .openai, modelKey: "openai::\(Self.openAIModel)",
-            cost: Self.openAICost(usage: j["usage"] as? [String: Any], count: images.count, shape: shape),
+            cost: Self.openAICost(usage: j["usage"] as? [String: Any], count: images.count, shape: shape, quality: quality),
             requested: count
         )
     }
 
     /// Le coût d'une demande OpenAI : d'après les tokens rendus (texte 5 $, image
     /// 10 $ en entrée, 40 $ en sortie, par million), sinon le prix moyen d'une image
-    /// de qualité moyenne (0,042 $ en carré, 0,063 $ sinon).
-    public static func openAICost(usage: [String: Any]?, count: Int, shape: ImageGenShape) -> Double {
+    /// selon la qualité choisie (grille d'OpenAI ; moyenne en automatique).
+    public static func openAICost(usage: [String: Any]?, count: Int, shape: ImageGenShape, quality: ImageGenQuality = .medium) -> Double {
         if let u = usage {
             let input = Double(int(u["input_tokens"]))
             let output = Double(int(u["output_tokens"]))
@@ -342,7 +381,7 @@ public struct ImageGenClient: Sendable {
                 return (textIn * 5 + imageIn * 10 + output * 40) / 1e6
             }
         }
-        return Double(count) * (shape == .square ? 0.042 : 0.063)
+        return Double(count) * (quality.perImage(shape) ?? ImageGenQuality.medium.perImage(shape) ?? 0.042)
     }
 
     static func openAIError(_ status: Int, _ body: String) -> LLMError {

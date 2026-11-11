@@ -10,7 +10,7 @@ import SwiftUI
 @Observable
 final class SettingsStore {
     /// La version affichée dans Réglages (même numérotation que l'app Flutter).
-    static let appVersion = "3.0.4"
+    static let appVersion = "3.0.5"
 
     @ObservationIgnored let defaults: UserDefaults
 
@@ -61,6 +61,8 @@ final class SettingsStore {
     var imageEngine: String { didSet { defaults.set(imageEngine, forKey: "image_engine") } }
     /// … et format (`square`, `portrait`, `landscape`).
     var imageShape: String { didSet { defaults.set(imageShape, forKey: "image_shape") } }
+    /// La qualité des images OpenAI (basse, moyenne, haute, automatique).
+    var imageQuality: String { didSet { defaults.set(imageQuality, forKey: "image_quality") } }
     /// Le catalogue des derniers modèles (livré, puis relu sur le site).
     var catalog: ModelCatalog = .bundled
     /// Adresses modifiées des fournisseurs du catalogue.
@@ -104,6 +106,7 @@ final class SettingsStore {
         agentAutoMerge = (defaults.object(forKey: "agent_auto_merge") ?? defaults.object(forKey: "flutter.agent_auto_merge")) as? Bool ?? true
         imageEngine = defaults.string(forKey: "image_engine") ?? ImageGenEngine.auto.rawValue
         imageShape = defaults.string(forKey: "image_shape") ?? ImageGenShape.square.rawValue
+        imageQuality = defaults.string(forKey: "image_quality") ?? ImageGenQuality.medium.rawValue
         overrides = defaults.dictionary(forKey: "provider_urls") as? [String: String] ?? [:]
         extraModels = defaults.dictionary(forKey: "extra_models") as? [String: [String]] ?? [:]
         if let data = defaults.data(forKey: "custom_providers"),
