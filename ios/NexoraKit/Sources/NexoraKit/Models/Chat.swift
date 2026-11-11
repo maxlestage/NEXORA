@@ -30,11 +30,18 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
     public var rating: Int
     /// Les skills chargées pour cette réponse.
     public var skills: [String] = []
+    /// Les images du message (noms de fichiers dans `ChatImageStore`) : photos
+    /// jointes par l'utilisateur, ou images créées pour lui.
+    public var images: [String] = []
+    /// Une réponse « images créées » : la description demandée (pour « Refaire »).
+    public var imagePrompt: String?
+    /// … et le nombre d'images demandées.
+    public var imageCount: Int = 0
 
     public init(
         role: Role, content: String, thinking: String = "", at: Date = Date(),
         model: String? = nil, error: Bool = false, by: String? = nil, command: String? = nil,
-        skills: [String] = []
+        skills: [String] = [], images: [String] = [], imagePrompt: String? = nil, imageCount: Int = 0
     ) {
         id = UUID()
         self.role = role
@@ -51,12 +58,15 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         self.command = command
         rating = 0
         self.skills = skills
+        self.images = images
+        self.imagePrompt = imagePrompt
+        self.imageCount = imageCount
     }
 
     enum CodingKeys: String, CodingKey {
         case role, content, thinking, at, model, error
         case tokensIn = "tin", tokensOut = "tout", cost, estimated = "est", by, command = "cmd", rating
-        case skills
+        case skills, images, imagePrompt, imageCount
     }
 
     public init(from decoder: Decoder) throws {
@@ -76,6 +86,10 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         command = try c.decodeIfPresent(String.self, forKey: .command)
         rating = try c.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         skills = try c.decodeIfPresent([String].self, forKey: .skills) ?? []
+        // Facultatifs : absents des anciennes conversations.
+        images = (try? c.decodeIfPresent([String].self, forKey: .images)) ?? []
+        imagePrompt = (try? c.decodeIfPresent(String.self, forKey: .imagePrompt)) ?? nil
+        imageCount = (try? c.decodeIfPresent(Int.self, forKey: .imageCount)) ?? 0
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -94,6 +108,9 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         try c.encodeIfPresent(command, forKey: .command)
         if rating != 0 { try c.encode(rating, forKey: .rating) }
         if !skills.isEmpty { try c.encode(skills, forKey: .skills) }
+        if !images.isEmpty { try c.encode(images, forKey: .images) }
+        try c.encodeIfPresent(imagePrompt, forKey: .imagePrompt)
+        if imageCount > 0 { try c.encode(imageCount, forKey: .imageCount) }
     }
 }
 
@@ -159,6 +176,9 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
         try c.encode(pinned, forKey: .pinned)
         if !skills.isEmpty { try c.encode(skills, forKey: .skills) }
     }
+
+    /// Toutes les images de la conversation (noms de fichiers).
+    public var imageNames: [String] { messages.flatMap(\.images) }
 
     /// Le coût total de la conversation, en dollars.
     public var cost: Double { messages.reduce(0) { $0 + ($1.cost ?? 0) } }

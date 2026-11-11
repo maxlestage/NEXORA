@@ -10,11 +10,16 @@ public enum ChatLogic {
     /// Combien de fois une réponse coupée peut être prolongée.
     public static let maxContinuations = 8
 
+    /// Un message qui part au modèle : sans erreur, avec du texte ou des images.
+    public static func isUsable(_ m: ChatMessage) -> Bool {
+        !m.error && (!m.content.isEmpty || !m.images.isEmpty)
+    }
+
     /// Les messages envoyés au modèle : les plus récents, dans la limite de la mémoire
     /// réglée (en tokens, ~4 caractères par token ; 0 = tout). Rend aussi le nombre
     /// de messages laissés de côté.
     public static func recentHistory(_ messages: [ChatMessage], budgetTokens: Int) -> ([LLMMessage], Int) {
-        let usable = messages.filter { !$0.error && !$0.content.isEmpty }.map { LLMMessage($0.role.rawValue, $0.content) }
+        let usable = messages.filter(isUsable).map { LLMMessage($0.role.rawValue, $0.content) }
         if budgetTokens <= 0 || usable.isEmpty { return (usable, 0) }
         var used = 0
         var start = usable.count

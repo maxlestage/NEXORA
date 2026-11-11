@@ -15,6 +15,14 @@ struct LiveTests {
         #expect(!models.isEmpty)
     }
 
+    @Test("Pollinations crée une image, sans clé")
+    func pollinationsImage() async throws {
+        let r = try await ImageGenClient(timeout: 240).generate(prompt: "a red apple on a wooden table", count: 2, shape: .square, engine: .pollinations, openAIKey: nil)
+        print("Pollinations : \(r.images.count) image(s) sur 2, \(r.images.map(\.data.count)) octets, \(r.images.map(\.mimeType))")
+        #expect(r.images.count >= 1)
+        #expect(r.images.allSatisfy { ChatImageStore.looksLikeImage($0.data) && $0.data.count > 10_000 })
+    }
+
     @Test("GitHub : lecture publique d'un fichier")
     func github() async throws {
         let f = try await GitHubAPI(token: nil).readFile("maxlestage", "NEXORA", path: "README.md", ref: "master")
