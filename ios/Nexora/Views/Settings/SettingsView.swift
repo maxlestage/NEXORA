@@ -55,6 +55,10 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Crédits et consommation") {
+                    UsageSettingsRow()
+                }
+
                 Section("GitHub") {
                     HStack {
                         Label(github.connected ? "Connecté : @\(github.user?.login ?? "…")" : "Non connecté", systemImage: "person.crop.circle")
@@ -137,6 +141,11 @@ struct SettingsView: View {
                         WhatsNewView()
                     } label: {
                         Label("Nouveautés", systemImage: "sparkles")
+                    }
+                    NavigationLink {
+                        CreditsView()
+                    } label: {
+                        Label("Crédits", systemImage: "heart")
                     }
                     Link(destination: URL(string: "https://github.com/maxlestage/NEXORA")!) {
                         Label("Code source", systemImage: "chevron.left.forwardslash.chevron.right")

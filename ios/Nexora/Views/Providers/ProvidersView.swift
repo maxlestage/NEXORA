@@ -106,6 +106,7 @@ struct ProvidersView: View {
                         Pill(text: "clé requise", color: .gray)
                     }
                 }
+                if settings.isReady(p) { QuotaBadge(providerId: p.id, dense: true) }
             }
         }
         .padding(.vertical, 2)

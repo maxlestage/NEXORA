@@ -18,7 +18,10 @@ extension UsageLevel {
 /// elle, la rubrique n'apparaît pas.
 @MainActor
 enum QuotaHelp {
-    static var freeTier: (String) -> String? = { _ in nil }
+    /// L'offre gratuite d'un fournisseur, d'après l'aide par fournisseur.
+    static func freeTier(_ providerId: String) -> String? {
+        Catalog.providers.first { $0.id == providerId }.flatMap(ProviderHelp.of)?.freeTier
+    }
 }
 
 /// Le témoin : un point coloré et ce qu'il reste chez le fournisseur. Touchez-le
