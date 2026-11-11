@@ -35,6 +35,8 @@ struct NewSessionView: View {
     @State private var branchFor: Pick?
     @State private var branchText = ""
     @State private var askedFirst = false
+    @State private var photos: [ChatPhotoDraft] = []
+    @State private var loadingPhotos = false
     @FocusState private var missionFocused: Bool
 
     private var currentAgent: Agent? { chosenAgent ?? agent }
@@ -65,6 +67,7 @@ struct NewSessionView: View {
                 )
                 .lineLimit(3...8)
                 .focused($missionFocused)
+                missionPhotos
             } header: {
                 Text("Mission")
             }
@@ -219,6 +222,20 @@ struct NewSessionView: View {
         repos = picks + [Pick(repo: r, branch: r.branch)]
     }
 
+    /// Des photos (maquette, capture d'écran…) envoyées avec la mission.
+    private var missionPhotos: some View {
+        HStack(spacing: 8) {
+            PhotoAttachButton(photos: $photos, loading: $loadingPhotos)
+            if photos.isEmpty && !loadingPhotos {
+                Text("Joindre des photos (maquette, capture…)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                PhotoDraftStrip(photos: $photos, loading: loadingPhotos)
+            }
+        }
+    }
+
     private func start(ref: ModelRef) async {
         let mission = task.trimmingCharacters(in: .whitespacesAndNewlines)
         if mission.isEmpty {
@@ -235,7 +252,8 @@ struct NewSessionView: View {
             repos: picks.map { RepoTarget($0.repo.owner.login, $0.repo.name, $0.branch) },
             model: ref,
             agent: currentAgent,
-            level: level
+            level: level,
+            images: photos.map { LLMImage(data: $0.data) }
         )
         starting = false
         if let run { started = run.id }

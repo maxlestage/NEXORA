@@ -189,6 +189,8 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
     /// Le début du dernier message, pour la liste.
     public var preview: String {
         guard let last = messages.last else { return "" }
+        // Une photo envoyée sans texte.
+        if last.content.isEmpty && !last.images.isEmpty { return last.images.count > 1 ? "📷 Photos" : "📷 Photo" }
         let t = last.content.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         return t.count > 140 ? String(t.prefix(140)) : t
     }

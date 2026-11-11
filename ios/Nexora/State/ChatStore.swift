@@ -17,6 +17,11 @@ final class ChatStore {
     /// Quand une réponse lue à voix haute est finie : sa conversation, et un compteur
     /// qui change à chaque fois (pour la conversation vocale, qui écoute de nouveau).
     private(set) var spokenTurn: (id: String, count: Int)?
+    /// Un avis à montrer dans une conversation (ex. : le modèle a refusé les images).
+    private(set) var notices: [String: String] = [:]
+    /// Les photos jointes et les images créées, sur l'appareil.
+    @ObservationIgnored let imageFiles = ChatImageStore.standard
+    @ObservationIgnored private let imageGen = ImageGenClient()
 
     @ObservationIgnored private let store: ConversationStore
     @ObservationIgnored private let settings: SettingsStore
@@ -65,7 +70,11 @@ final class ChatStore {
     func search(_ q: String) async -> [ConversationStore.Meta] { await store.search(q) }
 
     /// Place occupée par les conversations, en octets.
-    func sizeOnDisk() async -> Int { await store.sizeOnDisk() }
+    func sizeOnDisk() async -> Int {
+        let files = imageFiles
+        let images = await Task.detached { files.sizeOnDisk() }.value
+        return await store.sizeOnDisk() + images
+    }
 
     /// Supprime les conversations non épinglées sans activité depuis `days` jours.
     @discardableResult
@@ -76,8 +85,13 @@ final class ChatStore {
             open[id] = nil
         }
         index.removeAll { old.contains($0.id) }
+        let files = imageFiles
         Task {
-            for id in old { try? await store.delete(id) }
+            for id in old {
+                // Les images de la conversation partent avec elle.
+                if let c = await store.load(id) { files.delete(c.imageNames) }
+                try? await store.delete(id)
+            }
             await reloadIndex()
         }
         return old.count
@@ -118,8 +132,14 @@ final class ChatStore {
 
     func delete(_ id: String) {
         stop(id)
+        let loaded = open[id]
         open[id] = nil
+        let files = imageFiles
         Task {
+            // Les images de la conversation partent avec elle.
+            var c = loaded
+            if c == nil { c = await store.load(id) }
+            if let c { files.delete(c.imageNames) }
             try? await store.delete(id)
             await reloadIndex()
         }
@@ -128,7 +148,9 @@ final class ChatStore {
     func deleteAll() {
         for id in running { stop(id) }
         open.removeAll()
+        let files = imageFiles
         Task {
+            files.deleteAll()
             try? await store.deleteAll()
             await reloadIndex()
         }
@@ -155,7 +177,9 @@ final class ChatStore {
 
     func clearMessages(_ id: String) {
         stop(id)
+        let names = open[id]?.imageNames ?? []
         mutate(id, now: true) { $0.messages.removeAll() }
+        imageFiles.delete(names)
     }
 
     func level(for c: Conversation, agent: Agent?) -> ThinkLevel {
@@ -165,10 +189,11 @@ final class ChatStore {
     // MARK: - Envoi et réponse
 
     /// Envoie `text`. `voice` : le message a été dicté (la réponse sera lue).
-    func send(_ id: String, text: String, context: String? = nil, voice: Bool = false) {
+    /// `images` : les photos jointes (noms de fichiers, voir `saveImages`).
+    func send(_ id: String, text: String, context: String? = nil, voice: Bool = false, images: [String] = []) {
         guard let c = open[id], !isRunning(id) else { return }
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !typed.isEmpty else { return }
+        guard !typed.isEmpty || !images.isEmpty else { return }
         var content = typed
         // « /nom arguments » : la commande installée, avec ses arguments.
         var command: String?
@@ -184,8 +209,10 @@ final class ChatStore {
             by = "\(who.emoji) \(who.name)"
         }
         mutate(id) { c in
-            c.messages.append(ChatMessage(role: .user, content: content, command: command))
-            if c.messages.filter({ $0.role == .user }).count == 1 { c.title = ChatLogic.quickTitle(command ?? typed) }
+            c.messages.append(ChatMessage(role: .user, content: content, command: command, images: images))
+            if c.messages.filter({ $0.role == .user }).count == 1 {
+                c.title = typed.isEmpty ? (images.count > 1 ? "Photos" : "Photo") : ChatLogic.quickTitle(command ?? typed)
+            }
             c.updated = Date()
         }
         speech?.stopSpeaking()
@@ -196,9 +223,16 @@ final class ChatStore {
     /// Refait la dernière réponse.
     func regenerate(_ id: String) {
         guard let c = open[id], !isRunning(id) else { return }
+        // Des images créées : on en crée de nouvelles pour la même description.
+        if let last = c.messages.last, last.role == .assistant, last.imagePrompt != nil {
+            redoImages(id, messageId: last.id)
+            return
+        }
+        let removed = c.messages.reversed().prefix(while: { $0.role == .assistant }).flatMap(\.images)
         mutate(id) { c in
             while c.messages.last?.role == .assistant { c.messages.removeLast() }
         }
+        imageFiles.delete(removed)
         guard open[id]?.messages.isEmpty == false else { return }
         respond(id, agent: c.agentId.flatMap { agents.agent($0) }, by: nil, context: nil)
     }
@@ -206,12 +240,21 @@ final class ChatStore {
     /// Modifie un message de l'utilisateur et relance à partir de lui.
     func editAndResend(_ id: String, messageId: UUID, text: String) {
         stop(id)
+        // Les photos du message modifié restent jointes ; celles des messages
+        // suivants (retirés) sont supprimées.
+        var kept: [String] = []
+        var removed: [String] = []
+        if let c = open[id], let i = c.messages.firstIndex(where: { $0.id == messageId }) {
+            kept = c.messages[i].images
+            removed = c.messages[i...].flatMap(\.images).filter { !kept.contains($0) }
+        }
         mutate(id) { c in
             if let i = c.messages.firstIndex(where: { $0.id == messageId }) {
                 c.messages.removeSubrange(i...)
             }
         }
-        send(id, text: text)
+        imageFiles.delete(removed)
+        send(id, text: text, images: kept)
     }
 
     func stop(_ id: String) {
@@ -230,8 +273,11 @@ final class ChatStore {
         guard let provider = settings.provider(ref.providerId) else { return }
         let apiKey = settings.key(provider.id)
         let level = level(for: c, agent: agent)
-        let (history, dropped) = ChatLogic.recentHistory(c.messages, budgetTokens: settings.contextTokens)
+        let (plain, dropped) = ChatLogic.recentHistory(c.messages, budgetTokens: settings.contextTokens)
         trimmed[id] = dropped
+        // Les photos des derniers messages partent avec eux (dans un budget limité).
+        let files = imageFiles
+        let history = ChatImages.attach(plain, from: c.messages, dropped: dropped, load: { files.llmImage($0) })
         let system = ChatLogic.systemPrompt(
             agent: agent, personal: settings.personalSystem(), customInstructions: settings.customInstructions,
             level: level,
@@ -286,13 +332,16 @@ final class ChatStore {
             // Une partie de la réponse. Si le modèle est coupé par sa limite de
             // longueur, on lui demande la suite, ajoutée au même message.
             var part = 0
+            // Le modèle a refusé les images : la suite part sans elles.
+            var imagesRefused = false
             while part <= ChatLogic.maxContinuations {
                 let continuing = part > 0
-                var messages = history
+                var messages = imagesRefused ? ChatImages.withoutImages(history) : history
                 if continuing {
                     messages += [LLMMessage("assistant", text), LLMMessage("user", ChatLogic.continuePrompt(text))]
                 }
-                inputChars += system.count + messages.reduce(0) { $0 + $1.content.count }
+                // Une image compte pour ~1 500 tokens dans l'estimation.
+                inputChars += system.count + messages.reduce(0) { $0 + $1.content.count + $1.images.count * 6000 }
                 var opts = options
                 if continuing { opts.level = .faible }
                 var stop: String?
@@ -301,6 +350,10 @@ final class ChatStore {
                 do {
                     for try await d in llm.stream(provider: provider, apiKey: apiKey, model: ref.model, messages: messages, system: system, options: opts, onHeaders: onHeaders) {
                         if let s = d.stop { stop = s }
+                        if let n = d.notice {
+                            imagesRefused = true
+                            self?.notices[id] = n
+                        }
                         if stitching {
                             head += d.text
                             if head.count >= 200 {
@@ -394,6 +447,133 @@ final class ChatStore {
                 }
             }
             // Une nouvelle réponse a pu démarrer entre-temps : on ne touche qu'à la sienne.
+            if self.runIds[id] == runId {
+                self.runIds[id] = nil
+                self.running.remove(id)
+                self.tasks[id] = nil
+                BackgroundWork.shared.jobs.release("chat:\(id)")
+            }
+        }
+    }
+}
+
+// MARK: - Images
+
+extension ChatStore {
+    /// Enregistre des photos sur l'appareil ; rend leurs noms (à passer à `send`).
+    func saveImages(_ data: [Data]) -> [String] {
+        data.compactMap { try? imageFiles.save($0) }
+    }
+
+    /// L'avis de la conversation a été montré.
+    func dismissNotice(_ id: String) { notices[id] = nil }
+
+    /// La clé OpenAI enregistrée (pour créer des images avec OpenAI).
+    var openAIImageKey: String? {
+        let k = settings.key("openai")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return k.isEmpty ? nil : k
+    }
+
+    /// Le moteur qui créera les images, d'après les réglages et la clé OpenAI.
+    var imageEngine: ImageGenEngine {
+        ImageGenEngine.named(settings.imageEngine).resolved(hasOpenAIKey: openAIImageKey != nil)
+    }
+
+    /// `/image [nombre] description` : crée 1 à 4 images dans la conversation.
+    func createImages(_ id: String, prompt: String, count: Int) {
+        guard open[id] != nil, !isRunning(id) else { return }
+        let p = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !p.isEmpty else { return }
+        let n = min(max(count, 1), ImageGenCommand.maxCount)
+        mutate(id) { c in
+            c.messages.append(ChatMessage(role: .user, content: p, command: n > 1 ? "/image \(n)" : "/image"))
+            if c.messages.filter({ $0.role == .user }).count == 1 { c.title = ChatLogic.quickTitle("🎨 " + p) }
+            c.updated = Date()
+        }
+        speech?.stopSpeaking()
+        generateImages(id, prompt: p, count: n)
+    }
+
+    /// « Refaire » : de nouvelles images pour la même description. La dernière
+    /// réponse est remplacée ; une plus ancienne est refaite à la suite.
+    func redoImages(_ id: String, messageId: UUID) {
+        guard let c = open[id], !isRunning(id),
+              let i = c.messages.firstIndex(where: { $0.id == messageId }),
+              let prompt = c.messages[i].imagePrompt else { return }
+        let count = max(c.messages[i].imageCount, c.messages[i].images.count, 1)
+        if i == c.messages.count - 1 {
+            let old = c.messages[i].images
+            mutate(id) { $0.messages.removeAll { $0.id == messageId } }
+            imageFiles.delete(old)
+            generateImages(id, prompt: prompt, count: count)
+        } else {
+            createImages(id, prompt: prompt, count: count)
+        }
+    }
+
+    private func generateImages(_ id: String, prompt: String, count: Int) {
+        let engine = ImageGenEngine.named(settings.imageEngine)
+        let shape = ImageGenShape.named(settings.imageShape)
+        let key = openAIImageKey
+        let base = settings.provider("openai")?.baseUrl ?? ImageGenClient.openAIBase
+        let resolved = engine.resolved(hasOpenAIKey: key != nil)
+        let modelKey = resolved == .openai
+            ? "openai::\(ImageGenClient.openAIModel)" : "pollinations::\(ImageGenClient.pollinationsModel)"
+        let answer = ChatMessage(role: .assistant, content: "", model: modelKey, imagePrompt: prompt, imageCount: count)
+        let answerId = answer.id
+        mutate(id) { $0.messages.append(answer) }
+        running.insert(id)
+        BackgroundWork.shared.jobs.hold("chat:\(id)", title: count > 1 ? "Création des images" : "Création de l'image", text: prompt)
+        let runId = UUID()
+        runIds[id] = runId
+        let client = imageGen
+        let files = imageFiles
+        let usage = self.usage
+
+        tasks[id] = Task { @MainActor [weak self] in
+            var result: ImageGenResult?
+            var failed: Error?
+            do {
+                result = try await client.generate(
+                    prompt: prompt, count: count, shape: shape, engine: engine, openAIKey: key, openAIBase: base
+                )
+            } catch {
+                if !(error is CancellationError) { failed = error }
+            }
+            // Les images sont écrites sur l'appareil hors du fil principal.
+            var names: [String] = []
+            if let made = result, !Task.isCancelled {
+                names = await Task.detached { made.images.compactMap { try? files.save($0.data) } }.value
+            }
+            guard let self else {
+                files.delete(names)
+                return
+            }
+            let stopped = Task.isCancelled || self.runIds[id] != runId
+            if stopped {
+                // Arrêtée en route : la réponse vide disparaît.
+                files.delete(names)
+                self.mutate(id, now: true) { c in c.messages.removeAll { $0.id == answerId } }
+            } else if let made = result, !names.isEmpty {
+                var text = ImageGenCommand.caption(prompt: prompt, made: names.count, requested: count)
+                if let note = made.note { text += "\n\n" + note }
+                self.mutate(id, now: true) { c in
+                    guard let i = c.messages.firstIndex(where: { $0.id == answerId }) else { return }
+                    c.messages[i].content = text
+                    c.messages[i].images = names
+                    c.messages[i].model = made.modelKey
+                    c.messages[i].cost = made.cost
+                    c.updated = Date()
+                }
+            } else {
+                let error = failed ?? LLMError("Aucune image n'a pu être enregistrée sur l'appareil.")
+                if resolved == .openai { usage?.recordError("openai", error) }
+                self.mutate(id, now: true) { c in
+                    guard let i = c.messages.firstIndex(where: { $0.id == answerId }) else { return }
+                    c.messages[i].error = true
+                    c.messages[i].content = error.localizedDescription
+                }
+            }
             if self.runIds[id] == runId {
                 self.runIds[id] = nil
                 self.running.remove(id)

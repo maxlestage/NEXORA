@@ -88,6 +88,7 @@ extension AgentRun {
         } else if history.last?.role != "user" {
             history.append(LLMMessage("user", "Continue la tâche."))
         }
+        attachPendingImages()
         notifyChanged()
         do {
             try await loop()
@@ -181,6 +182,8 @@ extension AgentRun {
                     ended = true
                     break steps
                 }
+                // Les photos jointes n'ont été envoyées qu'une fois : une note les remplace.
+                Self.forgetImages(&history)
                 history.append(LLMMessage("assistant", reply))
                 var calls = parseToolCalls(reply)
                 // Le contenu attendu après un write_file sans contenu : il est écrit.

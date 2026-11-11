@@ -63,6 +63,8 @@ public final class AgentRun {
 
     /// La conversation avec le modèle, gardée pour pouvoir continuer la session.
     public var history: [LLMMessage] = []
+    /// Les photos jointes à la prochaine instruction (voir `AgentRun+Images`).
+    public var pendingImages: [LLMImage] = []
 
     /// Branche de travail par dépôt, une fois une pull request ouverte : les
     /// lectures et les envois suivants s'y font (la pull request se met à jour).
@@ -720,6 +722,7 @@ public final class AgentRun {
         inbox.removeAll()
         // Un message à part : il n'est jamais raccourci avec les résultats d'outils.
         history.append(LLMMessage("user", note))
+        attachPendingImages()
     }
 
     /// Un simple « continue » (ou « reprends », « vas-y »…) : pas une nouvelle demande.

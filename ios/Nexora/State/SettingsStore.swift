@@ -57,6 +57,10 @@ final class SettingsStore {
     var agentAutoCi: Bool { didSet { defaults.set(agentAutoCi, forKey: "agent_auto_ci") } }
     /// … puis fusionner la pull request quand la CI est verte.
     var agentAutoMerge: Bool { didSet { defaults.set(agentAutoMerge, forKey: "agent_auto_merge") } }
+    /// Création d'images : moteur (`auto`, `pollinations`, `openai`).
+    var imageEngine: String { didSet { defaults.set(imageEngine, forKey: "image_engine") } }
+    /// … et format (`square`, `portrait`, `landscape`).
+    var imageShape: String { didSet { defaults.set(imageShape, forKey: "image_shape") } }
     /// Le catalogue des derniers modèles (livré, puis relu sur le site).
     var catalog: ModelCatalog = .bundled
     /// Adresses modifiées des fournisseurs du catalogue.
@@ -98,6 +102,8 @@ final class SettingsStore {
         // Repris de l'app Flutter (`flutter.agent_auto_ci`) s'ils n'existent pas encore.
         agentAutoCi = (defaults.object(forKey: "agent_auto_ci") ?? defaults.object(forKey: "flutter.agent_auto_ci")) as? Bool ?? true
         agentAutoMerge = (defaults.object(forKey: "agent_auto_merge") ?? defaults.object(forKey: "flutter.agent_auto_merge")) as? Bool ?? true
+        imageEngine = defaults.string(forKey: "image_engine") ?? ImageGenEngine.auto.rawValue
+        imageShape = defaults.string(forKey: "image_shape") ?? ImageGenShape.square.rawValue
         overrides = defaults.dictionary(forKey: "provider_urls") as? [String: String] ?? [:]
         extraModels = defaults.dictionary(forKey: "extra_models") as? [String: [String]] ?? [:]
         if let data = defaults.data(forKey: "custom_providers"),

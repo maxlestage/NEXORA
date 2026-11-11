@@ -1,4 +1,5 @@
 import NexoraKit
+import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -23,6 +24,13 @@ struct ChatView: View {
     /// Les fichiers d'un dépôt joints au prochain message.
     @State private var attachments: [ChatAttachment] = []
     @State private var pickingFile = false
+    /// Les photos jointes au prochain message (4 au plus).
+    @State private var photos: [ChatPhotoDraft] = []
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var pickingPhotos = false
+    @State private var takingPhoto = false
+    @State private var loadingPhotos = false
+    @State private var creatingImage = false
     @State private var notice: String?
     @State private var showAgents = false
     @State private var editing: ChatMessage?
@@ -70,10 +78,11 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, 10)
                 if !attachments.isEmpty { attachmentChips.padding(.horizontal, 10) }
+                if !photos.isEmpty || loadingPhotos { photoBar.padding(.horizontal, 10) }
                 // « / » : les commandes ; « @ » : les sous-agents.
                 suggestionList.padding(.horizontal, 10)
                 if voiceMode { voiceBar }
-                composer
+                composerWithImages
             } else {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -188,7 +197,10 @@ struct ChatView: View {
                                 chats.regenerate(conversationId)
                             } : nil,
                             onChangeModel: { changeModelFor = m },
-                            onCopied: { toast = Toast(text: "Copié") }
+                            onCopied: { toast = Toast(text: "Copié") },
+                            onRedoImages: m.imagePrompt != nil && !running ? {
+                                chats.redoImages(conversationId, messageId: m.id)
+                            } : nil
                         )
                         .id(m.id)
                     }
@@ -305,14 +317,7 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 6) {
-            Button(action: attach) {
-                Image(systemName: "paperclip")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 38, height: 38)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Joindre un fichier d'un dépôt")
+            attachMenu
             TextField("Écrivez une instruction…", text: $input, axis: .vertical)
                 .lineLimit(1...8)
                 .focused($focused)
@@ -381,12 +386,161 @@ struct ChatView: View {
 
     private func send(voice: Bool = false) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, conversation != nil, !running else { return }
+        guard conversation != nil, !running else { return }
+        // « /image [nombre] description » : crée des images.
+        if let cmd = ImageGenCommand.parse(text) {
+            guard !cmd.prompt.isEmpty else {
+                notice = ImageGenCommand.missingPrompt
+                return
+            }
+            sent += 1
+            input = ""
+            stickToBottom = true
+            chats.createImages(conversationId, prompt: cmd.prompt, count: cmd.count)
+            return
+        }
+        guard !text.isEmpty || !photos.isEmpty else { return }
+        // Les photos sont enregistrées sur l'appareil, puis jointes au message.
+        let images = chats.saveImages(photos.map(\.data))
+        if text.isEmpty && images.isEmpty {
+            notice = "Impossible d'enregistrer les photos sur l'appareil."
+            return
+        }
         sent += 1
         input = ""
         stickToBottom = true
-        chats.send(conversationId, text: ChatLibrary.withAttachments(text, attachments), voice: voice)
+        chats.send(conversationId, text: ChatLibrary.withAttachments(text, attachments), voice: voice, images: images)
         attachments.removeAll()
+        photos.removeAll()
+    }
+
+    // MARK: - Photos et images
+
+    /// Le trombone : photos, appareil photo, création d'image, fichier d'un dépôt.
+    private var attachMenu: some View {
+        Menu {
+            Button("Photo", systemImage: "photo.on.rectangle") { pickPhotos() }
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button("Appareil photo", systemImage: "camera") {
+                    guard photos.count < ChatImages.maxPerMessage else {
+                        notice = Self.tooManyPhotos
+                        return
+                    }
+                    takingPhoto = true
+                }
+            }
+            Button("Créer une image", systemImage: "wand.and.stars") { creatingImage = true }
+            Divider()
+            Button("Fichier d'un dépôt", systemImage: "doc.text") { attach() }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 38, height: 38)
+        }
+        .menuOrder(.fixed)
+        .accessibilityLabel("Joindre ou créer")
+    }
+
+    static let tooManyPhotos = "4 photos au plus par message."
+
+    private func pickPhotos() {
+        guard photos.count < ChatImages.maxPerMessage else {
+            notice = Self.tooManyPhotos
+            return
+        }
+        pickingPhotos = true
+    }
+
+    /// La saisie, avec le choix des photos, l'appareil photo et la création
+    /// d'images.
+    private var composerWithImages: some View {
+        composer
+            .photosPicker(
+                isPresented: $pickingPhotos, selection: $photoItems,
+                maxSelectionCount: max(1, ChatImages.maxPerMessage - photos.count),
+                matching: .images, preferredItemEncoding: .compatible
+            )
+            .onChange(of: photoItems) { _, items in
+                guard !items.isEmpty else { return }
+                photoItems = []
+                Task { await addPhotos(items) }
+            }
+            .fullScreenCover(isPresented: $takingPhoto) {
+                NexoraCameraPicker { data in
+                    takingPhoto = false
+                    Task { await addPhoto(data) }
+                } onCancel: {
+                    takingPhoto = false
+                }
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $creatingImage) {
+                ImagePromptSheet(initial: ImageGenCommand.parse(input)?.prompt ?? input, engine: chats.imageEngine) { prompt, count in
+                    createImages(prompt, count)
+                }
+            }
+            .onChange(of: chats.notices[conversationId]) { _, n in
+                // Le modèle a refusé les images : on le dit clairement.
+                if let n {
+                    notice = n
+                    chats.dismissNotice(conversationId)
+                }
+            }
+    }
+
+    private func createImages(_ prompt: String, _ count: Int) {
+        guard !prompt.isEmpty, !running else { return }
+        input = ""
+        sent += 1
+        stickToBottom = true
+        chats.createImages(conversationId, prompt: prompt, count: count)
+    }
+
+    /// Les photos choisies dans la photothèque, réduites avant l'envoi.
+    private func addPhotos(_ items: [PhotosPickerItem]) async {
+        loadingPhotos = true
+        var failed = 0
+        for item in items {
+            guard photos.count < ChatImages.maxPerMessage else { break }
+            guard let raw = try? await item.loadTransferable(type: Data.self),
+                  let draft = await ChatPhotoDraft.make(raw) else {
+                failed += 1
+                continue
+            }
+            photos.append(draft)
+        }
+        loadingPhotos = false
+        if failed > 0 {
+            notice = failed > 1 ? "\(failed) photos n'ont pas pu être lues." : "Une photo n'a pas pu être lue."
+        }
+    }
+
+    /// La photo prise avec l'appareil photo.
+    private func addPhoto(_ data: Data) async {
+        loadingPhotos = true
+        let draft = await ChatPhotoDraft.make(data)
+        loadingPhotos = false
+        if let draft, photos.count < ChatImages.maxPerMessage {
+            photos.append(draft)
+        } else if draft == nil {
+            notice = "La photo n'a pas pu être lue."
+        }
+    }
+
+    /// Les photos jointes, et un avertissement si le modèle ne les voit pas.
+    private var photoBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            PhotoDraftStrip(photos: $photos, loading: loadingPhotos)
+            if !photos.isEmpty && !ModelVision.likelySees(providerId: ref.providerId, model: ref.model) {
+                Label(
+                    "\(settings.displayName(ref)) ne voit probablement pas les images. Choisissez un modèle « vision » (GPT-4o, Claude, Gemini, Llava…).",
+                    systemImage: "eye.slash"
+                )
+                .font(.caption)
+                .foregroundStyle(Theme.amber)
+            }
+        }
     }
 
     // MARK: - Fichiers joints et propositions
@@ -423,9 +577,16 @@ struct ChatView: View {
         }
     }
 
+    /// Les propositions : `/image` (intégrée) puis les commandes et les agents.
+    private var suggestions: [ChatSuggestion]? {
+        let list = ChatLibrary.suggestions(for: input, library: agents.library, agents: agents.all)
+        guard let image = ImageGenCommand.suggestion(for: input) else { return list }
+        return [image] + (list ?? []).filter { $0.insert != image.insert }
+    }
+
     @ViewBuilder
     private var suggestionList: some View {
-        if let list = ChatLibrary.suggestions(for: input, library: agents.library, agents: agents.all) {
+        if let list = suggestions {
             if list.isEmpty {
                 Text(ChatLibrary.noSuggestion(for: input))
                     .font(.caption)

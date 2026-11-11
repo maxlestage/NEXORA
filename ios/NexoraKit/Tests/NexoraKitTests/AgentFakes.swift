@@ -73,6 +73,11 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
         }
     }
 
+    /// Les messages bruts de la requête n° i (avec leurs images).
+    func rawMessages(_ i: Int) -> [[String: Any]] {
+        lock.withLock { bodies[i]["messages"] as? [[String: Any]] ?? [] }
+    }
+
     /// Le dernier message de la requête n° i.
     func last(_ i: Int) -> String { messages(i).last?["content"] ?? "" }
 

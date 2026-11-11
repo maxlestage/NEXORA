@@ -277,7 +277,7 @@ public final class AgentSessions {
     @discardableResult
     public func start(
         task: String, repos: [RepoTarget], model: ModelRef, agent: Agent? = nil, level: ThinkLevel? = nil,
-        autoCi: Bool? = nil, autoMerge: Bool? = nil
+        autoCi: Bool? = nil, autoMerge: Bool? = nil, images: [LLMImage] = []
     ) async -> AgentRun? {
         await ready()
         guard let p = host.provider(model.providerId), let first = repos.first else { return nil }
@@ -290,6 +290,8 @@ public final class AgentSessions {
         )
         run.autoCi = autoCi ?? host.agentAutoCi
         run.autoMerge = autoMerge ?? host.agentAutoMerge
+        // Les photos jointes partent avec la demande.
+        run.pendingImages = images
         prepare?(run)
         equip(run)
         attach(run)
@@ -300,8 +302,11 @@ public final class AgentSessions {
 
     /// Continue une session avec une nouvelle instruction (ou reprend une session
     /// interrompue, avec une instruction vide).
-    public func continueSession(_ id: String, _ instruction: String) {
+    /// `images` : des photos jointes à l'instruction (envoyées avec elle, ou avec la
+    /// suivante si l'agent travaille déjà).
+    public func continueSession(_ id: String, _ instruction: String, images: [LLMImage] = []) {
         guard let run = byId(id) else { return }
+        run.pendingImages += images
         // Pendant le travail ou l'envoi : l'instruction est mise en file et lue au
         // tour suivant (jamais deux travaux en même temps sur une session).
         if run.running || run.shipping {
