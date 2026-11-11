@@ -167,7 +167,12 @@ void main() {
         await runWith(llm, fake(ci: _ci)).run();
         expect(seen[1], contains('enregistré en brouillon'));
         expect(seen[1], contains('ligne 5 (86 caractères)'));
-        expect(seen[2], isNot(contains('caractères au plus par ligne')));
+        // La même écriture refaite n'est pas refaite : sous le résultat
+        // précédent, la relance ne répète pas l'alerte.
+        expect(
+          seen[2].split(AgentRun.repeatMark).last,
+          isNot(contains('caractères au plus par ligne')),
+        );
       },
     );
 

@@ -1625,11 +1625,48 @@ class AgentRun extends ChangeNotifier {
     return ' dans $target';
   }
 
+  /// Une recherche de l'agent a trouvé ce qu'elle cherchait : ce qui est
+  /// demandé existe peut-être déjà (en partie ou en entier).
+  bool _foundExisting = false;
+
+  /// Une recherche (search_code, find_in_file) qui a trouvé des lignes, et non
+  /// « Aucune ligne… », une erreur ou un fichier introuvable.
+  @visibleForTesting
+  static bool foundSomething(String tool, String result) {
+    if (tool != 'search_code' && tool != 'find_in_file') return false;
+    final body = result.startsWith('Résultat de ')
+        ? result.substring(result.indexOf('\n') + 1)
+        : result;
+    final t = body.trimLeft();
+    return t.isNotEmpty &&
+        !t.startsWith('ERREUR') &&
+        !t.startsWith('Aucun') &&
+        !t.startsWith('Fichier introuvable');
+  }
+
+  /// Ce que doit faire un agent dont les recherches trouvent déjà ce qui est
+  /// demandé : ne pas le recréer, faire ce qui manque, ou le dire.
+  String _existingHint() =>
+      'Une partie de la demande (ou toute la demande) EXISTE PEUT-ÊTRE DÉJÀ '
+      'dans le code (fonction, route, page, lien, test…) : compare ce que tu as '
+      'trouvé avec chaque point demandé. Ce qui existe déjà, ne le recrée pas '
+      'et ne le cherche plus. Fais MAINTENANT ce qui manque encore (edit_file '
+      'ou write_file). Si tout est déjà en place, appelle finish en expliquant '
+      'précisément ce qui existe déjà (fichiers et lignes). Choisis une AUTRE '
+      'action que cette recherche.';
+
   /// Où en est le travail, pour un agent qui tourne en rond : ce qui est déjà
   /// fait (à ne plus chercher) et ce qui reste, avec l'action à faire tout de
   /// suite (par exemple le test demandé, et où l'écrire).
   @visibleForTesting
   String progressNote() {
+    if (changes.isEmpty && _foundExisting) {
+      return '\n\nOÙ TU EN ES : aucune modification faite pour l\'instant, et '
+          'tes recherches TROUVENT ce qui est demandé dans le code. Fais '
+          'MAINTENANT la partie de la demande qui manque encore (edit_file ou '
+          'write_file) ; si tout existe déjà, appelle finish en expliquant ce '
+          'qui est déjà en place (fichiers et lignes).';
+    }
     if (changes.isEmpty) {
       return '\n\nOÙ TU EN ES : aucune modification faite pour l\'instant. Fais '
           'MAINTENANT la première modification demandée (edit_file ou '
@@ -1811,6 +1848,30 @@ class AgentRun extends ChangeNotifier {
   }
 
   /// Retire les anciens rappels (le dernier suffit).
+  /// Sépare le résultat d'une action de la relance qui suit sa répétition.
+  static const repeatMark = '\n\n— ACTION DÉJÀ FAITE —\n';
+
+  /// Le modèle a recopié sa réponse précédente (même action). Garder cette
+  /// copie dans l'historique renforce la boucle : en essai réel, le modèle se
+  /// recopiait à chaque tour malgré les relances. Elle est donc retirée, et la
+  /// relance est ajoutée sous le résultat de l'action (à la place d'une relance
+  /// précédente) : le modèle relit son action, son résultat, puis la consigne.
+  @visibleForTesting
+  static void repeatNudge(List<LlmMessage> history, String nudge) {
+    final n = history.length;
+    if (n >= 2 &&
+        history[n - 1].role == 'assistant' &&
+        history[n - 2].role == 'user') {
+      history.removeLast();
+      final m = history.last;
+      final at = m.content.indexOf(repeatMark);
+      final base = at >= 0 ? m.content.substring(0, at) : m.content;
+      history[n - 2] = LlmMessage('user', '$base$repeatMark$nudge');
+      return;
+    }
+    history.add(LlmMessage('user', nudge));
+  }
+
   static void dropReminders(List<LlmMessage> history) {
     for (var i = 0; i < history.length; i++) {
       final m = history[i];
@@ -2092,6 +2153,9 @@ class AgentRun extends ChangeNotifier {
       // La dernière série d'actions, pour repérer une boucle.
       String? lastSig;
       var repeats = 0;
+      // Cette dernière série a trouvé ce qu'elle cherchait (recherche avec
+      // résultats) : la relance ne dit alors pas « ça n'existe pas ».
+      var lastFound = false;
       // Les recherches et lectures déjà faites (brouillons identiques) : un
       // agent qui tourne en rond entre quelques recherches est repéré, même
       // quand il les alterne.
@@ -2264,29 +2328,32 @@ class AgentRun extends ChangeNotifier {
           if (work.isNotEmpty && sig == lastSig) {
             repeats++;
             dropReminders(history);
-            history.add(
-              LlmMessage(
-                'user',
-                repeats == 1
-                    ? 'Tu viens de refaire exactement la même action qu\'au tour '
-                          'précédent : son résultat est juste au-dessus, inutile de '
-                          'la répéter. Si ce que tu cherches n\'y est pas, change '
-                          'd\'approche (cherche sans "path" dans tout le dépôt, lis '
-                          'le fichier autour d\'une ligne avec read_file et "line", '
-                          'ou fais la modification). Si la demande est remplie, '
-                          'appelle finish.$reminder'
-                    : 'STOP : c\'est la ${repeats + 1}e fois que tu fais cette même '
-                          'action, et son résultat ne changera pas. Ce que tu '
-                          'cherches N\'EXISTE PAS sous ce nom ou à cet endroit : un '
-                          'nom ou un chemin supposé (par toi ou par la traduction en '
-                          'langage NEXORA) est faux. Fie-toi aux résultats déjà '
-                          'obtenus et suis les mots de l\'utilisateur : pars du code '
-                          'qui existe vraiment (liste les fichiers, lis le plus '
-                          'proche du sujet), crée ce qui manque si la demande '
-                          'l\'implique, ou appelle finish en expliquant précisément '
-                          'ce qui n\'existe pas. Choisis une AUTRE action '
-                          'maintenant.${progressNote()}$reminder',
-              ),
+            repeatNudge(
+              history,
+              repeats == 1
+                  ? 'Tu viens de refaire exactement la même action qu\'au tour '
+                        'précédent : son résultat est juste au-dessus, inutile de '
+                        'la répéter. Si ce que tu cherches n\'y est pas, change '
+                        'd\'approche (cherche sans "path" dans tout le dépôt, lis '
+                        'le fichier autour d\'une ligne avec read_file et "line", '
+                        'ou fais la modification). Si la demande est remplie, '
+                        'appelle finish.$reminder'
+                  : lastFound
+                  ? 'STOP : c\'est la ${repeats + 1}e fois que tu fais cette même '
+                        'action, et son résultat ne changera pas. Ce que tu '
+                        'cherches EXISTE : le résultat plus haut le montre. '
+                        '${_existingHint()}${progressNote()}$reminder'
+                  : 'STOP : c\'est la ${repeats + 1}e fois que tu fais cette même '
+                        'action, et son résultat ne changera pas. Ce que tu '
+                        'cherches N\'EXISTE PAS sous ce nom ou à cet endroit : un '
+                        'nom ou un chemin supposé (par toi ou par la traduction en '
+                        'langage NEXORA) est faux. Fie-toi aux résultats déjà '
+                        'obtenus et suis les mots de l\'utilisateur : pars du code '
+                        'qui existe vraiment (liste les fichiers, lis le plus '
+                        'proche du sujet), crée ce qui manque si la demande '
+                        'l\'implique, ou appelle finish en expliquant précisément '
+                        'ce qui n\'existe pas. Choisis une AUTRE action '
+                        'maintenant.${progressNote()}$reminder',
             );
             // Ce modèle reste bloqué malgré les relances : un autre modèle
             // disponible reprend la suite (avec tout le travail déjà fait).
@@ -2341,18 +2408,30 @@ class AgentRun extends ChangeNotifier {
               stale = 0;
             }
             if (stale >= 3) {
-              circling =
-                  '\n\nATTENTION : tu tournes en rond, ces recherches et '
-                  'lectures ont DÉJÀ été faites, avec les mêmes résultats. Ce que '
-                  'tu cherches n\'existe pas sous la forme supposée. Arrête de '
-                  'chercher : décide avec ce que tu sais déjà. Fais la '
-                  'modification demandée à partir du code qui existe (crée ce qui '
-                  'manque si la demande l\'implique), ou appelle finish en '
-                  'expliquant précisément ce qui n\'existe pas.${progressNote()}';
+              circling = _foundExisting
+                  ? '\n\nATTENTION : tu tournes en rond, ces recherches et '
+                        'lectures ont DÉJÀ été faites, avec les mêmes résultats. '
+                        'Arrête de chercher : décide avec ce que tu sais déjà. '
+                        '${_existingHint()}${progressNote()}'
+                  : '\n\nATTENTION : tu tournes en rond, ces recherches et '
+                        'lectures ont DÉJÀ été faites, avec les mêmes résultats. Ce '
+                        'que tu cherches n\'existe pas sous la forme supposée. '
+                        'Arrête de chercher : décide avec ce que tu sais déjà. '
+                        'Fais la modification demandée à partir du code qui existe '
+                        '(crée ce qui manque si la demande l\'implique), ou appelle '
+                        'finish en expliquant précisément ce qui n\'existe '
+                        'pas.${progressNote()}';
             }
           }
           actsSince += work.length;
           final results = await _execAll(work);
+          lastFound = false;
+          for (final (i, c) in work.indexed) {
+            if (i < results.length && foundSomething(c.tool, results[i])) {
+              lastFound = true;
+              _foundExisting = true;
+            }
+          }
           if (results.isNotEmpty) {
             dropReminders(history);
             history.add(
@@ -3020,6 +3099,29 @@ class AgentRun extends ChangeNotifier {
   /// Fichiers parcourus au plus par une recherche.
   static const searchLimit = 300;
 
+  /// L'ordre de parcours d'un fichier pour une recherche (plus petit = plus
+  /// tôt), hors fichiers déjà lus : 1 le dossier de [near], 2 un nom qui
+  /// contient un des [words], 3 le même dossier de premier niveau que [near]
+  /// (le même projet : site/, app/…), 4 le reste.
+  @visibleForTesting
+  static int searchRank(String file, List<String> words, String near) {
+    final n = near.endsWith('/') ? near.substring(0, near.length - 1) : near;
+    final slash = n.lastIndexOf('/');
+    // site/src/main.rs → site/src/ ; site/src → site/src/ ; site → site/.
+    final isFile = slash >= 0 && n.substring(slash + 1).contains('.');
+    final dir = n.isEmpty
+        ? ''
+        : isFile
+        ? n.substring(0, slash + 1)
+        : '$n/';
+    final top = n.isEmpty ? '' : '${n.split('/').first}/';
+    if (dir.isNotEmpty && file.startsWith(dir)) return 1;
+    final low = file.toLowerCase();
+    if (words.any(low.contains)) return 2;
+    if (top.isNotEmpty && file.startsWith(top)) return 3;
+    return 4;
+  }
+
   static final _regexSigns = RegExp(
     r'\.[*+?]|\\[sSwWdDb.()\[\]{}|*+?^$]|\||\(\?|^\^|\$$|[\w)\]]\{\d',
   );
@@ -3097,7 +3199,7 @@ class AgentRun extends ChangeNotifier {
     // Peu de résultats dans un dossier : la définition est souvent ailleurs
     // (une constante, une fonction dans un autre fichier).
     if (prefix.isNotEmpty && here.$2 <= 2) {
-      final all = await _grepIn(query, '');
+      final all = await _grepIn(query, '', near: prefix);
       // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
       // à créer est signalé comme tel, pas seulement « dans ce dossier »).
       if (here.$2 == 0 &&
@@ -3114,7 +3216,13 @@ class AgentRun extends ChangeNotifier {
     return here.$1;
   }
 
-  Future<(String, int)> _grepIn(String query, String prefix) async {
+  /// [near] : le fichier ou dossier d'une recherche élargie à tout le dépôt ;
+  /// les fichiers voisins sont parcourus en premier.
+  Future<(String, int)> _grepIn(
+    String query,
+    String prefix, {
+    String near = '',
+  }) async {
     final all = <String>{
       ...await _files(),
       ...changes.entries.where((e) => e.value != null).map((e) => e.key),
@@ -3123,14 +3231,22 @@ class AgentRun extends ChangeNotifier {
     final q = query.toLowerCase();
     final words = q.split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
     // D'abord les fichiers déjà lus, puis ceux dont le nom évoque la recherche.
+    // Pour une recherche élargie, les voisins du fichier visé passent avant :
+    // en essai réel, « const FAQ » cherché depuis site/src/main.rs ne trouvait
+    // jamais site/src/contenu.rs, au-delà des 300 premiers fichiers du dépôt
+    // (app/… d'abord), et l'agent tournait en rond.
+    final ranks = {for (final f in files) f: searchRank(f, words, near)};
     int rank(String f) {
       if (changes.containsKey(f) || originals[f] != null) return 0;
-      final low = f.toLowerCase();
-      if (words.any(low.contains)) return 1;
-      return 2;
+      return ranks[f]!;
     }
 
-    files.sort((a, b) => rank(a).compareTo(rank(b)));
+    // Tri stable : à rang égal, l'ordre du dépôt est gardé.
+    final order = {for (final (i, f) in files.indexed) f: i};
+    files.sort((a, b) {
+      final r = rank(a).compareTo(rank(b));
+      return r != 0 ? r : order[a]!.compareTo(order[b]!);
+    });
     final scanned = files.take(searchLimit).toList();
     final texts = <String, String>{};
     for (var i = 0; i < scanned.length; i += 12) {

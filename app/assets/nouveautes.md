@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.84 — 11 novembre 2026 — L'agent ne tourne plus en rond sur ce qui existe déjà
+- Corrigé : en essai réel, pour « ajoute une page /faq… » alors que la page, son lien et son test existaient déjà, l'agent trouvait tout mais refaisait la même recherche ; les relances lui affirmaient que rien n'existait, et la session s'arrêtait sans rien dire.
+- Quand ses recherches trouvent ce qui est demandé, l'agent apprend que la demande existe peut-être déjà : il fait seulement ce qui manque, ou termine en expliquant ce qui est déjà en place, avec les fichiers et les lignes.
+- Corrigé : une recherche élargie à tout le dépôt ne parcourait que les 300 premiers fichiers dans l'ordre du dépôt. Cherché depuis site/src/main.rs, « const FAQ » (défini dans site/src/contenu.rs) n'était jamais trouvé. Les fichiers voisins sont maintenant parcourus en premier.
+- Un modèle qui recopie sa réponse précédente ne voit plus cette copie dans son historique : il relit son action, son résultat, puis la consigne, ce qui casse la boucle au lieu de l'entretenir.
+
 ## 2.2.83 — 11 novembre 2026 — L'agent modifie le code qui contient des « \n »
 - Corrigé : en essai réel, pour ajouter une route /version au site, l'agent voulait insérer son code après robots(), dont le texte contient des « \n ». Le modèle les renvoyait comme de vrais retours à la ligne : le passage n'était jamais trouvé, trois refus de suite, et la session s'épuisait sans rien livrer.
 - Ces retours à la ligne placés dans une chaîne sont maintenant reconnus : la modification réussit du premier coup, et les « \n » du nouveau code sont écrits comme il faut.
