@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.77 — 11 novembre 2026 — Le code de l'agent passe le formateur
+- Corrigé : en essai réel, chaque fonction Rust ajoutée par l'agent laissait deux lignes vides de suite, ou une ligne vide en fin de fichier. « cargo fmt --check » les refuse : la CI échouait pour une simple question de mise en page.
+- Dans les fichiers Rust et Dart écrits par l'agent, ces lignes vides en trop sont ramenées à une seule, dès le brouillon.
+- Le contenu des textes entre guillemets n'est jamais touché, et un fichier d'origine déjà aéré ainsi est laissé tel quel.
+- Vérifié sur plus de 800 fichiers Rust et Dart réels : aucun n'est modifié à tort.
+
 ## 2.2.76 — 11 novembre 2026 — L'agent sait quelle copie modifier
 - Corrigé : en essai réel, pour ajouter une fonction dans un fichier Rust, l'agent voulait insérer après « ]; », présent plusieurs fois. Il recevait sept refus de suite (« le passage apparaît 4 fois ») sans savoir où étaient ces copies.
 - Le refus montre maintenant chaque copie avec son numéro de ligne et les lignes autour : l'agent voit tout de suite laquelle est la bonne.
