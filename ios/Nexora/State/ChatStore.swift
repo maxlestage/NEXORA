@@ -100,9 +100,10 @@ final class ChatStore {
     // MARK: - Modifications
 
     private func mutate(_ id: String, now: Bool = false, _ f: (inout Conversation) -> Void) {
-        guard var c = open[id] else { return }
-        f(&c)
-        open[id] = c
+        guard open[id] != nil else { return }
+        // Modifiée sur place : la recopier puis la remettre dupliquait tout le
+        // tableau des messages à chaque morceau d'une réponse (toutes les 60 ms).
+        f(&open[id]!)
         scheduleSave(id, now: now)
     }
 
@@ -313,7 +314,8 @@ final class ChatStore {
                 let tin = tokens.input > 0 ? tokens.input : (inputChars + 3) / 4
                 let tout = tokens.output > 0 && final ? tokens.output : (text.count + thinking.count + 3) / 4
                 self.mutate(id, now: final) { c in
-                    guard let i = c.messages.firstIndex(where: { $0.id == answerId }) else { return }
+                    // La réponse est à la fin : cherchée depuis la fin.
+                    guard let i = c.messages.lastIndex(where: { $0.id == answerId }) else { return }
                     c.messages[i].content = text
                     c.messages[i].thinking = thinking
                     c.messages[i].tokensIn = tin
