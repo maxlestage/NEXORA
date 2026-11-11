@@ -17,7 +17,8 @@ Le site de présentation est écrit en Rust avec [Paquets 📦](https://github.c
 
 | Dossier | Contenu |
 |---|---|
-| [`app/`](app/) | L'application Flutter (iOS, Android, et aussi web et bureau) |
+| [`ios/`](ios/) | L'application iOS native, en Swift 6 et SwiftUI ([README](ios/README.md), [portage](ios/PORTAGE.md)) |
+| [`app/`](app/) | L'application Flutter (Android, iOS, et aussi web et bureau) |
 | [`site/`](site/) | Le site de présentation : Paquets, 3D en WebAssembly, PWA, mobile d'abord ([README](site/README.md)) |
 | [`.github/workflows/`](.github/workflows/) | Vérifications et fusion automatique dans master, builds de l'app, déploiement du site |
 
