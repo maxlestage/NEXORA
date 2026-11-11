@@ -1581,6 +1581,23 @@ class AgentRun extends ChangeNotifier {
             ? '${tree.take(400).join('\n')}\n… (${tree.length - 400} de plus)'
             : tree.join('\n');
       } catch (_) {}
+      // Aucun dépôt lisible : l'agent travaillerait à l'aveugle et tournerait en
+      // rond. La session s'arrête tout de suite en disant pourquoi ; « continue »
+      // la relance depuis le début.
+      if (_unreadable.length == targets.length) {
+        _add(
+          AgentStep(
+            StepKind.error,
+            'Impossible de lire ${targets.length == 1 ? 'le dépôt' : 'les dépôts'} '
+            '${[for (final e in _unreadable.entries) '${e.key} (${e.value})'].join(', ')}. '
+            'Vérifiez votre connexion internet et l\'accès GitHub (Réglages), '
+            'puis envoyez « continue ».',
+          ),
+        );
+        running = false;
+        notifyListeners();
+        return;
+      }
       history.add(
         LlmMessage(
           'user',
@@ -2210,6 +2227,7 @@ class AgentRun extends ChangeNotifier {
 
   Future<List<String>> _files() async {
     if (_tree != null) return _tree!;
+    _unreadable.clear();
     final all = <String>[];
     // Un dépôt vide ou illisible ne bloque pas les autres.
     final lists = await Future.wait([
@@ -2231,6 +2249,10 @@ class AgentRun extends ChangeNotifier {
       final files = lists[i] ?? const <String>[];
       all.addAll(multi ? files.map((f) => '${mountOf(t)}/$f') : files);
     }
+    // Un dépôt illisible (réseau coupé, GitHub indisponible, jeton refusé) :
+    // la liste n'est pas gardée, elle est redemandée à la prochaine lecture au
+    // lieu de rester vide toute la session.
+    if (_unreadable.isNotEmpty) return all;
     return _tree = all;
   }
 

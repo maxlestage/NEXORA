@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.54 — 11 novembre 2026 — L'agent dit tout de suite quand il ne peut pas lire votre dépôt
+- Corrigé : si la liste des fichiers du dépôt n'arrivait pas au début d'une session (réseau coupé, GitHub indisponible), elle restait vide jusqu'à la fin. L'agent travaillait à l'aveugle, ne trouvait aucun fichier et finissait « en boucle ».
+- La liste est maintenant redemandée dès que l'agent en a besoin, et il voit vos fichiers aussitôt que GitHub répond.
+- Quand aucun dépôt n'est lisible (jeton refusé, accès retiré, pas de réseau), la session s'arrête tout de suite avec la raison exacte, au lieu de gaspiller des étapes. Envoyez « continue » pour la relancer.
+
 ## 2.2.53 — 11 novembre 2026 — L'agent ajoute à la fin d'un fichier sans le réécrire
 - Corrigé : quand le modèle voulait ajouter quelques lignes à la fin d'un long fichier (« at_end », « append »), l'agent lui demandait tout le fichier. Pollinations, limité à 1 500 tokens, ne pouvait pas le renvoyer, et la session tournait en rond sans rien modifier.
 - Seul le texte à ajouter est maintenant demandé, puis ajouté à la fin : le reste du fichier est gardé tel quel.
