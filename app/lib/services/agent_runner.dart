@@ -2527,7 +2527,124 @@ class AgentRun extends ChangeNotifier {
       'ERREUR : commence le chemin par le dossier du dépôt '
       '(${_mounts.keys.map((m) => '$m/').join(', ')}).';
 
+  /// Le vrai chemin quand le modèle en donne un presque juste : sans le point
+  /// d'un dossier caché (« github/workflows/ci.yml » pour
+  /// « .github/workflows/ci.yml »), avec « ./ », une autre casse, le nom du
+  /// dépôt en tête, ou sans le dossier du dépôt (plusieurs dépôts). Rend `null`
+  /// si le chemin existe déjà ou si rien ne correspond sans ambiguïté. Sans
+  /// cela, l'agent relisait sans fin un fichier « introuvable ».
+  /// [creating] : un fichier à créer (write_file) — son dossier suffit.
+  @visibleForTesting
+  static String? fixPath(
+    String p,
+    Iterable<String> known, {
+    String? repoName,
+    List<String> mounts = const [],
+    bool creating = false,
+  }) {
+    var path = p.trim();
+    while (path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+    if (path.isEmpty) return null;
+    final files = known.toSet();
+    final dirs = <String>{};
+    for (final f in files) {
+      var i = f.indexOf('/');
+      while (i > 0) {
+        dirs.add(f.substring(0, i));
+        i = f.indexOf('/', i + 1);
+      }
+    }
+    String parent(String x) =>
+        x.contains('/') ? x.substring(0, x.lastIndexOf('/')) : '';
+    bool exists(String x) => files.contains(x) || dirs.contains(x);
+    bool fits(String x) =>
+        exists(x) ||
+        creating &&
+            parent(x).isNotEmpty &&
+            dirs.contains(parent(x)) &&
+            !dirs.contains(parent(path));
+    if (exists(path) || creating && dirs.contains(parent(path))) return null;
+    if (creating && parent(path).isEmpty) return null;
+    final tries = <String>[];
+    var x = path;
+    while (x.startsWith('./')) {
+      x = x.substring(2);
+    }
+    tries.add(x);
+    final low = x.toLowerCase();
+    final sameCase = [
+      ...files,
+      ...dirs,
+    ].where((f) => f.toLowerCase() == low).toSet();
+    if (sameCase.length == 1) tries.add(sameCase.first);
+    // Le point oublié d'un dossier caché (.github, .vscode…).
+    final segs = x.split('/');
+    for (var i = 0; i < segs.length - (creating ? 1 : 0); i++) {
+      if (segs[i].startsWith('.') || segs[i].isEmpty) continue;
+      final head = segs.sublist(0, i).join('/');
+      final dotted = [...segs.sublist(0, i), '.${segs[i]}'].join('/');
+      final plain = [...segs.sublist(0, i), segs[i]].join('/');
+      if ((head.isEmpty || dirs.contains(head)) &&
+          dirs.contains(dotted) &&
+          !exists(plain)) {
+        segs[i] = '.${segs[i]}';
+        tries.add(segs.join('/'));
+      }
+    }
+    // Le nom du dépôt en tête, alors qu'il n'y en a qu'un.
+    if (repoName != null &&
+        low.startsWith('${repoName.toLowerCase()}/') &&
+        mounts.isEmpty) {
+      tries.add(x.substring(repoName.length + 1));
+    }
+    // Plusieurs dépôts : le dossier du dépôt oublié.
+    final inMounts = [
+      for (final m in mounts)
+        if (fits('$m/$x')) '$m/$x',
+    ];
+    if (inMounts.length == 1) tries.add(inMounts.single);
+    for (final t in tries) {
+      if (t != path && t.isNotEmpty && fits(t)) return t;
+    }
+    return null;
+  }
+
   Future<String> _exec(ToolCall call) async {
+    // Un chemin presque juste : corrigé, et l'agent le sait.
+    final asked = call.args['path'];
+    if (asked is String && asked.trim().isNotEmpty) {
+      List<String> tree;
+      try {
+        tree = await _files();
+      } catch (_) {
+        tree = const [];
+      }
+      final fixed = fixPath(
+        asked.startsWith('/') ? asked.substring(1) : asked,
+        [
+          ...tree,
+          for (final e in changes.entries)
+            if (e.value != null) e.key,
+        ],
+        repoName: targets.first.name,
+        mounts: multi ? _mounts.keys.toList() : const [],
+        creating: call.tool == 'write_file',
+      );
+      if (fixed != null && !changes.containsKey(asked)) {
+        final out = await _exec(
+          ToolCall(
+            call.tool,
+            {...call.args, 'path': fixed},
+            thought: call.thought,
+            goal: call.goal,
+          ),
+        );
+        return '(Chemin corrigé : « $asked » n\'existe pas, c\'est « $fixed ». '
+            'Utilise « $fixed » désormais.)\n$out';
+      }
+    }
     String path() {
       final p = (call.args['path'] ?? '').toString().trim();
       return p.startsWith('/') ? p.substring(1) : p;

@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.52 — 11 novembre 2026 — L'agent retrouve les fichiers mal nommés
+- Corrigé : quand le modèle oubliait le point d'un dossier caché (« github/workflows/ci.yml » au lieu de « .github/workflows/ci.yml »), l'agent répondait « fichier introuvable », le modèle recommençait, et la session s'arrêtait avec « L'agent tourne en rond ».
+- L'agent ouvre maintenant directement le bon fichier, et dit au modèle le chemin exact à utiliser ensuite.
+- Même chose pour un chemin commençant par « ./ », écrit avec une autre casse, précédé du nom du dépôt, ou sans le dossier du dépôt quand la session en a plusieurs.
+- Rien n'est deviné au hasard : si plusieurs fichiers correspondent, ou si vous créez vraiment un nouveau fichier, le chemin est gardé tel quel.
+
 ## 2.2.51 — 11 novembre 2026 — L'agent fait toutes les actions d'une même réponse
 - Corrigé : quand le modèle enchaînait plusieurs actions dans une même réponse (par exemple corriger le code, puis créer le test), seule la première était faite, et la suite était perdue sans prévenir.
 - Toutes les actions sont maintenant faites dans l'ordre, chacune avec son contenu.
