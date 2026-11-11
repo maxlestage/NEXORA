@@ -565,6 +565,10 @@ struct ChatView: View {
 
     /// Les propositions : `/image` (intégrée) puis les commandes et les agents.
     private var suggestions: [ChatSuggestion]? {
+        // Rien à proposer hors de « / » et « @ » en tête : l'écran se redessine à
+        // chaque morceau d'une réponse, inutile d'y relancer la recherche (regex).
+        let first = input.unicodeScalars.first
+        guard first == "/" || first == "@" else { return nil }
         let list = ChatLibrary.suggestions(for: input, library: agents.library, agents: agents.all)
         guard let image = ImageGenCommand.suggestion(for: input) else { return list }
         return [image] + (list ?? []).filter { $0.insert != image.insert }
