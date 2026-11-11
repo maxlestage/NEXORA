@@ -8,6 +8,9 @@ import SwiftUI
 struct HomeShell: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(UsageStore.self) private var usage
+    @Environment(SessionStore.self) private var sessions
+    @Environment(RoutineBook.self) private var routines
+    @Environment(GitHubSession.self) private var github
     @Environment(\.scenePhase) private var scenePhase
     @State private var navigation = AppNavigation()
     @State private var whatsNew: [Release] = []
@@ -45,8 +48,18 @@ struct HomeShell: View {
         .dynamicTypeSize(settings.dynamicTypeSize)
         .sensoryFeedback(.selection, trigger: navigation.tab) { _, _ in settings.haptics }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { usage.saveNow() }
+            if phase != .active {
+                usage.saveNow()
+                // Les sessions de l'agent : enregistrées tout de suite (l'app peut
+                // être fermée en arrière-plan).
+                sessions.saveNow()
+            } else {
+                // De retour : les passages de routine manqués sont rattrapés.
+                Task { await routines.check() }
+            }
         }
+        // Le compte GitHub a changé : les sessions utilisent le nouveau.
+        .onChange(of: github.token) { sessions.githubChanged() }
         // Un onglet masqué pendant qu'il est affiché : retour au chat.
         .onChange(of: settings.hiddenTabs) {
             if (navigation.tab == .agents && settings.hiddenTabs.contains("agents"))
@@ -64,6 +77,9 @@ struct HomeShell: View {
         .task {
             // Après une mise à jour : les nouveautés, une fois.
             whatsNew = WhatsNewSheet.pending(settings)
+            // Les routines du téléphone : vérifiées toutes les 30 s (les passages
+            // manqués sont rattrapés une fois, au démarrage).
+            routines.startTicking()
             // Les derniers modèles (au plus une fois toutes les 6 heures).
             await settings.refreshCatalog()
         }

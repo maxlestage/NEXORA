@@ -26,7 +26,7 @@ struct MessageBubble: View {
         Group {
             if message.role == .user { user } else { assistant }
         }
-        .sheet(item: Binding(get: { fullText.map { FullTextItem(text: $0) } }, set: { fullText = $0?.text })) { item in
+        .sheet(item: Binding(get: { fullText.map { BubbleFullText(text: $0) } }, set: { fullText = $0?.text })) { item in
             FullTextView(title: message.role == .user ? "Votre message" : "Réponse", text: item.text)
         }
     }
@@ -148,7 +148,7 @@ struct MessageBubble: View {
     }
 }
 
-private struct FullTextItem: Identifiable {
+private struct BubbleFullText: Identifiable {
     let text: String
     var id: String { text }
 }
