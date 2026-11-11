@@ -215,6 +215,7 @@ final class ChatStore {
     }
 
     func stop(_ id: String) {
+        BackgroundWork.shared.jobs.release("chat:\(id)")
         runIds[id] = nil
         tasks.removeValue(forKey: id)?.cancel()
         running.remove(id)
@@ -240,6 +241,8 @@ final class ChatStore {
         let answerId = answer.id
         mutate(id) { $0.messages.append(answer) }
         running.insert(id)
+        // L'app reste en vie le temps de finir la réponse, même cachée.
+        BackgroundWork.shared.jobs.hold("chat:\(id)", title: "Réponse en cours", text: c.title)
         let runId = UUID()
         runIds[id] = runId
         let price = Catalog.price(provider: provider.id, model: ref.model)
@@ -395,6 +398,7 @@ final class ChatStore {
                 self.runIds[id] = nil
                 self.running.remove(id)
                 self.tasks[id] = nil
+                BackgroundWork.shared.jobs.release("chat:\(id)")
             }
         }
     }

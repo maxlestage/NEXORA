@@ -7,7 +7,9 @@ struct NexoraApp: App {
     @State private var agents: AgentLibrary
     @State private var chats: ChatStore
     @State private var usage: UsageStore
-    @State private var github = GitHubSession()
+    @State private var github: GitHubSession
+    @State private var sessions: SessionStore
+    @State private var routines: RoutineBook
     @State private var speech = SpeechService()
 
     init() {
@@ -20,6 +22,11 @@ struct NexoraApp: App {
         chats.usage = usage
         _usage = State(initialValue: usage)
         _chats = State(initialValue: chats)
+        let github = GitHubSession()
+        _github = State(initialValue: github)
+        let sessions = SessionStore(settings: settings, agents: agents, github: github, usage: usage)
+        _sessions = State(initialValue: sessions)
+        _routines = State(initialValue: RoutineBook(sessions: sessions.core))
     }
 
     var body: some Scene {
@@ -31,6 +38,8 @@ struct NexoraApp: App {
                 .environment(github)
                 .environment(speech)
                 .environment(usage)
+                .environment(sessions)
+                .environment(routines)
                 .preferredColorScheme(settings.colorScheme)
                 .tint(Theme.accent(settings.accent))
                 .onAppear { chats.speech = speech }
