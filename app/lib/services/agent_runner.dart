@@ -787,6 +787,21 @@ class AgentRun extends ChangeNotifier {
   /// dans la réponse suivante.
   String? _awaitContent;
 
+  /// Ce contenu attendu s'ajoute à la fin du fichier (write_file en mode ajout).
+  bool _awaitAppend = false;
+
+  /// Un write_file qui veut AJOUTER à la fin (« at_end », « append », « mode »
+  /// « append »…) au lieu de remplacer tout le fichier.
+  @visibleForTesting
+  static bool appendMode(Map<String, dynamic> a) {
+    bool yes(Object? v) => v == true || '$v'.toLowerCase() == 'true';
+    final mode = '${a['mode'] ?? a['write_mode'] ?? ''}'.toLowerCase().trim();
+    return yes(a['at_end']) ||
+        yes(a['append']) ||
+        yes(a['atEnd']) ||
+        const ['append', 'a', 'end', 'at_end', 'ajout'].contains(mode);
+  }
+
   /// La version d'origine des fichiers lus ou modifiés (`null` : fichier nouveau).
   final Map<String, String?> originals = {};
 
@@ -1684,12 +1699,18 @@ class AgentRun extends ChangeNotifier {
           var calls = parseToolCalls(reply);
           // Le contenu attendu après un write_file sans contenu : il est écrit.
           final waiting = _awaitContent;
+          final appending = _awaitAppend;
           _awaitContent = null;
+          _awaitAppend = false;
           if (waiting != null) {
             final content = pendingContent(reply);
             if (content != null) {
               calls = [
-                ToolCall('write_file', {'path': waiting, 'content': content}),
+                ToolCall('write_file', {
+                  'path': waiting,
+                  'content': content,
+                  if (appending) 'at_end': true,
+                }),
               ];
             }
           }
@@ -2852,9 +2873,49 @@ class AgentRun extends ChangeNotifier {
               'dans args.path, et son contenu complet dans un bloc de code juste '
               'après le bloc JSON.';
         }
+        // Ajouter à la fin d'un fichier qui existe : seul l'ajout est écrit,
+        // le reste du fichier est gardé (au lieu de tout réécrire, ce qu'un
+        // modèle limité à 1 500 tokens ne peut pas faire pour un long fichier).
+        final append =
+            appendMode(call.args) &&
+            !(changes.containsKey(p) && changes[p] == null) &&
+            (await _current(p)).$1 != null;
+        if (content == null && append) {
+          _awaitContent = p;
+          _awaitAppend = true;
+          return 'EN ATTENTE du texte à AJOUTER à la fin de $p (write_file est '
+              'arrivé sans contenu). Réponds MAINTENANT avec, seul, ce texte à '
+              'ajouter (pas tout le fichier) dans un bloc de code (```), sans '
+              'bloc JSON : il sera ajouté à la fin, le reste du fichier est gardé.';
+        }
+        if (content != null && append) {
+          final r = await _exec(
+            ToolCall('edit_file', {
+              'path': p,
+              'old': '',
+              'new': content,
+              'at_end': true,
+            }, thought: call.thought),
+          );
+          return r.startsWith('OK')
+              ? 'OK, texte ajouté à la fin de $p en brouillon '
+                    '(${content.length} caractères). Le reste du fichier est '
+                    'inchangé.'
+              : r;
+        }
         if (content == null) {
           // Le contenu viendra au tour suivant : la réponse est attendue.
           _awaitContent = p;
+          final existing = (await _current(p)).$1;
+          if (existing != null && existing.length > 4000) {
+            return 'EN ATTENTE du contenu de $p (write_file est arrivé sans '
+                'contenu). Ce fichier existe et fait ${existing.length} '
+                'caractères : pour n\'en changer qu\'un passage, utilise plutôt '
+                'edit_file ; pour ajouter à la fin, write_file avec "at_end": '
+                'true et seulement le texte ajouté. Sinon, réponds MAINTENANT '
+                'avec, seul, le contenu COMPLET de $p dans un bloc de code '
+                '(```), sans bloc JSON.';
+          }
           return 'EN ATTENTE du contenu de $p (write_file est arrivé sans '
               'contenu). Réponds MAINTENANT avec, seul, le contenu COMPLET de '
               '$p dans un bloc de code (```), sans bloc JSON : il sera écrit '
