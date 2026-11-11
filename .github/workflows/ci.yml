@@ -55,9 +55,78 @@ jobs:
       - run: cargo clippy --lib --target wasm32-unknown-unknown -- -D warnings
       - run: cargo test
 
+  ios-kit:
+    name: iOS Swift — cœur (Linux, swift test)
+    runs-on: ubuntu-latest
+    container: swift:6.4.2-noble
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v7
+      - name: Catalogues à jour avec l'app Flutter
+        run: |
+          apt-get update -qq && apt-get install -y -qq python3 > /dev/null
+          python3 Tools/sync_catalogs.py --check
+      - run: swift test --package-path NexoraKit
+
+  ios-app:
+    name: iOS Swift — app (Xcode, simulateur)
+    runs-on: xcode-27
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Le runner macOS ne sert que si l'app Swift (ou ce workflow) a changé.
+      - name: L'app Swift a-t-elle changé ?
+        id: changed
+        working-directory: .
+        run: |
+          if [ "${{ github.ref_name }}" = "master" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base=$(git merge-base HEAD origin/master 2>/dev/null || echo "")
+          if [ -z "$base" ] || git diff --name-only "$base" HEAD | grep -qE '^(ios/|app/assets/(models\.json|nouveautes\.md)|app/lib/data/|\.github/workflows/ci\.yml)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: XcodeGen 2.46.0
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+      - name: Générer le projet
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          xcodebuild -version
+          xcodegen generate
+      - name: Compiler et tester sur le simulateur
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          ios = sorted((k for k in d if "iOS" in k), key=lambda k: [int(x) for x in k.split("iOS-")[-1].split("-")])
+          for k in reversed(ios):
+              for dev in d[k]:
+                  if dev["name"].startswith("iPhone"):
+                      print(dev["udid"]); sys.exit()
+          ')
+          echo "Simulateur : $udid"
+          xcodebuild test -project Nexora.xcodeproj -scheme Nexora \
+            -destination "id=$udid" -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "error:|warning: .*(Sendable|isolat)|Test |\*\* " || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" "$RUNNER_TEMP/xcodebuild.log"
+
   merge:
     name: Fusion dans master
-    needs: [app, site]
+    needs: [app, site, ios-kit, ios-app]
     if: >-
       github.event_name == 'push' && github.ref_name != 'master' &&
       !startsWith(github.ref_name, 'wip/')
