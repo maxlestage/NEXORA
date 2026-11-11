@@ -30,7 +30,8 @@ const Map<String, String> agentTools = {
   'edit_file':
       'Modifie un passage d\'un fichier sans le réécrire (idéal pour les longs '
       'fichiers) : remplace exactement « old » par « new ». old doit être unique '
-      'dans le fichier (ajoute des lignes autour sinon) ; "all": true remplace '
+      'dans le fichier (ajoute des lignes autour sinon, ou "line": le numéro de '
+      'la ligne visée) ; "all": true remplace '
       'toutes les occurrences ; old vide ajoute new à la fin (avec "at_end": true pour du code). args: '
       '{"path": "…"} puis DEUX blocs de code après le JSON : d\'abord old, puis new '
       '(ou "old" et "new" dans args).',
@@ -3716,7 +3717,10 @@ class AgentRun extends ChangeNotifier {
         if (text == null) {
           // Fichier nouveau : old vide le crée.
           if (oldText.isEmpty && !changes.containsKey(p)) {
-            changes[p] = newText.endsWith('\n') ? newText : '$newText\n';
+            changes[p] = tidyCode(
+              p,
+              newText.endsWith('\n') ? newText : '$newText\n',
+            );
             notifyListeners();
             return 'OK, $p créé en brouillon.${await _pitfalls(p)}';
           }
@@ -3749,9 +3753,10 @@ class AgentRun extends ChangeNotifier {
           oldText,
           newText,
           all: call.args['all'] == true,
+          near: int.tryParse('${call.args['line'] ?? call.args['near'] ?? ''}'),
         );
         if (edited.$1 == null) return 'ERREUR : ${edited.$2}';
-        changes[p] = edited.$1;
+        changes[p] = tidyCode(p, edited.$1!, before: originals[p] ?? text);
         notifyListeners();
         return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
             'est inchangé.${await _pitfalls(p)}';
@@ -3838,7 +3843,11 @@ class AgentRun extends ChangeNotifier {
               'edit_file pour ne changer qu\'un passage (ou "force": true si tu '
               'veux vraiment le raccourcir).';
         }
-        changes[p] = content.endsWith('\n') ? content : '$content\n';
+        changes[p] = tidyCode(
+          p,
+          content.endsWith('\n') ? content : '$content\n',
+          before: before,
+        );
         notifyListeners();
         return 'OK, $p enregistré en brouillon (${content.length} caractères).'
             '${await _pitfalls(p)}';
@@ -4750,6 +4759,51 @@ class AgentRun extends ChangeNotifier {
   }
 }
 
+/// Les lignes vides en trop dans du code Rust ou Dart écrit par l'agent :
+/// deux lignes vides de suite, ou une ligne vide à la fin du fichier. En essai
+/// réel, l'agent en laissait à chaque ajout de fonction ; `cargo fmt --check`
+/// et `dart format` les refusent, et la CI échouait pour rien. Ramenées à une
+/// seule, entre deux lignes de code seulement (jamais dans un long texte entre
+/// guillemets). Un fichier d'origine qui en contenait déjà (projet sans
+/// formateur) est laissé tel quel.
+String tidyCode(String path, String text, {String? before}) {
+  if (!path.endsWith('.rs') && !path.endsWith('.dart')) return text;
+  final loose = RegExp(r'\n[ \t]*\n[ \t]*\n');
+  var out = text;
+  if (before == null || !loose.hasMatch(before)) {
+    out = out.replaceAllMapped(
+      RegExp(r'(?<=^|\n)([^\n]*)\n(?:[ \t]*\n){2,}(?=([^\n]*))'),
+      (m) {
+        final prev = m[1]!.trimRight();
+        final next = m[2]!.trimLeft();
+        final keep = _codeEnd.hasMatch(prev) && _codeStart.hasMatch(next);
+        return keep ? '${m[1]}\n\n' : m[0]!;
+      },
+    );
+  }
+  if (before == null || !before.endsWith('\n\n')) {
+    final end = RegExp(r'\n(?:[ \t]*\n)+$').firstMatch(out);
+    if (end != null &&
+        _codeEnd.hasMatch(out.substring(0, end.start).trimRight())) {
+      out = '${out.substring(0, end.start)}\n';
+    }
+  }
+  return out;
+}
+
+/// Une ligne qui finit une instruction, un bloc ou un commentaire.
+final _codeEnd = RegExp(r'(^\s*(//|#\[|@).*|[;{}\]),]|\*/)$');
+
+/// Une ligne qui commence une déclaration, un commentaire ou ferme un bloc.
+final _codeStart = RegExp(
+  r'^(//|/\*|#\[|@|}|\]|\)|(pub(\(\w+\))?\s+)?(fn|mod|use|impl|struct|enum|'
+  r'const|static|trait|type|let|async|unsafe|extern|macro_rules!)\b|'
+  r'(import|export|part|library|class|abstract|sealed|final|var|void|late|'
+  r'mixin|extension|enum|typedef|return|if|for|while|test|group|setUp|'
+  r'tearDown|expect|assert)\b|[A-Z]\w*(<.*>)?\??\s+\w+\s*[(=;]|'
+  r'\w+\s*\()',
+);
+
 /// Remplace `old` par `new` dans `text`. Rend (texte modifié, résumé) ou
 /// (null, explication de l'échec). Tolère les fins de ligne et les espaces de fin.
 (String?, String) applyEdit(
@@ -4757,6 +4811,7 @@ class AgentRun extends ChangeNotifier {
   String old,
   String replacement, {
   bool all = false,
+  int? near,
 }) {
   if (old.isEmpty) {
     final sep = text.isEmpty || text.endsWith('\n') ? '' : '\n';
@@ -4802,17 +4857,20 @@ class AgentRun extends ChangeNotifier {
                     'ligne) :\n$near'}',
     );
   }
+  // Un passage qui revient plusieurs fois (« ]; », « } »…) : en essai réel,
+  // l'agent recevait sept refus de suite sans savoir où étaient les copies.
+  // Il voit maintenant chacune avec sa ligne, et choisit avec "line".
+  var at = source.indexOf(needle);
   if (n > 1 && !all) {
-    return (
-      null,
-      'le passage apparaît $n fois : ajoute des lignes autour pour qu\'il soit '
-          'unique, ou "all": true pour tout remplacer.',
-    );
+    final spots = _occurrences(source, needle);
+    final chosen = near == null ? null : _closest(spots, near);
+    if (chosen == null) return (null, _ambiguous(source, needle, spots, near));
+    at = chosen.$1;
   }
+  final single = n == 1 || (n > 1 && !all);
   // Un passage recopié à moitié, coupé au milieu d'un mot (« …", men » pour
   // « …", mentions); ») : remplacé tel quel, l'ajout atterrissait au milieu du
   // mot (« men⏎ app.get(…);tions); ») et le code ne compilait plus.
-  final at = source.indexOf(needle);
   final end = at + needle.length;
   final word = RegExp(r'[\p{L}\p{N}_]', unicode: true);
   bool isWord(String c) => word.hasMatch(c);
@@ -4827,7 +4885,7 @@ class AgentRun extends ChangeNotifier {
     final added = replacement.startsWith(needle)
         ? replacement.substring(needle.length)
         : null;
-    if (!all && n == 1 && added != null && added.startsWith('\n')) {
+    if (!all && single && added != null && added.startsWith('\n')) {
       // Le modèle voulait ajouter des lignes après celle-ci : elles vont après
       // la ligne entière, qui reste intacte.
       return (
@@ -4861,14 +4919,88 @@ class AgentRun extends ChangeNotifier {
       );
     }
   }
-  if (!all && n == 1) {
+  final where = n > 1 && !all ? ' (ligne ${_lineOf(source, at)})' : '';
+  if (!all && single) {
     final moved = _insertAboveDocs(source, at, needle, replacement);
-    if (moved != null) return moved;
+    if (moved != null) return (moved.$1, '${moved.$2}$where');
   }
   final out = all
       ? source.replaceAll(needle, replacement)
-      : source.replaceFirst(needle, replacement);
-  return (out, all && n > 1 ? '$n remplacements' : '1 remplacement');
+      : source.replaceRange(at, at + needle.length, replacement);
+  return (out, all && n > 1 ? '$n remplacements' : '1 remplacement$where');
+}
+
+/// Numéro (à partir de 1) de la ligne où commence vraiment un passage trouvé
+/// à `at` (ses retours à la ligne de tête sautés).
+int _lineOf(String source, int at) {
+  var i = at;
+  while (i < source.length && source[i] == '\n') {
+    i++;
+  }
+  return '\n'.allMatches(source.substring(0, i)).length + 1;
+}
+
+/// Chaque copie de `needle` : (position, ligne).
+List<(int, int)> _occurrences(String source, String needle) => [
+  for (final m in RegExp(RegExp.escape(needle)).allMatches(source))
+    (m.start, _lineOf(source, m.start)),
+];
+
+/// La copie la plus proche de la ligne `near` ; null si deux le sont autant.
+(int, int)? _closest(List<(int, int)> spots, int near) {
+  if (spots.isEmpty) return null;
+  final sorted = [...spots]
+    ..sort((a, b) => (a.$2 - near).abs().compareTo((b.$2 - near).abs()));
+  if (sorted.length > 1 &&
+      (sorted[0].$2 - near).abs() == (sorted[1].$2 - near).abs()) {
+    return null;
+  }
+  return sorted.first;
+}
+
+/// L'explication d'un passage ambigu : où est chaque copie, avec ses voisines,
+/// et comment choisir la bonne.
+String _ambiguous(
+  String source,
+  String needle,
+  List<(int, int)> spots,
+  int? near,
+) {
+  final lines = source.split('\n');
+  final span = '\n'.allMatches(needle.trim()).length;
+  const shown = 6;
+  final b = StringBuffer(
+    'le passage apparaît ${spots.length} fois (ligne'
+    '${spots.length > 1 ? 's' : ''} '
+    '${spots.take(12).map((s) => s.$2).join(', ')}'
+    '${spots.length > 12 ? '…' : ''}). ',
+  );
+  if (near != null) {
+    b.write('La ligne $near est à égale distance de deux copies. ');
+  }
+  b.write(
+    'Pour modifier une seule copie, ajoute dans args "line": son numéro '
+    '(celui ci-dessous), ou mets dans old aussi une ligne voisine qui la '
+    'distingue (et la même dans new). "all": true remplace toutes les copies.',
+  );
+  for (final (_, line) in spots.take(shown)) {
+    b.write('\nCopie de la ligne $line :');
+    final from = (line - 2).clamp(1, lines.length);
+    final to = (line + span + 1).clamp(1, lines.length);
+    for (var l = from; l <= to; l++) {
+      final mark = l >= line && l <= line + span ? '>' : ' ';
+      var text = lines[l - 1];
+      if (text.length > 160) text = '${text.substring(0, 160)}…';
+      b.write('\n$mark$l: $text');
+    }
+  }
+  if (spots.length > shown) {
+    b.write(
+      '\n… et ${spots.length - shown} autres : ce passage est trop courant, '
+      'mets dans old des lignes plus parlantes (find_in_file pour les voir).',
+    );
+  }
+  return b.toString();
 }
 
 /// Un ajout de code juste AVANT une déclaration (new = ajout + old) : placé
