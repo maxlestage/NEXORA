@@ -137,4 +137,64 @@ void main() {
     expect(seen[1], contains('api/src/main.rs'));
     expect(seen[1], isNot(contains('illisible')));
   });
+
+  test('une nouvelle instruction après un arrêt au démarrage n\'est plus '
+      'perdue : affichée, comprise et donnée à l\'agent', () async {
+    final (llm, seen) = scripted(const []);
+    final run = runWith(llm, github(fails: 1));
+    await run.run();
+    expect(seen, isEmpty);
+    await run.run(followUp: 'Ajoute aussi une route /version');
+    expect(run.steps.where((s) => s.kind == StepKind.user).map((s) => s.text), [
+      'Ajoute aussi une route /version',
+    ]);
+    expect(run.requests, [
+      'Ajoute une route /sante',
+      'Ajoute aussi une route /version',
+    ]);
+    expect(seen.first, contains('Ajoute une route /sante'));
+    expect(seen.first, contains('INSTRUCTIONS AJOUTÉES ENSUITE'));
+    expect(seen.first, contains('« Ajoute aussi une route /version »'));
+    expect(seen.first, contains('src/main.rs'));
+  });
+
+  test('une instruction envoyée pendant un nouvel échec est gardée pour la '
+      'reprise suivante', () async {
+    final (llm, seen) = scripted(const []);
+    final run = runWith(llm, github(fails: 2));
+    await run.run();
+    await run.run(followUp: 'En Rust uniquement');
+    expect(seen, isEmpty);
+    expect(run.steps.last.kind, StepKind.error);
+    expect(run.requests.last, 'En Rust uniquement');
+    await run.run(followUp: 'continue');
+    expect(seen.first, contains('« En Rust uniquement »'));
+    expect(run.requests, hasLength(2));
+  });
+
+  test('un simple « continue » n\'est pas une nouvelle demande', () async {
+    for (final t in [
+      'continue',
+      'Continue.',
+      'reprends',
+      'vas-y !',
+      'OK',
+      'la suite',
+    ]) {
+      expect(AgentRun.isResume(t), isTrue, reason: t);
+    }
+    for (final t in [
+      'continue en ajoutant un test',
+      'Ajoute une route',
+      'ok mais en Rust',
+    ]) {
+      expect(AgentRun.isResume(t), isFalse, reason: t);
+    }
+    final (llm, seen) = scripted(const []);
+    final run = runWith(llm, github(fails: 1));
+    await run.run();
+    await run.run(followUp: 'continue');
+    expect(run.requests, ['Ajoute une route /sante']);
+    expect(seen.first, isNot(contains('INSTRUCTIONS AJOUTÉES')));
+  });
 }
