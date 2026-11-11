@@ -25,6 +25,14 @@ struct SessionView: View {
     @State private var full: FullTextItem?
     @State private var reviewing = false
     @State private var showDown = false
+    /// Le haut est loin : la flèche pour remonter s'affiche.
+    @State private var showUp = false
+    /// Suivre le travail en direct : vrai tant que l'utilisateur n'est pas remonté
+    /// lire (et de nouveau vrai dès qu'il revient en bas ou touche la flèche).
+    @State private var follow = true
+    /// L'utilisateur fait défiler (doigt posé ou élan) : pas de saut automatique.
+    @State private var userScrolling = false
+    @State private var distanceToEnd: CGFloat = 0
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -41,6 +49,7 @@ struct SessionView: View {
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
+                    Color.clear.frame(height: 1).id("top")
                     header(run, stats)
                     chips(run)
                     if !run.running && !run.shipping && !run.stranded.isEmpty { stranded(run) }
@@ -82,30 +91,52 @@ struct SessionView: View {
                 .padding(.vertical, 8)
             }
             .defaultScrollAnchor(.bottom)
-            .onScrollGeometryChange(for: Bool.self) { g in
-                g.contentSize.height - g.visibleRect.maxY > 300
-            } action: { _, down in
-                showDown = down
+            .onScrollGeometryChange(for: ScrollSpot.self) { g in
+                ScrollSpot(
+                    top: g.contentOffset.y + g.contentInsets.top,
+                    end: g.contentSize.height + g.contentInsets.bottom - g.visibleRect.maxY
+                )
+            } action: { _, spot in
+                distanceToEnd = spot.end
+                showDown = spot.end > 240
+                showUp = spot.top > 240
+                // Revenu en bas à la main : on suit de nouveau le travail.
+                if spot.end < 60 { follow = true }
             }
-            // Suit le travail en direct (sauf si l'utilisateur remonte lire).
-            .onChange(of: run.steps.count) {
-                if !showDown {
-                    withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("end", anchor: .bottom) }
-                }
+            .onScrollPhaseChange { _, phase in
+                userScrolling = phase == .interacting || phase == .decelerating
+                // Remonté lire pendant le travail : on ne le ramène plus en bas.
+                if phase == .interacting { follow = false }
+                if phase == .idle && distanceToEnd < 60 { follow = true }
+            }
+            // Suit le travail en direct : nouvelle étape, résultat d'outil, texte qui
+            // s'allonge, brouillons… (sauf si l'utilisateur est remonté lire).
+            .onChange(of: FollowKey(run)) {
+                guard follow, !userScrolling else { return }
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("end", anchor: .bottom) }
+            }
+            .onAppear {
+                follow = true
+                proxy.scrollTo("end", anchor: .bottom)
             }
             .overlay(alignment: .bottomTrailing) {
-                if showDown {
-                    Button {
-                        withAnimation { proxy.scrollTo("end", anchor: .bottom) }
-                    } label: {
-                        Image(systemName: "arrow.down")
-                            .font(.body.weight(.semibold))
-                            .padding(10)
-                            .background(.regularMaterial, in: .circle)
+                VStack(spacing: 10) {
+                    if showUp {
+                        scrollArrow("arrow.up", "Remonter en haut") {
+                            follow = false
+                            withAnimation { proxy.scrollTo("top", anchor: .top) }
+                        }
                     }
-                    .accessibilityLabel("Aller en bas")
-                    .padding(14)
+                    if showDown {
+                        scrollArrow("arrow.down", "Descendre en bas et suivre") {
+                            follow = true
+                            withAnimation { proxy.scrollTo("end", anchor: .bottom) }
+                        }
+                    }
                 }
+                .padding(14)
+                .animation(.easeOut(duration: 0.2), value: showUp)
+                .animation(.easeOut(duration: 0.2), value: showDown)
             }
             .safeAreaInset(edge: .bottom) { bottomBar(run, busy: busy) }
         }
@@ -149,6 +180,21 @@ struct SessionView: View {
 
     // MARK: - En-tête
 
+    /// Une flèche ronde pour monter ou descendre d'un toucher.
+    private func scrollArrow(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body.weight(.bold))
+                .frame(width: 44, height: 44)
+                .background(.regularMaterial, in: .circle)
+                .overlay(Circle().strokeBorder(.white.opacity(0.12)))
+                .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .transition(.scale.combined(with: .opacity))
+    }
+
     private func header(_ run: AgentRun, _ stats: (added: Int, removed: Int)) -> some View {
         GlassCard(glow: run.status.color) {
             HStack(spacing: 10) {
@@ -164,6 +210,17 @@ struct SessionView: View {
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    // Ce que la session a coûté, mis à jour à chaque réponse.
+                    if run.spentIn + run.spentOut > 0 {
+                        Label(
+                            UsageText.session(tokensIn: run.spentIn, tokensOut: run.spentOut, cost: run.spentCost, partial: run.costPartial),
+                            systemImage: "dollarsign.circle"
+                        )
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: run.spentCost)
+                    }
                     QuotaBadge(providerId: run.provider.id, dense: true)
                     if run.running { BackgroundStatusView() }
                 }
@@ -533,5 +590,30 @@ struct SpecView: View {
                 }
             }
         }
+    }
+}
+
+/// La position de défilement utile : distance au haut et à la fin.
+private struct ScrollSpot: Equatable {
+    let top: CGFloat
+    let end: CGFloat
+}
+
+/// Ce qui change quand l'agent avance : une nouvelle étape, le texte de la
+/// dernière qui s'allonge, un brouillon, l'état (travail, envoi, CI).
+private struct FollowKey: Equatable {
+    let steps: Int
+    let last: Int
+    let drafts: Int
+    let busy: Bool
+    let ci: Int
+
+    @MainActor
+    init(_ run: AgentRun) {
+        steps = run.steps.count
+        last = run.steps.last?.text.count ?? 0
+        drafts = run.changes.count
+        busy = run.running || run.shipping
+        ci = run.ci.count
     }
 }
