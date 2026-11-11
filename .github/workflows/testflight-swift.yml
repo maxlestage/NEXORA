@@ -1,0 +1,222 @@
+# Compile l'app iOS NATIVE (Swift, dossier ios/), la signe et l'envoie sur TestFlight,
+# sans Mac ni Xcode chez vous. Lancement à la main (Actions → TestFlight (Swift) → Run
+# workflow) : tant que la bascule n'est pas décidée, testflight.yml envoie l'app Flutter.
+# Même identifiant d'app : la version 3.x (Swift) remplace la 2.x (Flutter) chez les testeurs.
+#
+# Secrets du dépôt (Settings → Secrets and variables → Actions) :
+#   APPLE_TEAM_ID    l'identifiant d'équipe Apple (10 caractères)
+#   ASC_KEY_ID       l'identifiant de la clé d'API App Store Connect
+#   ASC_ISSUER_ID    l'« Issuer ID » de ces clés
+#   ASC_PRIVATE_KEY  le contenu du fichier AuthKey_XXXX.p8 (ou ASC_KEY)
+# Variable facultative : IOS_BUNDLE_ID (com.maxlestage.nexora par défaut).
+#
+# La clé (rôle Admin) permet à Xcode de créer lui-même certificats et profils : aucun
+# certificat à exporter. Sans les secrets, le workflow s'arrête proprement.
+
+name: TestFlight (Swift)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Build iOS et envoi sur TestFlight
+    runs-on: xcode-27
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY || secrets.ASC_KEY }}
+      BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.maxlestage.nexora' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - name: Secrets présents ?
+        id: secrets
+        working-directory: .
+        run: |
+          if [ -z "$TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
+            echo "::notice title=TestFlight::Ajoutez APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID et ASC_PRIVATE_KEY (ou ASC_KEY) dans les secrets du dépôt (voir README)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.secrets.outputs.ok == 'true'
+        uses: actions/checkout@v7
+
+      - name: Clé d'API App Store Connect
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          # Espaces et retours à la ligne collés autour des identifiants : retirés.
+          for v in TEAM_ID ASC_KEY_ID ASC_ISSUER_ID; do
+            clean=$(printf '%s' "${!v}" | tr -d '[:space:]')
+            echo "::add-mask::$clean"
+            printf -v "$v" '%s' "$clean"
+            echo "$v=$clean" >> "$GITHUB_ENV"
+          done
+          # L'Issuer ID est un UUID : on le retrouve même entouré de texte ou avec des
+          # tirets typographiques (correction automatique de l'iPhone).
+          issuer=$(python3 -c '
+          import os, re
+          v = re.sub("[\u2010-\u2015\u2212]", "-", os.environ["ASC_ISSUER_ID"]).lower()
+          m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", v)
+          print(m.group(0) if m else "")')
+          if [ -n "$issuer" ]; then
+            echo "::add-mask::$issuer"
+            ASC_ISSUER_ID="$issuer"
+            echo "ASC_ISSUER_ID=$issuer" >> "$GITHUB_ENV"
+          else
+            echo "::error title=ASC_ISSUER_ID incorrect::Le secret ASC_ISSUER_ID ne contient pas d'Issuer ID (format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Il est affiché dans App Store Connect → Utilisateurs et accès → Intégrations → API App Store Connect, au-dessus du tableau des clés (Issuer ID / ID de l'émetteur). Ce n'est ni le Team ID ni le Key ID."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          key="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          # Une clé collée depuis un téléphone perd souvent ses retours à la ligne, ses
+          # lignes BEGIN/END, ou gagne des espaces et des guillemets : on la reconstruit
+          # au format PEM. Une clé encodée en base64 en entier marche aussi.
+          python3 - "$key" <<'PY'
+          import base64, os, re, sys
+          raw = os.environ["ASC_PRIVATE_KEY"].replace("\\n", "\n").replace("\r", "").strip().strip('"').strip("'")
+          if "BEGIN" not in raw:
+              try:
+                  decoded = base64.b64decode(re.sub(r"\s+", "", raw), validate=True).decode()
+                  if "BEGIN" in decoded:
+                      raw = decoded
+              except Exception:
+                  pass
+          body = re.sub(r"-----(BEGIN|END)[A-Z ]*-----", "", raw)
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+          # Une clé Apple (PKCS#8, courbe P-256) commence toujours par le même en-tête,
+          # qui donne aussi sa longueur : on l'extrait du texte collé autour (nom du
+          # fichier, Key ID, mots en trop…).
+          m = re.search(r"MIG[A-Za-z0-9+/]AgEAMBMGByqGSM49", body)
+          if m:
+              total = base64.b64decode(body[m.start():m.start() + 4])[2] + 3
+              size = -(-total // 3) * 4
+              start = m.start()
+              if len(body) - start >= size and len(body) != size:
+                  print(f"Clé Apple extraite : {start} caractère(s) en trop avant, "
+                        f"{len(body) - start - size} après (ignorés).")
+                  body = body[start:start + size]
+          else:
+              print("En-tête d'une clé Apple (MIG…AgEAMBMGByqGSM49) introuvable : ce n'est "
+                    "pas le fichier AuthKey_XXXX.p8 téléchargé dans App Store Connect.")
+          lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+          pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
+          open(sys.argv[1], "w").write(pem)
+          PY
+          # Diagnostic sans rien révéler de la clé : longueurs et format seulement.
+          python3 - "$key" <<'PY'
+          import base64, os, sys
+          raw = os.environ["ASC_PRIVATE_KEY"]
+          pem = open(sys.argv[1]).read()
+          body = "".join(pem.splitlines()[1:-1])
+          try:
+              der = base64.b64decode(body + "=" * (-len(body) % 4))
+          except Exception:
+              der = b""
+          n = len(der)
+          # PKCS#8 : SEQUENCE { INTEGER version, ... } ; chiffrée : SEQUENCE { SEQUENCE ... }.
+          i = 2 + (der[1] & 0x7F if len(der) > 1 and der[1] & 0x80 else 0)
+          if len(der) > i and der[0] == 0x30 and der[i] == 0x30:
+              open(sys.argv[1] + ".encrypted", "w").write("1")
+          print(f"Secret : {len(raw)} caractères, {raw.count(chr(10)) + 1} ligne(s), "
+                f"BEGIN {'présent' if 'BEGIN' in raw else 'absent'}, "
+                f"END {'présent' if 'END' in raw else 'absent'} ; "
+                f"corps base64 : {len(body)} caractères, {n} octets "
+                "(une clé Apple .p8 fait environ 200 caractères, 138 octets).")
+          PY
+          openssl version
+          if [ -f "$key.encrypted" ] || ! openssl pkey -in "$key" -noout -passin pass: < /dev/null; then
+            if [ -f "$key.encrypted" ]; then
+              echo "::error title=Ce n'est pas une clé App Store Connect::Le secret contient une clé privée protégée par mot de passe. Une clé d'API App Store Connect (.p8) ne l'est jamais : créez-en une dans App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → +, rôle Admin, puis Download."
+              exit 1
+            fi
+            echo "::error title=Clé .p8 illisible::Le secret ASC_KEY (ou ASC_PRIVATE_KEY) ne contient pas une clé .p8 valide. Sur iPhone : dans l'app Fichiers, renommez AuthKey_XXXX.p8 en AuthKey_XXXX.txt, ouvrez-le, copiez TOUT le texte (lignes BEGIN et END comprises) et collez-le dans le secret ASC_KEY."
+            exit 1
+          fi
+          echo "KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: Vérifier App Store Connect (clé, identifiant, fiche de l'app)
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: .
+        run: |
+          # Avant 15 minutes de compilation : la clé est-elle acceptée, l'identifiant
+          # existe-t-il (il est enregistré s'il manque), la fiche de l'app existe-t-elle ?
+          python3 .github/scripts/asc_check.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$BUNDLE_ID" NEXORA
+
+      - name: Faire de la place dans les certificats
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: .
+        run: |
+          # Xcode crée des certificats à chaque build ; Apple en limite le nombre.
+          # Ceux des builds précédents (« Created via API ») sont révoqués.
+          python3 .github/scripts/asc_certs.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID"
+
+      - name: XcodeGen 2.46.0
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate
+
+      - name: Archive signée (build n°${{ github.run_number }})
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          xcodebuild archive \
+            -project Nexora.xcodeproj \
+            -scheme Nexora \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Nexora.xcarchive" \
+            -skipPackagePluginValidation \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            IOS_BUNDLE_ID="$BUNDLE_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            GITHUB_CLIENT_ID="${{ vars.GITHUB_CLIENT_ID }}"
+
+      - name: Envoi sur App Store Connect (TestFlight)
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Nexora.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice title=TestFlight::Build $BUILD_NUMBER envoyé. Il apparaît dans TestFlight après le traitement par Apple (10 à 30 min)."
+
+      - name: Nettoyage de la clé
+        if: always()
+        working-directory: .
+        run: rm -rf "$RUNNER_TEMP/keys"
