@@ -1,0 +1,54 @@
+[
+ {
+  "id": "claude-code",
+  "name": "Claude Code",
+  "emoji": "🟠",
+  "description": "L'agent de code d'Anthropic. Lancez-le avec une instruction, ou mentionnez @claude dans une issue ou une pull request.",
+  "secrets": [
+   "ANTHROPIC_API_KEY"
+  ],
+  "secretHelpUrl": "https://platform.claude.com/settings/keys",
+  "workflowFile": "nexora-claude.yml",
+  "mention": "@claude",
+  "yaml": "name: NEXORA · Claude Code\n\non:\n  workflow_dispatch:\n    inputs:\n      instruction:\n        description: \"Ce que l'agent doit faire\"\n        required: true\n  issue_comment:\n    types: [created]\n  pull_request_review_comment:\n    types: [created]\n  issues:\n    types: [opened, assigned]\n\npermissions:\n  contents: write\n  pull-requests: write\n  issues: write\n  id-token: write\n  actions: read\n\njobs:\n  claude:\n    if: >-\n      github.event_name == 'workflow_dispatch' ||\n      contains(github.event.comment.body, '@claude') ||\n      contains(github.event.issue.body, '@claude')\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 1\n      - uses: anthropics/claude-code-action@v1\n        with:\n          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}\n          prompt: ${{ github.event.inputs.instruction }}\n"
+ },
+ {
+  "id": "gemini-cli",
+  "name": "Gemini CLI",
+  "emoji": "✨",
+  "free": true,
+  "description": "L'agent de Google, avec une clé AI Studio gratuite. Il modifie le code puis ouvre une pull request.",
+  "secrets": [
+   "GEMINI_API_KEY"
+  ],
+  "secretHelpUrl": "https://aistudio.google.com/apikey",
+  "workflowFile": "nexora-gemini.yml",
+  "yaml": "name: NEXORA · Gemini CLI\n\non:\n  workflow_dispatch:\n    inputs:\n      instruction:\n        description: \"Ce que l'agent doit faire\"\n        required: true\n\npermissions:\n  contents: write\n  pull-requests: write\n  id-token: write\n\njobs:\n  gemini:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: google-github-actions/run-gemini-cli@v0\n        with:\n          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}\n          prompt: |\n            Tu travailles dans ce dépôt. Fais ce qui suit, en modifiant les\n            fichiers directement, sans créer de commit :\n\n            ${{ github.event.inputs.instruction }}\n      - name: Pull request avec les changements\n        uses: peter-evans/create-pull-request@v7\n        with:\n          branch: nexora/${{ github.run_id }}\n          title: \"NEXORA : ${{ github.event.inputs.instruction }}\"\n          body: |\n            Changements proposés par un agent lancé depuis NEXORA.\n\n            > ${{ github.event.inputs.instruction }}\n          commit-message: \"${{ github.event.inputs.instruction }}\"\n          delete-branch: true\n"
+ },
+ {
+  "id": "codex",
+  "name": "OpenAI Codex",
+  "emoji": "⚪",
+  "description": "L'agent de code d'OpenAI. Il applique l'instruction et ouvre une pull request.",
+  "secrets": [
+   "OPENAI_API_KEY"
+  ],
+  "secretHelpUrl": "https://platform.openai.com/api-keys",
+  "workflowFile": "nexora-codex.yml",
+  "yaml": "name: NEXORA · OpenAI Codex\n\non:\n  workflow_dispatch:\n    inputs:\n      instruction:\n        description: \"Ce que l'agent doit faire\"\n        required: true\n\npermissions:\n  contents: write\n  pull-requests: write\n\njobs:\n  codex:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: openai/codex-action@v1\n        with:\n          openai-api-key: ${{ secrets.OPENAI_API_KEY }}\n          sandbox: workspace-write\n          prompt: ${{ github.event.inputs.instruction }}\n      - name: Pull request avec les changements\n        uses: peter-evans/create-pull-request@v7\n        with:\n          branch: nexora/${{ github.run_id }}\n          title: \"NEXORA : ${{ github.event.inputs.instruction }}\"\n          body: |\n            Changements proposés par un agent lancé depuis NEXORA.\n\n            > ${{ github.event.inputs.instruction }}\n          commit-message: \"${{ github.event.inputs.instruction }}\"\n          delete-branch: true\n"
+ },
+ {
+  "id": "aider-free",
+  "name": "Aider (modèles gratuits)",
+  "emoji": "🆓",
+  "free": true,
+  "description": "Aider, l'agent de code libre, avec un modèle gratuit d'OpenRouter ou de Groq. Changez le modèle au lancement.",
+  "secrets": [
+   "OPENROUTER_API_KEY",
+   "GROQ_API_KEY (facultatif)"
+  ],
+  "secretHelpUrl": "https://openrouter.ai/keys",
+  "workflowFile": "nexora-aider.yml",
+  "yaml": "name: NEXORA · Aider (gratuit)\n\non:\n  workflow_dispatch:\n    inputs:\n      instruction:\n        description: \"Ce que l'agent doit faire\"\n        required: true\n      model:\n        description: \"Modèle (format aider)\"\n        required: false\n        default: \"openrouter/qwen/qwen3-coder:free\"\n\npermissions:\n  contents: write\n  pull-requests: write\n\njobs:\n  aider:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: \"3.12\"\n      - name: Installer aider\n        run: pip install --quiet aider-chat\n      - name: Lancer aider\n        env:\n          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}\n          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}\n          INSTRUCTION: ${{ github.event.inputs.instruction }}\n          MODEL: ${{ github.event.inputs.model || 'openrouter/qwen/qwen3-coder:free' }}\n        run: |\n          aider --yes-always --no-auto-commits --no-gitignore \\\n            --no-show-model-warnings --model \"$MODEL\" --message \"$INSTRUCTION\"\n      - name: Pull request avec les changements\n        uses: peter-evans/create-pull-request@v7\n        with:\n          branch: nexora/${{ github.run_id }}\n          title: \"NEXORA : ${{ github.event.inputs.instruction }}\"\n          body: |\n            Changements proposés par un agent lancé depuis NEXORA.\n\n            > ${{ github.event.inputs.instruction }}\n          commit-message: \"${{ github.event.inputs.instruction }}\"\n          delete-branch: true\n"
+ }
+]
