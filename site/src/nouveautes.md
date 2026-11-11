@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.85 — 11 novembre 2026 — L'agent ne s'arrête plus sur une réflexion qui tourne en rond
+- Corrigé : en essai réel, pour « ajoute truncateMiddle et son test », le modèle gratuit réfléchissait en boucle (« '…' '…' '…' => » répété) jusqu'à sa limite : trois réponses vides, et la session s'arrêtait avec ses brouillons, sans finir.
+- Les deux relances ne reprennent plus les mêmes réglages : elles demandent une réflexion courte et tirent la réponse au sort autrement, ce qui casse la boucle. Rejouée ainsi, la même demande donne aussitôt l'action suivante.
+- La première demande de chaque étape garde vos réglages habituels ; un fournisseur qui refuse le réglage de réflexion est relancé sans, comme avant.
+
 ## 2.2.84 — 11 novembre 2026 — L'agent ne tourne plus en rond sur ce qui existe déjà
 - Corrigé : en essai réel, pour « ajoute une page /faq… » alors que la page, son lien et son test existaient déjà, l'agent trouvait tout mais refaisait la même recherche ; les relances lui affirmaient que rien n'existait, et la session s'arrêtait sans rien dire.
 - Quand ses recherches trouvent ce qui est demandé, l'agent apprend que la demande existe peut-être déjà : il fait seulement ce qui manque, ou termine en expliquant ce qui est déjà en place, avec les fichiers et les lignes.
