@@ -156,3 +156,63 @@ struct PerformanceTests {
         try? FileManager.default.removeItem(at: dir)
     }
 }
+
+/// Les optimisations ne changent rien à ce que l'app voit.
+@Suite("Optimisations : mêmes résultats")
+struct OptimizationParityTests {
+    @Test("index en mémoire : une entrée abîmée est ignorée, le disque et la mémoire concordent")
+    func indexCache() async throws {
+        let dir = tempDir()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try #"[{"id":"a","title":"A","updated":"2026-11-10T08:30:00.000Z"}, 42, {"title":"sans id"}, {"id":"b","title":"B","pinned":true}]"#
+            .write(to: dir.appendingPathComponent("index.json"), atomically: true, encoding: .utf8)
+        let store = ConversationStore(directory: dir)
+        #expect(await store.index().map(\.id) == ["b", "a"])
+        var c = conversation("c", messages: 2, title: "C")
+        try await store.save(c)
+        c.title = "C2"
+        try await store.saveMeta(ConversationStore.Meta(c))
+        try await store.delete("a")
+        // Un autre lecteur du même dossier voit exactement la même chose.
+        let fresh = ConversationStore(directory: dir)
+        #expect(await fresh.index().map(\.id) == (await store.index()).map(\.id))
+        #expect(await fresh.index().map(\.title) == ["B", "C2"])
+        try await store.deleteAll()
+        #expect(await store.index().isEmpty)
+    }
+
+    @Test("recherche : prolongée, raccourcie, et à jour après un enregistrement")
+    func searchRefinement() async throws {
+        let store = ConversationStore(directory: tempDir())
+        var a = Conversation(id: "a", title: "Un")
+        a.messages = [ChatMessage(role: .user, content: "Parlons de Swift"), ChatMessage(role: .assistant, content: "ok")]
+        var b = Conversation(id: "b", title: "Deux")
+        b.messages = [ChatMessage(role: .user, content: "Et de Rust"), ChatMessage(role: .assistant, content: "ok")]
+        try await store.save(a)
+        try await store.save(b)
+        #expect(await store.search("s").map(\.id).sorted() == ["a", "b"])
+        #expect(await store.search("sw").map(\.id) == ["a"])
+        #expect(await store.search("swift").map(\.id) == ["a"])
+        // Raccourcie : tout est cherché de nouveau.
+        #expect(await store.search("s").map(\.id).sorted() == ["a", "b"])
+        #expect(await store.search("sw").map(\.id) == ["a"])
+        // Une conversation enregistrée entre deux frappes est relue.
+        b.messages.append(ChatMessage(role: .user, content: "Et Swiftly ?"))
+        try await store.save(b)
+        #expect(await store.search("swi").map(\.id).sorted() == ["a", "b"])
+        try await store.deleteAll()
+    }
+
+    @Test("dates : celles de Dart (heure locale) et les nôtres, relues à l'identique")
+    func dates() throws {
+        let d = Date(timeIntervalSince1970: 1_794_300_000.123)
+        let s = ISO8601.string(d)
+        #expect(s.hasSuffix("Z") && s.contains(".123"))
+        #expect(abs((ISO8601.parse(s) ?? .distantPast).timeIntervalSince(d)) < 0.001)
+        #expect(ISO8601.parse("2026-11-10T08:30:00Z") != nil)
+        let local = Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 8, minute: 30))!
+        #expect(ISO8601.parse("2026-11-10T08:30:00.000000") == local)
+        #expect(ISO8601.parse("2026-11-10T08:30:00") == local)
+        #expect(ISO8601.parse("pas une date") == nil && ISO8601.parse("") == nil)
+    }
+}
