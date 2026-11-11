@@ -8,13 +8,34 @@ public struct LLMMessage: Sendable, Hashable {
     /// `user`, `assistant` ou `system`.
     public let role: String
     public let content: String
+    /// Les images jointes (photos de l'utilisateur), envoyées au format de chaque
+    /// protocole. Sans image, le message part exactement comme avant (texte seul).
+    public var images: [LLMImage]
 
-    public init(_ role: String, _ content: String) {
+    public init(_ role: String, _ content: String, images: [LLMImage] = []) {
         self.role = role
         self.content = content
+        self.images = images
     }
 
     var json: [String: Any] { ["role": role, "content": content] }
+
+    /// Le message au format d'un protocole (OpenAI ou Ollama ; Anthropic : voir
+    /// `LLMClient.alternate`).
+    func payload(_ kind: ApiKind) -> [String: Any] {
+        if images.isEmpty { return json }
+        switch kind {
+        case .ollama:
+            return ["role": role, "content": content, "images": images.map(\.base64)]
+        case .openai, .anthropic:
+            var parts: [[String: Any]] = []
+            if !content.isEmpty { parts.append(["type": "text", "text": content]) }
+            for i in images {
+                parts.append(["type": "image_url", "image_url": ["url": i.dataURL]])
+            }
+            return ["role": role, "content": parts]
+        }
+    }
 }
 
 /// Options d'un appel.
@@ -109,13 +130,13 @@ public struct LLMClient: Sendable {
         case .ollama:
             var msgs: [[String: Any]] = []
             if let system, !system.isEmpty { msgs.append(["role": "system", "content": system]) }
-            msgs += messages.map(\.json)
+            msgs += messages.map { $0.payload(.ollama) }
             b = ["model": model, "messages": msgs, "stream": stream]
             if let t = o.temperature { b["options"] = ["temperature": t] }
         case .openai:
             var msgs: [[String: Any]] = []
             if let system, !system.isEmpty { msgs.append(["role": "system", "content": system]) }
-            msgs += messages.map(\.json)
+            msgs += messages.map { $0.payload(.openai) }
             b = ["model": model, "messages": msgs, "stream": stream]
             if let t = o.temperature { b["temperature"] = t }
             if stream && Self.streamUsage.contains(p.id) { b["stream_options"] = ["include_usage": true] }
@@ -132,17 +153,30 @@ public struct LLMClient: Sendable {
     }
 
     /// L'API Messages veut des tours alternés qui commencent par l'utilisateur.
-    static func alternate(_ messages: [LLMMessage]) -> [[String: String]] {
-        var out: [[String: String]] = []
+    /// Les images partent en blocs `image` (source base64) avant le texte ; sans
+    /// image, `content` reste un simple texte.
+    static func alternate(_ messages: [LLMMessage]) -> [[String: Any]] {
+        var turns: [(role: String, text: String, images: [LLMImage])] = []
         for m in messages where m.role != "system" {
-            if m.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
-            if let last = out.last, last["role"] == m.role {
-                out[out.count - 1]["content"] = (last["content"] ?? "") + "\n\n" + m.content
+            let blank = m.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if blank && m.images.isEmpty { continue }
+            let text = blank ? "" : m.content
+            if let last = turns.last, last.role == m.role {
+                let joined = last.text.isEmpty ? text : text.isEmpty ? last.text : last.text + "\n\n" + text
+                turns[turns.count - 1] = (m.role, joined, last.images + m.images)
             } else {
-                out.append(["role": m.role, "content": m.content])
+                turns.append((m.role, text, m.images))
             }
         }
-        if let first = out.first, first["role"] != "user" {
+        var out: [[String: Any]] = turns.map { t in
+            if t.images.isEmpty { return ["role": t.role, "content": t.text] }
+            var blocks: [[String: Any]] = t.images.map { i in
+                ["type": "image", "source": ["type": "base64", "media_type": i.mimeType, "data": i.base64]]
+            }
+            if !t.text.isEmpty { blocks.append(["type": "text", "text": t.text]) }
+            return ["role": t.role, "content": blocks]
+        }
+        if let first = out.first, first["role"] as? String != "user" {
             out.insert(["role": "user", "content": "(début de la conversation)"], at: 0)
         }
         return out
@@ -195,10 +229,13 @@ public struct LLMClient: Sendable {
         let thinks = !reasoningParams(provider, model: model, level: options.level).isEmpty
         let limit = thinks && idleTimeout < Self.reasoningIdleTimeout ? Self.reasoningIdleTimeout : idleTimeout
         let seconds = Double(limit.components.seconds)
+        // Les messages envoyés : sans leurs images si le modèle les refuse.
+        var sent = messages
+        var imagesDropped = false
         func make(_ reasoning: Bool) -> URLRequest {
             request(
                 url, method: "POST", headers: headers(provider, key: apiKey),
-                body: body(provider, model: model, messages: messages, system: system, options: options, stream: true, reasoning: reasoning),
+                body: body(provider, model: model, messages: sent, system: system, options: options, stream: true, reasoning: reasoning),
                 timeout: max(60, seconds)
             )
         }
@@ -207,11 +244,32 @@ public struct LLMClient: Sendable {
         do {
             (head, lines) = try await transport.lines(make(true))
             var reasoning = true
-            // Le fournisseur refuse le réglage de réflexion : on réessaie sans.
-            if head.status == 400 || head.status == 422,
-               provider.kind == .anthropic || thinks {
-                reasoning = false
-                (head, lines) = try await transport.lines(make(false))
+            var refusalChecked = false
+            while head.status == 400 || head.status == 422 || head.status == 415 {
+                // Le modèle ne voit pas les images : on réessaie une fois sans elles,
+                // avec une note à leur place.
+                if !imagesDropped && !refusalChecked && ChatImages.hasImages(sent) {
+                    refusalChecked = true
+                    let text = await lines.joined()
+                    if ChatImages.refusesImages(status: head.status, body: text) {
+                        imagesDropped = true
+                        sent = ChatImages.withoutImages(sent)
+                        (head, lines) = try await transport.lines(make(reasoning))
+                        continue
+                    }
+                    lines = AsyncThrowingStream { c in
+                        c.yield(text)
+                        c.finish()
+                    }
+                }
+                // Le fournisseur refuse le réglage de réflexion : on réessaie sans.
+                if reasoning && head.status != 415 && (provider.kind == .anthropic || thinks) {
+                    reasoning = false
+                    refusalChecked = false
+                    (head, lines) = try await transport.lines(make(false))
+                    continue
+                }
+                break
             }
             // Fournisseur saturé ou limite de débit : on réessaie un peu plus tard.
             var attempt = 1
@@ -247,6 +305,7 @@ public struct LLMClient: Sendable {
             out.finish(throwing: LLMError(errorFromBody(text), status: head.status))
             return
         }
+        if imagesDropped { out.yield(ChatDelta(notice: ChatImages.refusedNotice)) }
         // Certains serveurs ignorent `stream: true` et répondent en un seul JSON.
         let whole = (head.headers["content-type"] ?? "").contains("application/json") && provider.kind != .ollama
         if whole {

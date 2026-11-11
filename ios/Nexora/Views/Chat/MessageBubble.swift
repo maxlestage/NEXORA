@@ -16,11 +16,14 @@ struct MessageBubble: View {
     var onRegenerate: (() -> Void)?
     var onChangeModel: (() -> Void)?
     var onCopied: () -> Void = {}
+    /// Images créées : « Refaire ».
+    var onRedoImages: (() -> Void)?
 
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var scheme
     @State private var thinkingOpen: Bool?
     @State private var fullText: String?
+    @State private var viewer: ChatImageViewerItem?
 
     var body: some View {
         Group {
@@ -29,6 +32,7 @@ struct MessageBubble: View {
         .sheet(item: Binding(get: { fullText.map { BubbleFullText(text: $0) } }, set: { fullText = $0?.text })) { item in
             FullTextView(title: message.role == .user ? "Votre message" : "Réponse", text: item.text)
         }
+        .fullScreenCover(item: $viewer) { v in ChatImageViewer(names: v.names, start: v.start) }
     }
 
     // MARK: - Vos messages
@@ -41,15 +45,23 @@ struct MessageBubble: View {
                     .foregroundStyle(.tint)
                     .padding(.top, 6)
             }
-            UserBubble(text: ChatDisplay.shown(message.content), style: settings.bubbleStyle, accent: settings.accent)
-                .onTapGesture(count: 2) { onEdit?() }
-                .contextMenu {
-                    Button("Copier", systemImage: "doc.on.doc") {
-                        UIPasteboard.general.string = message.content
-                        onCopied()
-                    }
-                    if let onEdit { Button("Modifier et renvoyer", systemImage: "pencil", action: onEdit) }
+            // Les photos jointes : toucher pour les voir en plein écran.
+            if !message.images.isEmpty {
+                ChatImageGrid(names: message.images) { i in
+                    viewer = ChatImageViewerItem(names: message.images, start: i)
                 }
+            }
+            if !message.content.isEmpty || message.images.isEmpty {
+                UserBubble(text: ChatDisplay.shown(message.content), style: settings.bubbleStyle, accent: settings.accent)
+                    .onTapGesture(count: 2) { onEdit?() }
+                    .contextMenu {
+                        Button("Copier", systemImage: "doc.on.doc") {
+                            UIPasteboard.general.string = message.content
+                            onCopied()
+                        }
+                        if let onEdit { Button("Modifier et renvoyer", systemImage: "pencil", action: onEdit) }
+                    }
+            }
             // Les longs messages : tout le texte, à relire ou copier.
             if ChatDisplay.isLong(message.content) {
                 Button("Afficher tout (\((message.content as NSString).length) caractères)", systemImage: "text.alignleft") {
@@ -87,6 +99,9 @@ struct MessageBubble: View {
             if showThinking && !message.thinking.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { thinking }
             if message.error {
                 ErrorCard(message: message, provider: provider, onRetry: onRegenerate, onChangeModel: onChangeModel)
+            } else if message.imagePrompt != nil {
+                // Des images créées : la grille et ses actions.
+                GeneratedImagesView(message: message, streaming: streaming, onRedo: onRedoImages)
             } else if message.content.isEmpty && streaming {
                 Color.clear.frame(height: 4)
             } else {
@@ -104,7 +119,7 @@ struct MessageBubble: View {
                     )
                     .padding(.trailing, 24)
             }
-            if !streaming && !message.content.isEmpty {
+            if !streaming && !message.content.isEmpty && message.imagePrompt == nil {
                 ActionBar(message: message, provider: provider, onRate: onRate, onRegenerate: onRegenerate, onChangeModel: onChangeModel, onCopied: onCopied) {
                     fullText = message.content
                 }
