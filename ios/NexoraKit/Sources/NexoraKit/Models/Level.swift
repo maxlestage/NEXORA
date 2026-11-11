@@ -106,8 +106,15 @@ public enum ThinkLevel: String, CaseIterable, Codable, Sendable, Identifiable, C
 
     public var warning: Bool { self == .max }
 
+    /// Lit un niveau enregistré, y compris les anciens noms (avant la 2.2.3).
     public static func named(_ s: String?) -> ThinkLevel? {
-        guard let s else { return nil }
-        return ThinkLevel(rawValue: s)
+        switch s {
+        case nil: return nil
+        case "rapide": return .faible
+        case "equilibre": return .moyen
+        case "approfondi": return .eleve
+        case "maximum": return .max
+        case let s?: return ThinkLevel(rawValue: s)
+        }
     }
 }
