@@ -298,7 +298,9 @@ private struct ActionBar: View {
                 if speech.speaking { speech.stopSpeaking() } else { speech.speak(message.content) }
             }
             ShareLink(item: message.content) {
-                Image(systemName: "square.and.arrow.up").frame(width: 34, height: 34)
+                Image(systemName: "square.and.arrow.up")
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle().inset(by: -5))
             }
             .accessibilityLabel("Partager")
             button("ellipsis", "Plus") { more = true }
@@ -350,6 +352,8 @@ private struct ActionBar: View {
             Image(systemName: symbol)
                 .foregroundStyle(tint ?? .secondary)
                 .frame(width: 34, height: 34)
+                // Zone touchable de 44 pt, sans changer la mise en page.
+                .contentShape(Rectangle().inset(by: -5))
         }
         .accessibilityLabel(label)
     }

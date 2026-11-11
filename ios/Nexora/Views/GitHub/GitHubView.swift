@@ -103,6 +103,7 @@ struct ReposView: View {
                             Button("Nouveau dépôt", systemImage: "plus") { creating = true }
                             Button("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { github.signOut() }
                         } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+                        .accessibilityLabel("Options du compte GitHub")
                     }
                 }
             }
