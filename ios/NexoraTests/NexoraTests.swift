@@ -1,7 +1,7 @@
 import Foundation
 import NexoraKit
 import Testing
-@testable import NEXORA
+@testable import Nexora
 
 /// Les réglages et la bibliothèque d'agents de l'app (le cœur est testé dans
 /// NexoraKit, sous Linux comme sur macOS).
