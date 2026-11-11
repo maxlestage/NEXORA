@@ -34,6 +34,23 @@ struct RepoView: View {
         .navigationTitle(repo.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // L'agent autonome sur ce dépôt (une session de l'atelier).
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    NewSessionView(repo: repo, branch: branch ?? repo.branch)
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+                .accessibilityLabel("Agent autonome")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    CloudAgentsView(repo: repo)
+                } label: {
+                    Image(systemName: "cloud")
+                }
+                .accessibilityLabel("Agents cloud")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Picker("Branche", selection: Binding(get: { branch ?? repo.branch }, set: { branch = $0 })) {

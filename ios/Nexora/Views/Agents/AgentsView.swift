@@ -45,6 +45,8 @@ struct AgentsView: View {
     @State private var chatPath: [String] = []
     @State private var showLibrary = false
     @State private var librarySpec: String?
+    @State private var sessionAgent: Agent?
+    @Environment(GitHubSession.self) private var github
 
     var body: some View {
         NavigationStack(path: $chatPath) {
@@ -100,6 +102,18 @@ struct AgentsView: View {
                         Task {
                             try? await Task.sleep(for: .milliseconds(450))
                             editing = agent
+                        }
+                    },
+                    onSession: {
+                        guard github.connected else {
+                            message = "Connectez GitHub d'abord."
+                            return
+                        }
+                        shown = nil
+                        // La session s'ouvre une fois la fiche refermée.
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(450))
+                            sessionAgent = a
                         }
                     }
                 )
@@ -168,6 +182,9 @@ struct AgentsView: View {
             .navigationDestination(for: String.self) { id in ChatView(conversationId: id) }
             .navigationDestination(isPresented: $showLibrary) {
                 InstallAgentsView(initialSpec: librarySpec)
+            }
+            .navigationDestination(item: $sessionAgent) { a in
+                NewSessionView(agent: a, askRepoFirst: true)
             }
         }
     }
@@ -391,6 +408,8 @@ struct AgentDetailSheet: View {
     let agent: Agent
     let onChat: () -> Void
     let onEdit: (Agent) -> Void
+    /// Une session de l'agent autonome avec cet agent (`nil` : pas de bouton).
+    var onSession: (() -> Void)? = nil
 
     @Environment(AgentLibrary.self) private var agents
     @Environment(\.dismiss) private var dismiss
@@ -417,6 +436,10 @@ struct AgentDetailSheet: View {
                         HStack(spacing: 8) {
                             Button("Discuter", systemImage: "bubble.left", action: onChat)
                                 .buttonStyle(.borderedProminent)
+                            if let onSession {
+                                Button("Nouvelle session", systemImage: "sparkles", action: onSession)
+                                    .buttonStyle(.bordered)
+                            }
                             ShareLink(item: agent.toMarkdown(), preview: SharePreview("\(agent.name).md")) {
                                 Label("Partager", systemImage: "square.and.arrow.up")
                             }
@@ -456,6 +479,9 @@ struct CloudAgentSheet: View {
     let agent: CloudAgent
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(GitHubSession.self) private var github
+    @State private var picking = false
+    @State private var repo: Repo?
 
     var body: some View {
         NavigationStack {
@@ -467,6 +493,14 @@ struct CloudAgentSheet: View {
                         if agent.free { Pill(text: "gratuit", color: Theme.green) }
                     }
                     Text(agent.description)
+                    if github.connected {
+                        Button("Installer et lancer dans un dépôt", systemImage: "cloud") { picking = true }
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        Text("Connectez GitHub d'abord (onglet Code).")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     LabeledContent("Secret", value: agent.secrets.joined(separator: ", "))
                         .font(.subheadline.monospaced())
                     if let help = agent.secretHelpUrl, let url = URL(string: help) {
@@ -495,6 +529,10 @@ struct CloudAgentSheet: View {
                     .accessibilityLabel("Partager le workflow")
                 }
             }
+            .sheet(isPresented: $picking) {
+                RepoPickerSheet { repo = $0 }
+            }
+            .navigationDestination(item: $repo) { r in CloudAgentsView(repo: r) }
         }
     }
 }
@@ -506,7 +544,6 @@ struct AgentEditorView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var pickModel = false
-    @State private var toolsText = ""
 
     var body: some View {
         NavigationStack {
@@ -543,9 +580,26 @@ struct AgentEditorView: View {
                         Text("Celui de la conversation").tag(ThinkLevel?.none)
                         ForEach(ThinkLevel.allCases) { Text("\($0.emoji) \($0.label)").tag(Optional($0)) }
                     }
-                    TextField("Outils (list_files, read_file…)", text: $toolsText)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                }
+                Section {
+                    ForEach(agentToolList.map { $0.name }.filter { $0 != "finish" }, id: \.self) { t in
+                        Toggle(isOn: Binding(
+                            get: { agent.tools.contains(t) },
+                            set: { on in
+                                if on {
+                                    if !agent.tools.contains(t) { agent.tools.append(t) }
+                                } else {
+                                    agent.tools.removeAll { $0 == t }
+                                }
+                            }
+                        )) {
+                            Text(t).font(.body.monospaced())
+                        }
+                    }
+                } header: {
+                    Text("Outils en mode autonome")
+                } footer: {
+                    Text("Aucun outil coché : l'agent peut tous les utiliser. Les fichiers ne sont envoyés sur GitHub qu'après votre validation.")
                 }
             }
             .navigationTitle(agent.name.isEmpty ? "Nouvel agent" : agent.name)
@@ -554,7 +608,6 @@ struct AgentEditorView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") {
-                        agent.tools = toolsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                         if agent.emoji.isEmpty { agent.emoji = "🤖" }
                         agents.save(agent)
                         dismiss()
@@ -562,7 +615,6 @@ struct AgentEditorView: View {
                     .disabled(agent.name.trimmingCharacters(in: .whitespaces).isEmpty || agent.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onAppear { toolsText = agent.tools.joined(separator: ", ") }
             .sheet(isPresented: $pickModel) {
                 ModelPickerSheet(selected: settings.resolve(agent.model)) { agent.model = $0.key }
             }
