@@ -597,6 +597,10 @@ extension AgentRun {
         ]
         if let level { j["level"] = level.rawValue }
         if let agent { j["agent"] = agent.id }
+        // La consommation de la session (ignorée par l'app Flutter).
+        if spentIn + spentOut > 0 {
+            j["spent"] = ["in": spentIn, "out": spentOut, "cost": spentCost, "partial": costPartial]
+        }
         // L'ordre des brouillons (les objets JSON n'en ont pas toujours).
         j["changesOrder"] = changes.keys
         return j
@@ -620,6 +624,12 @@ extension AgentRun {
             onHeaders: onHeaders, onUsage: onUsage, onError: onError,
             id: j["id"] as? String, createdAt: ISO8601.parse(j["createdAt"] as? String)
         )
+        if let s = j["spent"] as? [String: Any] {
+            run.spentIn = asInt(s["in"]) ?? 0
+            run.spentOut = asInt(s["out"]) ?? 0
+            run.spentCost = (s["cost"] as? Double) ?? (s["cost"] as? NSNumber)?.doubleValue ?? 0
+            run.costPartial = (s["partial"] as? Bool) ?? false
+        }
         run.steps = ((j["steps"] as? [Any]) ?? []).compactMap { ($0 as? [String: Any]).map(AgentStep.fromJSON) }
         run.history = ((j["history"] as? [Any]) ?? []).compactMap { m in
             guard let m = m as? [String: Any], let r = m["r"] as? String, let c = m["c"] as? String else { return nil }
