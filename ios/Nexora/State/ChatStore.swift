@@ -23,6 +23,9 @@ final class ChatStore {
     @ObservationIgnored private var runIds: [String: UUID] = [:]
     @ObservationIgnored private var saveTasks: [String: Task<Void, Never>] = [:]
     var speech: SpeechService?
+    /// Le témoin de crédit : chaque réponse y est comptée (tokens, coût, limites
+    /// lues dans les en-têtes, erreurs de clé ou de crédit). Facultatif.
+    var usage: UsageStore?
 
     init(settings: SettingsStore, agents: AgentLibrary, store: ConversationStore = ConversationStore(directory: ConversationStore.defaultDirectory()), llm: LLMClient = LLMClient()) {
         self.settings = settings
@@ -209,6 +212,8 @@ final class ChatStore {
         let options = LLMOptions(temperature: settings.useTemperature ? settings.temperature : nil, maxTokens: level.maxTokens, level: level)
         let speak = settings.speakReplies
         let llm = self.llm
+        let usage = self.usage
+        let onHeaders = usage?.headersHandler(providerId: provider.id)
 
         tasks[id] = Task { @MainActor [weak self] in
             var text = ""
@@ -254,7 +259,7 @@ final class ChatStore {
                 var head = ""
                 var stitching = continuing
                 do {
-                    for try await d in llm.stream(provider: provider, apiKey: apiKey, model: ref.model, messages: messages, system: system, options: opts) {
+                    for try await d in llm.stream(provider: provider, apiKey: apiKey, model: ref.model, messages: messages, system: system, options: opts, onHeaders: onHeaders) {
                         if let s = d.stop { stop = s }
                         if stitching {
                             head += d.text
@@ -286,6 +291,7 @@ final class ChatStore {
             }
             guard let self else { return }
             if let failed {
+                usage?.recordError(provider.id, failed)
                 let msg = failed.localizedDescription
                 text = text.isEmpty ? msg : text + "\n\n⚠️ " + msg
             }
@@ -294,6 +300,15 @@ final class ChatStore {
                 self.mutate(id, now: true) { c in
                     if let i = c.messages.firstIndex(where: { $0.id == answerId }) { c.messages[i].error = true }
                 }
+            }
+            // Une réponse complète est comptée chez le fournisseur qui l'a donnée.
+            if failed == nil && !Task.isCancelled && !text.isEmpty, let usage {
+                usage.recordUsage(
+                    provider.id, model: ref.model, usage: tokens.total > 0 ? tokens : nil,
+                    inputChars: inputChars, outputChars: text.count + thinking.count
+                )
+                // Le solde chez le fournisseur est relu : il bouge avec chaque réponse.
+                usage.refreshSoon(provider, key: apiKey)
             }
             // Arrêtée en route avant tout texte : la bulle vide disparaît.
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && thinking.isEmpty {

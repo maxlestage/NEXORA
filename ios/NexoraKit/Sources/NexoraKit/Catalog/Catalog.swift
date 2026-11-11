@@ -32,12 +32,10 @@ public enum Catalog {
     /// Les fiches des modèles (nom, contexte, raisonnement), pour l'affichage.
     public static let models: [String: [ModelCard]] = load("models", as: ModelsFile.self)?.providers ?? [:]
 
-    /// Le prix d'un modèle s'il est connu.
+    /// Le prix d'un modèle s'il est connu : prix relevés à la main, puis ceux du
+    /// catalogue le plus récent (voir `ModelPrices`).
     public static func price(provider: String, model: String) -> ModelPrice? {
-        var m = model.lowercased()
-        if m.hasSuffix("-cloud") { m = String(m.dropLast(6)) }
-        guard let table = prices[provider] else { return nil }
-        return table[m] ?? table[String(m.split(separator: ":").first ?? "")]
+        ModelPrices.price(provider: provider, model: model)
     }
 
     static func load<T: Decodable>(_ name: String, as: T.Type) -> T? {
@@ -66,10 +64,13 @@ public struct ModelCard: Decodable, Sendable, Hashable {
 public struct ModelPrice: Sendable, Hashable {
     public let input: Double
     public let output: Double
+    /// Dollars par million de tokens envoyés déjà en cache, quand c'est connu.
+    public let cachedInput: Double?
 
-    public init(input: Double, output: Double) {
+    public init(input: Double, output: Double, cachedInput: Double? = nil) {
         self.input = input
         self.output = output
+        self.cachedInput = cachedInput
     }
 
     public func cost(_ inputTokens: Int, _ outputTokens: Int) -> Double {
