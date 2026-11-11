@@ -36,6 +36,8 @@ struct SessionView: View {
     /// Les photos jointes à la prochaine instruction.
     @State private var photos: [ChatPhotoDraft] = []
     @State private var loadingPhotos = false
+    /// Les étapes regroupées, recalculées seulement quand une étape arrive.
+    @State private var memo = SessionJournalMemo()
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -49,11 +51,12 @@ struct SessionView: View {
     private func content(_ run: AgentRun) -> some View {
         let stats = run.stats
         let busy = run.running || run.shipping
+        let journal = memo.journal(run.steps)
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     Color.clear.frame(height: 1).id("top")
-                    header(run, stats)
+                    header(run, stats, actions: journal.actions)
                     chips(run)
                     if !run.running && !run.shipping && !run.stranded.isEmpty { stranded(run) }
                     if !run.ciNote.isEmpty { ciNote(run) }
@@ -63,7 +66,7 @@ struct SessionView: View {
                     // La mission en entier, à relire ou copier.
                     StepTile(step: AgentStep(.user, run.task), full: $full)
                         .padding(.top, 4)
-                    ForEach(WorkspaceText.rows(run.steps)) { row in
+                    ForEach(journal.rows) { row in
                         switch row {
                         case let .tool(s, result, _):
                             ToolCard(tool: s, result: result, pending: run.running && result == nil, full: $full)
@@ -169,6 +172,7 @@ struct SessionView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("Options de la session")
                 }
             }
         }
@@ -198,7 +202,7 @@ struct SessionView: View {
         .transition(.scale.combined(with: .opacity))
     }
 
-    private func header(_ run: AgentRun, _ stats: (added: Int, removed: Int)) -> some View {
+    private func header(_ run: AgentRun, _ stats: (added: Int, removed: Int), actions: Int) -> some View {
         GlassCard(glow: run.status.color) {
             HStack(spacing: 10) {
                 NexusOrb(size: 56, satellites: 6, interactive: false, pulse: run.running)
@@ -208,7 +212,7 @@ struct SessionView: View {
                         .fontWeight(.bold)
                         .lineLimit(3)
                     Text(WorkspaceText.header(
-                        run.status, actions: run.steps.filter { $0.kind == .tool }.count,
+                        run.status, actions: actions,
                         added: stats.added, removed: stats.removed
                     ))
                     .font(.caption)
@@ -236,7 +240,7 @@ struct SessionView: View {
             HStack(spacing: 6) {
                 ForEach(run.targets, id: \.fullName) { t in
                     Label("\(t.fullName) · \(run.refOf(t))", systemImage: "folder")
-                        .font(.system(size: 11.5, design: .monospaced))
+                        .font(.caption2.monospaced())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(.fill.tertiary, in: .capsule)
@@ -337,7 +341,7 @@ struct SessionView: View {
                             HStack(spacing: 6) {
                                 ForEach(Array(names), id: \.self) { p in
                                     Text(p.components(separatedBy: "/").last ?? p)
-                                        .font(.system(size: 11.5, design: .monospaced))
+                                        .font(.caption2.monospaced())
                                         .strikethrough(run.rejected.contains(p))
                                 }
                                 if run.changes.count > 6 { Text("+\(run.changes.count - 6)").font(.caption) }
@@ -448,7 +452,7 @@ struct StepTile: View {
             HStack {
                 Spacer(minLength: 48)
                 Text(text)
-                    .font(.system(size: 14.5))
+                    .font(.subheadline)
                     .lineLimit(8)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -465,7 +469,7 @@ struct StepTile: View {
                     .fontWeight(.heavy)
                     .foregroundStyle(Theme.green)
                 Text(WorkspaceText.plain(text))
-                    .font(.system(size: 14.5))
+                    .font(.subheadline)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -494,11 +498,11 @@ struct ToolCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Image(systemName: toolSymbol(tool.tool))
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(Color.accentColor)
-                Text(verb).font(.system(size: 13.5, weight: .bold))
+                Text(verb).font(.footnote.weight(.bold))
                 Text(target)
-                    .font(.system(size: 12.5, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -511,14 +515,14 @@ struct ToolCard: View {
             }
             if failed && !open {
                 Text(out)
-                    .font(.system(size: 12.5))
+                    .font(.caption)
                     .foregroundStyle(Theme.red)
                     .lineLimit(2)
                     .padding(.leading, 25)
             }
             if open {
                 Text(out)
-                    .font(.system(size: 11.5, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(failed ? Theme.red : .secondary)
                     .lineLimit(14)
             }
@@ -545,7 +549,7 @@ struct NoteCard: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).foregroundStyle(color)
             Text(text)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .lineLimit(4)
             Spacer(minLength: 0)
         }
@@ -568,7 +572,7 @@ struct ThoughtRow: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "brain").foregroundStyle(Theme.violet).padding(.top, 2)
             Text(WorkspaceText.plain(text))
-                .font(.system(size: 13.5))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(open ? nil : 3)
             Spacer(minLength: 0)
@@ -591,12 +595,12 @@ struct SpecView: View {
                 switch line {
                 case let .heading(h):
                     Text(h)
-                        .font(.system(size: 11.5, weight: .heavy))
+                        .font(.caption2.weight(.heavy))
                         .tracking(0.8)
                         .foregroundStyle(Theme.amber)
                         .padding(.top, i == 0 ? 0 : 6)
                 case let .text(t):
-                    Text(t).font(.system(size: 14))
+                    Text(t).font(.subheadline)
                 }
             }
         }
@@ -621,7 +625,8 @@ private struct FollowKey: Equatable {
     @MainActor
     init(_ run: AgentRun) {
         steps = run.steps.count
-        last = run.steps.last?.text.count ?? 0
+        // `utf8.count` : immédiat (`count` parcourt tout le texte).
+        last = run.steps.last?.text.utf8.count ?? 0
         drafts = run.changes.count
         busy = run.running || run.shipping
         ci = run.ci.count

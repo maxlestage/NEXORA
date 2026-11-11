@@ -9,11 +9,15 @@ struct MarkdownView: View {
     let text: String
 
     @Environment(\.colorScheme) private var scheme
+    /// Les blocs et le texte en ligne déjà analysés (gardés d'un rendu à l'autre :
+    /// pendant une réponse en flux, seule la fin est réanalysée).
+    @State private var cache = MarkdownRenderCache()
 
     var body: some View {
+        let blocks = cache.blocks(text)
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(MarkdownBlock.parse(text).enumerated()), id: \.offset) { _, block in
-                view(for: block)
+            ForEach(blocks.indices, id: \.self) { i in
+                view(for: blocks[i])
             }
         }
         .textSelection(.enabled)
@@ -23,27 +27,27 @@ struct MarkdownView: View {
     private func view(for block: MarkdownBlock) -> some View {
         switch block {
         case let .heading(level, content):
-            Self.inline(content, dark: dark)
+            inlineText(content)
                 .font(level == 1 ? .title2.weight(.heavy) : level == 2 ? .title3.weight(.heavy) : .headline.weight(.heavy))
                 .padding(.top, 4)
         case let .paragraph(content):
-            Self.inline(content, dark: dark).lineSpacing(4)
+            inlineText(content).lineSpacing(4)
         case let .bullet(content, depth):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("•").foregroundStyle(.secondary)
-                Self.inline(content, dark: dark)
+                inlineText(content)
             }
             .padding(.leading, CGFloat(depth) * 16)
         case let .numbered(number, content, depth):
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(number).").monospacedDigit().foregroundStyle(.secondary)
-                Self.inline(content, dark: dark)
+                inlineText(content)
             }
             .padding(.leading, CGFloat(depth) * 16)
         case let .quote(content):
             HStack(spacing: 10) {
                 Rectangle().fill(Theme.violet).frame(width: 3)
-                Self.inline(content, dark: dark).foregroundStyle(.secondary).padding(.vertical, 6)
+                inlineText(content).foregroundStyle(.secondary).padding(.vertical, 6)
                 Spacer(minLength: 0)
             }
             .background(Theme.violet.opacity(0.08))
@@ -58,16 +62,54 @@ struct MarkdownView: View {
 
     private var dark: Bool { scheme == .dark }
 
+    /// Le texte en ligne d'un bloc, analysé une fois par texte et par apparence.
+    private func inlineText(_ s: String) -> Text {
+        Text(cache.attributed(s, dark: dark))
+    }
+
     /// Le Markdown en ligne, rendu par Foundation ; le `code` en ligne dans la couleur
     /// principale, sur un fond léger.
     static func inline(_ s: String, dark: Bool = true) -> Text {
+        Text(attributed(s, dark: dark))
+    }
+
+    /// Le Markdown en ligne de `s`, mis en forme (sans cache).
+    static func attributed(_ s: String, dark: Bool) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace, failurePolicy: .returnPartiallyParsedIfPossible)
-        guard var a = try? AttributedString(markdown: s, options: options) else { return Text(s) }
+        guard var a = try? AttributedString(markdown: s, options: options) else { return AttributedString(s) }
         for run in a.runs where run.inlinePresentationIntent?.contains(.code) == true {
             a[run.range].foregroundColor = .accentColor
             a[run.range].backgroundColor = dark ? Color.white.opacity(0.07) : Color.black.opacity(0.05)
         }
-        return Text(a)
+        return a
+    }
+}
+
+/// Ce qu'une `MarkdownView` garde d'un rendu à l'autre : les blocs (analyse
+/// incrémentale pendant le flux) et le texte en ligne déjà mis en forme
+/// (`AttributedString(markdown:)` est coûteux : une fois par paragraphe, pas à
+/// chaque morceau reçu ni à chaque défilement).
+@MainActor
+final class MarkdownRenderCache {
+    private let parser = MarkdownParseCache()
+    private var inline: [InlineKey: AttributedString] = [:]
+
+    private struct InlineKey: Hashable {
+        let text: String
+        let dark: Bool
+    }
+
+    func blocks(_ text: String) -> [MarkdownBlock] { parser.blocks(text) }
+
+    func attributed(_ s: String, dark: Bool) -> AttributedString {
+        let key = InlineKey(text: s, dark: dark)
+        if let hit = inline[key] { return hit }
+        // Pendant un flux, le dernier paragraphe change à chaque morceau : le cache
+        // reste borné.
+        if inline.count >= 300 { inline.removeAll(keepingCapacity: true) }
+        let a = MarkdownView.attributed(s, dark: dark)
+        inline[key] = a
+        return a
     }
 }
 
@@ -122,13 +164,15 @@ struct CodeBlockView: View {
 struct TableBlockView: View {
     let rows: [[String]]
 
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
         ScrollView(.horizontal) {
             Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                     GridRow {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            MarkdownView.inline(cell).font(i == 0 ? .subheadline.bold() : .subheadline)
+                            MarkdownView.inline(cell, dark: scheme == .dark).font(i == 0 ? .subheadline.bold() : .subheadline)
                         }
                     }
                     if i == 0 { Divider() }

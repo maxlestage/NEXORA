@@ -140,37 +140,18 @@ struct ChatView: View {
 
     // MARK: - En-tête
 
+    /// Une vue à part, comparée par ses données : elle n'est pas recalculée à
+    /// chaque morceau de la réponse en cours (la clé manquante se lit dans le
+    /// trousseau).
     private func header(_ c: Conversation) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    Button {
-                        showAgents = true
-                    } label: {
-                        Label { Text(agent?.name ?? "Assistant") } icon: { Text(agent?.emoji ?? "💬") }
-                            .font(.subheadline)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .accessibilityLabel("Agent : \(agent?.name ?? "Assistant")")
-                    if let p = settings.provider(ref.providerId), !settings.isReady(p) {
-                        Label("Clé manquante", systemImage: "key.slash")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.amber)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Theme.amber.opacity(0.12), in: .capsule)
-                    }
-                }
-                .padding(.horizontal, 12)
-            }
-            Label(ChatDisplay.spendLine(c), systemImage: "receipt")
-                .font(.caption2.monospaced())
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
-        }
-        .padding(.top, 4)
+        ChatHeaderBar(
+            agentName: agent?.name ?? "Assistant",
+            agentEmoji: agent?.emoji ?? "💬",
+            providerId: ref.providerId,
+            spend: ChatDisplay.spendLine(c),
+            onAgents: { showAgents = true }
+        )
+        .equatable()
     }
 
     // MARK: - Messages
@@ -181,8 +162,9 @@ struct ChatView: View {
                 if c.messages.isEmpty {
                     emptyState
                 } else {
-                    ForEach(Array(c.messages.enumerated()), id: \.element.id) { i, m in
-                        let isLast = i == c.messages.count - 1
+                    let lastId = c.messages.last?.id
+                    ForEach(c.messages) { m in
+                        let isLast = m.id == lastId
                         MessageBubble(
                             message: m,
                             streaming: running && isLast,
@@ -202,6 +184,9 @@ struct ChatView: View {
                                 chats.redoImages(conversationId, messageId: m.id)
                             } : nil
                         )
+                        // Une bulle n'est redessinée que si SES données changent (pas
+                        // toutes les bulles à chaque morceau de la réponse en cours).
+                        .equatable()
                         .id(m.id)
                     }
                 }
@@ -228,7 +213,8 @@ struct ChatView: View {
             if dragging { stickToBottom = false }
             if phase == .idle { stickToBottom = metrics.toBottom < 80 }
         }
-        .onChange(of: c.messages.last?.content.count) {
+        // `utf8.count` : immédiat (`count` parcourt tout le texte à chaque morceau).
+        .onChange(of: c.messages.last?.content.utf8.count) {
             // Pendant une réponse : on suit le texte, sauf si vous êtes remonté.
             if running && stickToBottom && !dragging { position.scrollTo(edge: .bottom) }
         }
@@ -579,6 +565,10 @@ struct ChatView: View {
 
     /// Les propositions : `/image` (intégrée) puis les commandes et les agents.
     private var suggestions: [ChatSuggestion]? {
+        // Rien à proposer hors de « / » et « @ » en tête : l'écran se redessine à
+        // chaque morceau d'une réponse, inutile d'y relancer la recherche (regex).
+        let first = input.unicodeScalars.first
+        guard first == "/" || first == "@" else { return nil }
         let list = ChatLibrary.suggestions(for: input, library: agents.library, agents: agents.all)
         guard let image = ImageGenCommand.suggestion(for: input) else { return list }
         return [image] + (list ?? []).filter { $0.insert != image.insert }
@@ -697,7 +687,8 @@ struct ChatView: View {
                         UIPasteboard.general.string = ChatDisplay.export(c)
                         toast = Toast(text: "Conversation copiée")
                     }
-                    ShareLink(item: ChatDisplay.export(c), preview: SharePreview(c.title)) {
+                    // Le Markdown n'est construit qu'au moment du partage.
+                    ShareLink(item: ConversationShare(conversation: c), preview: SharePreview(c.title)) {
                         Label("Partager", systemImage: "square.and.arrow.up")
                     }
                     Button("Effacer les messages", systemImage: "eraser") { chats.clearMessages(conversationId) }
@@ -711,6 +702,69 @@ struct ChatView: View {
             }
             .accessibilityLabel("Options de la conversation")
         }
+    }
+}
+
+/// L'en-tête d'une conversation : l'agent (toucher pour en changer), « Clé
+/// manquante » si besoin, et ce que la conversation a coûté.
+struct ChatHeaderBar: View {
+    let agentName: String
+    let agentEmoji: String
+    let providerId: String
+    let spend: String
+    var onAgents: () -> Void
+
+    @Environment(SettingsStore.self) private var settings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button(action: onAgents) {
+                        Label { Text(agentName) } icon: { Text(agentEmoji) }
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .accessibilityLabel("Agent : \(agentName)")
+                    .accessibilityHint("Changer d'agent")
+                    if let p = settings.provider(providerId), !settings.isReady(p) {
+                        Label("Clé manquante", systemImage: "key.slash")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.amber)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Theme.amber.opacity(0.12), in: .capsule)
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            Label(spend, systemImage: "receipt")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+        }
+        .padding(.top, 4)
+    }
+}
+
+extension ChatHeaderBar: @preconcurrency Equatable {
+    /// L'action ne fait qu'ouvrir le choix de l'agent : seules les données comptent.
+    static func == (a: ChatHeaderBar, b: ChatHeaderBar) -> Bool {
+        a.agentName == b.agentName && a.agentEmoji == b.agentEmoji && a.providerId == b.providerId && a.spend == b.spend
+    }
+}
+
+/// Une conversation à partager en Markdown : le texte n'est construit qu'au moment
+/// du partage (et non à chaque rendu de l'écran, donc à chaque morceau reçu).
+struct ConversationShare: Transferable {
+    let conversation: Conversation
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: { (share: ConversationShare) -> String in
+            ChatDisplay.export(share.conversation)
+        })
     }
 }
 

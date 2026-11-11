@@ -102,9 +102,12 @@ struct PulseDot: View {
     let color: Color
     var pulse = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        if pulse {
-            TimelineView(.animation) { ctx in
+        if pulse && !reduceMotion {
+            // 30 images par seconde suffisent à un petit point qui bat.
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
                 dot(t)
             }

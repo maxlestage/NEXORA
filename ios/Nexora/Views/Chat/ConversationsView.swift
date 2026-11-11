@@ -233,7 +233,7 @@ struct ConversationsView: View {
                     Button("Supprimer", systemImage: "trash", role: .destructive) { delete(meta) }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Options de « \(meta.title) »")
