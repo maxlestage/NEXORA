@@ -67,6 +67,10 @@ targets:
           NSAllowsLocalNetworking: true
           NSAllowsArbitraryLoads: true
         GitHubClientID: $(GITHUB_CLIENT_ID)
+        BGTaskSchedulerPermittedIdentifiers:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).work.*
+        UIBackgroundModes:
+          - processing
   NexoraTests:
     type: bundle.unit-test
     platform: iOS
