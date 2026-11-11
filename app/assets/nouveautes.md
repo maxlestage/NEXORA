@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.65 — 11 novembre 2026 — Une modification ne coupe plus un mot en deux
+- Corrigé : quand le modèle recopiait à moitié la ligne à modifier (« …, men » au lieu de « …, mentions); »), l'ajout était inséré au milieu du mot. Le code devenait illisible (« men… tions); ») et la CI échouait.
+- Quand l'agent veut ajouter des lignes après ce passage, elles vont maintenant après la ligne entière, qui reste intacte.
+- Un autre remplacement qui couperait un mot est refusé, avec la ligne complète à recopier : l'agent corrige du premier coup.
+- Rien ne change pour les modifications bien recopiées.
+
 ## 2.2.64 — 11 novembre 2026 — L'agent sait d'emblée où écrire les tests
 - Corrigé : pour une demande comme « ajoute une route au site, avec son test », l'agent cherchait pendant de longues minutes comment et où écrire le test, refaisait les mêmes recherches, et la traduction en langage NEXORA l'envoyait même dans un dossier où le test ne peut pas compiler.
 - Dès le départ, l'agent et la traduction savent où vont les tests de chaque projet du dépôt : app Flutter, site Rust (y compris les routes du programme), JavaScript, Python ou Go.
