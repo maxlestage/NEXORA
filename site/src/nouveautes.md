@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.90 — 11 novembre 2026 — Une action à une accolade près n'est plus perdue
+- Corrigé : en essai réel, le modèle réécrivait un fichier de test mais oubliait une accolade à la fin de son action (« }]} » au lieu de « }}]} »). NEXORA répondait « je n'ai pas trouvé d'action » et tout le contenu du fichier était perdu.
+- Une fermeture oubliée juste avant une autre (accolade ou crochet) est maintenant remise : l'action est faite, avec son contenu intact.
+- Les accolades et crochets écrits dans le texte (du code) ne sont jamais touchés ; une réponse vraiment incomplète reste refusée, sans rien deviner.
+
 ## 2.2.89 — 11 novembre 2026 — L'agent ajoute du code en fin de fichier sans perdre d'étapes
 - Corrigé : en essai réel, pour « ajoute countChangedLines dans diff.dart », le modèle demandait d'ajouter à la fin du fichier (« at_end ») sans envoyer le texte, ou visait « la ligne 135 » d'un fichier de 134 lignes. NEXORA répondait « il manque le texte » ou « cette ligne n'existe pas », et cinq étapes étaient perdues.
 - Un ajout à la fin demandé sans texte attend maintenant ce texte : le modèle l'envoie juste après, et il est ajouté à la fin, le reste du fichier gardé.

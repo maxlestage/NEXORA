@@ -144,12 +144,28 @@ String? _repairJson(String s) {
       out.write(c);
     } else if (c == '}' || c == ']') {
       // Une virgule juste avant la fermeture : retirée.
-      final sofar = out.toString().trimRight();
-      if (sofar.endsWith(',')) {
-        out
-          ..clear()
-          ..write(sofar.substring(0, sofar.length - 1));
+      void dropComma() {
+        final sofar = out.toString().trimRight();
+        if (sofar.endsWith(',')) {
+          out
+            ..clear()
+            ..write(sofar.substring(0, sofar.length - 1));
+        }
       }
+
+      // Une fermeture qui ne correspond pas à la dernière ouverture : le
+      // modèle en a oublié une avant (essai réel : {"actions":[{"tool":
+      // "write_file","args":{…}]} — l'accolade de l'action jamais fermée,
+      // l'écriture était perdue : « je n'ai pas trouvé d'action »). Les
+      // fermetures oubliées sont remises, si l'ouverture correspondante existe.
+      final opener = c == '}' ? '{' : '[';
+      if (stack.contains(opener)) {
+        while (stack.last != opener) {
+          dropComma();
+          out.write(stack.removeLast() == '{' ? '}' : ']');
+        }
+      }
+      dropComma();
       out.write(c);
       if (stack.isNotEmpty) stack.removeLast();
       // Le premier objet est complet : ce qui suit (un doublon, du texte) est
