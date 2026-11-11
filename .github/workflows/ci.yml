@@ -64,11 +64,15 @@ jobs:
         working-directory: ios
     steps:
       - uses: actions/checkout@v7
-      - name: Catalogues à jour avec l'app Flutter
-        run: |
-          apt-get update -qq && apt-get install -y -qq python3 > /dev/null
-          python3 Tools/sync_catalogs.py --check
       - run: swift test --package-path NexoraKit
+
+  ios-catalogs:
+    name: iOS Swift — catalogues à jour avec l'app Flutter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Sur la machine hôte (Python déjà installé) : rien à télécharger.
+      - run: python3 ios/Tools/sync_catalogs.py --check
 
   ios-app:
     name: iOS Swift — app (Xcode, simulateur)
@@ -133,7 +137,7 @@ jobs:
 
   merge:
     name: Fusion dans master
-    needs: [app, site, ios-kit, ios-app]
+    needs: [app, site, ios-kit, ios-catalogs, ios-app]
     if: >-
       github.event_name == 'push' && github.ref_name != 'master' &&
       !startsWith(github.ref_name, 'wip/')
