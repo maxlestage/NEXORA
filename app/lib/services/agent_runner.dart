@@ -10,6 +10,7 @@ import 'dart_check.dart';
 import 'diff.dart';
 import 'github_api.dart';
 import 'llm_client.dart';
+import 'rust_check.dart';
 
 /// Les outils que l'agent autonome peut utiliser sur un dépôt.
 const Map<String, String> agentTools = {
@@ -2505,12 +2506,12 @@ class AgentRun extends ChangeNotifier {
             nudged = true;
             continue;
           }
-          // Un fichier Dart qui ne compilera pas : l'agent est renvoyé le
+          // Un fichier Dart ou Rust qui ne compilera pas : l'agent est renvoyé le
           // corriger avant de terminer (deux fois au plus), au lieu de laisser
           // la CI échouer.
           final broken = finish == null || brokenAsked >= 2
               ? const <String>[]
-              : await _brokenDart();
+              : await _brokenCode();
           if (finish != null && broken.isNotEmpty) {
             brokenAsked++;
             dropReminders(history);
@@ -3623,15 +3624,18 @@ class AgentRun extends ChangeNotifier {
     final text = changes[p];
     if (text == null) return '';
     if (p.endsWith('.dart')) {
-      return await _dartPitfalls(p, text) + await _formatPitfalls(p, text);
+      return await _syntaxPitfalls(p, text) + await _formatPitfalls(p, text);
     }
-    if (!_rustTest.hasMatch(p)) return '';
+    if (!p.endsWith('.rs')) return '';
+    final syntax = await _syntaxPitfalls(p, text);
+    if (!_rustTest.hasMatch(p)) return syntax;
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
     final (libRs, _) = await _current('${p.substring(0, i)}src/lib.rs');
-    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
-        '';
+    return syntax +
+        (rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
+            '');
   }
 
   /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule
@@ -3758,38 +3762,52 @@ class AgentRun extends ChangeNotifier {
         'd\'une chaîne sur sa propre ligne (4 espaces de plus).';
   }
 
-  /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
-  /// chaîne, chaîne ou accolade jamais fermée…) : signalé tout de suite, au
-  /// lieu d'attendre l'échec de la CI. Une erreur déjà présente dans la
-  /// version d'origine n'est pas signalée (rien de certain à corriger).
-  Future<String> _dartPitfalls(String p, String text) async {
-    final hint = dartSyntaxHint(p, text);
+  /// Un fichier Dart ou Rust qui ne compilera pas (barre oblique inverse hors
+  /// d'une chaîne, chaîne ou accolade jamais fermée, accolade en trop…) :
+  /// signalé tout de suite, au lieu d'attendre l'échec de la CI. Une erreur
+  /// déjà présente dans la version d'origine n'est pas signalée (rien de
+  /// certain à corriger).
+  Future<String> _syntaxPitfalls(String p, String text) async {
+    final hint = syntaxHint(p, text);
     if (hint == null) return '';
     try {
       final before = await original(p);
-      if (before != null && dartSyntaxError(before) != null) return '';
+      if (before != null && syntaxError(p, before) != null) return '';
     } catch (_) {}
     return hint;
   }
 
-  /// Les avertissements des brouillons Dart qui ne compileront pas (et qui
-  /// compilaient avant).
-  Future<List<String>> _brokenDart() async {
+  /// Les avertissements des brouillons Dart et Rust qui ne compileront pas (et
+  /// qui compilaient avant).
+  Future<List<String>> _brokenCode() async {
     final out = <String>[];
     for (final e in changes.entries) {
       final text = e.value;
-      if (text == null || !e.key.endsWith('.dart')) continue;
-      final hint = await _dartPitfalls(e.key, text);
+      if (text == null) continue;
+      if (!e.key.endsWith('.dart') && !e.key.endsWith('.rs')) continue;
+      final hint = await _syntaxPitfalls(e.key, text);
       if (hint.isNotEmpty) out.add(hint);
     }
     return out;
   }
 
+  /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou null.
+  @visibleForTesting
+  static String? syntaxError(String path, String content) {
+    if (path.endsWith('.dart')) return dartSyntaxError(content);
+    if (path.endsWith('.rs')) return rustSyntaxError(content);
+    return null;
+  }
+
   /// L'avertissement à donner au modèle pour un fichier Dart qui ne compilera
   /// pas, ou null.
-  static String? dartSyntaxHint(String path, String content) {
-    if (!path.endsWith('.dart')) return null;
-    final error = dartSyntaxError(content);
+  static String? dartSyntaxHint(String path, String content) =>
+      path.endsWith('.dart') ? syntaxHint(path, content) : null;
+
+  /// L'avertissement à donner au modèle pour un fichier Dart ou Rust qui ne
+  /// compilera pas, ou null.
+  static String? syntaxHint(String path, String content) {
+    final error = syntaxError(path, content);
     if (error == null) return null;
     return '\n\nATTENTION : $path ne compilera pas, $error. Corrige ce passage '
         'maintenant avec edit_file (recopie la ligne exacte dans "old"), sans '
