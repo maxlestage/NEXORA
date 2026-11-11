@@ -298,7 +298,9 @@ private struct ActionBar: View {
                 if speech.speaking { speech.stopSpeaking() } else { speech.speak(message.content) }
             }
             ShareLink(item: message.content) {
-                Image(systemName: "square.and.arrow.up").frame(width: 34, height: 34)
+                Image(systemName: "square.and.arrow.up")
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle().inset(by: -5))
             }
             .accessibilityLabel("Partager")
             button("ellipsis", "Plus") { more = true }
@@ -350,6 +352,8 @@ private struct ActionBar: View {
             Image(systemName: symbol)
                 .foregroundStyle(tint ?? .secondary)
                 .frame(width: 34, height: 34)
+                // Zone touchable de 44 pt, sans changer la mise en page.
+                .contentShape(Rectangle().inset(by: -5))
         }
         .accessibilityLabel(label)
     }
@@ -358,11 +362,14 @@ private struct ActionBar: View {
 /// Trois points qui s'animent pendant que le modèle répond.
 struct TypingDots: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let colors = Theme.palette(settings.accent).colors
-        let still = settings.animations == "off"
-        TimelineView(.animation(paused: still)) { context in
+        // Animations coupées ou « Réduire les animations » : trois points fixes.
+        let still = settings.animations == "off" || reduceMotion
+        // 30 images par seconde suffisent à de petits points (pas 120 sur ProMotion).
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still)) { context in
             let v = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.9) / 0.9
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { i in
@@ -377,5 +384,23 @@ struct TypingDots: View {
             .frame(height: 12)
         }
         .accessibilityLabel("Réponse en cours")
+    }
+}
+
+extension MessageBubble: @preconcurrency Equatable {
+    /// Comparée par ses données : le message, son état et la présence de chaque
+    /// action. Les actions sont recréées à chaque rendu de la conversation, mais
+    /// elles ne dépendent que de ces données (le message, son identifiant, la
+    /// conversation) : une bulle dont rien n'a changé n'est pas redessinée pendant
+    /// qu'une autre reçoit sa réponse.
+    static func == (a: MessageBubble, b: MessageBubble) -> Bool {
+        a.message == b.message
+            && a.streaming == b.streaming
+            && a.showThinking == b.showThinking
+            && a.provider == b.provider
+            && (a.onEdit == nil) == (b.onEdit == nil)
+            && (a.onRegenerate == nil) == (b.onRegenerate == nil)
+            && (a.onChangeModel == nil) == (b.onChangeModel == nil)
+            && (a.onRedoImages == nil) == (b.onRedoImages == nil)
     }
 }

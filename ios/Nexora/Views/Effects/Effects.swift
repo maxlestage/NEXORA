@@ -11,13 +11,19 @@ struct Aurora: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    /// À l'écran : le fond plein écran ne se redessine pas sous un écran poussé
+    /// dessus, dans un autre onglet ou l'app en arrière-plan.
+    @State private var onScreen = false
 
     var body: some View {
         let colors = Theme.palette(settings.accent).colors
         let dark = scheme == .dark
         let strength = intensity
         let still = Motion(rawValue: settings.animations) == .off || reduceMotion
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: still)) { timeline in
+        let paused = still || !onScreen || scenePhase != .active
+        // Un tour en 18 s : 24 images par seconde suffisent, sans saccade visible.
+        TimelineView(.animation(minimumInterval: 1.0 / 24, paused: paused)) { timeline in
             let v = still ? 0 : timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 18) / 18
             Canvas { ctx, size in
                 let a = v * .pi * 2
@@ -42,6 +48,8 @@ struct Aurora: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .onAppear { onScreen = true }
+        .onDisappear { onScreen = false }
     }
 }
 

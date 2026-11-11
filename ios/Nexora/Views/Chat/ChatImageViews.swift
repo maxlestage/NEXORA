@@ -138,6 +138,8 @@ struct PhotoDraftStrip: View {
                                     .font(.system(size: 18))
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.white, .black.opacity(0.6))
+                                    // Une petite croix, mais une zone touchable plus grande.
+                                    .contentShape(Rectangle().inset(by: -8))
                             }
                             .buttonStyle(.plain)
                             .offset(x: 5, y: -5)
@@ -174,6 +176,7 @@ struct PhotoAttachButton: View {
             Image(systemName: "photo.badge.plus")
                 .font(.title3)
                 .frame(width: 34, height: 34)
+                .contentShape(Rectangle().inset(by: -5))
         }
         .disabled(photos.count >= ChatImages.maxPerMessage || loading)
         .accessibilityLabel("Joindre des photos")
@@ -209,8 +212,10 @@ struct ChatImageThumb: View {
     @State private var missing = false
 
     var body: some View {
+        // Déjà décodée (bulle revenue à l'écran) : affichée tout de suite.
+        let shown = image ?? ChatThumbCache.image(name, maxSide: maxSide)
         ZStack {
-            if let image {
+            if let image = shown {
                 if fit {
                     Image(uiImage: image).resizable().scaledToFit()
                 } else {
@@ -226,14 +231,53 @@ struct ChatImageThumb: View {
             }
         }
         .task(id: name) {
+            let side = maxSide
+            if let hit = ChatThumbCache.image(name, maxSide: side) {
+                image = hit
+                return
+            }
             guard let url = ChatImageStore.standard.url(name) else {
                 missing = true
                 return
             }
-            let side = maxSide
             let box = await Task.detached(priority: .userInitiated) { ImagePrep.thumbnail(url, maxSide: side) }.value
-            if let box { image = UIImage(cgImage: box.image) } else { missing = true }
+            if let box {
+                let decoded = UIImage(cgImage: box.image)
+                ChatThumbCache.store(decoded, name, maxSide: side)
+                image = decoded
+            } else {
+                missing = true
+            }
         }
+    }
+}
+
+/// Les vignettes déjà décodées, gardées en mémoire : une bulle qui revient à
+/// l'écran (défilement, retour dans la conversation) n'est pas relue sur le
+/// disque ni redécodée. iOS vide ce cache si la mémoire manque.
+@MainActor
+enum ChatThumbCache {
+    private static let cache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        // Environ 40 Mo de pixels décodés.
+        c.totalCostLimit = 40 * 1024 * 1024
+        return c
+    }()
+
+    /// Les images en plein écran (très grandes) ne sont pas gardées.
+    private static let maxCachedSide = 1000
+
+    private static func key(_ name: String, _ side: Int) -> NSString { "\(side)|\(name)" as NSString }
+
+    static func image(_ name: String, maxSide: Int) -> UIImage? {
+        guard maxSide <= maxCachedSide else { return nil }
+        return cache.object(forKey: key(name, maxSide))
+    }
+
+    static func store(_ image: UIImage, _ name: String, maxSide: Int) {
+        guard maxSide <= maxCachedSide else { return }
+        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 0
+        cache.setObject(image, forKey: key(name, maxSide), cost: cost)
     }
 }
 
@@ -498,19 +542,25 @@ struct GeneratedImagesView: View {
             Button {
                 save()
             } label: {
-                Image(systemName: saving ? "hourglass" : "square.and.arrow.down").frame(width: 34, height: 34)
+                Image(systemName: saving ? "hourglass" : "square.and.arrow.down")
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle().inset(by: -5))
             }
             .disabled(saving || urls.isEmpty)
             .accessibilityLabel("Enregistrer dans Photos")
             if !urls.isEmpty {
                 ShareLink(items: urls) {
-                    Image(systemName: "square.and.arrow.up").frame(width: 34, height: 34)
+                    Image(systemName: "square.and.arrow.up")
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .accessibilityLabel("Partager")
             }
             if let onRedo {
                 Button(action: onRedo) {
-                    Image(systemName: "arrow.clockwise").frame(width: 34, height: 34)
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .accessibilityLabel("Refaire")
             }
@@ -551,6 +601,26 @@ struct ImagePromptSheet: View {
     @State private var count = 1
     @FocusState private var focused: Bool
 
+    /// Le moteur qui sera vraiment utilisé, d'après le choix fait ici.
+    private var resolved: ImageGenEngine {
+        ImageGenEngine.named(settings.imageEngine).resolved(hasOpenAIKey: settings.hasOwnKey("openai"))
+    }
+
+    /// Ce que coûtera la demande, selon le moteur, la qualité, le format et le nombre.
+    private var costNote: String {
+        if ImageGenEngine.named(settings.imageEngine) == .openai && !settings.hasOwnKey("openai") {
+            return "Aucune clé OpenAI enregistrée : ajoutez-la dans Modèles → OpenAI, ou choisissez Pollinations (gratuit)."
+        }
+        guard resolved == .openai else { return "Pollinations : gratuit, sans clé." }
+        let shape = ImageGenShape.named(settings.imageShape)
+        let quality = ImageGenQuality.named(settings.imageQuality)
+        let images = "\(count) image\(count > 1 ? "s" : "")"
+        guard let each = quality.perImage(shape) else {
+            return "OpenAI choisit la qualité : jusqu'à ≈ \(ChatDisplay.cost((ImageGenQuality.high.perImage(shape) ?? 0) * Double(count))) pour \(images) (votre clé OpenAI)."
+        }
+        return "OpenAI, qualité \(quality.label.lowercased()) : ≈ \(ChatDisplay.cost(each * Double(count))) pour \(images) (votre clé OpenAI)."
+    }
+
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
@@ -574,11 +644,18 @@ struct ImagePromptSheet: View {
                     Picker("Format", selection: $settings.imageShape) {
                         ForEach(ImageGenShape.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
                     }
-                    LabeledContent("Moteur", value: engine.label)
+                    Picker("Moteur", selection: $settings.imageEngine) {
+                        ForEach(ImageGenEngine.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
+                    }
+                    if resolved == .openai {
+                        Picker("Qualité", selection: $settings.imageQuality) {
+                            ForEach(ImageGenQuality.allCases, id: \.self) { q in
+                                Text(q.priced(ImageGenShape.named(settings.imageShape))).tag(q.rawValue)
+                            }
+                        }
+                    }
                 } footer: {
-                    Text(engine == .openai
-                        ? "OpenAI : environ \(ChatDisplay.cost(ImageGenClient.openAICost(usage: nil, count: count, shape: ImageGenShape.named(settings.imageShape)))) pour \(count) image\(count > 1 ? "s" : "") (votre clé OpenAI). Moteur réglable dans Réglages → Images."
-                        : "Pollinations : gratuit, sans clé. Moteur réglable dans Réglages → Images.")
+                    Text(costNote)
                 }
             }
             .navigationTitle("Créer une image")
@@ -623,6 +700,13 @@ struct ImageSettingsSection: View {
                 }
             } label: {
                 Label("Format", systemImage: "aspectratio")
+            }
+            Picker(selection: $settings.imageQuality) {
+                ForEach(ImageGenQuality.allCases, id: \.self) { q in
+                    Text(q.priced(ImageGenShape.named(settings.imageShape))).tag(q.rawValue)
+                }
+            } label: {
+                Label("Qualité (OpenAI)", systemImage: "sparkles")
             }
         } header: {
             Text("Images")

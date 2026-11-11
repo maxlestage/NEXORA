@@ -81,9 +81,11 @@ struct GettingStartedCard: View {
     }
 
     var body: some View {
-        let list = steps
+        // Masquée : rien à calculer (les clés se lisent dans le trousseau, à chaque
+        // rendu de l'onglet Chat).
+        let list: [GettingStartedStep] = hidden || settings.gettingStartedHidden ? [] : steps
         let done = list.filter(\.done).count
-        if !hidden && !settings.gettingStartedHidden && done < list.count {
+        if !list.isEmpty && done < list.count {
             GlassCard(glow: Theme.violet) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
