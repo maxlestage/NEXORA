@@ -2,7 +2,7 @@ import NexoraKit
 import SwiftUI
 import UIKit
 
-/// L'atelier GitHub : connexion, puis vos dépôts.
+/// L'onglet Code : connexion à GitHub, puis les sessions de l'agent et les dépôts.
 struct GitHubView: View {
     @Environment(GitHubSession.self) private var github
 
@@ -10,12 +10,12 @@ struct GitHubView: View {
         NavigationStack {
             Group {
                 if github.connected {
-                    ReposView()
+                    CodeHomeView()
                 } else {
                     GitHubSignInView()
                 }
             }
-            .navigationTitle("GitHub")
+            .navigationTitle(github.connected ? "Code" : "GitHub")
         }
     }
 }
@@ -142,6 +142,9 @@ struct ReposView: View {
 
 /// Créer un dépôt.
 struct CreateRepoSheet: View {
+    /// Le dépôt créé (choisi pour une session, par exemple).
+    var onCreated: ((Repo) -> Void)? = nil
+
     @Environment(GitHubSession.self) private var github
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -167,9 +170,10 @@ struct CreateRepoSheet: View {
                         busy = true
                         Task {
                             do {
-                                _ = try await github.api.createRepo(name: name, description: description, isPrivate: isPrivate)
+                                let repo = try await github.api.createRepo(name: name, description: description, isPrivate: isPrivate)
                                 await github.loadRepos()
                                 dismiss()
+                                onCreated?(repo)
                             } catch {
                                 self.error = error.localizedDescription
                             }

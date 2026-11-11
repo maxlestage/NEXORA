@@ -24,6 +24,16 @@ private func routine(
     )
 }
 
+/// Une horloge réglable.
+@MainActor
+private final class TestClock {
+    var now: Date
+
+    init(_ now: Date) {
+        self.now = now
+    }
+}
+
 /// Des préférences vides, propres au test.
 private func freshDefaults() -> UserDefaults {
     let name = "nexora-tests-\(UUID().uuidString)"
@@ -265,10 +275,10 @@ struct RoutineBookTests {
         let defaults = freshDefaults()
         let sessions = makeSessions(llm)
         await sessions.ready()
-        var now = local(2026, 11, 10, 10, 30)
-        let routines = RoutineBook(defaults: defaults, sessions: sessions, clock: { now })
+        let clock = TestClock(local(2026, 11, 10, 10, 30))
+        let routines = RoutineBook(defaults: defaults, sessions: sessions, clock: { clock.now })
         var r = routine()
-        r.lastRun = now
+        r.lastRun = clock.now
         await routines.save(r)
 
         // Pas encore l'heure.
@@ -276,7 +286,7 @@ struct RoutineBookTests {
         #expect(sessions.sessions.isEmpty)
 
         // 11 h : une session démarre avec la mission.
-        now = local(2026, 11, 10, 11, 0, 5)
+        clock.now = local(2026, 11, 10, 11, 0, 5)
         await routines.check()
         #expect(sessions.sessions.count == 1)
         let run = sessions.sessions[0]
@@ -286,7 +296,7 @@ struct RoutineBookTests {
         await until { run.running }
 
         // 12 h : la précédente travaille encore → pas de deuxième session.
-        now = local(2026, 11, 10, 12, 0, 5)
+        clock.now = local(2026, 11, 10, 12, 0, 5)
         await routines.check()
         #expect(sessions.sessions.count == 1)
         await gate.release()
@@ -295,7 +305,7 @@ struct RoutineBookTests {
 
         // Désactivée : plus rien, même en retard.
         await routines.setEnabled("r1", false)
-        now = local(2026, 11, 10, 15)
+        clock.now = local(2026, 11, 10, 15)
         await routines.check()
         #expect(sessions.sessions.count == 1)
 
@@ -312,8 +322,8 @@ struct RoutineBookTests {
         let llm = ScriptLLM()
         llm.whenEmpty = finish
         let sessions = makeSessions(llm)
-        var now = local(2026, 11, 10, 18)
-        let routines = RoutineBook(defaults: freshDefaults(), sessions: sessions, clock: { now })
+        let clock = TestClock(local(2026, 11, 10, 18))
+        let routines = RoutineBook(defaults: freshDefaults(), sessions: sessions, clock: { clock.now })
         var r = routine()
         r.lastRun = local(2026, 11, 10, 9)
         await routines.save(r)
@@ -325,7 +335,7 @@ struct RoutineBookTests {
         #expect(sessions.sessions.count == 1)
         // Désactivée puis réactivée à 20 h 30 : prochain passage à 21 h.
         await routines.setEnabled("r1", false)
-        now = local(2026, 11, 10, 20, 30)
+        clock.now = local(2026, 11, 10, 20, 30)
         await routines.setEnabled("r1", true)
         await routines.check()
         #expect(sessions.sessions.count == 1)
