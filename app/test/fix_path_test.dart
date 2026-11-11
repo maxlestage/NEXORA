@@ -75,6 +75,29 @@ void main() {
     expect(fix('notes.md', creating: true), isNull);
   });
 
+  test('un dossier de projet ajouté ou oublié est corrigé', () {
+    // Essai réel avec Pollinations : « app/.github/workflows/ci.yml » lu deux
+    // fois comme « introuvable » avant le bon chemin.
+    expect(fix('app/.github/workflows/ci.yml'), '.github/workflows/ci.yml');
+    expect(fix('site/README.md'), 'README.md');
+    expect(fix('lib/main.dart'), 'app/lib/main.dart');
+    expect(fix('src/nouveautes.md'), 'site/src/nouveautes.md');
+  });
+
+  test('dossier de projet : rien de deviné sans certitude', () {
+    // Un nouveau fichier garde son chemin.
+    expect(fix('app/README.md', creating: true), isNull);
+    // Plusieurs fichiers possibles : rien n'est choisi.
+    expect(
+      AgentRun.fixPath('lib/a.dart', ['app/lib/a.dart', 'pkg/lib/a.dart']),
+      isNull,
+    );
+    // Un dossier inconnu en tête n'est pas retiré au hasard.
+    expect(fix('docs/README.md'), isNull);
+    // Supprimer : jamais un autre fichier que celui nommé.
+    expect(AgentRun.fixPath('lib/main.dart', tree, moveDirs: false), isNull);
+  });
+
   test('plusieurs dépôts : le dossier du dépôt oublié', () {
     final r = AgentRun.fixPath(
       'src/lib.rs',
