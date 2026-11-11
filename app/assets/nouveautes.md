@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.89 — 11 novembre 2026 — L'agent ajoute du code en fin de fichier sans perdre d'étapes
+- Corrigé : en essai réel, pour « ajoute countChangedLines dans diff.dart », le modèle demandait d'ajouter à la fin du fichier (« at_end ») sans envoyer le texte, ou visait « la ligne 135 » d'un fichier de 134 lignes. NEXORA répondait « il manque le texte » ou « cette ligne n'existe pas », et cinq étapes étaient perdues.
+- Un ajout à la fin demandé sans texte attend maintenant ce texte : le modèle l'envoie juste après, et il est ajouté à la fin, le reste du fichier gardé.
+- La ligne juste après la dernière compte comme un ajout à la fin, avec ou sans le texte dans la même action.
+- Une ligne vraiment hors du fichier reçoit toujours une erreur claire, avec le nombre de lignes.
+
 ## 2.2.88 — 11 novembre 2026 — L'agent modifie des lignes par leurs numéros
 - Corrigé : en essai réel, le modèle demandait de modifier « les lignes 404 à 420 » de site/src/lib.rs sans envoyer de texte, quatre fois de suite. NEXORA répondait chaque fois « il manque le texte », et ces étapes étaient perdues.
 - Une modification qui ne donne qu'une plage de lignes montre maintenant ces lignes au modèle, puis remplace la plage par le texte qu'il envoie juste après.
