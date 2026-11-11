@@ -144,8 +144,15 @@ final class ChatStore {
 
     func send(_ id: String, text: String, context: String? = nil) {
         guard let c = open[id], !isRunning(id) else { return }
-        let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return }
+        var content = typed
+        // « /nom arguments » : la commande installée, avec ses arguments.
+        var command: String?
+        if let cmd = ChatLibrary.expandCommand(typed, library: agents.library) {
+            content = cmd.content
+            command = cmd.command
+        }
         var agent = c.agentId.flatMap { agents.agent($0) }
         var by: String?
         // « @agent … » : ce sous-agent répond à ce message.
@@ -154,8 +161,8 @@ final class ChatStore {
             by = "\(who.emoji) \(who.name)"
         }
         mutate(id) { c in
-            c.messages.append(ChatMessage(role: .user, content: content))
-            if c.messages.filter({ $0.role == .user }).count == 1 { c.title = ChatLogic.quickTitle(content) }
+            c.messages.append(ChatMessage(role: .user, content: content, command: command))
+            if c.messages.filter({ $0.role == .user }).count == 1 { c.title = ChatLogic.quickTitle(command ?? typed) }
             c.updated = Date()
         }
         speech?.stopSpeaking()
@@ -190,7 +197,9 @@ final class ChatStore {
         speech?.stopSpeaking()
     }
 
-    private func respond(_ id: String, agent: Agent?, by: String?, context: String?) {
+    /// `loaded` : les skills demandées pendant ce tour (affichées sur la réponse) ;
+    /// `round` : combien de fois l'assistant a déjà demandé des skills.
+    private func respond(_ id: String, agent: Agent?, by: String?, context: String?, loaded: [String] = [], round: Int = 0) {
         guard let c = open[id] else { return }
         let ref = settings.resolve(agent?.model ?? c.model)
         guard let provider = settings.provider(ref.providerId) else { return }
@@ -200,9 +209,10 @@ final class ChatStore {
         trimmed[id] = dropped
         let system = ChatLogic.systemPrompt(
             agent: agent, personal: settings.personalSystem(), customInstructions: settings.customInstructions,
-            level: level, context: context
+            level: level,
+            context: ChatLibrary.context(context, skills: ChatLibrary.skillsPrompt(skills: agents.skills, loaded: c.skills, round: round))
         )
-        let answer = ChatMessage(role: .assistant, content: "", model: ref.key, by: by)
+        let answer = ChatMessage(role: .assistant, content: "", model: ref.key, by: by, skills: loaded)
         let answerId = answer.id
         mutate(id) { $0.messages.append(answer) }
         running.insert(id)
@@ -238,7 +248,8 @@ final class ChatStore {
                     c.messages[i].cost = price?.cost(tin, tout)
                     c.updated = Date()
                 }
-                if speak, let speech = self.speech {
+                // Une demande de skill n'est pas lue : on attend la vraie réponse.
+                if speak, let speech = self.speech, !ChatLibrary.hasSkillRequest(text) {
                     spoken = speech.speakNew(text, from: spoken, all: final)
                 }
             }
@@ -309,6 +320,18 @@ final class ChatStore {
                 )
                 // Le solde chez le fournisseur est relu : il bouge avec chaque réponse.
                 usage.refreshSoon(provider, key: apiKey)
+            }
+            // L'assistant demande une skill : on la charge et il répond avec.
+            if failed == nil && !Task.isCancelled && round < 2 && self.runIds[id] == runId {
+                let wanted = ChatLibrary.requestedSkills(text, library: self.agents.library, already: self.open[id]?.skills ?? [])
+                if !wanted.isEmpty {
+                    self.mutate(id) { c in
+                        c.messages.removeAll { $0.id == answerId }
+                        c.skills += wanted
+                    }
+                    self.respond(id, agent: agent, by: by, context: context, loaded: loaded + wanted, round: round + 1)
+                    return
+                }
             }
             // Arrêtée en route avant tout texte : la bulle vide disparaît.
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && thinking.isEmpty {
