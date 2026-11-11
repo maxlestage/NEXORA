@@ -275,6 +275,8 @@ struct ModelEffortButton: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
+            // Zone touchable d'au moins 44 pt de haut, sans changer la mise en page.
+            .contentShape(Rectangle().inset(by: -8))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Modèle \(settings.displayName(current)), effort \(level.label)")

@@ -172,6 +172,7 @@ struct SessionView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("Options de la session")
                 }
             }
         }
@@ -239,7 +240,7 @@ struct SessionView: View {
             HStack(spacing: 6) {
                 ForEach(run.targets, id: \.fullName) { t in
                     Label("\(t.fullName) · \(run.refOf(t))", systemImage: "folder")
-                        .font(.system(size: 11.5, design: .monospaced))
+                        .font(.caption2.monospaced())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(.fill.tertiary, in: .capsule)
@@ -340,7 +341,7 @@ struct SessionView: View {
                             HStack(spacing: 6) {
                                 ForEach(Array(names), id: \.self) { p in
                                     Text(p.components(separatedBy: "/").last ?? p)
-                                        .font(.system(size: 11.5, design: .monospaced))
+                                        .font(.caption2.monospaced())
                                         .strikethrough(run.rejected.contains(p))
                                 }
                                 if run.changes.count > 6 { Text("+\(run.changes.count - 6)").font(.caption) }
@@ -451,7 +452,7 @@ struct StepTile: View {
             HStack {
                 Spacer(minLength: 48)
                 Text(text)
-                    .font(.system(size: 14.5))
+                    .font(.subheadline)
                     .lineLimit(8)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -468,7 +469,7 @@ struct StepTile: View {
                     .fontWeight(.heavy)
                     .foregroundStyle(Theme.green)
                 Text(WorkspaceText.plain(text))
-                    .font(.system(size: 14.5))
+                    .font(.subheadline)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -497,11 +498,11 @@ struct ToolCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Image(systemName: toolSymbol(tool.tool))
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(Color.accentColor)
-                Text(verb).font(.system(size: 13.5, weight: .bold))
+                Text(verb).font(.footnote.weight(.bold))
                 Text(target)
-                    .font(.system(size: 12.5, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -514,14 +515,14 @@ struct ToolCard: View {
             }
             if failed && !open {
                 Text(out)
-                    .font(.system(size: 12.5))
+                    .font(.caption)
                     .foregroundStyle(Theme.red)
                     .lineLimit(2)
                     .padding(.leading, 25)
             }
             if open {
                 Text(out)
-                    .font(.system(size: 11.5, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(failed ? Theme.red : .secondary)
                     .lineLimit(14)
             }
@@ -548,7 +549,7 @@ struct NoteCard: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).foregroundStyle(color)
             Text(text)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .lineLimit(4)
             Spacer(minLength: 0)
         }
@@ -571,7 +572,7 @@ struct ThoughtRow: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "brain").foregroundStyle(Theme.violet).padding(.top, 2)
             Text(WorkspaceText.plain(text))
-                .font(.system(size: 13.5))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(open ? nil : 3)
             Spacer(minLength: 0)
@@ -594,12 +595,12 @@ struct SpecView: View {
                 switch line {
                 case let .heading(h):
                     Text(h)
-                        .font(.system(size: 11.5, weight: .heavy))
+                        .font(.caption2.weight(.heavy))
                         .tracking(0.8)
                         .foregroundStyle(Theme.amber)
                         .padding(.top, i == 0 ? 0 : 6)
                 case let .text(t):
-                    Text(t).font(.system(size: 14))
+                    Text(t).font(.subheadline)
                 }
             }
         }

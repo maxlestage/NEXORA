@@ -59,6 +59,7 @@ struct DraftReviewView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityLabel("Tout accepter ou tout refuser")
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -217,7 +218,7 @@ struct DraftRow: View {
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(path)
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.footnote.monospaced())
                         .strikethrough(!ok)
                     HStack(spacing: 6) {
                         if deleted {
@@ -262,6 +263,9 @@ struct DraftDiffView: View {
     @State private var error: String?
     @State private var editing = false
     @State private var toast: Toast?
+    /// Les colonnes des numéros et des signes suivent la taille du texte.
+    @ScaledMetric(relativeTo: .caption2) private var numberWidth: CGFloat = 34
+    @ScaledMetric(relativeTo: .caption) private var signWidth: CGFloat = 16
 
     var body: some View {
         let ok = !run.rejected.contains(path)
@@ -273,7 +277,7 @@ struct DraftDiffView: View {
             } else if let d = diff {
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
-                        Text(path).font(.system(size: 12, design: .monospaced)).lineLimit(1)
+                        Text(path).font(.caption.monospaced()).lineLimit(1)
                         Pill(text: "+\(d.added)", color: Theme.green)
                         Pill(text: "−\(d.removed)", color: Theme.red)
                         if !ok { Pill(text: "refusé", color: .gray) }
@@ -379,14 +383,14 @@ struct DraftDiffView: View {
         }
         return HStack(alignment: .top, spacing: 0) {
             Text(verbatim: (l.newNo ?? l.oldNo).map { "\($0)" } ?? "")
-                .font(.system(size: 11, design: .monospaced))
+                .font(.caption2.monospaced())
                 .foregroundStyle(.secondary.opacity(0.6))
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: numberWidth, alignment: .trailing)
             Text(sign)
-                .font(.system(size: 12, design: .monospaced))
-                .frame(width: 16)
+                .font(.caption.monospaced())
+                .frame(width: signWidth)
             Text(l.text)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.caption.monospaced())
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -406,7 +410,7 @@ struct DraftEditor: View {
     var body: some View {
         NavigationStack {
             TextEditor(text: $text)
-                .font(.system(size: 13, design: .monospaced))
+                .font(.footnote.monospaced())
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .padding(.horizontal, 8)

@@ -138,6 +138,8 @@ struct PhotoDraftStrip: View {
                                     .font(.system(size: 18))
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.white, .black.opacity(0.6))
+                                    // Une petite croix, mais une zone touchable plus grande.
+                                    .contentShape(Rectangle().inset(by: -8))
                             }
                             .buttonStyle(.plain)
                             .offset(x: 5, y: -5)
@@ -174,6 +176,7 @@ struct PhotoAttachButton: View {
             Image(systemName: "photo.badge.plus")
                 .font(.title3)
                 .frame(width: 34, height: 34)
+                .contentShape(Rectangle().inset(by: -5))
         }
         .disabled(photos.count >= ChatImages.maxPerMessage || loading)
         .accessibilityLabel("Joindre des photos")
@@ -539,19 +542,25 @@ struct GeneratedImagesView: View {
             Button {
                 save()
             } label: {
-                Image(systemName: saving ? "hourglass" : "square.and.arrow.down").frame(width: 34, height: 34)
+                Image(systemName: saving ? "hourglass" : "square.and.arrow.down")
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle().inset(by: -5))
             }
             .disabled(saving || urls.isEmpty)
             .accessibilityLabel("Enregistrer dans Photos")
             if !urls.isEmpty {
                 ShareLink(items: urls) {
-                    Image(systemName: "square.and.arrow.up").frame(width: 34, height: 34)
+                    Image(systemName: "square.and.arrow.up")
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .accessibilityLabel("Partager")
             }
             if let onRedo {
                 Button(action: onRedo) {
-                    Image(systemName: "arrow.clockwise").frame(width: 34, height: 34)
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .accessibilityLabel("Refaire")
             }
