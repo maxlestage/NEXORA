@@ -428,3 +428,29 @@ struct ImageGenTests {
         #expect(t.count == 0)
     }
 }
+
+@Suite("Qualité des images OpenAI, au choix")
+struct ImageQualityTests {
+    @Test("la qualité choisie part dans la requête, et le coût suit la grille")
+    func qualityInRequest() async throws {
+        for q in ImageGenQuality.allCases {
+            let b64 = Data("img".utf8).base64EncodedString()
+            let t = FakeTransport([.init(headers: ["content-type": "application/json"], body: #"{"data":[{"b64_json":"\#(b64)"}]}"#)])
+            let r = try await ImageGenClient(transport: t).openAI(prompt: "chat", count: 1, shape: .square, apiKey: "k", quality: q)
+            #expect(t.body(0)["quality"] as? String == q.rawValue)
+            #expect(abs((r.cost ?? 0) - (q.perImage(.square) ?? 0.042)) < 1e-9)
+        }
+    }
+
+    @Test("grille de prix et libellés")
+    func prices() {
+        #expect(ImageGenQuality.low.perImage(.square) == 0.011)
+        #expect(ImageGenQuality.high.perImage(.portrait) == 0.25)
+        #expect(ImageGenQuality.auto.perImage(.square) == nil)
+        #expect(ImageGenQuality.high.priced(.square) == "Haute · ≈ 0,17 $ / image")
+        #expect(ImageGenQuality.low.priced(.square) == "Basse · ≈ 0,011 $ / image")
+        #expect(ImageGenQuality.auto.priced(.square).contains("OpenAI choisit"))
+        #expect(ImageGenQuality.named(nil) == .medium && ImageGenQuality.named("high") == .high)
+        #expect(ImageGenClient.openAICost(usage: nil, count: 2, shape: .landscape, quality: .high) == 0.5)
+    }
+}

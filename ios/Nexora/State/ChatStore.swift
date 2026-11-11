@@ -514,6 +514,7 @@ extension ChatStore {
     private func generateImages(_ id: String, prompt: String, count: Int) {
         let engine = ImageGenEngine.named(settings.imageEngine)
         let shape = ImageGenShape.named(settings.imageShape)
+        let quality = ImageGenQuality.named(settings.imageQuality)
         let key = openAIImageKey
         let base = settings.provider("openai")?.baseUrl ?? ImageGenClient.openAIBase
         let resolved = engine.resolved(hasOpenAIKey: key != nil)
@@ -535,7 +536,8 @@ extension ChatStore {
             var failed: Error?
             do {
                 result = try await client.generate(
-                    prompt: prompt, count: count, shape: shape, engine: engine, openAIKey: key, openAIBase: base
+                    prompt: prompt, count: count, shape: shape, engine: engine, openAIKey: key, openAIBase: base,
+                    quality: quality
                 )
             } catch {
                 if !(error is CancellationError) { failed = error }
