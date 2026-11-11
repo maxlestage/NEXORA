@@ -70,7 +70,42 @@ for blk in re.split(r'\n  _a\(', txt[start:])[1:]:
     id_, emoji, name, cat, desc, prompt = args
     agents.append(dict(id='builtin:'+id_, emoji=emoji, name=name, category=cat, description=desc, systemPrompt=prompt, tools=tools))
 emit('agents.json', agents)
-print(f"{len(provs)} fournisseurs, {len(agents)} agents" + (f" ; à jour : {', '.join(stale)}" if stale else " ; rien à changer"))
+# agents cloud (workflows GitHub Actions)
+txt = open(src+'github_agents.dart', encoding='utf-8').read()
+raws = {}
+def keep_raw(m):
+    key = f'@@RAW{len(raws)}@@'
+    # Dart ignore une première ligne faite seulement d'espaces (et son retour)
+    raws[key] = re.sub(r'^[ \t]*\r?\n', '', m.group(1), count=1)
+    return f"'{key}'"
+# les chaînes brutes r'''…''' d'abord : leurs lignes ressemblent à des champs
+txt = re.sub(r"r'''([\s\S]*?)'''", keep_raw, txt)
+env = {}
+for m in re.finditer(r"const (_\w+) =\s*([\s\S]*?);\n", txt):
+    env[m.group(1)] = raws.get(dart_strings(m.group(2), {}), dart_strings(m.group(2), {}))
+def dart_expr(v):
+    # 'a' 'b' + _var : concaténation de littéraux (bruts ou non) et de constantes
+    out = ''
+    for piece in re.split(r'\s*\+\s*(?=_\w+|\')', v.strip()):
+        piece = piece.strip()
+        if re.fullmatch(r'_\w+', piece): out += env[piece]
+        else:
+            s = dart_strings(piece, {})
+            out += raws.get(s, s)
+    return out
+clouds = []
+start = txt.index('const List<CloudAgent> cloudAgents')
+for blk in re.split(r'\n  CloudAgent\(', txt[start:])[1:]:
+    blk = blk[:blk.index('\n  ),')]
+    c = {}
+    for k, v in re.findall(r'\n    (\w+):\s*([\s\S]*?),?(?=\n    \w+:|$)', '\n    ' + blk.strip()):
+        v = v.strip().rstrip(',')
+        if k in ('free',): c[k] = v == 'true'
+        elif k == 'secrets': c[k] = [dart_strings(x, {}) for x in re.findall(r"'(?:[^'\\]|\\.)*'", v)]
+        else: c[k] = dart_expr(v)
+    clouds.append(c)
+emit('cloud_agents.json', clouds)
+print(f"{len(provs)} fournisseurs, {len(agents)} agents, {len(clouds)} agents cloud" + (f" ; à jour : {', '.join(stale)}" if stale else " ; rien à changer"))
 if check and stale:
     print("Catalogues iOS en retard sur l'app Flutter : lancez python3 ios/Tools/sync_catalogs.py", file=sys.stderr)
     sys.exit(1)

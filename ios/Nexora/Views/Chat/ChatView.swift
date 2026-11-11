@@ -10,7 +10,12 @@ struct ChatView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(AgentLibrary.self) private var agents
     @Environment(SpeechService.self) private var speech
+    @Environment(GitHubSession.self) private var github
     @State private var input = ""
+    /// Les fichiers d'un dépôt joints au prochain message.
+    @State private var attachments: [ChatAttachment] = []
+    @State private var pickingFile = false
+    @State private var notice: String?
     @State private var showModels = false
     @State private var showAgents = false
     @State private var editing: ChatMessage?
@@ -47,6 +52,11 @@ struct ChatView: View {
         }
         .onChange(of: speech.transcript) { _, t in
             if speech.listening { input = t }
+        }
+        .sheet(isPresented: $pickingFile) {
+            RepoFilePickerSheet { f in
+                if !attachments.contains(f) { attachments.append(f) }
+            }
         }
     }
 
@@ -122,7 +132,16 @@ struct ChatView: View {
             if let e = speech.error {
                 Text(e).font(.caption).foregroundStyle(Theme.red)
             }
+            if !attachments.isEmpty { attachmentChips }
+            // « / » : les commandes ; « @ » : les sous-agents.
+            suggestionList
             HStack(alignment: .bottom, spacing: 8) {
+                Button(action: attach) {
+                    Image(systemName: "paperclip").font(.title3)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Joindre un fichier d'un dépôt")
+
                 Button {
                     speech.toggleListening()
                 } label: {
@@ -159,14 +178,89 @@ struct ChatView: View {
         .padding(.vertical, 8)
         .background(.bar)
         .sensoryFeedback(.impact(weight: .light), trigger: chats.conversation(conversationId)?.messages.count ?? 0) { _, _ in settings.haptics }
+        .alert(notice ?? "", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
     }
 
     private func send() {
         let text = input
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !running else { return }
         if speech.listening { speech.stopListening() }
         input = ""
-        chats.send(conversationId, text: text)
+        chats.send(conversationId, text: ChatLibrary.withAttachments(text.trimmingCharacters(in: .whitespacesAndNewlines), attachments))
+        attachments.removeAll()
+    }
+
+    // MARK: - Fichiers joints et propositions
+
+    private func attach() {
+        guard github.connected else {
+            notice = "Connectez GitHub (onglet GitHub) pour joindre des fichiers."
+            return
+        }
+        pickingFile = true
+    }
+
+    private var attachmentChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(attachments) { a in
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.text")
+                        Text(a.fileName).lineLimit(1)
+                        Button {
+                            attachments.removeAll { $0.id == a.id }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Retirer \(a.fileName)")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.fill.tertiary, in: .capsule)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var suggestionList: some View {
+        if let list = ChatLibrary.suggestions(for: input, library: agents.library, agents: agents.all) {
+            if list.isEmpty {
+                Text(ChatLibrary.noSuggestion(for: input))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(list.prefix(30)) { s in
+                            Button {
+                                input = s.insert
+                                focused = true
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(s.title).font(.subheadline.monospaced().weight(.bold)).foregroundStyle(.primary)
+                                    if !s.subtitle.isEmpty {
+                                        Text(s.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(height: min(220, CGFloat(min(list.count, 30)) * 48))
+                .background(.fill.quaternary, in: .rect(cornerRadius: 14))
+            }
+        }
     }
 
     // MARK: - Barre d'outils

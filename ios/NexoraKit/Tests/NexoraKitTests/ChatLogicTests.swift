@@ -181,3 +181,26 @@ struct StoreTests {
         try await store.deleteAll()
     }
 }
+
+@Suite("Skills et commandes")
+struct SkillTests {
+    @Test("SKILL.md : en-tête, nom du dossier par défaut, fichiers")
+    func skill() throws {
+        let s = try #require(Skill.fromMarkdown("---\nname: pdf\ndescription: >\n  Lire des PDF\n---\nUtilise pdftotext.", id: "s", files: ["a.py"]))
+        #expect(s.name == "pdf" && s.description == "Lire des PDF")
+        #expect(s.instructions.contains("Fichiers de la skill (à lire au besoin) : a.py"))
+        #expect(Skill.fromMarkdown("Corps", id: "x", fallbackName: "dossier")?.name == "dossier")
+        #expect(Skill.fromMarkdown("---\nname: vide\n---\n", id: "v") == nil)
+    }
+
+    @Test("commande : $ARGUMENTS, $1…$9, ou arguments ajoutés à la fin")
+    func command() {
+        let c = SlashCommand(id: "c", name: "revue", description: "", body: "Relis $ARGUMENTS")
+        #expect(c.expand(" a.rs ") == "Relis a.rs")
+        let d = SlashCommand(id: "d", name: "x", description: "", body: "De $1 vers $2 ($3)")
+        #expect(d.expand("fr en") == "De fr vers en ()")
+        let e = SlashCommand(id: "e", name: "y", description: "", body: "Résume.")
+        #expect(e.expand("ce texte") == "Résume.\n\nce texte")
+        #expect(SlashCommand.fromMarkdown("---\nargument-hint: <fichier>\n---\nFais", id: "f", name: "f")?.argumentHint == "<fichier>")
+    }
+}
