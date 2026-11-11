@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.66 — 11 novembre 2026 — Plus aucun fichier perdu en route par l'agent
+- Corrigé : quand l'agent écrivait le contenu d'un fichier (par exemple un test) juste avant de demander de l'écrire, ce contenu était ignoré. Le fichier restait « en attente », l'agent recommençait sans fin et la session s'arrêtait sans le test.
+- Corrigé : un contenu attendu envoyé en même temps qu'une autre action (relire un fichier…) était jeté. Le fichier est maintenant écrit d'abord, puis l'action est faite.
+- Si le contenu n'arrive vraiment pas, l'agent est prévenu que le fichier n'est PAS écrit et le renvoie, au lieu de croire le travail fait.
+
 ## 2.2.65 — 11 novembre 2026 — Une modification ne coupe plus un mot en deux
 - Corrigé : quand le modèle recopiait à moitié la ligne à modifier (« …, men » au lieu de « …, mentions); »), l'ajout était inséré au milieu du mot. Le code devenait illisible (« men… tions); ») et la CI échouait.
 - Quand l'agent veut ajouter des lignes après ce passage, elles vont maintenant après la ligne entière, qui reste intacte.

@@ -240,6 +240,8 @@ List<ToolCall> parseToolCalls(String reply) {
   final blocks = codeBlocks(reply);
   Map<String, dynamic>? obj;
   int afterIndex = 0;
+  // Où commence l'action (les blocs écrits avant elle ne sont pas les siens).
+  var objStart = 0;
   // Trouvé dans un bloc de code : les blocs d'actions suivants comptent aussi.
   var fromBlock = false;
   for (final b in blocks) {
@@ -250,6 +252,7 @@ List<ToolCall> parseToolCalls(String reply) {
       if (wanted(cand)) {
         obj = cand;
         afterIndex = b.end;
+        objStart = b.start;
         fromBlock = true;
         break;
       }
@@ -276,6 +279,7 @@ List<ToolCall> parseToolCalls(String reply) {
         if (wanted(cand)) {
           obj = cand;
           afterIndex = e + 1;
+          objStart = start;
           break;
         }
       }
@@ -290,6 +294,7 @@ List<ToolCall> parseToolCalls(String reply) {
       final cand = decodeLooseJson(reply.substring(m.start));
       if (wanted(cand)) {
         obj = cand;
+        objStart = m.start;
         // Les blocs de code qui suivent le JSON (contenus des fichiers) : après
         // la fin de cet objet, à peu près là où se ferme le dernier bloc JSON.
         final close = blocks.where((b) => b.start <= m.start).lastOrNull;
@@ -376,7 +381,32 @@ List<ToolCall> parseToolCalls(String reply) {
       if (wanted(cand)) take(cand!, first: false);
     }
   }
+  // Le contenu écrit AVANT l'action (« Voici le test : ```rust …``` » puis le
+  // bloc JSON du write_file) : il était ignoré, le fichier restait en attente
+  // et le modèle, qui croyait l'avoir envoyé, recommençait sans fin. Repris
+  // quand ces blocs correspondent un à un aux fichiers encore sans contenu.
+  final missing = needs.where((n) => n.$2 == 'content').toList();
+  if (missing.isNotEmpty && missing.length == needs.length) {
+    final before = [
+      for (final b in blocks)
+        if (b.end <= objStart && b.body.trim().isNotEmpty && !_isAction(b)) b,
+    ];
+    if (before.length == missing.length) {
+      for (final (i, (args, _)) in missing.indexed) {
+        args['content'] = before[i].body;
+      }
+    }
+  }
   return calls;
+}
+
+/// Un bloc de code qui est une action (JSON avec "tool" ou "actions").
+bool _isAction(CodeBlock b) {
+  if (b.lang != 'json' && !b.body.trimLeft().startsWith('{')) return false;
+  final o = _tryLooseJson(b.body);
+  if (o == null) return false;
+  _normalizeAction(o);
+  return o['tool'] != null || o['actions'] is List;
 }
 
 final _specialTokens = RegExp(
@@ -414,6 +444,29 @@ String? pendingContent(String reply) {
   }
   return null;
 }
+
+/// Le contenu attendu écrit dans un seul bloc de code AVANT les actions de la
+/// réponse (« ```rust …``` » puis « ```json {"tool": "read_file"…}``` ») : le
+/// modèle envoie le fichier et enchaîne. `null` s'il n'y a pas exactement un
+/// tel bloc.
+String? leadingContent(String reply) {
+  final blocks = codeBlocks(reply.replaceAll(_specialTokens, '\n'));
+  final first = blocks.indexWhere(_isAction);
+  if (first <= 0) return null;
+  final lead = [
+    for (final b in blocks.take(first))
+      if (b.body.trim().isNotEmpty) b,
+  ];
+  return lead.length == 1 ? lead.single.body : null;
+}
+
+/// Ce que l'agent apprend quand le contenu attendu d'un fichier n'est pas
+/// arrivé : le fichier n'est PAS écrit.
+String lostContentNote(String path) =>
+    '\n\nATTENTION : $path n\'a PAS été écrit, son contenu n\'est pas arrivé '
+    '(ta réponse n\'avait pas de bloc de code pour lui). Refais write_file pour '
+    '$path avec le contenu complet dans args "content", ou dans un bloc de code '
+    'juste après le bloc JSON, dans la même réponse.';
 
 /// Les tournures d'un résumé qui laisse du travail de côté.
 final unfinishedWork = RegExp(
@@ -1903,16 +1956,39 @@ class AgentRun extends ChangeNotifier {
           final appending = _awaitAppend;
           _awaitContent = null;
           _awaitAppend = false;
+          // Le contenu attendu n'est pas arrivé : l'agent le saura (il croyait
+          // souvent le fichier écrit et passait à la suite).
+          var lost = '';
           if (waiting != null) {
             final content = pendingContent(reply);
+            final lead = content == null ? leadingContent(reply) : null;
+            ToolCall write(String c) => ToolCall('write_file', {
+              'path': waiting,
+              'content': c,
+              if (appending) 'at_end': true,
+            });
             if (content != null) {
+              calls = [write(content)];
+            } else if (lead != null &&
+                !calls.any(
+                  (c) => c.tool == 'write_file' && c.args['content'] == lead,
+                )) {
+              // Le contenu, puis d'autres actions dans la même réponse : le
+              // fichier est écrit d'abord, les actions suivent.
+              final head = calls.isEmpty ? null : calls.first;
               calls = [
-                ToolCall('write_file', {
-                  'path': waiting,
-                  'content': content,
-                  if (appending) 'at_end': true,
-                }),
+                ToolCall(
+                  'write_file',
+                  write(lead).args,
+                  thought: head?.thought ?? '',
+                  goal: head?.goal ?? '',
+                ),
+                ...calls,
               ];
+            } else if (!calls.any(
+              (c) => c.tool == 'write_file' && c.args['path'] == waiting,
+            )) {
+              lost = lostContentNote(waiting);
             }
           }
           if (calls.isEmpty) {
@@ -1947,10 +2023,10 @@ class AgentRun extends ChangeNotifier {
                           'listés). Un obstacle ? Prends une autre voie (autre '
                           'outil, autre fichier, autre approche) et continue. Si '
                           'la demande est vraiment impossible, appelle finish en '
-                          'expliquant pourquoi.$reminder'
+                          'expliquant pourquoi.$lost$reminder'
                     : 'Je n\'ai pas trouvé d\'action. Réponds avec un bloc '
                           '```json {"demande": …, "thought": …, "tool": …, '
-                          '"args": {…}}```.$reminder',
+                          '"args": {…}}```.$lost$reminder',
               ),
             );
             continue;
@@ -2075,7 +2151,10 @@ class AgentRun extends ChangeNotifier {
           if (results.isNotEmpty) {
             dropReminders(history);
             history.add(
-              LlmMessage('user', '${results.join('\n\n')}$circling$reminder'),
+              LlmMessage(
+                'user',
+                '${results.join('\n\n')}$lost$circling$reminder',
+              ),
             );
             compactHistory(history);
           }
