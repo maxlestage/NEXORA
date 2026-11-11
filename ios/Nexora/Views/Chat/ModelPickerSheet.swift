@@ -1,8 +1,9 @@
 import NexoraKit
 import SwiftUI
 
-/// Le choix du modèle : favoris, puis chaque fournisseur prêt à l'emploi avec ses
-/// modèles (lus en direct), badge « gratuit » et prix quand il est connu.
+/// « Choisir un modèle » : favoris, puis chaque fournisseur (prêts d'abord) avec
+/// ses modèles, les plus récents en premier, badge « gratuit » et prix quand il est
+/// connu (`ui/widgets/model_picker.dart`).
 struct ModelPickerSheet: View {
     let selected: ModelRef
     let onPick: (ModelRef) -> Void
@@ -12,43 +13,68 @@ struct ModelPickerSheet: View {
     @State private var query = ""
     @State private var onlyFree = false
     @State private var loading: Set<String> = []
+    @State private var showAll: Bool?
+    @State private var toast: Toast?
+    @State private var refreshingCatalog = false
 
-    private var readyProviders: [ProviderDef] { settings.providers.filter { settings.isReady($0) } }
+    /// Peu de fournisseurs prêts : on les montre tous (avec « clé manquante »),
+    /// sinon il n'y aurait presque rien à choisir.
+    private var all: Bool { showAll ?? (settings.readyProviders.count <= 2) }
+
+    private var providers: [ProviderDef] {
+        let ready = settings.readyProviders
+        return all ? ready + settings.providers.filter { !settings.isReady($0) } : ready
+    }
+
+    private var favorites: [ModelRef] {
+        settings.favorites.compactMap(ModelRef.parse).filter { settings.provider($0.providerId) != nil }
+    }
 
     var body: some View {
+        let q = query.lowercased()
         NavigationStack {
             List {
-                if !settings.favorites.isEmpty && query.isEmpty {
-                    Section("Favoris") {
-                        ForEach(settings.favorites.compactMap(ModelRef.parse), id: \.key) { ref in
-                            if let p = settings.provider(ref.providerId) {
-                                row(p, ModelInfo(ref.model, free: p.free))
+                Section {
+                    HStack {
+                        Text(settings.catalog.updated.isEmpty
+                            ? "Les plus récents en premier"
+                            : "Derniers modèles au \(settings.catalog.updated) · les plus récents en premier")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            Task { await refreshCatalog() }
+                        } label: {
+                            if refreshingCatalog { ProgressView() } else { Image(systemName: "arrow.triangle.2.circlepath.icloud") }
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Chercher les nouveaux modèles")
+                    }
+                }
+                if !favorites.isEmpty && q.isEmpty {
+                    Section("⭐ Favoris") {
+                        ForEach(favorites, id: \.key) { r in
+                            if let p = settings.provider(r.providerId) {
+                                row(p, ModelInfo(r.model), free: false)
                             }
                         }
                     }
                 }
-                ForEach(readyProviders) { p in
-                    let models = filtered(settings.models(for: p))
-                    if !models.isEmpty || loading.contains(p.id) {
-                        Section {
-                            ForEach(models) { m in row(p, m) }
-                        } header: {
-                            HStack {
-                                Text("\(p.emoji) \(p.name)")
-                                Spacer()
-                                if loading.contains(p.id) { ProgressView().controlSize(.mini) }
-                            }
-                        }
-                        .task { await refresh(p) }
-                    }
+                ForEach(providers) { p in
+                    section(p, q: q)
                 }
                 Section {
-                    Text("Les autres fournisseurs demandent une clé : ajoutez-la dans l'onglet Modèles.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Button {
+                        showAll = !all
+                    } label: {
+                        Label(
+                            all ? "Masquer les fournisseurs non configurés" : "Voir tous les fournisseurs (\(settings.providers.count))",
+                            systemImage: all ? "eye.slash" : "eye"
+                        )
+                    }
                 }
             }
-            .searchable(text: $query, prompt: "Chercher un modèle")
-            .navigationTitle("Modèle")
+            .searchable(text: $query, prompt: "Chercher un modèle (llama, qwen, claude…)")
+            .navigationTitle("Choisir un modèle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
@@ -57,51 +83,98 @@ struct ModelPickerSheet: View {
                         .toggleStyle(.button)
                 }
             }
+            .toast($toast)
         }
     }
 
-    private func filtered(_ list: [ModelInfo]) -> [ModelInfo] {
-        list.filter { m in
-            (!onlyFree || m.free) && (query.isEmpty || m.id.localizedCaseInsensitiveContains(query))
+    @ViewBuilder
+    private func section(_ p: ProviderDef, q: String) -> some View {
+        let models = settings.models(for: p).filter { m in
+            (!onlyFree || m.free) && (q.isEmpty || m.id.lowercased().contains(q) || p.name.lowercased().contains(q))
         }
-    }
-
-    private func row(_ p: ProviderDef, _ m: ModelInfo) -> some View {
-        let ref = ModelRef(p.id, m.id)
-        return Button {
-            onPick(ref)
-            dismiss()
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(m.id).font(.body).foregroundStyle(.primary).lineLimit(1)
-                    let price = Catalog.price(provider: p.id, model: m.id)?.label
-                    if let detail = m.detail ?? price {
-                        Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        if !(models.isEmpty && !q.isEmpty) {
+            Section {
+                if !settings.isReady(p) {
+                    Text("Clé manquante : ajoutez-la dans Modèles.").font(.footnote).foregroundStyle(Theme.amber)
+                }
+                ForEach(models.prefix(q.isEmpty ? 60 : 200)) { m in
+                    row(p, m, free: m.free)
+                }
+                if models.isEmpty {
+                    Text("Aucun modèle : chargez la liste.").font(.footnote).foregroundStyle(.secondary)
+                }
+            } header: {
+                HStack {
+                    Text("\(p.emoji) \(p.name)")
+                    Spacer()
+                    if loading.contains(p.id) {
+                        ProgressView().controlSize(.mini)
+                    } else if p.listing != .none {
+                        Button(settings.hasLiveModels(p.id) ? "Actualiser" : "Charger la liste", systemImage: "arrow.clockwise") {
+                            Task { await refresh(p) }
+                        }
+                        .font(.caption)
+                        .textCase(nil)
                     }
                 }
-                Spacer()
-                if m.free { Pill(text: "Gratuit", color: Theme.green) }
-                if ref == selected { Image(systemName: "checkmark").foregroundStyle(.tint) }
             }
         }
-        .swipeActions {
+    }
+
+    private func row(_ p: ProviderDef, _ m: ModelInfo, free: Bool) -> some View {
+        let ref = ModelRef(p.id, m.id)
+        let fav = settings.isFavorite(ref)
+        return HStack(spacing: 10) {
+            Button {
+                onPick(ref)
+                dismiss()
+            } label: {
+                HStack(spacing: 10) {
+                    Text(p.emoji).font(.title3)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(m.id).font(.callout.monospaced()).foregroundStyle(.primary).lineLimit(1)
+                        if let detail = m.detail {
+                            Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    if free || p.free { Pill(text: "gratuit", color: Theme.green) }
+                    if p.local { Pill(text: "local") }
+                    if ref == selected { Image(systemName: "checkmark").foregroundStyle(.tint) }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(ref == selected ? .isSelected : [])
             Button {
                 settings.toggleFavorite(ref)
             } label: {
-                Label("Favori", systemImage: settings.favorites.contains(ref.key) ? "star.slash" : "star")
+                Image(systemName: fav ? "star.fill" : "star").foregroundStyle(fav ? Theme.amber : .secondary)
             }
-            .tint(Theme.amber)
+            .buttonStyle(.borderless)
+            .accessibilityLabel(fav ? "Retirer des favoris" : "Ajouter aux favoris")
         }
+        .listRowBackground(ref == selected ? Color.accentColor.opacity(0.1) : nil)
     }
 
     private func refresh(_ p: ProviderDef) async {
-        guard settings.liveModels[p.id] == nil, p.listing != .none, !loading.contains(p.id) else { return }
         loading.insert(p.id)
         defer { loading.remove(p.id) }
-        if let list = try? await LLMClient().listModels(p, apiKey: settings.key(p.id)), !list.isEmpty {
-            settings.liveModels[p.id] = list
+        do {
+            let list = try await settings.refreshModels(p.id)
+            toast = Toast(text: "\(list.count) modèles chez \(p.name)")
+        } catch {
+            toast = Toast(text: "\(p.name) : \(error.localizedDescription)", error: true)
         }
+    }
+
+    private func refreshCatalog() async {
+        refreshingCatalog = true
+        defer { refreshingCatalog = false }
+        let ok = await settings.refreshCatalog(force: true)
+        toast = Toast(text: ok
+            ? "Catalogue à jour (\(settings.catalog.updated))"
+            : "Pas de connexion au catalogue, la liste reste celle du \(settings.catalog.updated)")
     }
 }
 
