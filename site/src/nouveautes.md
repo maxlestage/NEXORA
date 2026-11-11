@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.50 — 11 novembre 2026 — L'agent crée vos fichiers même quand le modèle les envoie en deux fois
+- Corrigé : certains modèles (dont celui de Pollinations, gratuit) demandaient d'écrire un fichier, puis attendaient avant d'en envoyer le contenu. L'agent refusait sans cesse, s'arrêtait « en boucle », et le test demandé n'était jamais créé.
+- L'agent attend maintenant ce contenu, puis l'écrit dans le bon fichier au tour suivant, avec ou sans bloc de code.
+- Un contenu donné sous un autre nom (« contents », « code », « text »…) est lui aussi accepté.
+
 ## 2.2.49 — 10 novembre 2026 — L'agent modifie du premier coup, même mal indenté
 - Corrigé : quand le modèle recopiait un passage avec une autre indentation que celle du fichier, la modification était refusée (« passage introuvable ») et l'agent tournait en rond. Elle est maintenant faite, et garde l'indentation de votre fichier.
 - Quand un passage est vraiment introuvable, l'agent voit tout de suite le passage le plus ressemblant du fichier, avec ses numéros de ligne : il le recopie exactement au lieu de chercher à l'aveugle.

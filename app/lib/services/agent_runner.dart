@@ -314,6 +314,22 @@ List<ToolCall> parseToolCalls(String reply) {
     final args = a['args'] is Map
         ? Map<String, dynamic>.from(a['args'] as Map)
         : <String, dynamic>{};
+    // Le contenu sous un autre nom (« contents », « code », « text »…).
+    if (tool == 'write_file' && args['content'] == null) {
+      for (final k in const [
+        'contents',
+        'file_content',
+        'code',
+        'text',
+        'body',
+        'data',
+      ]) {
+        if (args[k] is String) {
+          args['content'] = args.remove(k);
+          break;
+        }
+      }
+    }
     if (tool == 'write_file' &&
         args['content'] == null &&
         next < contents.length) {
@@ -340,6 +356,37 @@ List<ToolCall> parseToolCalls(String reply) {
     );
   }
   return calls;
+}
+
+/// Le contenu d'un fichier envoyé seul, au tour qui suit un `write_file` arrivé
+/// sans contenu (les modèles habitués aux appels d'outils natifs envoient
+/// l'appel, puis attendent la réponse avant d'écrire le fichier) : le premier
+/// bloc de code qui n'est pas une action, ou toute la réponse si elle n'a ni
+/// bloc ni action. `null` si la réponse est une autre action.
+String? pendingContent(String reply) {
+  final calls = parseToolCalls(reply);
+  final empty =
+      calls.isEmpty ||
+      calls.every((c) => c.tool == 'write_file' && c.args['content'] == null);
+  if (!empty) return null;
+  for (final b in codeBlocks(reply)) {
+    final body = b.body;
+    if (body.trim().isEmpty) continue;
+    final asJson = b.lang == 'json' || body.trimLeft().startsWith('{');
+    if (asJson) {
+      final o = _tryLooseJson(body);
+      if (o != null) {
+        _normalizeAction(o);
+        if (o['tool'] != null || o['actions'] is List) continue;
+      }
+    }
+    return body;
+  }
+  final t = reply.trim();
+  if (calls.isEmpty && '\n'.allMatches(t).length >= 2 && !t.startsWith('{')) {
+    return '$t\n';
+  }
+  return null;
 }
 
 /// Les tournures d'un résumé qui laisse du travail de côté.
@@ -714,6 +761,10 @@ class AgentRun extends ChangeNotifier {
 
   /// Les changements en brouillon : chemin → contenu (`null` : supprimé).
   final Map<String, String?> changes = {};
+
+  /// Le fichier d'un `write_file` arrivé sans contenu : le contenu est attendu
+  /// dans la réponse suivante.
+  String? _awaitContent;
 
   /// La version d'origine des fichiers lus ou modifiés (`null` : fichier nouveau).
   final Map<String, String?> originals = {};
@@ -1609,7 +1660,18 @@ class AgentRun extends ChangeNotifier {
             break;
           }
           history.add(LlmMessage('assistant', reply));
-          final calls = parseToolCalls(reply);
+          var calls = parseToolCalls(reply);
+          // Le contenu attendu après un write_file sans contenu : il est écrit.
+          final waiting = _awaitContent;
+          _awaitContent = null;
+          if (waiting != null) {
+            final content = pendingContent(reply);
+            if (content != null) {
+              calls = [
+                ToolCall('write_file', {'path': waiting, 'content': content}),
+              ];
+            }
+          }
           if (calls.isEmpty) {
             idle++;
             final bare = actionlessThought(reply);
@@ -2647,8 +2709,19 @@ class AgentRun extends ChangeNotifier {
       case 'write_file':
         final p = path();
         final content = call.args['content']?.toString();
-        if (p.isEmpty || content == null) {
-          return 'ERREUR : il faut path et le contenu dans un bloc de code.';
+        if (p.isEmpty) {
+          return 'ERREUR : write_file sans "path". Indique le chemin du fichier '
+              'dans args.path, et son contenu complet dans un bloc de code juste '
+              'après le bloc JSON.';
+        }
+        if (content == null) {
+          // Le contenu viendra au tour suivant : la réponse est attendue.
+          _awaitContent = p;
+          return 'EN ATTENTE du contenu de $p (write_file est arrivé sans '
+              'contenu). Réponds MAINTENANT avec, seul, le contenu COMPLET de '
+              '$p dans un bloc de code (```), sans bloc JSON : il sera écrit '
+              'dans ce fichier. La prochaine fois, mets le bloc de code juste '
+              'après le bloc JSON, dans la même réponse.';
         }
         final where = resolve(p);
         if (where == null || where.$2.isEmpty) return _mountHint;
