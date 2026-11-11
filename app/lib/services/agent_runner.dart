@@ -3717,7 +3717,10 @@ class AgentRun extends ChangeNotifier {
         if (text == null) {
           // Fichier nouveau : old vide le crée.
           if (oldText.isEmpty && !changes.containsKey(p)) {
-            changes[p] = newText.endsWith('\n') ? newText : '$newText\n';
+            changes[p] = tidyCode(
+              p,
+              newText.endsWith('\n') ? newText : '$newText\n',
+            );
             notifyListeners();
             return 'OK, $p créé en brouillon.${await _pitfalls(p)}';
           }
@@ -3753,7 +3756,7 @@ class AgentRun extends ChangeNotifier {
           near: int.tryParse('${call.args['line'] ?? call.args['near'] ?? ''}'),
         );
         if (edited.$1 == null) return 'ERREUR : ${edited.$2}';
-        changes[p] = edited.$1;
+        changes[p] = tidyCode(p, edited.$1!, before: originals[p] ?? text);
         notifyListeners();
         return 'OK, $p modifié en brouillon (${edited.$2}). Le reste du fichier '
             'est inchangé.${await _pitfalls(p)}';
@@ -3840,7 +3843,11 @@ class AgentRun extends ChangeNotifier {
               'edit_file pour ne changer qu\'un passage (ou "force": true si tu '
               'veux vraiment le raccourcir).';
         }
-        changes[p] = content.endsWith('\n') ? content : '$content\n';
+        changes[p] = tidyCode(
+          p,
+          content.endsWith('\n') ? content : '$content\n',
+          before: before,
+        );
         notifyListeners();
         return 'OK, $p enregistré en brouillon (${content.length} caractères).'
             '${await _pitfalls(p)}';
@@ -4751,6 +4758,51 @@ class AgentRun extends ChangeNotifier {
     return r.first.result;
   }
 }
+
+/// Les lignes vides en trop dans du code Rust ou Dart écrit par l'agent :
+/// deux lignes vides de suite, ou une ligne vide à la fin du fichier. En essai
+/// réel, l'agent en laissait à chaque ajout de fonction ; `cargo fmt --check`
+/// et `dart format` les refusent, et la CI échouait pour rien. Ramenées à une
+/// seule, entre deux lignes de code seulement (jamais dans un long texte entre
+/// guillemets). Un fichier d'origine qui en contenait déjà (projet sans
+/// formateur) est laissé tel quel.
+String tidyCode(String path, String text, {String? before}) {
+  if (!path.endsWith('.rs') && !path.endsWith('.dart')) return text;
+  final loose = RegExp(r'\n[ \t]*\n[ \t]*\n');
+  var out = text;
+  if (before == null || !loose.hasMatch(before)) {
+    out = out.replaceAllMapped(
+      RegExp(r'(?<=^|\n)([^\n]*)\n(?:[ \t]*\n){2,}(?=([^\n]*))'),
+      (m) {
+        final prev = m[1]!.trimRight();
+        final next = m[2]!.trimLeft();
+        final keep = _codeEnd.hasMatch(prev) && _codeStart.hasMatch(next);
+        return keep ? '${m[1]}\n\n' : m[0]!;
+      },
+    );
+  }
+  if (before == null || !before.endsWith('\n\n')) {
+    final end = RegExp(r'\n(?:[ \t]*\n)+$').firstMatch(out);
+    if (end != null &&
+        _codeEnd.hasMatch(out.substring(0, end.start).trimRight())) {
+      out = '${out.substring(0, end.start)}\n';
+    }
+  }
+  return out;
+}
+
+/// Une ligne qui finit une instruction, un bloc ou un commentaire.
+final _codeEnd = RegExp(r'(^\s*(//|#\[|@).*|[;{}\]),]|\*/)$');
+
+/// Une ligne qui commence une déclaration, un commentaire ou ferme un bloc.
+final _codeStart = RegExp(
+  r'^(//|/\*|#\[|@|}|\]|\)|(pub(\(\w+\))?\s+)?(fn|mod|use|impl|struct|enum|'
+  r'const|static|trait|type|let|async|unsafe|extern|macro_rules!)\b|'
+  r'(import|export|part|library|class|abstract|sealed|final|var|void|late|'
+  r'mixin|extension|enum|typedef|return|if|for|while|test|group|setUp|'
+  r'tearDown|expect|assert)\b|[A-Z]\w*(<.*>)?\??\s+\w+\s*[(=;]|'
+  r'\w+\s*\()',
+);
 
 /// Remplace `old` par `new` dans `text`. Rend (texte modifié, résumé) ou
 /// (null, explication de l'échec). Tolère les fins de ligne et les espaces de fin.
