@@ -317,8 +317,13 @@ List<ToolCall> parseToolCalls(String reply) {
       _normalizeAction(a);
       final tool = canonicalTool(a['tool']?.toString());
       if (tool == null || tool.isEmpty) continue;
-      final args = a['args'] is Map
-          ? Map<String, dynamic>.from(a['args'] as Map)
+      // Les arguments écrits comme un texte JSON (« "args": "{\"path\": …}" ») :
+      // ils étaient perdus et l'action partait sans chemin.
+      final given = a['args'] ?? a['arguments'] ?? a['parameters'];
+      final args = given is Map
+          ? Map<String, dynamic>.from(given)
+          : given is String && given.trim().startsWith('{')
+          ? (_tryJson(given) ?? decodeToolArgs(given) ?? {'raw': given})
           : <String, dynamic>{};
       // Le contenu sous un autre nom (« contents », « code », « text »…).
       if (tool == 'write_file' && args['content'] == null) {
@@ -454,6 +459,11 @@ String? canonicalTool(String? raw) {
     'ls': 'list_files',
     'list_dir': 'list_files',
     'list_directory': 'list_files',
+    'tree': 'list_files',
+    'print_tree': 'list_files',
+    'show_tree': 'list_files',
+    'file_tree': 'list_files',
+    'directory_tree': 'list_files',
     'find_files': 'list_files',
     'delete': 'delete_file',
     'remove_file': 'delete_file',
@@ -483,7 +493,7 @@ void _normalizeAction(Map<String, dynamic> o) {
       o['tool'] = canonicalTool(v);
       final a = o['args'] ?? o['arguments'] ?? o['parameters'] ?? o['input'];
       o['args'] = a is String
-          ? (_tryLooseJson(a) ?? {'raw': a})
+          ? (_tryJson(a) ?? decodeToolArgs(a) ?? {'raw': a})
           : (a is Map ? a : {});
       return;
     }
