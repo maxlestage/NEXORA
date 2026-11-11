@@ -20,11 +20,11 @@ Légende : ✅ porté · 🟡 en partie · ⬜ à faire
 | Prix en direct (`livePrices`), forfaits mensuels | `data/model_prices.dart` | ✅ |
 | Agents au format `.claude/agents` | `models/agent.dart` | ✅ |
 | Conversations sur l'appareil (index + fichiers) | `services/conversation_store.dart` | ✅ |
-| API GitHub : dépôts, fichiers, commit multi-fichiers, issues, PR, Actions, device flow | `services/github_api.dart` | 🟡 (manquent les gists ; journaux de jobs, check runs, update-branch, fusion faits) |
+| API GitHub : dépôts, fichiers, commit multi-fichiers, issues, PR, Actions, device flow | `services/github_api.dart` | ✅ (les gists ne servent pas dans l'app Flutter) |
 | Skills et commandes `/nom` | `models/skill.dart`, `state/agent_state.dart` | ✅ |
-| Agent autonome (sessions, outils fichiers, tests, CI, fusion) | `services/agent_runner.dart` (4 350 lignes) | ✅ (cœur, 113 tests) · interface : voir Atelier |
-| Sessions et brouillons | `state/session_state.dart`, `services/session_store.dart` | ⬜ |
-| Routines planifiées | `models/routine.dart`, `state/routine_state.dart` | ⬜ |
+| Agent autonome (sessions, outils fichiers, tests, CI, fusion) | `services/agent_runner.dart` (4 350 lignes) | ✅ |
+| Sessions et brouillons | `state/session_state.dart`, `services/session_store.dart` | ✅ |
+| Routines planifiées | `models/routine.dart`, `state/routine_state.dart` | ✅ |
 | Suivi d'usage et crédits (quotas, en-têtes de limite) | `models/usage.dart`, `state/usage_state.dart`, `services/quota_service.dart` | ✅ |
 | Explorateur de bibliothèque de dépôt | `services/library_scanner.dart` | ✅ |
 | Aide sur les erreurs | `services/error_help.dart` | ✅ |
@@ -42,12 +42,12 @@ Légende : ✅ porté · 🟡 en partie · ⬜ à faire
 | Agents : liste, éditeur, import | `ui/agents/*` | ✅ |
 | Catalogue d'agents GitHub à installer | `ui/agents/install_agents_screen.dart`, `data/github_agents.dart` | ✅ |
 | GitHub : dépôts, fichiers, éditeur, issues, PR, Actions, commits, création | `ui/github/*` | ✅ |
-| Agents cloud (workflows GitHub) | `ui/github/cloud_agents_screen.dart` | 🟡 (catalogue et fiche ; écran de lancement en cours) |
+| Agents cloud (workflows GitHub) | `ui/github/cloud_agents_screen.dart` | ✅ |
 | Fournisseurs : clé, adresse, test, modèles, Ollama | `ui/providers/*` | ✅ |
 | Aide par fournisseur | `data/provider_help.dart` | ✅ |
 | Réglages, personnalisation, nouveautés | `ui/settings/*` | ✅ |
 | Usage et crédits | `ui/settings/usage_screen.dart`, `credits_screen.dart`, `ui/widgets/quota_badge.dart`, `credit_bar.dart` | ✅ |
-| Atelier : sessions d'agent, brouillons, routines | `ui/workspace/*` | ⬜ |
+| Atelier : sessions d'agent, brouillons, routines | `ui/workspace/*` | ✅ |
 | Aide et premiers pas | `ui/help/*` | ✅ |
 | Présentation au premier lancement | `ui/onboarding.dart` | ✅ |
 | Voix : dictée, lecture | `services/voice.dart` | ✅ |
