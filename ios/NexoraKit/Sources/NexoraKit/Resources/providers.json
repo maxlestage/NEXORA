@@ -1,0 +1,373 @@
+[
+ {
+  "id": "pollinations",
+  "name": "Pollinations",
+  "emoji": "🌸",
+  "color": "0xFFF472B6",
+  "baseUrl": "https://text.pollinations.ai/openai",
+  "chatPath": "",
+  "kind": "openai",
+  "listing": "pollinations",
+  "free": true,
+  "needsKey": false,
+  "docsUrl": "https://pollinations.ai",
+  "description": "Gratuit, sans clé ni compte : idéal pour commencer tout de suite.",
+  "defaultModels": [
+   "openai",
+   "openai-fast"
+  ]
+ },
+ {
+  "id": "ollama",
+  "name": "Ollama (local)",
+  "emoji": "🦙",
+  "color": "0xFFFFFFFF",
+  "baseUrl": "http://192.168.1.10:11434",
+  "kind": "ollama",
+  "listing": "ollama",
+  "free": true,
+  "needsKey": false,
+  "local": true,
+  "docsUrl": "https://ollama.com/library",
+  "description": "Vos modèles sur votre ordinateur, via le Wi-Fi. Lancez Ollama avec OLLAMA_HOST=0.0.0.0 puis saisissez l'adresse IP de la machine.",
+  "defaultModels": [
+   "llama3.2",
+   "qwen2.5-coder",
+   "gemma3",
+   "deepseek-r1",
+   "mistral"
+  ]
+ },
+ {
+  "id": "ollama-cloud",
+  "name": "Ollama Cloud",
+  "emoji": "☁️",
+  "color": "0xFFE5E7EB",
+  "baseUrl": "https://ollama.com",
+  "kind": "ollama",
+  "listing": "ollama",
+  "keyUrl": "https://ollama.com/settings/keys",
+  "docsUrl": "https://ollama.com/search?c=cloud",
+  "description": "Les grands modèles ouverts d'Ollama, sans ordinateur : juste une clé. Au token, ou avec le crédit mensuel des offres Pro et Max.",
+  "defaultModels": [
+   "gpt-oss:120b",
+   "deepseek-v4.1-flash",
+   "kimi-k2.7-code",
+   "glm-5.3",
+   "minimax-m3.1-flash",
+   "kimi-k3.1-pro"
+  ]
+ },
+ {
+  "id": "openrouter",
+  "name": "OpenRouter",
+  "emoji": "🔀",
+  "color": "0xFF8B5CF6",
+  "baseUrl": "https://openrouter.ai/api/v1",
+  "kind": "openai",
+  "free": true,
+  "freeModelSuffix": ":free",
+  "keyUrl": "https://openrouter.ai/keys",
+  "docsUrl": "https://openrouter.ai/models?max_price=0",
+  "description": "Des centaines de modèles avec une seule clé, dont des dizaines gratuits (suffixe :free).",
+  "extraHeaders": {
+   "HTTP-Referer": "https://github.com/maxlestage/NEXORA",
+   "X-Title": "NEXORA"
+  },
+  "defaultModels": [
+   "meta-llama/llama-3.3-70b-instruct:free",
+   "deepseek/deepseek-r1:free",
+   "qwen/qwen3-coder:free",
+   "google/gemma-3-27b-it:free",
+   "mistralai/mistral-small-3.2-24b-instruct:free"
+  ]
+ },
+ {
+  "id": "groq",
+  "name": "Groq",
+  "emoji": "⚡",
+  "color": "0xFFF97316",
+  "baseUrl": "https://api.groq.com/openai/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://console.groq.com/keys",
+  "description": "Ultra rapide, offre gratuite généreuse sans carte bancaire.",
+  "defaultModels": [
+   "llama-3.3-70b-versatile",
+   "openai/gpt-oss-120b",
+   "qwen/qwen3-32b",
+   "llama-3.1-8b-instant"
+  ]
+ },
+ {
+  "id": "gemini",
+  "name": "Google Gemini",
+  "emoji": "✨",
+  "color": "0xFF60A5FA",
+  "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://aistudio.google.com/apikey",
+  "description": "Gemini via Google AI Studio : offre gratuite et contexte immense.",
+  "defaultModels": [
+   "gemini-2.5-flash",
+   "gemini-2.5-pro",
+   "gemini-2.5-flash-lite"
+  ]
+ },
+ {
+  "id": "mistral",
+  "name": "Mistral AI",
+  "emoji": "🌬️",
+  "color": "0xFFFF7000",
+  "baseUrl": "https://api.mistral.ai/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://console.mistral.ai/api-keys",
+  "description": "Modèles français, offre « Experiment » gratuite, hébergés en Europe.",
+  "defaultModels": [
+   "mistral-small-latest",
+   "mistral-medium-latest",
+   "mistral-large-latest",
+   "devstral-small-latest"
+  ]
+ },
+ {
+  "id": "codestral",
+  "name": "Codestral",
+  "emoji": "🧑‍💻",
+  "color": "0xFFFFA94D",
+  "baseUrl": "https://codestral.mistral.ai/v1",
+  "kind": "openai",
+  "listing": "none",
+  "free": true,
+  "keyUrl": "https://console.mistral.ai/codestral",
+  "description": "Le modèle de code de Mistral, avec une clé gratuite dédiée.",
+  "defaultModels": [
+   "codestral-latest"
+  ]
+ },
+ {
+  "id": "cerebras",
+  "name": "Cerebras",
+  "emoji": "🧠",
+  "color": "0xFFFB7185",
+  "baseUrl": "https://api.cerebras.ai/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://cloud.cerebras.ai",
+  "description": "Inférence la plus rapide du marché, offre gratuite.",
+  "defaultModels": [
+   "llama-3.3-70b",
+   "gpt-oss-120b",
+   "qwen-3-32b"
+  ]
+ },
+ {
+  "id": "github-models",
+  "name": "GitHub Models",
+  "emoji": "🐙",
+  "color": "0xFFE6EDF3",
+  "baseUrl": "https://models.github.ai/inference",
+  "kind": "openai",
+  "listing": "githubCatalog",
+  "free": true,
+  "usesGitHubToken": true,
+  "keyUrl": "https://github.com/settings/tokens",
+  "docsUrl": "https://github.com/marketplace/models",
+  "description": "Avec votre compte GitHub connecté, sans autre clé (si le service est disponible sur votre compte).",
+  "defaultModels": [
+   "openai/gpt-4.1",
+   "openai/gpt-4.1-mini",
+   "meta/Llama-3.3-70B-Instruct",
+   "deepseek/DeepSeek-R1",
+   "mistral-ai/Codestral-2501"
+  ]
+ },
+ {
+  "id": "huggingface",
+  "name": "Hugging Face",
+  "emoji": "🤗",
+  "color": "0xFFFFD21E",
+  "baseUrl": "https://router.huggingface.co/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://huggingface.co/settings/tokens",
+  "description": "Inference Providers : des milliers de modèles ouverts, crédits gratuits chaque mois.",
+  "defaultModels": [
+   "meta-llama/Llama-3.3-70B-Instruct",
+   "Qwen/Qwen2.5-Coder-32B-Instruct",
+   "deepseek-ai/DeepSeek-R1"
+  ]
+ },
+ {
+  "id": "together",
+  "name": "Together AI",
+  "emoji": "🤝",
+  "color": "0xFF0EA5E9",
+  "baseUrl": "https://api.together.xyz/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://api.together.ai/settings/api-keys",
+  "description": "Modèles ouverts, dont des versions « -Free » gratuites.",
+  "defaultModels": [
+   "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+   "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+  ]
+ },
+ {
+  "id": "nvidia",
+  "name": "NVIDIA NIM",
+  "emoji": "🟩",
+  "color": "0xFF76B900",
+  "baseUrl": "https://integrate.api.nvidia.com/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://build.nvidia.com",
+  "description": "Le catalogue NVIDIA, avec des crédits gratuits.",
+  "defaultModels": [
+   "meta/llama-3.3-70b-instruct",
+   "deepseek-ai/deepseek-r1",
+   "qwen/qwen2.5-coder-32b-instruct"
+  ]
+ },
+ {
+  "id": "sambanova",
+  "name": "SambaNova",
+  "emoji": "🚀",
+  "color": "0xFFEE7624",
+  "baseUrl": "https://api.sambanova.ai/v1",
+  "kind": "openai",
+  "free": true,
+  "keyUrl": "https://cloud.sambanova.ai/apis",
+  "description": "Très rapide sur les grands modèles ouverts, offre gratuite.",
+  "defaultModels": [
+   "Meta-Llama-3.3-70B-Instruct",
+   "DeepSeek-R1",
+   "Qwen3-32B"
+  ]
+ },
+ {
+  "id": "cohere",
+  "name": "Cohere",
+  "emoji": "🪐",
+  "color": "0xFF39594D",
+  "baseUrl": "https://api.cohere.ai/compatibility/v1",
+  "kind": "openai",
+  "listing": "none",
+  "free": true,
+  "keyUrl": "https://dashboard.cohere.com/api-keys",
+  "description": "Clé d'essai gratuite, modèles Command.",
+  "defaultModels": [
+   "command-a-03-2025",
+   "command-r-plus",
+   "command-r"
+  ]
+ },
+ {
+  "id": "cloudflare",
+  "name": "Cloudflare Workers AI",
+  "emoji": "🟧",
+  "color": "0xFFF38020",
+  "baseUrl": "https://api.cloudflare.com/client/v4/accounts/VOTRE_ACCOUNT_ID/ai/v1",
+  "kind": "openai",
+  "listing": "none",
+  "free": true,
+  "keyUrl": "https://dash.cloudflare.com/profile/api-tokens",
+  "description": "10 000 neurones gratuits par jour. Remplacez VOTRE_ACCOUNT_ID dans l'adresse.",
+  "defaultModels": [
+   "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+   "@cf/qwen/qwen2.5-coder-32b-instruct",
+   "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+  ]
+ },
+ {
+  "id": "lmstudio",
+  "name": "LM Studio (local)",
+  "emoji": "🖥️",
+  "color": "0xFF6366F1",
+  "baseUrl": "http://192.168.1.10:1234/v1",
+  "kind": "openai",
+  "free": true,
+  "needsKey": false,
+  "local": true,
+  "docsUrl": "https://lmstudio.ai",
+  "description": "Le serveur local de LM Studio (« Serve on Local Network »).",
+  "defaultModels": []
+ },
+ {
+  "id": "anthropic",
+  "name": "Anthropic Claude",
+  "emoji": "🟠",
+  "color": "0xFFD97757",
+  "baseUrl": "https://api.anthropic.com/v1",
+  "kind": "anthropic",
+  "keyUrl": "https://platform.claude.com/settings/keys",
+  "description": "Les modèles Claude, via l'API Messages officielle.",
+  "defaultModels": [
+   "claude-opus-5-5",
+   "claude-sonnet-5-5",
+   "claude-haiku-5-5",
+   "claude-fable-5-1"
+  ]
+ },
+ {
+  "id": "openai",
+  "name": "OpenAI",
+  "emoji": "⚪",
+  "color": "0xFF10A37F",
+  "baseUrl": "https://api.openai.com/v1",
+  "kind": "openai",
+  "keyUrl": "https://platform.openai.com/api-keys",
+  "description": "Les modèles GPT.",
+  "defaultModels": [
+   "gpt-5",
+   "gpt-5-mini",
+   "gpt-4.1"
+  ]
+ },
+ {
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "emoji": "🐋",
+  "color": "0xFF4D6BFE",
+  "baseUrl": "https://api.deepseek.com/v1",
+  "kind": "openai",
+  "keyUrl": "https://platform.deepseek.com/api_keys",
+  "description": "Très bon marché, excellent en code et en raisonnement.",
+  "defaultModels": [
+   "deepseek-chat",
+   "deepseek-reasoner"
+  ]
+ },
+ {
+  "id": "xai",
+  "name": "xAI Grok",
+  "emoji": "✖️",
+  "color": "0xFFBDBDBD",
+  "baseUrl": "https://api.x.ai/v1",
+  "kind": "openai",
+  "keyUrl": "https://console.x.ai",
+  "description": "Les modèles Grok.",
+  "defaultModels": [
+   "grok-4",
+   "grok-3-mini"
+  ]
+ },
+ {
+  "id": "perplexity",
+  "name": "Perplexity",
+  "emoji": "🔎",
+  "color": "0xFF20B8CD",
+  "baseUrl": "https://api.perplexity.ai",
+  "kind": "openai",
+  "listing": "none",
+  "keyUrl": "https://www.perplexity.ai/settings/api",
+  "description": "Réponses sourcées avec recherche web intégrée.",
+  "defaultModels": [
+   "sonar",
+   "sonar-pro",
+   "sonar-reasoning"
+  ]
+ }
+]

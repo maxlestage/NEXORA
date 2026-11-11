@@ -1,0 +1,85 @@
+# Le projet Xcode de l'application iOS native de NEXORA, généré par XcodeGen
+# (https://github.com/yonaskolb/XcodeGen) : `xcodegen generate` dans ce dossier.
+# Le fichier .xcodeproj n'est pas versionné : il se régénère à l'identique.
+name: Nexora
+options:
+  bundleIdPrefix: com.maxlestage
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: fr
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "3.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+packages:
+  NexoraKit:
+    path: NexoraKit
+targets:
+  Nexora:
+    type: application
+    platform: iOS
+    sources:
+      - path: Nexora
+      - path: ../app/assets/nouveautes.md
+        buildPhase: resources
+    dependencies:
+      - package: NexoraKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(IOS_BUNDLE_ID)
+        IOS_BUNDLE_ID: com.maxlestage.nexora
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Nexora/Info.plist
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Nexora/Info.plist
+      properties:
+        CFBundleDisplayName: NEXORA
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: ""
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSMicrophoneUsageDescription: NEXORA utilise le micro pour dicter vos messages.
+        NSSpeechRecognitionUsageDescription: NEXORA transcrit votre voix en texte pour dicter vos messages.
+        NSLocalNetworkUsageDescription: NEXORA se connecte à Ollama, LM Studio ou votre serveur sur le Wi-Fi.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoads: true
+        GitHubClientID: $(GITHUB_CLIENT_ID)
+  NexoraTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: NexoraTests
+    dependencies:
+      - target: Nexora
+schemes:
+  Nexora:
+    build:
+      targets:
+        Nexora: all
+        NexoraTests: [test]
+    test:
+      targets:
+        - NexoraTests
