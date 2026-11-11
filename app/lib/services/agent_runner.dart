@@ -2921,6 +2921,32 @@ class AgentRun extends ChangeNotifier {
     }
   }
 
+  static final _letter = RegExp(r'\p{L}', unicode: true);
+
+  /// [raw] contient [q] (en minuscules) comme mot ou nom à part entière : pas
+  /// précédé d'une lettre (« outils » pour « utils »), sauf au début d'un mot
+  /// en camelCase (« formatDuree » pour « duree »).
+  static bool wholeWord(String raw, String q) {
+    final low = raw.toLowerCase();
+    if (low.length != raw.length) return true; // Indices incertains : gardé.
+    for (var at = low.indexOf(q); at >= 0; at = low.indexOf(q, at + 1)) {
+      if (at == 0 ||
+          !_letter.hasMatch(raw[at - 1]) ||
+          raw[at] != low[at] ||
+          !RegExp(r'[a-z]').hasMatch(raw[at])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Les mots d'une ligne trouvée qui contiennent [q] (« outils »).
+  static Iterable<String> otherWords(String hit, String q) =>
+      RegExp(r'[\p{L}\p{N}_]+', unicode: true)
+          .allMatches(hit.substring(hit.indexOf(': ') + 2))
+          .map((m) => m[0]!)
+          .where((w) => w.toLowerCase().contains(q));
+
   /// Cherche un texte dans le contenu des fichiers (comme grep), sans dépendre de
   /// la recherche de GitHub (qui exige un compte, ignore les branches et les
   /// dépôts récents).
@@ -2965,14 +2991,38 @@ class AgentRun extends ChangeNotifier {
         if (t != null) texts[f] = t;
       }
     }
-    List<String> find(bool Function(String line) match) => [
+    List<String> find(
+      bool Function(String line) match, {
+      bool Function(String raw)? keep,
+    }) => [
       for (final e in texts.entries)
         for (final (n, line) in e.value.split('\n').indexed)
-          if (match(line.toLowerCase()))
+          if (match(line.toLowerCase()) && (keep == null || keep(line)))
             '${e.key}:${n + 1}: ${line.trim().length > 200 ? '${line.trim().substring(0, 200)}…' : line.trim()}',
     ];
     var hits = find((l) => l.contains(q));
     var note = '';
+    // Un mot simple (« utils ») trouvé seulement à l'intérieur d'autres mots
+    // (« outils », essai réel) : ces lignes ne sont pas ce que l'agent cherche.
+    // Il les prenait pour des résultats, refaisait la même recherche et la
+    // session finissait arrêtée. Les vraies correspondances passent d'abord ;
+    // sans aucune, il est prévenu que le nom n'existe pas.
+    var inOther = <String>[];
+    if (hits.isNotEmpty && RegExp(r'^[a-z0-9_]{3,}$').hasMatch(q)) {
+      final whole = find(
+        (l) => l.contains(q),
+        keep: (raw) => wholeWord(raw, q),
+      );
+      if (whole.length < hits.length) {
+        inOther = hits.where((h) => !whole.contains(h)).toList();
+        hits = whole;
+        if (hits.isNotEmpty) {
+          note =
+              ' (le mot lui-même ; ${inOther.length} autre(s) ligne(s) le '
+              'contiennent seulement dans un autre mot, ignorées)';
+        }
+      }
+    }
     // « async fn .* -> String », « fn (get|post) » : le modèle écrit souvent
     // une expression régulière. Lue mot à mot, elle ne trouvait jamais rien et
     // l'agent répétait la même recherche en tournant en rond.
@@ -2985,7 +3035,7 @@ class AgentRun extends ChangeNotifier {
       hits = find((l) => words.every(l.contains));
       if (hits.isNotEmpty) note = ' (tous les mots, pas forcément côte à côte)';
     }
-    if (hits.isEmpty) {
+    if (hits.isEmpty && inOther.isEmpty) {
       // « compare versions » retrouve compareVersions, compare_versions…
       final squashed = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
       if (squashed.length > 2) {
@@ -3009,6 +3059,24 @@ class AgentRun extends ChangeNotifier {
         ? '\n(Recherche faite dans $searchLimit fichiers sur ${files.length} : '
               'précise un dossier avec "path" pour chercher ailleurs.)'
         : '';
+    if (hits.isEmpty && inOther.isNotEmpty) {
+      final others = {for (final h in inOther) ...otherWords(h, q)}
+          .take(5)
+          .map((w) => '« $w »')
+          .join(', ');
+      return (
+        'Aucune ligne ne contient « $query » comme nom ou mot à part entière '
+            '(${texts.length} fichiers parcourus) : les ${inOther.length} '
+            'ligne(s) trouvées le contiennent seulement à l\'intérieur d\'un '
+            'autre mot ($others), ce n\'est pas ce que tu cherches. « $query » '
+            'n\'existe donc pas encore${prefix.isEmpty ? '' : ' sous $prefix'}.'
+            '${names.isEmpty ? '' : '\nFichiers dont le nom correspond :\n${names.join('\n')}'}'
+            '\nNe refais pas cette recherche : si la demande l\'implique, crée-le '
+            '(write_file), en suivant l\'organisation des fichiers existants.'
+            '$limited',
+        0,
+      );
+    }
     if (hits.isEmpty) {
       return (
         'Aucune ligne ne contient « $query » (${texts.length} fichiers '
