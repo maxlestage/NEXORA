@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.78 — 11 novembre 2026 — L'agent ne cherche plus ce qui vient d'une bibliothèque
+- Corrigé : en essai réel, pour « ajoute une route /sante en texte brut », l'agent cherchait des dizaines de fois la définition de « Response », qui vient de la bibliothèque Paquets et n'est donc pas dans le dépôt. La session s'arrêtait sans rien livrer.
+- Quand l'agent cherche la définition d'un nom que le code utilise mais qui vient d'une dépendance, il l'apprend clairement et reçoit les endroits où le code existant s'en sert, pour faire pareil.
+- Un nom que seuls ses propres brouillons utilisent (une fonction branchée mais pas encore écrite) lui est signalé comme à créer tout de suite.
+- Rien ne change quand la définition existe dans le dépôt ou qu'un nom est inconnu partout.
+
 ## 2.2.77 — 11 novembre 2026 — Le code de l'agent passe le formateur
 - Corrigé : en essai réel, chaque fonction Rust ajoutée par l'agent laissait deux lignes vides de suite, ou une ligne vide en fin de fichier. « cargo fmt --check » les refuse : la CI échouait pour une simple question de mise en page.
 - Dans les fichiers Rust et Dart écrits par l'agent, ces lignes vides en trop sont ramenées à une seule, dès le brouillon.
