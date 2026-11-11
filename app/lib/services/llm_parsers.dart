@@ -207,6 +207,50 @@ bool isCutStop(String? stop) =>
     stop == 'max_output_tokens' ||
     stop == 'cut';
 
+/// Une réflexion qui tourne en rond : sa fin répète le même motif encore et
+/// encore (« '…' '…' '…' => » des centaines de fois, ou la même phrase ligne
+/// après ligne). En essai réel, GPT-OSS réfléchissait ainsi jusqu'à sa limite
+/// sans jamais répondre : attendre la fin ne sert qu'à dépenser des tokens.
+///
+/// Prudent : il faut au moins 25 répétitions d'affilée d'un même motif (et au
+/// moins 300 caractères), ou 6 lignes identiques de suite.
+bool thinkingLoops(String thinking) {
+  final t = thinking.length > 6000
+      ? thinking.substring(thinking.length - 6000)
+      : thinking;
+  if (t.length < 300) return false;
+  // La même ligne, encore et encore.
+  final lines = t
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+  if (lines.length >= 7) {
+    final last = lines.sublist(lines.length - 7, lines.length - 1);
+    if (last.first.length >= 8 && last.every((l) => l == last.first)) {
+      return true;
+    }
+  }
+  // Un même motif répété (sur une seule ligne) : la fin du texte est
+  // périodique.
+  final end = t.trimRight();
+  for (var unit = 1; unit <= 80; unit++) {
+    var n = unit * 25;
+    if (n < 300) n = 300;
+    if (n + unit > end.length) break;
+    final start = end.length - n;
+    var periodic = true;
+    for (var i = start; i < end.length; i++) {
+      if (end.codeUnitAt(i) != end.codeUnitAt(i - unit)) {
+        periodic = false;
+        break;
+      }
+    }
+    if (periodic && end.substring(start).trim().isNotEmpty) return true;
+  }
+  return false;
+}
+
 /// Un morceau d'appel d'outil natif : beaucoup de modèles (gpt-oss, GPT, Qwen,
 /// Llama…) appellent les outils décrits dans la consigne par le canal `tool_calls`
 /// au lieu d'écrire le bloc JSON demandé. Sans lui, la réponse paraît vide.

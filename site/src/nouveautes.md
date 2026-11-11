@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.86 — 11 novembre 2026 — Une réflexion qui radote est coupée tout de suite
+- Quand le modèle se met à répéter la même chose dans sa réflexion (le même motif des dizaines de fois, ou la même phrase ligne après ligne), NEXORA coupe la réponse aussitôt au lieu d'attendre sa limite de longueur.
+- Vous gagnez du temps et des tokens : en essai réel, une seule de ces boucles consommait jusqu'à 16 000 tokens avant de rendre une réponse vide.
+- L'agent relance aussitôt avec une réflexion courte, ce qui casse la boucle (voir 2.2.85).
+- Prudent : une réflexion normale, du code ou une courte répétition ne sont jamais coupés ; vérifié sur plus de 350 fichiers réels.
+
 ## 2.2.85 — 11 novembre 2026 — L'agent ne s'arrête plus sur une réflexion qui tourne en rond
 - Corrigé : en essai réel, pour « ajoute truncateMiddle et son test », le modèle gratuit réfléchissait en boucle (« '…' '…' '…' => » répété) jusqu'à sa limite : trois réponses vides, et la session s'arrêtait avec ses brouillons, sans finir.
 - Les deux relances ne reprennent plus les mêmes réglages : elles demandent une réflexion courte et tirent la réponse au sort autrement, ce qui casse la boucle. Rejouée ainsi, la même demande donne aussitôt l'action suivante.
