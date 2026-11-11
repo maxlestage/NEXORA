@@ -157,6 +157,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin "$SHA"
+          # L'état de master avant la fusion : pour savoir si l'app iOS a changé.
+          echo "BEFORE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           if git merge-base --is-ancestor "$SHA" HEAD; then
             echo "Déjà dans master."
             exit 0
@@ -191,4 +193,9 @@ jobs:
           gh workflow run pages.yml --ref master --repo "$GITHUB_REPOSITORY"
           gh workflow run heroku.yml --ref master --repo "$GITHUB_REPOSITORY"
           gh workflow run app.yml --ref master --repo "$GITHUB_REPOSITORY"
-          gh workflow run testflight.yml --ref master --repo "$GITHUB_REPOSITORY"
+          # TestFlight envoie l'app iOS (Swift) : seulement si elle a changé.
+          if git diff --name-only "$BEFORE" HEAD | grep -qE '^(ios/|app/assets/(nouveautes\.md|models\.json)|\.github/workflows/testflight\.yml)'; then
+            gh workflow run testflight.yml --ref master --repo "$GITHUB_REPOSITORY"
+          else
+            echo "App iOS inchangée : pas d'envoi sur TestFlight."
+          fi

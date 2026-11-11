@@ -72,3 +72,11 @@ Options : `GITHUB_CLIENT_ID` (réglage de build) active le bouton « Se connecte
 `.github/workflows/ci.yml` lance `swift test` du cœur sous Linux et vérifie que les catalogues
 sont à jour, puis, quand `ios/` a changé, génère le projet et lance `xcodebuild test` sur un
 simulateur iPhone du runner `xcode-27`. La fusion automatique dans master attend ces deux jobs.
+
+## TestFlight
+
+C'est cette app qui part sur TestFlight (`.github/workflows/testflight.yml`), quand `ios/` change
+sur master, sur un tag `v*` ou à la main. Version : `MARKETING_VERSION` dans `project.yml`, la même
+que `SettingsStore.appVersion` et que la première entrée de `Nexora/Resources/nouveautes-ios.md`
+(un test le vérifie). Le numéro de build est celui de l'exécution du workflow.
+
