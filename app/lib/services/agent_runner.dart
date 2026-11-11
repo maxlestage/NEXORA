@@ -2201,7 +2201,10 @@ class AgentRun extends ChangeNotifier {
                           'sans aucune réflexion.',
               ),
             );
-            reply = await _ask(history);
+            // Mêmes réglages, même boucle : la relance réfléchit moins et
+            // tire au sort autrement (en essai réel, la réflexion de GPT-OSS
+            // tournait en rond jusqu'à la limite, trois fois de suite).
+            reply = await _ask(history, calm: true);
           }
           if (reply == null || _stop) break;
           if (reply.trim().isEmpty) {
@@ -2684,7 +2687,22 @@ class AgentRun extends ChangeNotifier {
 
   /// Une étape : la réponse du modèle, avec de nouveaux essais si le réseau
   /// coupe ou si le fournisseur tarde (la mission ne s'arrête pas pour si peu).
-  Future<String?> _ask(List<LlmMessage> history) async {
+  /// Les réglages d'une requête de l'agent. Une relance après une réponse vide
+  /// ([calm]) demande la réflexion la plus courte et tire au sort autrement :
+  /// avec les mêmes réglages, le modèle refaisait la même boucle.
+  @visibleForTesting
+  static LlmOptions askOptions(ThinkLevel? level, {bool calm = false}) =>
+      LlmOptions(
+        temperature: calm ? 0.7 : 0.2,
+        maxTokens: level == null || level.maxTokens < 16000
+            ? 16000
+            : level.maxTokens,
+        level: calm ? ThinkLevel.faible : level,
+      );
+
+  /// Avec [calm] (relance après une réponse vide) : réflexion au plus court
+  /// et température plus haute, pour sortir d'une réflexion qui tourne en rond.
+  Future<String?> _ask(List<LlmMessage> history, {bool calm = false}) async {
     for (var attempt = 0; ; attempt++) {
       // Le modèle de cet essai : ses dépenses et ses erreurs lui reviennent,
       // même s'il change pendant la réponse.
@@ -2701,13 +2719,7 @@ class AgentRun extends ChangeNotifier {
             model: m,
             messages: history,
             system: _system,
-            options: LlmOptions(
-              temperature: 0.2,
-              maxTokens: level == null || level!.maxTokens < 16000
-                  ? 16000
-                  : level!.maxTokens,
-              level: level,
-            ),
+            options: askOptions(level, calm: calm),
             onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(p, h),
             onUsage: onUsage == null ? null : (t) => onUsage!(p, m, t),
           ),
