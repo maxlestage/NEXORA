@@ -3,19 +3,42 @@ import NexoraKit
 import Observation
 
 /// Les agents : ceux fournis avec NEXORA et les vôtres (créés, importés depuis un
-/// fichier Markdown `.claude/agents/*.md` ou une adresse).
+/// fichier Markdown `.claude/agents/*.md` ou une adresse), plus les skills et les
+/// commandes installées depuis la bibliothèque (règles dans `UserLibrary`).
 @MainActor
 @Observable
 final class AgentLibrary {
     private(set) var custom: [Agent] = []
+    /// Les skills installées (savoir-faire chargés quand ils servent).
+    private(set) var skills: [Skill] = []
+    /// Les commandes installées (`/nom` dans le chat).
+    private(set) var commands: [SlashCommand] = []
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: "agents"),
-           let list = try? JSONDecoder().decode([Agent].self, from: data) {
-            custom = list
-        }
+        let lib = UserLibrary.decode(
+            agents: defaults.data(forKey: "agents"), skills: defaults.data(forKey: "skills"),
+            commands: defaults.data(forKey: "commands")
+        )
+        custom = lib.agents
+        skills = lib.skills
+        commands = lib.commands
+    }
+
+    /// Les agents, skills et commandes de l'utilisateur, pour les règles du cœur.
+    var library: UserLibrary { UserLibrary(agents: custom, skills: skills, commands: commands) }
+
+    /// Applique une modification de la bibliothèque, puis l'enregistre.
+    @discardableResult
+    private func update<T>(_ f: (inout UserLibrary) -> T) -> T {
+        var lib = library
+        let out = f(&lib)
+        custom = lib.agents
+        skills = lib.skills
+        commands = lib.commands
+        persist()
+        return out
     }
 
     var all: [Agent] { Catalog.builtinAgents + custom }
@@ -35,6 +58,7 @@ final class AgentLibrary {
 
     /// L'agent appelé par `@nom` (nom ou identifiant, sans tenir compte de la casse).
     func named(_ name: String) -> Agent? {
+        if let a = agentNamed(name) { return a }
         let n = name.lowercased()
         return all.first { a in
             a.name.lowercased().replacingOccurrences(of: " ", with: "-") == n
@@ -67,34 +91,60 @@ final class AgentLibrary {
         return a
     }
 
-    /// Importe un ou plusieurs agents depuis du Markdown.
+    /// Importe un agent depuis du Markdown. Réimporter la même source remplace
+    /// l'ancienne version.
     @discardableResult
     func importMarkdown(_ text: String, source: String? = nil) -> Agent? {
-        guard let a = Agent.fromMarkdown(text, id: "custom:\(newId())", source: source) else { return nil }
-        save(a)
-        return a
+        update { $0.installMarkdown(text, source: source) }
     }
 
-    /// Importe un agent depuis une adresse (fichier brut GitHub, gist…).
+    /// Importe un agent depuis une adresse (fichier brut, page github.com/…/blob/…, gist).
     func importURL(_ raw: String) async throws -> Agent {
-        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Une page github.com/…/blob/… devient le fichier brut.
-        if s.contains("github.com/"), s.contains("/blob/") {
-            s = s.replacingOccurrences(of: "github.com/", with: "raw.githubusercontent.com/")
-                .replacingOccurrences(of: "/blob/", with: "/")
-        }
-        guard let url = URL(string: s) else { throw GitHubError("Adresse invalide") }
-        let (data, response) = try await URLSession.shared.data(from: url)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw GitHubError("Fichier introuvable", status: http.statusCode)
-        }
-        guard let a = importMarkdown(String(decoding: data, as: UTF8.self), source: s) else {
+        let url = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = try await GitHubAPI(token: nil).libraryDownload(url)
+        guard let a = importMarkdown(text, source: url) else {
             throw GitHubError("Ce fichier ne contient pas d'agent (consigne vide).")
         }
         return a
     }
 
+    // MARK: - Bibliothèque : sous-agents, skills et commandes
+
+    /// Un sous-agent par son nom (les vôtres d'abord).
+    func agentNamed(_ name: String) -> Agent? { library.agentNamed(name) }
+
+    func skillNamed(_ name: String) -> Skill? { library.skillNamed(name) }
+
+    func commandNamed(_ name: String) -> SlashCommand? { library.commandNamed(name) }
+
+    func setSkillAlways(_ id: String, _ v: Bool) { update { $0.setSkillAlways(id, v) } }
+
+    func removeSkill(_ id: String) { update { $0.removeSkill(id) } }
+
+    func removeCommand(_ id: String) { update { $0.removeCommand(id) } }
+
+    /// Est-il déjà installé (même fichier source) ?
+    func isInstalled(_ item: LibraryItem) -> Bool { library.isInstalled(item) }
+
+    /// Installe un élément d'un dépôt dont le fichier est déjà lu.
+    @discardableResult
+    func install(_ item: LibraryItem, text: String) -> Bool { update { $0.install(item, text: text) } }
+
+    /// Télécharge et installe un élément d'un dépôt (le réinstaller le met à jour).
+    func installItem(_ api: GitHubAPI, _ item: LibraryItem) async -> Bool {
+        guard let text = try? await api.libraryRawFile(item.owner, item.repo, ref: item.ref, path: item.path) else { return false }
+        return install(item, text: text)
+    }
+
+    /// Le contenu d'un fichier d'une skill (scripts, références), lu sur GitHub.
+    func readSkillFile(_ api: GitHubAPI, _ skill: Skill, _ file: String) async throws -> String {
+        try await api.librarySkillFile(skill, file: file)
+    }
+
     private func persist() {
-        defaults.set(try? JSONEncoder().encode(custom), forKey: "agents")
+        let data = library.encoded()
+        defaults.set(data.agents, forKey: "agents")
+        defaults.set(data.skills, forKey: "skills")
+        defaults.set(data.commands, forKey: "commands")
     }
 }
