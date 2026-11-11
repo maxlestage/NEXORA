@@ -12,6 +12,9 @@ enum Reply: Sendable {
     case native(String, String)
     /// Une erreur HTTP.
     case error(Int, String)
+    /// Du texte, puis la connexion se ferme avant la fin (ni raison d'arrêt, ni
+    /// `[DONE]`).
+    case cut(String)
 }
 
 /// Un faux modèle : rend les réponses prévues, dans l'ordre (ou calculées d'après
@@ -113,6 +116,8 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
                 Self.chunk(["tool_calls": [["index": 0, "function": ["arguments": String(args.dropFirst(half))]]]], finish: "tool_calls"),
                 "data: [DONE]\n",
             ].joined(separator: "\n")
+        case .cut(let t)?:
+            text = Self.chunk(["content": t])
         case .error(let s, let b)?:
             status = s
             text = b
