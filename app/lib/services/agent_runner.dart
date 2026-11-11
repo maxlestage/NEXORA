@@ -527,6 +527,43 @@ List<String>? erasedLines(String original, String current, String content) {
   return gone.length * 2 > lines.length ? gone : null;
 }
 
+/// Un `write_file` dont le contenu n'est que du code nouveau à ajouter à
+/// [before] (une fonction, un test) : bien plus court que le fichier, aucune
+/// ligne de code déjà présente (une sur cinq au plus, jamais la première), pas
+/// d'import, et il commence au premier niveau (sans retrait) dans un langage de
+/// code où une déclaration peut suivre la fin du fichier (pas la documentation,
+/// qu'on réécrit souvent en entier). Une vraie réécriture reprend
+/// des lignes du fichier : elle n'est pas visée.
+bool pureAddition(String path, String before, String content) {
+  final ext = path.contains('.')
+      ? path.substring(path.lastIndexOf('.') + 1).toLowerCase()
+      : '';
+  const top = {
+    'dart', 'rs', 'py', 'go', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'kt', //
+    'swift', 'rb', 'sh',
+  };
+  if (!top.contains(ext)) return false;
+  if (before.trim().isEmpty || content.trim().isEmpty) return false;
+  if (content.length * 10 > before.length * 6) return false;
+  bool real(String l) => l.length >= 4 && RegExp(r'[A-Za-z0-9À-ÿ]').hasMatch(l);
+  final lines = content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+  final first = lines.first;
+  if (first.startsWith(' ') || first.startsWith('\t')) return false;
+  // Un import du fichier (au premier niveau) : il irait en tête, pas à la fin.
+  final imports = RegExp(
+    r'^(import|export|library|part|use|package|from|require|#include)\b',
+  );
+  if (lines.any(imports.hasMatch)) return false;
+  final known = {for (final l in before.split('\n')) l.trim()};
+  final real0 = [
+    for (final l in lines)
+      if (real(l.trim())) l.trim(),
+  ];
+  if (real0.length < 2 || known.contains(real0.first)) return false;
+  final shared = real0.where(known.contains).length;
+  return shared * 5 <= real0.length;
+}
+
 /// Les tournures d'un résumé qui laisse du travail de côté.
 final unfinishedWork = RegExp(
   r"je (pourrais|peux aussi|pourrai)|si tu (le )?(veux|souhaites)|si vous (le )?"
@@ -4413,20 +4450,30 @@ class AgentRun extends ChangeNotifier {
               'ajouter (pas tout le fichier) dans un bloc de code (```), sans '
               'bloc JSON : il sera ajouté à la fin, le reste du fichier est gardé.';
         }
-        if (content != null && append) {
+        // Ajoute à la fin ; garde les avertissements (syntaxe, format) de
+        // edit_file.
+        Future<String> appendToEnd(String text, String done) async {
           final r = await _exec(
             ToolCall('edit_file', {
               'path': p,
               'old': '',
-              'new': content,
+              'new': text,
               'at_end': true,
             }, thought: call.thought),
           );
-          return r.startsWith('OK')
-              ? 'OK, texte ajouté à la fin de $p en brouillon '
-                    '(${content.length} caractères). Le reste du fichier est '
-                    'inchangé.'
-              : r;
+          if (!r.startsWith('OK')) return r;
+          const tail = 'est inchangé.';
+          final at = r.indexOf(tail);
+          return '$done${at < 0 ? '' : r.substring(at + tail.length)}';
+        }
+
+        if (content != null && append) {
+          return appendToEnd(
+            content,
+            'OK, texte ajouté à la fin de $p en brouillon '
+            '(${content.length} caractères). Le reste du fichier est '
+            'inchangé.',
+          );
         }
         if (content == null) {
           // Le contenu viendra au tour suivant : la réponse est attendue.
@@ -4461,10 +4508,33 @@ class AgentRun extends ChangeNotifier {
           }
         }
         final before = changes.containsKey(p) ? changes[p] : originals[p];
-        if (before != null &&
+        final short =
+            before != null &&
             before.length > 8000 &&
-            content.length < before.length * 0.6 &&
-            call.args['force'] != true) {
+            content.length < before.length * 0.6;
+        final original = originals[p];
+        final gone = original == null || before == null
+            ? null
+            : erasedLines(original, before, content);
+        // Seulement du code NOUVEAU (une fonction, un test), bien plus court
+        // que le fichier : le modèle voulait l'ajouter, pas tout remplacer.
+        // Essai réel : write_file de « String shortModelName(…) {…} » seul sur
+        // un fichier de 19 000 caractères, refusé, puis quatre étapes pour
+        // retrouver comment l'ajouter. Écrit tel quel, il aurait effacé le
+        // fichier : il est ajouté à la fin, rien n'est perdu.
+        if ((short || gone != null) &&
+            call.args['force'] != true &&
+            pureAddition(p, before!, content)) {
+          return appendToEnd(
+            content,
+            'OK, ce texte ne reprend aucune ligne de $p : c\'est un AJOUT. Il '
+            'a été ajouté à la FIN du fichier en brouillon (write_file aurait '
+            'remplacé tout le fichier ; le code existant est gardé). S\'il doit '
+            'aller ailleurs, déplace-le avec edit_file. Le reste du fichier est '
+            'inchangé.',
+          );
+        }
+        if (short && call.args['force'] != true) {
           return 'ERREUR : $p fait ${before.length} caractères et ce contenu '
               '${content.length} : la fin du fichier serait perdue. Utilise '
               'edit_file pour ne changer qu\'un passage (ou "force": true si tu '
@@ -4473,10 +4543,6 @@ class AgentRun extends ChangeNotifier {
         // Le contenu efface la plupart du code existant : le modèle n'a
         // souvent écrit que son ajout (une fonction), et tout le reste du
         // fichier disparaîtrait. On refuse, avec la bonne façon d'ajouter.
-        final original = originals[p];
-        final gone = original == null || before == null
-            ? null
-            : erasedLines(original, before, content);
         if (gone != null && call.args['force'] != true) {
           final total = erasedLines(original!, before!, '')!.length;
           // Les lignes les plus parlantes d'abord : du code, pas un commentaire.

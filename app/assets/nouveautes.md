@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.93 — 11 novembre 2026 — Une fonction ajoutée n'est plus refusée
+- Corrigé : en essai réel, pour « ajoute shortModelName dans llm_parsers.dart », le modèle écrivait le fichier avec seulement sa nouvelle fonction. NEXORA refusait (tout le reste du fichier aurait été effacé), et le modèle mettait quatre étapes à trouver comment l'ajouter.
+- Quand ce texte n'est que du code nouveau (une fonction, un test, sans aucune ligne du fichier ni import), il est maintenant ajouté à la fin du fichier, et le code existant est gardé.
+- Les avertissements (syntaxe, format) restent affichés après un ajout à la fin.
+- Prudent : une vraie réécriture, un texte avec des imports, un morceau de fonction ou la documentation sont toujours refusés comme avant ; « force » remplace toujours le fichier.
+
 ## 2.2.92 — 11 novembre 2026 — L'agent ajoute du code à la ligne qu'il vise
 - Corrigé : en essai réel, pour « ajoute reading_time dans site/src/lib.rs », le modèle demandait de modifier « la ligne 600 » sans envoyer de texte, trois fois de suite, puis avec un passage vide. NEXORA répondait « il manque le texte » ou « old vide », et quatre étapes étaient perdues.
 - Un numéro de ligne seul montre maintenant les lignes autour au modèle, puis insère après cette ligne le texte qu'il envoie juste après.
