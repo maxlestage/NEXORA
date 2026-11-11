@@ -660,9 +660,15 @@ class AgentRun extends ChangeNotifier {
 
   /// Pour le témoin de crédit : limites de débit, tokens de chaque étape, erreurs
   /// de clé ou de quota.
-  final void Function(Map<String, String> headers)? onHeaders;
-  final void Function(TokenUsage usage)? onUsage;
-  final void Function(Object error)? onError;
+  ///
+  /// Chaque rappel reçoit le fournisseur (et le modèle) qui a vraiment répondu :
+  /// après un changement de modèle (bascule automatique ou choix pendant la
+  /// session), les dépenses et les erreurs vont au bon fournisseur.
+  final void Function(ProviderDef provider, Map<String, String> headers)?
+  onHeaders;
+  final void Function(ProviderDef provider, String model, TokenUsage usage)?
+  onUsage;
+  final void Function(ProviderDef provider, Object error)? onError;
 
   /// Les skills installées (chargées à la demande avec use_skill).
   List<Skill> skills;
@@ -2143,15 +2149,19 @@ class AgentRun extends ChangeNotifier {
   /// coupe ou si le fournisseur tarde (la mission ne s'arrête pas pour si peu).
   Future<String?> _ask(List<LlmMessage> history) async {
     for (var attempt = 0; ; attempt++) {
+      // Le modèle de cet essai : ses dépenses et ses erreurs lui reviennent,
+      // même s'il change pendant la réponse.
+      final p = provider;
+      final m = model;
       try {
         final cancel = _cancel = Completer<String?>();
         if (_stop) return null;
         return await Future.any<String?>([
           cancel.future,
           llm.complete(
-            provider: provider,
+            provider: p,
             apiKey: apiKey,
-            model: model,
+            model: m,
             messages: history,
             system: _system,
             options: LlmOptions(
@@ -2161,12 +2171,12 @@ class AgentRun extends ChangeNotifier {
                   : level!.maxTokens,
               level: level,
             ),
-            onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
-            onUsage: onUsage,
+            onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(p, h),
+            onUsage: onUsage == null ? null : (t) => onUsage!(p, m, t),
           ),
         ]);
       } on LlmException catch (e) {
-        onError?.call(e);
+        onError?.call(p, e);
         if (_stop) return null;
         // Conversation trop longue : on l'allège et on redemande.
         if (_tooLong(e) && attempt < stepRetries) {
@@ -2216,12 +2226,14 @@ class AgentRun extends ChangeNotifier {
   /// avec la session.
   Future<String?> _askOnce({required String system, required String prompt}) {
     final cancel = _cancel = Completer<String?>();
+    final p = provider;
+    final m = model;
     return Future.any<String?>([
       cancel.future,
       llm.complete(
-        provider: provider,
+        provider: p,
         apiKey: apiKey,
-        model: model,
+        model: m,
         messages: [LlmMessage('user', prompt)],
         system: system,
         options: LlmOptions(
@@ -2231,8 +2243,8 @@ class AgentRun extends ChangeNotifier {
               : level!.maxTokens,
           level: level,
         ),
-        onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(h),
-        onUsage: onUsage,
+        onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(p, h),
+        onUsage: onUsage == null ? null : (t) => onUsage!(p, m, t),
       ),
     ]);
   }
@@ -3949,9 +3961,10 @@ class AgentRun extends ChangeNotifier {
     required ProviderDef provider,
     required String? apiKey,
     Agent? agent,
-    void Function(Map<String, String> headers)? onHeaders,
-    void Function(TokenUsage usage)? onUsage,
-    void Function(Object error)? onError,
+    void Function(ProviderDef provider, Map<String, String> headers)? onHeaders,
+    void Function(ProviderDef provider, String model, TokenUsage usage)?
+    onUsage,
+    void Function(ProviderDef provider, Object error)? onError,
   }) {
     final repos = ((j['repos'] as List?) ?? const [])
         .map((r) => RepoTarget.fromJson(r as Map))

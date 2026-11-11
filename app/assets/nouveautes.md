@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.60 — 11 novembre 2026 — Le crédit de chaque IA reste juste quand l'agent change de modèle
+- Corrigé : quand une session passait à un autre modèle (bascule automatique après une panne ou un crédit épuisé, ou modèle changé par vous pendant la session), tout ce que l'agent dépensait ensuite était compté chez le fournisseur de départ.
+- Le témoin de crédit compte maintenant chaque réponse chez l'IA qui a vraiment répondu, avec son vrai prix : le solde du premier fournisseur ne baisse plus à tort.
+- L'alerte « crédit épuisé » ou « clé refusée » reste affichée sur le bon fournisseur, au lieu d'être effacée par les réponses du modèle de secours.
+- Le solde de l'IA utilisée est relu après chaque étape, aussi dans les sessions rouvertes après un redémarrage de l'app.
+
 ## 2.2.59 — 11 novembre 2026 — Les tests Rust de l'agent vont au bon endroit
 - Corrigé : dans un projet Rust, l'agent écrivait parfois un test dans le dossier « tests/ » qui appelait une fonction du programme principal (src/main.rs), par exemple « app() » pour tester une nouvelle route du site. Ce test ne peut pas compiler à cet endroit, et la CI échouait.
 - L'agent est prévenu dès qu'il écrit un tel test, avec la bonne place : le module de tests déjà présent dans src/main.rs, puis la suppression du fichier en trop.

@@ -80,10 +80,9 @@ class SessionState extends ChangeNotifier {
           provider: p,
           apiKey: settings.key(p.id),
           agent: agents.byId(j['agent'] as String?),
-          onHeaders: (h) => usage?.recordHeaders(p.id, h),
-          onUsage: (t) =>
-              usage?.recordUsage(p.id, model: j['model'] as String?, usage: t),
-          onError: (e) => usage?.recordError(p.id, e),
+          onHeaders: _onHeaders,
+          onUsage: _onUsage,
+          onError: _onError,
         );
         _equip(run);
         _attach(run);
@@ -94,6 +93,18 @@ class SessionState extends ChangeNotifier {
     loading = false;
     notifyListeners();
   }
+
+  /// Le témoin de crédit, au nom du fournisseur qui a vraiment répondu (celui
+  /// de la session peut changer : bascule automatique, choix d'un autre modèle).
+  void _onHeaders(ProviderDef p, Map<String, String> h) =>
+      usage?.recordHeaders(p.id, h);
+
+  void _onUsage(ProviderDef p, String model, TokenUsage t) {
+    usage?.recordUsage(p.id, model: model, usage: t);
+    usage?.refreshSoon(p, settings.key(p.id));
+  }
+
+  void _onError(ProviderDef p, Object e) => usage?.recordError(p.id, e);
 
   /// Un autre modèle pour continuer quand celui de la session ne répond plus :
   /// le modèle par défaut, puis chaque fournisseur qui a une clé (son meilleur
@@ -240,12 +251,9 @@ class SessionState extends ChangeNotifier {
       level: l,
       maxSteps: l.agentSteps,
       extraRepos: repos.skip(1).toList(),
-      onHeaders: (h) => usage?.recordHeaders(p.id, h),
-      onUsage: (t) {
-        usage?.recordUsage(p.id, model: model.model, usage: t);
-        usage?.refreshSoon(p, settings.key(p.id));
-      },
-      onError: (e) => usage?.recordError(p.id, e),
+      onHeaders: _onHeaders,
+      onUsage: _onUsage,
+      onError: _onError,
     );
     run.autoCi = autoCi ?? settings.agentAutoCi;
     run.autoMerge = autoMerge ?? settings.agentAutoMerge;
