@@ -129,3 +129,44 @@ struct StabilityTests {
         #expect(book.of("groq").level(Date()) == .low)
     }
 }
+
+@Suite("L'argent dépensé, visible et à jour")
+struct SpendTests {
+    @Test("une session compte ses tokens et ses dollars, et les garde")
+    @MainActor
+    func sessionSpend() async throws {
+        let llm = ScriptLLM([NexoraKitTests.act(["tool": "finish", "args": ["summary": "ok"]])])
+        let run = makeRun(llm, hub: Routes { _ in (200, #"{"tree":[]}"#) }, task: "Dis bonjour", checks: false)
+        let anthropic = try #require(Catalog.providers.first { $0.id == "anthropic" })
+        run.account(anthropic, "claude-opus-5-5", TokenUsage(1_000_000, 100_000))
+        let price = try #require(Catalog.price(provider: "anthropic", model: "claude-opus-5-5"))
+        #expect(abs(run.spentCost - price.cost(1_000_000, 100_000)) < 1e-9)
+        #expect(run.spentIn == 1_000_000 && run.spentOut == 100_000 && !run.costPartial)
+        await run.run()
+        #expect(run.spentIn > 1_000_000) // la réponse du modèle est comptée aussi
+        let restored = try #require(AgentRun.restore(
+            run.toJSON(), llm: LLMClient(transport: llm), github: GitHubAPI(token: nil), provider: run.provider, apiKey: nil
+        ))
+        #expect(restored.spentIn == run.spentIn && abs(restored.spentCost - run.spentCost) < 1e-9)
+    }
+
+    @Test("le témoin montre l'argent du jour avant la fenêtre de limite")
+    func badgeShowsMoney() {
+        let p = Catalog.providers.first { $0.id == "anthropic" }!
+        var u = ProviderUsage("anthropic")
+        u.windows = [RateWindow(kind: "tokens", window: "min", limit: 12_000_000, remaining: 12_000_000)]
+        let before = UsageText.summary(p, u)
+        #expect(!before.contains("$"))
+        u.costToday = 0.42
+        u.costMonth = 3.1
+        let after = UsageText.summary(p, u)
+        #expect(after.contains("0,42") && after.contains("ce mois"))
+    }
+
+    @Test("texte de consommation d'une session")
+    func sessionText() {
+        #expect(UsageText.session(tokensIn: 1_200_000, tokensOut: 30_000, cost: 3.4, partial: false).contains("≈ 3,40 $"))
+        #expect(UsageText.session(tokensIn: 10, tokensOut: 5, cost: 0, partial: false).hasSuffix("gratuit"))
+        #expect(UsageText.session(tokensIn: 10, tokensOut: 5, cost: 0, partial: true).hasSuffix("prix inconnu"))
+    }
+}

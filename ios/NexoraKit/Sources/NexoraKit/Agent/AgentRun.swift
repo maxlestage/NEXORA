@@ -123,6 +123,24 @@ public final class AgentRun {
     @ObservationIgnored public var fallback: (@MainActor (Error, Set<String>) async -> (ProviderDef, String?, String)?)?
 
     @ObservationIgnored var tried: Set<String> = []
+    /// Ce que la session a consommé : tokens envoyés et reçus, et dollars (quand
+    /// le prix du modèle est connu). Mis à jour à chaque réponse, affiché en direct.
+    public internal(set) var spentIn = 0
+    public internal(set) var spentOut = 0
+    public internal(set) var spentCost: Double = 0
+    /// Le prix d'au moins une réponse était inconnu : le coût est un minimum.
+    public internal(set) var costPartial = false
+
+    /// Compte une réponse dans la consommation de la session.
+    func account(_ p: ProviderDef, _ m: String, _ u: TokenUsage) {
+        spentIn += u.input
+        spentOut += u.output
+        if let price = Catalog.price(provider: p.id, model: m) {
+            spentCost += price.cost(u.input, u.output)
+        } else if !(p.free && !p.needsKey) && !p.local {
+            costPartial = true
+        }
+    }
     /// Le fournisseur a-t-il déjà atteint sa limite (témoin de crédit) ? La
     /// session passe alors tout de suite à un autre modèle.
     @ObservationIgnored public var isBlocked: (@MainActor (String) -> Bool)?
@@ -762,14 +780,15 @@ public final class AgentRun {
             if let s = d.stop { stop = s }
         }
         if let stop { onStop?(stop) }
-        if let onUsage {
-            if total.total > 0 {
-                onUsage(p, m, total)
-            } else {
-                let input = messages.reduce(0) { $0 + $1.content.len } + system.len
-                onUsage(p, m, TokenUsage(Int((Double(input) / 4).rounded(.up)), Int((Double(text.len) / 4).rounded(.up))))
-            }
+        let used: TokenUsage
+        if total.total > 0 {
+            used = total
+        } else {
+            let input = messages.reduce(0) { $0 + $1.content.len } + system.len
+            used = TokenUsage(Int((Double(input) / 4).rounded(.up)), Int((Double(text.len) / 4).rounded(.up)))
         }
+        account(p, m, used)
+        onUsage?(p, m, used)
         return text.trim()
     }
 
