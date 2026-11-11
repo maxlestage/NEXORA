@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.71 — 11 novembre 2026 — L'agent repère le code Dart qui ne compile pas
+- Corrigé : en essai réel, l'agent écrivait « padLeft(2, \'0\') » à l'intérieur d'un « ${…} ». Ce code Dart ne compile pas, mais l'agent terminait quand même et la CI échouait.
+- Chaque fichier Dart écrit ou modifié par l'agent est maintenant relu aussitôt : barre oblique inverse hors d'une chaîne, chaîne jamais fermée, parenthèse ou accolade oubliée. L'agent est prévenu avec la ligne exacte et corrige tout de suite.
+- Tant qu'un tel fichier ne compile pas, l'agent ne peut pas terminer : il est renvoyé le corriger (deux fois au plus).
+- Aucune fausse alerte : la relecture a été vérifiée sur plus de 17 000 fichiers Dart réels.
+
 ## 2.2.70 — 11 novembre 2026 — Chaque commentaire reste sur sa fonction
 - Corrigé : quand l'agent ajoutait une fonction juste avant une autre, il la glissait entre cette autre fonction et son commentaire de documentation. Le commentaire décrivait alors la mauvaise fonction.
 - Le nouvel ajout va maintenant au-dessus du commentaire, qui reste collé à sa fonction. Les annotations (@override, #[test], routes du site…) restent aussi à leur place.

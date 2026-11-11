@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/agent.dart';
 import '../models/provider.dart';
 import '../models/skill.dart';
+import 'dart_check.dart';
 import 'diff.dart';
 import 'github_api.dart';
 import 'llm_client.dart';
@@ -1956,6 +1957,8 @@ class AgentRun extends ChangeNotifier {
       // Déjà renvoyé écrire les tests, déjà relu.
       var testsAsked = false;
       var reviewed = false;
+      // Déjà renvoyé corriger du code qui ne compile pas (fois).
+      var brokenAsked = 0;
       var ciAsked = false;
       // Le premier tour d'une demande : ce que l'agent en a compris est affiché.
       var restate = true;
@@ -2292,6 +2295,27 @@ class AgentRun extends ChangeNotifier {
                     'pour ${untested.first} :${_testWhere(untested.first)}), '
                     'assure-toi qu\'ils tournent sur GitHub (workflow), puis rappelle '
                     'finish.$reminder',
+              ),
+            );
+            actsSince = 0;
+            nudged = true;
+            continue;
+          }
+          // Un fichier Dart qui ne compilera pas : l'agent est renvoyé le
+          // corriger avant de terminer (deux fois au plus), au lieu de laisser
+          // la CI échouer.
+          final broken = finish == null || brokenAsked >= 2
+              ? const <String>[]
+              : await _brokenDart();
+          if (finish != null && broken.isNotEmpty) {
+            brokenAsked++;
+            dropReminders(history);
+            history.add(
+              LlmMessage(
+                'user',
+                'Tu ne peux pas terminer : ce code ne compilera pas.'
+                    '${broken.join()}\n\nCorrige-le maintenant avec edit_file, '
+                    'puis rappelle finish (même résumé).$reminder',
               ),
             );
             actsSince = 0;
@@ -3152,11 +3176,51 @@ class AgentRun extends ChangeNotifier {
   /// au modèle (vide s'il n'y en a pas).
   Future<String> _pitfalls(String p) async {
     final text = changes[p];
-    if (text == null || !_rustTest.hasMatch(p)) return '';
+    if (text == null) return '';
+    if (p.endsWith('.dart')) return await _dartPitfalls(p, text);
+    if (!_rustTest.hasMatch(p)) return '';
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
     return rustTestHint(p, text, cargo: cargo, mainRs: mainRs) ?? '';
+  }
+
+  /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
+  /// chaîne, chaîne ou accolade jamais fermée…) : signalé tout de suite, au
+  /// lieu d'attendre l'échec de la CI. Une erreur déjà présente dans la
+  /// version d'origine n'est pas signalée (rien de certain à corriger).
+  Future<String> _dartPitfalls(String p, String text) async {
+    final hint = dartSyntaxHint(p, text);
+    if (hint == null) return '';
+    try {
+      final before = await original(p);
+      if (before != null && dartSyntaxError(before) != null) return '';
+    } catch (_) {}
+    return hint;
+  }
+
+  /// Les avertissements des brouillons Dart qui ne compileront pas (et qui
+  /// compilaient avant).
+  Future<List<String>> _brokenDart() async {
+    final out = <String>[];
+    for (final e in changes.entries) {
+      final text = e.value;
+      if (text == null || !e.key.endsWith('.dart')) continue;
+      final hint = await _dartPitfalls(e.key, text);
+      if (hint.isNotEmpty) out.add(hint);
+    }
+    return out;
+  }
+
+  /// L'avertissement à donner au modèle pour un fichier Dart qui ne compilera
+  /// pas, ou null.
+  static String? dartSyntaxHint(String path, String content) {
+    if (!path.endsWith('.dart')) return null;
+    final error = dartSyntaxError(content);
+    if (error == null) return null;
+    return '\n\nATTENTION : $path ne compilera pas, $error. Corrige ce passage '
+        'maintenant avec edit_file (recopie la ligne exacte dans "old"), sans '
+        'rien changer d\'autre.';
   }
 
   String get _mountHint =>
