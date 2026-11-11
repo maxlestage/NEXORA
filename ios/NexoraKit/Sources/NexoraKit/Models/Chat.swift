@@ -28,10 +28,13 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
     public var command: String?
     /// Votre avis : 1 (bonne), -1 (mauvaise), 0 (aucun).
     public var rating: Int
+    /// Les skills chargées pour cette réponse.
+    public var skills: [String] = []
 
     public init(
         role: Role, content: String, thinking: String = "", at: Date = Date(),
-        model: String? = nil, error: Bool = false, by: String? = nil, command: String? = nil
+        model: String? = nil, error: Bool = false, by: String? = nil, command: String? = nil,
+        skills: [String] = []
     ) {
         id = UUID()
         self.role = role
@@ -47,11 +50,13 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         self.by = by
         self.command = command
         rating = 0
+        self.skills = skills
     }
 
     enum CodingKeys: String, CodingKey {
         case role, content, thinking, at, model, error
         case tokensIn = "tin", tokensOut = "tout", cost, estimated = "est", by, command = "cmd", rating
+        case skills
     }
 
     public init(from decoder: Decoder) throws {
@@ -70,6 +75,7 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         by = try c.decodeIfPresent(String.self, forKey: .by)
         command = try c.decodeIfPresent(String.self, forKey: .command)
         rating = try c.decodeIfPresent(Int.self, forKey: .rating) ?? 0
+        skills = try c.decodeIfPresent([String].self, forKey: .skills) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -87,6 +93,7 @@ public struct ChatMessage: Codable, Sendable, Identifiable, Hashable {
         try c.encodeIfPresent(by, forKey: .by)
         try c.encodeIfPresent(command, forKey: .command)
         if rating != 0 { try c.encode(rating, forKey: .rating) }
+        if !skills.isEmpty { try c.encode(skills, forKey: .skills) }
     }
 }
 
@@ -103,11 +110,13 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
     public var messages: [ChatMessage]
     public var updated: Date
     public var pinned: Bool
+    /// Les skills chargées dans cette conversation (gardées pour la suite).
+    public var skills: [String] = []
 
     public init(
         id: String = newId(), title: String = "Nouvelle conversation", model: String? = nil,
         agentId: String? = nil, level: String? = nil, messages: [ChatMessage] = [],
-        updated: Date = Date(), pinned: Bool = false
+        updated: Date = Date(), pinned: Bool = false, skills: [String] = []
     ) {
         self.id = id
         self.title = title
@@ -117,10 +126,12 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
         self.messages = messages
         self.updated = updated
         self.pinned = pinned
+        self.skills = skills
     }
 
     enum CodingKeys: String, CodingKey {
         case id, title, model, agentId, level, messages, updated, pinned
+        case skills
     }
 
     public init(from decoder: Decoder) throws {
@@ -133,6 +144,7 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
         messages = try c.decodeIfPresent([ChatMessage].self, forKey: .messages) ?? []
         updated = ISO8601.parse(try c.decodeIfPresent(String.self, forKey: .updated)) ?? Date()
         pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        skills = try c.decodeIfPresent([String].self, forKey: .skills) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -145,6 +157,7 @@ public struct Conversation: Codable, Sendable, Identifiable, Hashable {
         try c.encode(messages, forKey: .messages)
         try c.encode(ISO8601.string(updated), forKey: .updated)
         try c.encode(pinned, forKey: .pinned)
+        if !skills.isEmpty { try c.encode(skills, forKey: .skills) }
     }
 
     /// Le coût total de la conversation, en dollars.

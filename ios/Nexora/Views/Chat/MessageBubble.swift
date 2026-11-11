@@ -18,22 +18,32 @@ struct MessageBubble: View {
 
     var body: some View {
         if message.role == .user {
-            HStack {
-                Spacer(minLength: 40)
-                Text(message.content)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .foregroundStyle(.white)
-                    .background(Color.accentColor.gradient, in: .rect(cornerRadius: 18))
-                    .contextMenu {
-                        Button("Copier", systemImage: "doc.on.doc") { UIPasteboard.general.string = message.content }
-                        if let onEdit { Button("Modifier et renvoyer", systemImage: "pencil", action: onEdit) }
-                    }
+            VStack(alignment: .trailing, spacing: 4) {
+                // La commande tapée (`/nom arguments`), au-dessus du message envoyé.
+                if let command = message.command {
+                    Text("⌘ \(command)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(Color.accentColor)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                HStack {
+                    Spacer(minLength: 40)
+                    Text(message.content)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(.white)
+                        .background(Color.accentColor.gradient, in: .rect(cornerRadius: 18))
+                        .contextMenu {
+                            Button("Copier", systemImage: "doc.on.doc") { UIPasteboard.general.string = message.content }
+                            if let onEdit { Button("Modifier et renvoyer", systemImage: "pencil", action: onEdit) }
+                        }
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 header
+                if !message.skills.isEmpty { skillChips }
                 if showThinking && !message.thinking.isEmpty { thinking }
                 if message.content.isEmpty && running {
                     TypingDots()
@@ -56,6 +66,21 @@ struct MessageBubble: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             if running { ProgressView().controlSize(.mini) }
+        }
+    }
+
+    /// Les skills chargées pour cette réponse.
+    private var skillChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(message.skills, id: \.self) { s in
+                    Label("Skill \(s)", systemImage: "puzzlepiece.extension")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.fill.tertiary, in: .capsule)
+                }
+            }
         }
     }
 
