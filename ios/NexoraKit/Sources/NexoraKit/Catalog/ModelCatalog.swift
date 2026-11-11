@@ -57,9 +57,44 @@ public struct ModelCatalog: Sendable, Hashable {
     public let updated: String
     public let providers: [String: [CatalogModel]]
 
+    /// Où trouver chaque modèle (le premier de ce nom), par fournisseur : `find` et
+    /// `price` étaient des recherches linéaires, appelées pour chaque modèle d'une
+    /// liste (des centaines chez OpenRouter), à chaque affichage.
+    private let lookup: Lookup
+
+    private struct Lookup: Sendable {
+        /// Identifiant exact → position.
+        var exact: [String: [String: Int]] = [:]
+        /// Identifiant en minuscules → position.
+        var lower: [String: [String: Int]] = [:]
+    }
+
     public init(updated: String, providers: [String: [CatalogModel]]) {
         self.updated = updated
         self.providers = providers
+        var l = Lookup()
+        for (p, list) in providers {
+            var exact: [String: Int] = [:]
+            var lower: [String: Int] = [:]
+            for (i, m) in list.enumerated() {
+                if exact[m.id] == nil { exact[m.id] = i }
+                let k = m.id.lowercased()
+                if lower[k] == nil { lower[k] = i }
+            }
+            l.exact[p] = exact
+            l.lower[p] = lower
+        }
+        lookup = l
+    }
+
+    // L'index se déduit des fournisseurs : il ne compte pas dans l'égalité.
+    public static func == (a: ModelCatalog, b: ModelCatalog) -> Bool {
+        a.updated == b.updated && a.providers == b.providers
+    }
+
+    public func hash(into h: inout Hasher) {
+        h.combine(updated)
+        h.combine(providers)
     }
 
     public static let empty = ModelCatalog(updated: "", providers: [:])
@@ -87,14 +122,15 @@ public struct ModelCatalog: Sendable, Hashable {
     }
 
     public func find(_ providerId: String, _ model: String) -> CatalogModel? {
-        providers[providerId]?.first { $0.id == model }
+        guard let list = providers[providerId], let i = lookup.exact[providerId]?[model] else { return nil }
+        return list[i]
     }
 
     /// Le prix d'un modèle dans le catalogue, s'il est connu.
     public func price(_ providerId: String, _ model: String) -> ModelPrice? {
-        let m = model.lowercased()
-        guard let c = providers[providerId]?.first(where: { $0.id.lowercased() == m }),
-              let i = c.input, let o = c.output else { return nil }
+        guard let list = providers[providerId], let at = lookup.lower[providerId]?[model.lowercased()] else { return nil }
+        let c = list[at]
+        guard let i = c.input, let o = c.output else { return nil }
         return ModelPrice(input: i, output: o)
     }
 
@@ -121,11 +157,23 @@ public struct ModelCatalog: Sendable, Hashable {
         return now.timeIntervalSince(lastFetch) >= refreshInterval
     }
 
-    static func day(_ s: String) -> Date? {
+    /// Le formateur des dates de sortie, créé une fois (il servait à chaque modèle
+    /// affiché) et utilisé sous verrou, dans le fuseau du moment comme avant.
+    private static let dayFormatter: Locked<DateFormatter> = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: String(s.prefix(10)))
+        return Locked(f)
+    }()
+
+    static func day(_ s: String) -> Date? {
+        if s.isEmpty { return nil }
+        let text = String(s.prefix(10))
+        return dayFormatter.update { f in
+            let zone = TimeZone.current
+            if f.timeZone != zone { f.timeZone = zone }
+            return f.date(from: text)
+        }
     }
 }
 

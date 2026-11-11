@@ -14,6 +14,9 @@ public protocol SessionFiles: Sendable {
     func loadAll() async -> [Data]
     func save(_ id: String, _ json: Data) async
     func delete(_ id: String) async
+    /// Toutes les sessions, décodées (les fichiers abîmés sont ignorés). Un rangement
+    /// sur fichiers les décode chez lui, hors du fil de l'appelant, une seule fois.
+    func loadObjects() async -> sending [[String: Any]]
 }
 
 extension SessionFiles {
@@ -24,7 +27,7 @@ extension SessionFiles {
     }
 
     /// Toutes les sessions, décodées.
-    public func loadObjects() async -> [[String: Any]] {
+    public func loadObjects() async -> sending [[String: Any]] {
         await loadAll().compactMap(SessionJSON.decode)
     }
 }
@@ -63,13 +66,23 @@ public actor FileSessionFiles: SessionFiles {
     }
 
     public func loadAll() async -> [Data] {
+        files().filter { SessionJSON.decode($0) != nil }
+    }
+
+    /// Les sessions décodées une seule fois (avant : une fois pour écarter les
+    /// fichiers abîmés, une fois de plus sur le fil de l'appelant).
+    public func loadObjects() async -> sending [[String: Any]] {
+        files().compactMap(SessionJSON.decode)
+    }
+
+    /// Le contenu des fichiers `.json`, par ordre de nom.
+    private func files() -> [Data] {
         let fm = FileManager.default
         guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return [] }
         var out: [Data] = []
         for name in names.sorted() where name.hasSuffix(".json") {
-            // Fichier abîmé : ignoré.
-            guard let d = try? Data(contentsOf: directory.appendingPathComponent(name)),
-                  SessionJSON.decode(d) != nil else { continue }
+            // Fichier illisible : ignoré.
+            guard let d = try? Data(contentsOf: directory.appendingPathComponent(name)) else { continue }
             out.append(d)
         }
         return out

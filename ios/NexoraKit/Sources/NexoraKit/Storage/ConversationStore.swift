@@ -88,6 +88,16 @@ public actor ConversationStore {
 
     public let directory: URL
 
+    /// L'index gardé en mémoire : lu une fois sur le disque, puis tenu à jour à
+    /// chaque écriture (l'acteur est le seul à écrire dans le dossier). Avant, chaque
+    /// enregistrement, chaque `load` et chaque conversation parcourue par la
+    /// recherche relisait et décodait tout `index.json`.
+    private var cached: [Meta]?
+    /// La dernière recherche et ses résultats : une recherche qui la prolonge (une
+    /// lettre tapée en plus) ne relit que les conversations déjà trouvées. Oubliée à
+    /// chaque écriture.
+    private var lastSearch: (query: String, ids: Set<String>)?
+
     public init(directory: URL) {
         self.directory = directory
     }
@@ -116,13 +126,31 @@ public actor ConversationStore {
     }
 
     private func rawIndex() -> [Meta] {
-        guard let data = try? Data(contentsOf: indexURL),
-              let list = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
-        // Une entrée abîmée ne fait pas perdre les autres.
-        return list.compactMap { item in
-            guard let d = try? JSONSerialization.data(withJSONObject: item) else { return nil }
-            return try? JSONDecoder().decode(Meta.self, from: d)
+        if let cached { return cached }
+        let list = Self.readIndex(indexURL)
+        cached = list
+        return list
+    }
+
+    /// L'index lu sur le disque. Une entrée abîmée ne fait pas perdre les autres.
+    static func readIndex(_ url: URL) -> [Meta] {
+        guard let data = try? Data(contentsOf: url),
+              let list = try? JSONDecoder().decode([Lenient<Meta>].self, from: data) else { return [] }
+        return list.compactMap(\.value)
+    }
+
+    /// Un élément de liste décodé sans faire échouer la liste entière.
+    struct Lenient<T: Decodable>: Decodable {
+        let value: T?
+
+        init(from decoder: Decoder) throws {
+            value = try? T(from: decoder)
         }
+    }
+
+    /// Le dossier a changé : la dernière recherche n'est plus valable.
+    private func changed() {
+        lastSearch = nil
     }
 
     public static func sorted(_ list: [Meta]) -> [Meta] {
@@ -158,6 +186,7 @@ public actor ConversationStore {
 
     /// Enregistre une conversation (ses messages, puis l'index), en écriture atomique.
     public func save(_ c: Conversation) throws {
+        changed()
         try ensureDirectory()
         let data = try JSONEncoder().encode(c.messages)
         try data.write(to: fileURL(c.id), options: .atomic)
@@ -171,17 +200,21 @@ public actor ConversationStore {
     /// Met à jour le résumé d'une conversation sans réécrire ses messages (titre,
     /// épingle…).
     public func saveMeta(_ m: Meta) throws {
+        changed()
         var list = rawIndex()
         if let i = list.firstIndex(where: { $0.id == m.id }) { list[i] = m } else { list.append(m) }
         try writeIndex(list)
     }
 
     public func delete(_ id: String) throws {
+        changed()
         try? FileManager.default.removeItem(at: fileURL(id))
         try writeIndex(rawIndex().filter { $0.id != id })
     }
 
     public func deleteAll() throws {
+        changed()
+        cached = nil
         try? FileManager.default.removeItem(at: directory)
     }
 
@@ -195,11 +228,18 @@ public actor ConversationStore {
     public func search(_ query: String) -> [Meta] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if q.isEmpty { return index() }
-        return index().filter { m in
+        var list = index()
+        // Ce qui contient la nouvelle recherche contient aussi la précédente.
+        if let last = lastSearch, q.contains(last.query) {
+            list = list.filter { last.ids.contains($0.id) }
+        }
+        let found = list.filter { m in
             if m.title.lowercased().contains(q) || m.preview.lowercased().contains(q) { return true }
             guard let c = load(m.id) else { return false }
             return c.messages.contains { $0.content.lowercased().contains(q) }
         }
+        lastSearch = (q, Set(found.map(\.id)))
+        return found
     }
 
     /// Les conversations non épinglées sans activité depuis `days` jours (sauf
@@ -211,7 +251,10 @@ public actor ConversationStore {
 
     private func writeIndex(_ list: [Meta]) throws {
         try ensureDirectory()
-        try JSONEncoder().encode(Self.sorted(list)).write(to: indexURL, options: .atomic)
+        let sorted = Self.sorted(list)
+        try JSONEncoder().encode(sorted).write(to: indexURL, options: .atomic)
+        // Le fichier écrit est désormais l'index en mémoire.
+        cached = sorted
     }
 }
 
