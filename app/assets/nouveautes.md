@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.76 — 11 novembre 2026 — L'agent sait quelle copie modifier
+- Corrigé : en essai réel, pour ajouter une fonction dans un fichier Rust, l'agent voulait insérer après « ]; », présent plusieurs fois. Il recevait sept refus de suite (« le passage apparaît 4 fois ») sans savoir où étaient ces copies.
+- Le refus montre maintenant chaque copie avec son numéro de ligne et les lignes autour : l'agent voit tout de suite laquelle est la bonne.
+- L'agent peut désigner la copie à modifier par son numéro de ligne : seule celle-ci change, les autres restent intactes.
+- Rien n'est modifié au hasard : si la ligne donnée est à égale distance de deux copies, l'agent doit préciser.
+
 ## 2.2.75 — 11 novembre 2026 — L'agent sait quand un nom est à créer
 - Corrigé : en essai réel, pour « ajoute une fonction format_octets », l'agent cherchait d'abord ce nom dans le code. Ne le trouvant pas, il recevait le conseil « essaie un mot plus court », qui l'invitait à chercher encore ce qu'il devait justement écrire.
 - Quand un nom de code (format_octets, formatDuree, Slug::new…) n'existe nulle part dans le dépôt, l'agent l'apprend clairement : « n'existe pas encore », avec la consigne de le créer tout de suite à l'endroit demandé.
