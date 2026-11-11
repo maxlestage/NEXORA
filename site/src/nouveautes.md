@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.55 — 11 novembre 2026 — Les tests Rust écrits par l'agent compilent
+- Corrigé : dans un projet Rust, l'agent écrivait parfois ses tests dans le dossier « tests/ » avec « use crate::… », qui ne compile pas à cet endroit. La CI échouait pour une simple ligne d'import.
+- L'agent est prévenu dès qu'il écrit un tel test, avec le bon nom à utiliser (lu dans Cargo.toml, par exemple « use nexora_site::… »), et corrige aussitôt.
+- Rien n'est signalé à tort : les tests placés dans le code source, et les modules déclarés par le test lui-même, restent acceptés.
+
 ## 2.2.54 — 11 novembre 2026 — L'agent dit tout de suite quand il ne peut pas lire votre dépôt
 - Corrigé : si la liste des fichiers du dépôt n'arrivait pas au début d'une session (réseau coupé, GitHub indisponible), elle restait vide jusqu'à la fin. L'agent travaillait à l'aveugle, ne trouvait aucun fichier et finissait « en boucle ».
 - La liste est maintenant redemandée dès que l'agent en a besoin, et il voit vos fichiers aussitôt que GitHub répond.
