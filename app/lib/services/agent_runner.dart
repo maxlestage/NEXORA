@@ -1296,7 +1296,40 @@ class AgentRun extends ChangeNotifier {
         .map((e) => e.key);
     // Des tests écrits dans cette session (déjà envoyés ou en brouillon) comptent.
     if (changed.any(isTestFile) || bases.keys.any(isTestFile)) return const [];
+    // Rust : un test ajouté dans le module #[cfg(test)] du fichier lui-même
+    // compte aussi (c'est la seule place possible pour src/main.rs).
+    if (changed.any((p) => _addsRustTest(p, changes[p], originals[p]))) {
+      return const [];
+    }
     return changed.where(_codeFile.hasMatch).toList();
+  }
+
+  /// Un fichier Rust qui contient plus de tests (`#[test]`, `#[tokio::test]`…)
+  /// qu'au départ.
+  @visibleForTesting
+  static bool addsRustTest(String path, String? now, String? before) =>
+      _addsRustTest(path, now, before);
+
+  static bool _addsRustTest(String path, String? now, String? before) {
+    if (!path.endsWith('.rs') || now == null) return false;
+    final mark = RegExp(r'#\[\s*(?:[\w:]+::)?test\b');
+    return mark.allMatches(now).length >
+        (before == null ? 0 : mark.allMatches(before).length);
+  }
+
+  /// Où écrire le test de [file], en une phrase pour l'agent (vide si on ne
+  /// sait pas).
+  String _testWhere(String file) {
+    final target = testPathFor(file, _tree ?? const []);
+    if (target == null) return ' dans le dossier de tests du projet';
+    if (target == file) {
+      return ' dans le module de tests de $target lui-même (edit_file : '
+          '`#[cfg(test)] mod tests { use super::*; … }`, ajouté à la fin du '
+          'fichier s\'il n\'existe pas encore) — un test du dossier tests/ ne '
+          'voit pas les fonctions d\'un programme Rust (src/main.rs) et ne '
+          'compilerait pas';
+    }
+    return ' dans $target';
   }
 
   /// Où en est le travail, pour un agent qui tourne en rond : ce qui est déjà
@@ -1316,13 +1349,14 @@ class AgentRun extends ChangeNotifier {
           'le recherche plus) : $done. S\'il reste une partie de la demande, '
           'fais-la MAINTENANT ; sinon appelle finish.';
     }
-    final target = testPathFor(untested.first, _tree ?? const []);
-    final where = target == null
-        ? ' dans le dossier de tests du projet'
-        : ' dans $target';
+    final where = _testWhere(untested.first);
+    final tool =
+        testPathFor(untested.first, _tree ?? const []) == untested.first
+        ? 'edit_file'
+        : 'write_file';
     return '\n\nOÙ TU EN ES : déjà fait en brouillon (ne le refais pas et ne le '
         'recherche plus) : $done. Il reste le test de '
-        '${untested.take(4).join(', ')} : écris-le MAINTENANT avec write_file'
+        '${untested.take(4).join(', ')} : écris-le MAINTENANT avec $tool'
         '$where, à partir du code déjà lu, sans chercher d\'autre exemple '
         '(un test simple qui vérifie ta modification suffit).';
   }
@@ -1334,6 +1368,17 @@ class AgentRun extends ChangeNotifier {
     final m = RegExp(r'^(.*?)(?:^|/)(?:lib|src)/').firstMatch(file);
     var root = m == null ? '' : m[1]!;
     if (root.isNotEmpty) root = '$root/';
+    // Rust : le programme (src/main.rs, src/bin/…) et les modules d'un projet
+    // sans bibliothèque (pas de src/lib.rs) ne sont pas visibles depuis tests/.
+    // Leur test va dans le fichier lui-même (module #[cfg(test)]).
+    if (file.endsWith('.rs') && file.startsWith('${root}src/')) {
+      final inner = file.substring('${root}src/'.length);
+      if (inner == 'main.rs' ||
+          inner.startsWith('bin/') ||
+          !tree.contains('${root}src/lib.rs')) {
+        return file;
+      }
+    }
     final dir = [
       for (final d in ['test', 'tests'])
         if (tree.any((f) => f.startsWith('$root$d/'))) '$root$d/',
@@ -1977,7 +2022,8 @@ class AgentRun extends ChangeNotifier {
                 'Tu as modifié du code sans écrire de test : '
                     '${untested.take(8).join(', ')}. Les tests sont obligatoires : '
                     'écris maintenant ceux qui vérifient tes modifications (avec le '
-                    'framework du dépôt, ou le plus simple s\'il n\'y en a pas), '
+                    'framework du dépôt, ou le plus simple s\'il n\'y en a pas ; '
+                    'pour ${untested.first} :${_testWhere(untested.first)}), '
                     'assure-toi qu\'ils tournent sur GitHub (workflow), puis rappelle '
                     'finish.$reminder',
               ),

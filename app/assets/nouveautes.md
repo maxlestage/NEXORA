@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.61 — 11 novembre 2026 — L'agent écrit les tests Rust à la seule place qui compile
+- Corrigé : après une modification de src/main.rs (le programme d'un projet Rust, comme le site), l'agent était renvoyé écrire le test dans le dossier « tests/ », où ce test ne peut pas compiler. La CI échouait ensuite.
+- L'agent est maintenant guidé vers le module de tests du fichier lui-même (#[cfg(test)]), avec l'outil à utiliser ; c'est aussi le cas des modules d'un projet Rust sans bibliothèque.
+- Un test ajouté dans ce module est enfin reconnu : l'agent n'est plus relancé pour écrire un test qu'il a déjà écrit.
+- Rien ne change pour les autres projets : une bibliothèque Rust, Dart, Python ou JavaScript garde son dossier de tests habituel.
+
 ## 2.2.60 — 11 novembre 2026 — Le crédit de chaque IA reste juste quand l'agent change de modèle
 - Corrigé : quand une session passait à un autre modèle (bascule automatique après une panne ou un crédit épuisé, ou modèle changé par vous pendant la session), tout ce que l'agent dépensait ensuite était compté chez le fournisseur de départ.
 - Le témoin de crédit compte maintenant chaque réponse chez l'IA qui a vraiment répondu, avec son vrai prix : le solde du premier fournisseur ne baisse plus à tort.

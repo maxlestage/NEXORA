@@ -45,9 +45,35 @@ void main() {
         AgentRun.testPathFor('app/lib/ui/chat/chat_screen.dart', tree),
         'app/test/chat_screen_test.dart',
       );
+    });
+
+    test('Rust : le test d\'un programme va dans le fichier lui-même, celui '
+        'd\'une bibliothèque dans tests/', () {
+      // src/main.rs n'est pas visible depuis tests/ : module #[cfg(test)].
       expect(
         AgentRun.testPathFor('site/src/main.rs', tree),
-        'site/tests/main.rs',
+        'site/src/main.rs',
+      );
+      expect(AgentRun.testPathFor('src/main.rs', const []), 'src/main.rs');
+      expect(
+        AgentRun.testPathFor('site/src/bin/outil.rs', [
+          ...tree,
+          'site/src/lib.rs',
+        ]),
+        'site/src/bin/outil.rs',
+      );
+      // Projet sans bibliothèque : ses modules non plus.
+      expect(
+        AgentRun.testPathFor('site/src/export.rs', tree),
+        'site/src/export.rs',
+      );
+      // Avec src/lib.rs : un module de la bibliothèque se teste dans tests/.
+      expect(
+        AgentRun.testPathFor('site/src/contenu.rs', [
+          ...tree,
+          'site/src/lib.rs',
+        ]),
+        'site/tests/contenu.rs',
       );
     });
 
@@ -146,6 +172,61 @@ void main() {
     expect(run.progressNote(), contains('aucune modification'));
     run.changes['a.md'] = 'x';
     // Pas de code sans test : il reste à finir la demande, ou finish.
+    expect(run.progressNote(), contains('appelle finish'));
+  });
+
+  test(
+    'Rust : un test ajouté dans le module #[cfg(test)] du fichier compte',
+    () {
+      expect(
+        AgentRun.addsRustTest(
+          'site/src/main.rs',
+          'fn main() {}\n#[cfg(test)]\nmod tests {\n    #[tokio::test]\n    async fn lien() {}\n}\n',
+          'fn main() {}\n',
+        ),
+        isTrue,
+      );
+      expect(
+        AgentRun.addsRustTest(
+          'a.rs',
+          '#[test]\nfn t() {}\n',
+          '#[test]\nfn t() {}\n',
+        ),
+        isFalse,
+      );
+      expect(AgentRun.addsRustTest('a.dart', '#[test]', ''), isFalse);
+      expect(AgentRun.addsRustTest('a.rs', null, ''), isFalse);
+      expect(AgentRun.addsRustTest('n.rs', '#[test] fn t() {}', null), isTrue);
+    },
+  );
+
+  test('Rust : la note envoie écrire le test de src/main.rs dans son module '
+      'de tests, puis le reconnaît', () {
+    AgentRun.checks = true;
+    final run = AgentRun(
+      llm: LlmClient(),
+      github: GitHubApi('t'),
+      provider: providersCatalog.firstWhere((p) => p.id == 'groq'),
+      apiKey: 'k',
+      model: 'm',
+      owner: 'max',
+      repo: 'nexora',
+      branch: 'main',
+      task: 'x',
+    );
+    run.originals['site/src/main.rs'] = 'fn main() {}\n';
+    run.changes['site/src/main.rs'] = 'fn main() { lien(); }\n';
+    final note = run.progressNote();
+    expect(note, contains('Il reste le test de site/src/main.rs'));
+    expect(
+      note,
+      contains(
+        'avec edit_file dans le module de tests de '
+        'site/src/main.rs',
+      ),
+    );
+    expect(note, isNot(contains('site/tests/')));
+    run.changes['site/src/main.rs'] = 'fn main() { lien(); }\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn lien() {}\n}\n';
     expect(run.progressNote(), contains('appelle finish'));
   });
 }
