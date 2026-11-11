@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.80 — 11 novembre 2026 — Le Dart de l'agent passe l'analyseur
+- Corrigé : en essai réel, pour « ajoute une fonction formatDuree », l'agent écrivait '${hours} h ${minutesStr} min' et ouvrait le fichier par un commentaire de documentation rattaché à rien. « flutter analyze » signale les deux : la CI échouait pour une question d'écriture.
+- Dans le Dart écrit par l'agent, les accolades inutiles sont retirées ('$hours h $minutesStr min') et ce commentaire de tête devient un commentaire simple, dès le brouillon.
+- Les accolades utiles restent (${n}s, ${objet.champ}), les chaînes brutes (r'${x}') et les lignes déjà présentes dans le fichier ne sont jamais touchées.
+- Vérifié sur plus de 3 000 fichiers Dart réels : aucun n'est modifié à tort.
+
 ## 2.2.79 — 11 novembre 2026 — Les tests Rust de l'agent compilent
 - Corrigé : en essai réel, pour tester une nouvelle route du site, l'agent écrivait un test dans site/tests/ avec « use nexora_site::app; ». Or app() est dans src/main.rs, le programme, que les tests de ce dossier ne voient pas : le test ne pouvait pas compiler, et l'avertissement prévu ne venait pas à cause de cet import.
 - L'agent est maintenant prévenu même quand il importe la fonction par le nom du crate : il met le test dans le module de tests de main.rs, avec les autres.
