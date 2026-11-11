@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.75 — 11 novembre 2026 — L'agent sait quand un nom est à créer
+- Corrigé : en essai réel, pour « ajoute une fonction format_octets », l'agent cherchait d'abord ce nom dans le code. Ne le trouvant pas, il recevait le conseil « essaie un mot plus court », qui l'invitait à chercher encore ce qu'il devait justement écrire.
+- Quand un nom de code (format_octets, formatDuree, Slug::new…) n'existe nulle part dans le dépôt, l'agent l'apprend clairement : « n'existe pas encore », avec la consigne de le créer tout de suite à l'endroit demandé.
+- Une recherche limitée à un fichier ou un dossier vérifie aussi le reste du dépôt avant de le dire.
+- Rien ne change pour un simple mot ou une phrase, ni pour un nom qui existe sous une autre forme (formatOctets reste trouvé).
+
 ## 2.2.74 — 11 novembre 2026 — Les modifications de l'agent ne se perdent plus en route
 - Corrigé : en essai réel, pour ajouter une section au README, le modèle envoyait l'action « modifier README.md » puis, à part, le texte à remplacer et le nouveau texte. Ce texte était perdu : la modification échouait (« il manque le texte ») et l'agent recommençait plusieurs fois.
 - Le texte envoyé juste après une action, sans nom d'action, est maintenant rattaché à cette action : la modification ou l'écriture du fichier réussit du premier coup.
