@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.92 — 11 novembre 2026 — L'agent ajoute du code à la ligne qu'il vise
+- Corrigé : en essai réel, pour « ajoute reading_time dans site/src/lib.rs », le modèle demandait de modifier « la ligne 600 » sans envoyer de texte, trois fois de suite, puis avec un passage vide. NEXORA répondait « il manque le texte » ou « old vide », et quatre étapes étaient perdues.
+- Un numéro de ligne seul montre maintenant les lignes autour au modèle, puis insère après cette ligne le texte qu'il envoie juste après.
+- Avec le texte dans la même action (passage à remplacer vide), il est inséré tout de suite ; la réponse montre les lignes juste autour pour vérifier l'endroit.
+- Prudent : un numéro de ligne avec un vrai passage à remplacer garde son rôle, une ligne hors du fichier reçoit une erreur claire, et un commentaire « // ... existing code » n'est jamais inséré.
+
 ## 2.2.91 — 11 novembre 2026 — L'agent n'écrit plus « // ... existing code » à la place de votre code
 - Corrigé : en essai réel, pour « ajoute une route /version », le modèle remplaçait la première ligne d'une fonction par cette ligne, « // ... existing code », « } » et sa nouvelle fonction. Le vrai corps de la fonction restait à part, le fichier ne compilait plus, et l'agent cherchait l'erreur 110 lignes plus loin jusqu'à épuiser ses étapes.
 - Une modification qui contient un commentaire de remplissage (« // ... », « // existing code », « # rest of the file », « // reste du code inchangé »…) est maintenant refusée avant d'être écrite : le fichier reste intact.

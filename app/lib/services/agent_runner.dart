@@ -923,6 +923,11 @@ class AgentRun extends ChangeNotifier {
   /// suivante.
   (String, int, int)? _awaitLines;
 
+  /// Un `edit_file` arrivé avec un seul numéro de ligne et sans texte (chemin,
+  /// ligne) : le texte à insérer après cette ligne est attendu dans la réponse
+  /// suivante.
+  (String, int)? _awaitInsert;
+
   /// Un write_file qui veut AJOUTER à la fin (« at_end », « append », « mode »
   /// « append »…) au lieu de remplacer tout le fichier.
   @visibleForTesting
@@ -2238,6 +2243,24 @@ class AgentRun extends ChangeNotifier {
           // donnait qu'une plage : elles sont remplacées.
           final range = _awaitLines;
           _awaitLines = null;
+          // Le texte à insérer après la ligne montrée (edit_file avec un seul
+          // numéro de ligne et sans texte).
+          final insert = _awaitInsert;
+          _awaitInsert = null;
+          if (insert != null) {
+            final content = pendingContent(reply);
+            if (content != null) {
+              calls = [
+                ToolCall('edit_file', {
+                  'path': insert.$1,
+                  'insert_after': insert.$2,
+                  'new': content.endsWith('\n')
+                      ? content.substring(0, content.length - 1)
+                      : content,
+                }),
+              ];
+            }
+          }
           if (range != null) {
             final content = pendingContent(reply);
             if (content != null) {
@@ -3944,6 +3967,75 @@ class AgentRun extends ChangeNotifier {
     return null;
   }
 
+  /// Insère [added] après la ligne [after] de [p] (0 : au début). Sans texte,
+  /// montre les lignes autour et attend le texte dans la réponse suivante.
+  /// Rend null pour un fichier qui n'existe pas encore avec un texte : il est
+  /// créé comme par un "old" vide.
+  Future<String?> _insertAfter(String p, int after, String? added) async {
+    final (text, problem) = await _current(p);
+    if (text == null) {
+      return added != null ? null : problem ?? 'ERREUR : $p introuvable.';
+    }
+    final lines = text.split('\n');
+    final ends = text.endsWith('\n');
+    if (ends) lines.removeLast();
+    // La ligne juste après la dernière : un ajout à la fin.
+    final at = after == lines.length + 1 ? lines.length : after;
+    if (at < 0 || at > lines.length) {
+      return 'ERREUR : $p a ${lines.length} lignes, la ligne $after '
+          'n\'existe pas. Relis le fichier (read_file) puis recommence.';
+    }
+    String around(int from, int to) => [
+      for (var i = from < 1 ? 1 : from; i <= to && i <= lines.length; i++)
+        '$i: ${lines[i - 1]}',
+    ].join('\n');
+    if (added == null) {
+      _awaitInsert = (p, at);
+      final shown = around(at - 2, at + 2);
+      return 'EN ATTENTE du texte à INSÉRER après la ligne $at de $p '
+          '(edit_file est arrivé avec un numéro de ligne, sans texte).'
+          '${shown.isEmpty ? '' : ' Les lignes autour :\n$shown\n'}'
+          'Réponds MAINTENANT avec, seul, le texte à insérer après la ligne $at '
+          '(pas tout le fichier, sans les numéros) dans un bloc de code (```), '
+          'sans bloc JSON : rien d\'autre ne change. Pour REMPLACER des lignes, '
+          'utilise plutôt edit_file avec "line_start" et "line_end".';
+    }
+    if (added.trim().isEmpty) {
+      return 'ERREUR : le texte à insérer après la ligne $at de $p est vide.';
+    }
+    final doc = RegExp(
+      r'(\.(md|markdown|txt|rst|log)$|changelog|readme)',
+      caseSensitive: false,
+    ).hasMatch(p);
+    final filler = doc ? null : placeholderLine(added, '', text);
+    if (filler != null) {
+      return 'ERREUR : rien n\'est modifié. Le texte à insérer contient '
+          '« ${filler.trim()} », un commentaire qui tient la place de code '
+          'existant : il serait écrit tel quel. Écris en entier le code à '
+          'insérer.';
+    }
+    final body = added.endsWith('\n')
+        ? added.substring(0, added.length - 1)
+        : added;
+    final inserted = body.split('\n');
+    final out = [...lines.take(at), ...inserted, ...lines.skip(at)];
+    final edited = '${out.join('\n')}${ends || lines.isEmpty ? '\n' : ''}';
+    changes[p] = tidyCode(p, edited, before: originals[p] ?? text);
+    notifyListeners();
+    final first = at + 1;
+    final last = at + inserted.length;
+    String line(int i) => i >= 1 && i <= out.length ? '$i: ${out[i - 1]}' : '';
+    final context = [
+      line(at),
+      '… (lignes $first à $last : le texte inséré)',
+      line(last + 1),
+    ].where((l) => l.isNotEmpty).join('\n');
+    return 'OK, $p modifié en brouillon : ${inserted.length} ligne(s) '
+        'insérée(s) après la ligne $at (lignes $first à $last). Juste autour :\n'
+        '$context\nVérifie que c\'est le bon endroit (pas au milieu d\'une '
+        'fonction). Le reste du fichier est inchangé.${await _pitfalls(p)}';
+  }
+
   Future<String> _exec(ToolCall call) async {
     // Un chemin presque juste : corrigé, et l'agent le sait.
     final asked = call.args['path'];
@@ -4114,7 +4206,7 @@ class AgentRun extends ChangeNotifier {
         // lignes sont celles à remplacer. Essai réel : le modèle envoyait
         // {"path", "line_start": 404, "line_end": 420} seul, quatre fois de
         // suite, et recevait chaque fois « il manque le texte ».
-        final (spanStart, spanEnd, _) = readSpan(call.args);
+        final (spanStart, spanEnd, around) = readSpan(call.args);
         final ranged =
             spanStart != null && spanEnd != null && spanEnd >= spanStart;
         // « Ajouter à la fin » (at_end, ou une plage qui commence juste après
@@ -4135,6 +4227,31 @@ class AgentRun extends ChangeNotifier {
 
         if (!ranged && atEnd && oldText == null && newText == null) {
           return awaitAppend();
+        }
+        // Un seul numéro de ligne, sans passage à remplacer : un AJOUT après
+        // cette ligne. Essai réel : {"path", "line": 600} seul, trois fois de
+        // suite, puis {"line": 600, "old": "", "new": …} ; chaque fois « il
+        // manque le texte » ou « old vide », et quatre étapes perdues.
+        final blankOld =
+            oldText != null &&
+            (oldText.trim().isEmpty ||
+                const ['""', "''", '``'].contains(oldText.trim()));
+        final insertAfter =
+            int.tryParse(
+              '${call.args['insert_after'] ?? call.args['after_line'] ?? ''}'
+                  .trim(),
+            ) ??
+            (!ranged &&
+                    !atEnd &&
+                    around != null &&
+                    ((oldText == null && newText == null) ||
+                        (blankOld && newText != null))
+                ? around
+                : null);
+        if (insertAfter != null && !ranged) {
+          final done = await _insertAfter(p, insertAfter, newText);
+          if (done != null) return done;
+          oldText = '';
         }
         if (ranged && oldText != null && newText == null) {
           // Un seul texte avec une plage : il remplace ces lignes.
