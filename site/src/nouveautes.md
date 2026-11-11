@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.63 — 11 novembre 2026 — Moins d'actions refusées pour un détail d'écriture
+- Corrigé : quand le modèle oubliait seulement l'accolade finale de ses arguments (« {"path": "…", "line": 1800 »), l'action était refusée comme illisible et l'agent perdait une étape à la renvoyer.
+- Ces arguments sont maintenant complétés et l'action est faite. Un contenu de fichier coupé au milieu n'est jamais complété : il reste refusé, pour ne rien écrire d'inachevé.
+- Corrigé : des arguments envoyés sous forme de texte (« "args": "{…}" ») étaient perdus, et l'action partait sans fichier.
+- « print_tree », « tree » et leurs variantes affichent la liste des fichiers au lieu de « outil inconnu ».
+
 ## 2.2.62 — 11 novembre 2026 — L'agent s'y retrouve dans les longs fichiers
 - Corrigé : dans un long fichier (plus de 600 lignes, comme le programme du site), l'agent ne voyait que le début. Il cherchait ensuite au hasard où faire la modification, tournait en rond et finissait par s'arrêter sans rien faire.
 - Il reçoit maintenant, avec ce début, le plan du reste du fichier : chaque fonction, type, module et bloc de tests, avec son numéro de ligne. Il va tout droit au bon endroit.

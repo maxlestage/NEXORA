@@ -27,6 +27,47 @@ Map<String, dynamic>? decodeLooseJson(String text) {
   return asMap(fixed);
 }
 
+/// Les arguments d'une action, lus avec indulgence : JSON strict, puis écrit de
+/// travers ([decodeLooseJson]), puis auquel il ne manque que les fermetures de
+/// la fin (`{"path": "a.rs", "line": 12` : le modèle a oublié l'accolade).
+/// Un texte coupé au milieu d'une chaîne (un contenu de fichier inachevé)
+/// reste illisible : on ne complète jamais un texte.
+Map<String, dynamic>? decodeToolArgs(String text) {
+  final loose = decodeLooseJson(text);
+  if (loose != null) return loose;
+  final s = text.trim();
+  final start = s.indexOf('{');
+  if (start < 0) return null;
+  final stack = <String>[];
+  var inString = false;
+  for (var i = start; i < s.length; i++) {
+    final c = s[i];
+    if (inString) {
+      if (c == '\\') {
+        i++;
+      } else if (c == '"') {
+        inString = false;
+      }
+    } else if (c == '"') {
+      inString = true;
+    } else if (c == '{' || c == '[') {
+      stack.add(c);
+    } else if (c == '}' || c == ']') {
+      if (stack.isEmpty) return null;
+      stack.removeLast();
+      // Déjà fermé : decodeLooseJson l'aurait lu s'il était lisible.
+      if (stack.isEmpty) return null;
+    }
+  }
+  if (inString || stack.isEmpty) return null;
+  var body = s.substring(start).trimRight();
+  if (body.endsWith(',')) body = body.substring(0, body.length - 1).trimRight();
+  // Une clé sans sa valeur : il manque plus que des fermetures.
+  if (body.endsWith(':')) return null;
+  final closers = stack.reversed.map((c) => c == '{' ? '}' : ']').join();
+  return decodeLooseJson('$body$closers');
+}
+
 final _key = RegExp(r'\s*"(?:[^"\\\n]|\\.)*"\s*:');
 final _value = RegExp(r'\s*["{\[\-0-9tfn]');
 
@@ -213,7 +254,7 @@ class ToolCallCollector {
       } catch (_) {
         // Arguments écrits de travers (fréquent quand ils contiennent du code) :
         // relus avec indulgence avant d'être déclarés illisibles.
-        parsed = decodeLooseJson(text) ?? {'raw': text};
+        parsed = decodeToolArgs(text) ?? {'raw': text};
       }
       actions.add({
         'tool': n,
