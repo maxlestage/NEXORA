@@ -2618,8 +2618,63 @@ class AgentRun extends ChangeNotifier {
 
   /// Un test d'intégration Rust (dossier tests/ d'un crate) compilé à part :
   /// `crate::` n'y désigne pas la bibliothèque, et le test ne compile pas. Rend l'avertissement à donner au modèle, ou null.
-  static String? rustTestHint(String path, String content, {String? cargo}) {
+  static String? rustTestHint(
+    String path,
+    String content, {
+    String? cargo,
+    String? mainRs,
+  }) {
     if (!_rustTest.hasMatch(path)) return null;
+    final crate = cargo == null ? null : rustCrateName(cargo);
+    final both = [
+      ?_rustCrateHint(path, content, crate),
+      ?_rustBinHint(path, content, mainRs),
+    ];
+    return both.isEmpty ? null : both.join();
+  }
+
+  static final _call = RegExp(r'(?<![\w:.])([a-z_]\w*)\s*\(');
+  static final _fnDef = RegExp(r'\bfn\s+(\w+)');
+
+  /// Un test de tests/ qui appelle une fonction de src/main.rs : un binaire,
+  /// invisible depuis tests/ (essai réel : « app().test() » pour une route du
+  /// site). Le test ne compile pas ; sa place est dans le module de tests de
+  /// main.rs.
+  static String? _rustBinHint(String path, String content, String? mainRs) {
+    if (mainRs == null) return null;
+    final code = content
+        .split('\n')
+        .where((l) => !l.trim().startsWith('//'))
+        .join('\n');
+    final mine = {for (final m in _fnDef.allMatches(code)) m[1]!};
+    final imported = code
+        .split('\n')
+        .where((l) => l.trim().startsWith('use '))
+        .join(' ');
+    final inMain = {for (final m in _fnDef.allMatches(mainRs)) m[1]!}
+      ..remove('main');
+    final used = <String>[];
+    for (final m in _call.allMatches(code)) {
+      final name = m[1]!;
+      if (inMain.contains(name) &&
+          !mine.contains(name) &&
+          !RegExp('\\b$name\\b').hasMatch(imported) &&
+          !used.contains(name)) {
+        used.add(name);
+      }
+    }
+    if (used.isEmpty) return null;
+    final main = '${path.substring(0, path.lastIndexOf('tests/'))}src/main.rs';
+    final names = used.map((n) => '$n()').join(', ');
+    final hasTests = mainRs.contains('#[cfg(test)]');
+    return '\n\nATTENTION : $path appelle $names, défini dans $main. C\'est '
+        'le binaire du crate : un test du dossier tests/ ne le voit pas, et ne '
+        'compilera pas. Mets ce test dans $main, '
+        '${hasTests ? 'dans son module « #[cfg(test)] mod tests » existant (avec les autres tests, edit_file)' : 'dans un module « #[cfg(test)] mod tests { use super::*; … } » à la fin du fichier'}, '
+        'puis supprime $path (delete_file). Fais-le maintenant.';
+  }
+
+  static String? _rustCrateHint(String path, String content, String? name) {
     // crate::common… reste juste quand le test déclare lui-même « mod common ».
     bool own(String name) =>
         RegExp('\\b(mod|fn|struct|enum|const|static|trait|type)\\s+$name\\b')
@@ -2634,7 +2689,6 @@ class AgentRun extends ChangeNotifier {
         )
         .firstOrNull;
     if (bad == null) return null;
-    final name = cargo == null ? null : rustCrateName(cargo);
     final use = name == null
         ? 'le nom de la bibliothèque (celui de [lib] ou [package] dans '
               'Cargo.toml, tirets remplacés par « _ »)'
@@ -2654,7 +2708,8 @@ class AgentRun extends ChangeNotifier {
     if (text == null || !_rustTest.hasMatch(p)) return '';
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
-    return rustTestHint(p, text, cargo: cargo) ?? '';
+    final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
+    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs) ?? '';
   }
 
   String get _mountHint =>
