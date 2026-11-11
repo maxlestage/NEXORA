@@ -81,7 +81,16 @@ public enum ModelPrices {
     /// l'app, remplacés par la dernière version lue sur le site.
     public static var live: [String: [String: ModelPrice]] { liveStore.get() }
 
-    public static func setLive(_ prices: [String: [String: ModelPrice]]) { liveStore.set(prices) }
+    public static func setLive(_ prices: [String: [String: ModelPrice]]) {
+        liveStore.set(prices)
+        liveVersionStore.update { $0 += 1 }
+    }
+
+    private static let liveVersionStore = Locked(0)
+
+    /// Change à chaque nouvelle version des prix en direct (pour savoir qu'une liste
+    /// calculée avec eux est à refaire).
+    public static var liveVersion: Int { liveVersionStore.get() }
 
     /// La date (`updated`) du catalogue livré avec l'app.
     public static let bundledUpdated: String = {

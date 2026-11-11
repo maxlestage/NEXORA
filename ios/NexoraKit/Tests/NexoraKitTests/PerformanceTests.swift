@@ -380,6 +380,13 @@ struct OptimizationParityTests {
         #expect(ModelCatalog.day("") == nil && ModelCatalog.day("bientôt") == nil)
     }
 
+    @Test("prix en direct : chaque nouvelle version est signalée (listes de modèles à refaire)")
+    func pricesVersion() {
+        let before = ModelPrices.liveVersion
+        ModelPrices.setLive(ModelPrices.live)
+        #expect(ModelPrices.liveVersion > before)
+    }
+
     @Test("noms d'agents après @ : mêmes résultats que l'expression régulière")
     func slugParity() {
         for name in ["Code Reviewer", "  Testeur  Pro ", "Data\tScience", "A\u{00A0}B", "Idéo\u{3000}グラフ", "x\u{2028}y",
