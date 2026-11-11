@@ -932,11 +932,13 @@ class AgentRun extends ChangeNotifier {
     // Le traducteur voit les vrais fichiers : il ne devine plus un chemin
     // (« lib/… » au lieu de « app/lib/… ») que l'agent suivrait ensuite.
     var files = '';
+    var tests = '';
     try {
       final tree = await _files();
       files = tree.length > 300
           ? '${tree.take(300).join('\n')}\n… (${tree.length - 300} de plus)'
           : tree.join('\n');
+      tests = testLayout(tree);
     } catch (_) {}
     try {
       final out = await _askOnce(
@@ -963,15 +965,40 @@ class AgentRun extends ChangeNotifier {
         prompt:
             'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
             '${files.isEmpty ? '' : 'Fichiers du dépôt :\n$files\n'}'
+            '${tests.isEmpty ? '' : 'Où vont les tests (à respecter pour les tests à écrire) :\n$tests\n'}'
             '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
             'Demande à traduire : « $text »',
       ).timeout(const Duration(seconds: 90));
       final spec = (out ?? '').trim();
       if (!spec.contains('OBJECTIF')) return '';
-      return markGuesses(spec, [...before, text].join('\n'), files.split('\n'));
+      return withTestLayout(
+        markGuesses(spec, [...before, text].join('\n'), files.split('\n')),
+        tests,
+      );
     } catch (_) {
       return '';
     }
+  }
+
+  /// La traduction, complétée par l'endroit où vont les tests des projets
+  /// qu'elle concerne (d'après les fichiers du dépôt). Un modèle faible
+  /// proposait quand même « site/tests/x_test.rs » pour une route du site,
+  /// un test qui ne compile pas : ce repère, redonné à chaque étape avec la
+  /// demande, prime sur un chemin de test deviné.
+  @visibleForTesting
+  static String withTestLayout(String spec, String layout) {
+    if (spec.isEmpty || layout.isEmpty) return spec;
+    final lines = layout.split('\n').where((l) {
+      final m = RegExp(r'^- (.+?) \(').firstMatch(l);
+      if (m == null) return false;
+      final root = m[1]!;
+      return root == 'la racine' ||
+          layout.split('\n').length == 1 ||
+          spec.contains(root);
+    }).toList();
+    if (lines.isEmpty) return spec;
+    return '$spec\n\nOÙ VONT LES TESTS (d\'après les fichiers du dépôt ; '
+        'prime sur tout autre chemin de test ci-dessus) :\n${lines.join('\n')}';
   }
 
   static final _pathLike = RegExp(
@@ -1408,6 +1435,73 @@ class AgentRun extends ChangeNotifier {
     };
   }
 
+  /// Où vont les tests de chaque projet du dépôt, en quelques lignes, d'après
+  /// ses fichiers : donné au traducteur (langage NEXORA) et à l'agent dès le
+  /// départ. Sans ce repère, un agent qui doit tester une route du site
+  /// cherchait longtemps comment faire, et la traduction l'envoyait écrire un
+  /// test dans tests/, où il ne compile pas (programme Rust sans bibliothèque).
+  /// Vide si aucun projet n'est reconnu.
+  @visibleForTesting
+  static String testLayout(List<String> tree) {
+    final files = tree.toSet();
+    String rootOf(String manifest) => manifest.contains('/')
+        ? manifest.substring(0, manifest.lastIndexOf('/') + 1)
+        : '';
+    bool hasDir(String dir) => tree.any((f) => f.startsWith(dir));
+    String shown(String root) => root.isEmpty ? 'la racine' : root;
+    final out = <String>[];
+    final done = <String>{};
+    for (final f in tree) {
+      final name = f.split('/').last;
+      final root = rootOf(f);
+      // Pas les dépendances téléchargées ni les dossiers de construction.
+      if (RegExp(r'(^|/)(node_modules|vendor|build|target|\.dart_tool)/')
+          .hasMatch(f)) {
+        continue;
+      }
+      final String? line = switch (name) {
+        'Cargo.toml'
+            when files.contains('${root}src/main.rs') &&
+                !files.contains('${root}src/lib.rs') =>
+          '${shown(root)} (Rust, programme sans bibliothèque) : dans le '
+              'module « #[cfg(test)] mod tests { use super::*; … } » du '
+              'fichier modifié (${root}src/main.rs pour une route ou une '
+              'fonction du programme), avec edit_file. Jamais dans '
+              '${root}tests/ : ce dossier ne voit pas le programme, le test '
+              'ne compilerait pas.',
+        'Cargo.toml' when files.contains('${root}src/lib.rs') =>
+          '${shown(root)} (Rust) : ${root}tests/<nom>.rs pour l\'API publique '
+              'de la bibliothèque (src/lib.rs et ses modules, importée par '
+              '« use <nom du crate>::… »), ou le module « #[cfg(test)] » du '
+              'fichier modifié.'
+              '${files.contains('${root}src/main.rs') ? ' Ce qui est défini dans ${root}src/main.rs (routes, app(), fonctions du programme) se teste UNIQUEMENT dans son module « #[cfg(test)] mod tests », avec edit_file : ${root}tests/ ne le voit pas.' : ''}',
+        'pubspec.yaml' =>
+          '${shown(root)} (Dart/Flutter) : ${root}test/<nom>_test.dart'
+              '${hasDir('${root}test/') ? '' : ' (dossier à créer)'}, avec '
+              'package:${files.contains('${root}lib/main.dart') || hasDir('${root}lib/ui/') ? 'flutter_test' : 'test'}.',
+        'package.json' =>
+          '${shown(root)} (JavaScript/TypeScript) : '
+              '${hasDir('${root}__tests__/')
+                  ? '${root}__tests__/'
+                  : hasDir('${root}test/')
+                  ? '${root}test/'
+                  : hasDir('${root}tests/')
+                  ? '${root}tests/'
+                  : '<nom>.test.js à côté du fichier'}'
+              ', avec le lanceur de « scripts.test » de package.json.',
+        'pyproject.toml' || 'setup.py' when done.add('py:$root') =>
+          '${shown(root)} (Python) : ${root}tests/test_<nom>.py (pytest).',
+        'go.mod' =>
+          '${shown(root)} (Go) : <nom>_test.go dans le même dossier que le '
+              'fichier testé.',
+        _ => null,
+      };
+      if (line != null && done.add('$name:$root')) out.add('- $line');
+      if (out.length >= 8) break;
+    }
+    return out.join('\n');
+  }
+
   /// Toutes les modifications, en diff compact, pour la relecture finale.
   String _reviewDiff({int budget = 14000}) {
     final out = StringBuffer();
@@ -1655,11 +1749,13 @@ class AgentRun extends ChangeNotifier {
       }
       // Les fichiers sont donnés tout de suite : un aller-retour de moins.
       var files = '';
+      var tests = '';
       try {
         final tree = await _files();
         files = tree.length > 400
             ? '${tree.take(400).join('\n')}\n… (${tree.length - 400} de plus)'
             : tree.join('\n');
+        tests = testLayout(tree);
       } catch (_) {}
       // Aucun dépôt lisible : l'agent travaillerait à l'aveugle et tournerait en
       // rond. La session s'arrête tout de suite en disant pourquoi ; « continue »
@@ -1690,6 +1786,7 @@ class AgentRun extends ChangeNotifier {
           'DEMANDE DE L\'UTILISATEUR : « $task »\n\n'
               '${more.isEmpty ? '' : 'INSTRUCTIONS AJOUTÉES ENSUITE (à faire aussi, la dernière prime) :\n${more.map((m) => '- « $m »').join('\n')}\n\n'}'
               '${files.isEmpty ? 'Explore le dépôt.' : 'Fichiers :\n$files'}\n\n'
+              '${tests.isEmpty ? '' : 'OÙ ÉCRIRE LES TESTS (inutile de le chercher) :\n$tests\n\n'}'
               'Avant toute action, redis-toi dans "demande" tout ce que '
               'l\'utilisateur veut (« $task »), point par point. Puis lis '
               'directement les fichiers utiles (plusieurs à la fois).',

@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.64 — 11 novembre 2026 — L'agent sait d'emblée où écrire les tests
+- Corrigé : pour une demande comme « ajoute une route au site, avec son test », l'agent cherchait pendant de longues minutes comment et où écrire le test, refaisait les mêmes recherches, et la traduction en langage NEXORA l'envoyait même dans un dossier où le test ne peut pas compiler.
+- Dès le départ, l'agent et la traduction savent où vont les tests de chaque projet du dépôt : app Flutter, site Rust (y compris les routes du programme), JavaScript, Python ou Go.
+- L'agent va droit au but : moins d'étapes perdues, des tests au bon endroit et une CI qui passe du premier coup plus souvent.
+
 ## 2.2.63 — 11 novembre 2026 — Moins d'actions refusées pour un détail d'écriture
 - Corrigé : quand le modèle oubliait seulement l'accolade finale de ses arguments (« {"path": "…", "line": 1800 »), l'action était refusée comme illisible et l'agent perdait une étape à la renvoyer.
 - Ces arguments sont maintenant complétés et l'action est faite. Un contenu de fichier coupé au milieu n'est jamais complété : il reste refusé, pour ne rien écrire d'inachevé.
