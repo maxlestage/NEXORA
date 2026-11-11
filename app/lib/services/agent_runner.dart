@@ -2649,6 +2649,7 @@ class AgentRun extends ChangeNotifier {
     String? repoName,
     List<String> mounts = const [],
     bool creating = false,
+    bool moveDirs = true,
   }) {
     var path = p.trim();
     while (path.endsWith('/')) {
@@ -2716,6 +2717,23 @@ class AgentRun extends ChangeNotifier {
     for (final t in tries) {
       if (t != path && t.isNotEmpty && fits(t)) return t;
     }
+    // Un dépôt à plusieurs projets (app/, site/…) : le dossier du projet
+    // ajouté à tort (« app/.github/workflows/ci.yml » pour
+    // « .github/workflows/ci.yml ») ou oublié (« lib/main.dart » pour
+    // « app/lib/main.dart »). Seulement pour un fichier existant, et sans
+    // ambiguïté : un fichier à créer garde le chemin demandé.
+    if (!creating && moveDirs) {
+      final parts = x.split('/');
+      for (var i = 1; i < parts.length; i++) {
+        final rest = parts.sublist(i).join('/');
+        if (dirs.contains(parts.sublist(0, i).join('/')) &&
+            files.contains(rest)) {
+          return rest;
+        }
+      }
+      final deeper = files.where((f) => f.endsWith('/$x')).toList();
+      if (deeper.length == 1) return deeper.single;
+    }
     return null;
   }
 
@@ -2739,6 +2757,8 @@ class AgentRun extends ChangeNotifier {
         repoName: targets.first.name,
         mounts: multi ? _mounts.keys.toList() : const [],
         creating: call.tool == 'write_file',
+        // Supprimer : jamais un autre fichier que celui nommé.
+        moveDirs: call.tool != 'delete_file',
       );
       if (fixed != null && !changes.containsKey(asked)) {
         final out = await _exec(

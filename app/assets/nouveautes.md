@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.57 — 11 novembre 2026 — L'agent trouve vos fichiers dans les dépôts à plusieurs projets
+- Corrigé : dans un dépôt qui contient plusieurs projets (par exemple app/ et site/), le modèle ajoutait parfois le dossier d'un projet à un fichier qui n'y est pas (« app/.github/workflows/ci.yml »). L'agent répondait « fichier introuvable » et perdait des étapes.
+- L'agent ouvre maintenant directement le bon fichier, aussi quand le dossier du projet est oublié (« lib/main.dart » pour « app/lib/main.dart »), et dit au modèle le chemin exact.
+- Rien n'est deviné : un nouveau fichier garde le chemin demandé, plusieurs fichiers possibles ne sont jamais départagés au hasard, et une suppression ne vise que le fichier nommé.
+
 ## 2.2.56 — 11 novembre 2026 — Une conversation supprimée l'est vraiment
 - Corrigé : une conversation supprimée pendant qu'une réponse s'enregistrait pouvait rester sur votre téléphone, invisible dans l'app mais toujours là, avec tout son contenu.
 - Corrigé : « Tout supprimer » attend maintenant la fin des enregistrements en cours, et plus rien ne réapparaît juste après l'effacement.
