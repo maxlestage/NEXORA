@@ -203,6 +203,93 @@ struct OptimizationParityTests {
         try await store.deleteAll()
     }
 
+    @Test("Markdown : puces, listes et blancs reconnus exactement comme par les expressions")
+    func markdownParity() {
+        let samples = [
+            "- a", "-a", "-  a", "-\ta", "- ", "-", "* b", "+ c", "+\u{00A0}nbsp", "-\u{3000}idéo", "-\u{2028}ls",
+            "-\u{0B}vt", "-\u{85}nel", "- \u{0301}accent", "1. un", "12) douze", "1.deux", "1.", "1. ", "٣. arabe",
+            "１. pleine chasse", "½. fraction", "1\u{20E3}. touche", "a. lettre", "1 . espace", "1.\r", "-\r", "--- règle",
+            "***", "**gras**", "*italique*", "- [x] fait", "- [ ] à faire", "  - sous-puce", "\t1. tab", "# Titre",
+            "| a | b |\n|---|---|\n| 1 | 2 |", "> cité", "- un\r\n- deux\r\n\r\n1. a", "texte\r\nsuite\n\n\n", "", "```swift\nlet a = 1\n```", "\u{00A0}- nbsp devant",
+        ]
+        for s in samples + [samples.joined(separator: "\n")] {
+            #expect(MarkdownBlock.parse(s) == referenceParse(s), "\(s.debugDescription)")
+        }
+        for s in samples { #expect(MarkdownBlock.trim(s) == s.trimmingCharacters(in: .whitespaces)) }
+    }
+
+    /// `MarkdownBlock.parse` avant optimisation (expressions régulières, Foundation).
+    private func referenceParse(_ text: String) -> [MarkdownBlock] {
+        var out: [MarkdownBlock] = []
+        var paragraph: [String] = []
+        var lines = text.components(separatedBy: "\n")[...]
+        func flushParagraph() {
+            if !paragraph.isEmpty {
+                out.append(.paragraph(paragraph.joined(separator: "\n")))
+                paragraph = []
+            }
+        }
+        func heading(_ s: String) -> Int? {
+            let hashes = s.prefix(while: { $0 == "#" }).count
+            guard (1...6).contains(hashes), s.dropFirst(hashes).first == " " else { return nil }
+            return hashes
+        }
+        func cells(_ line: String) -> [String] {
+            var t = line.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("|") { t.removeFirst() }
+            if t.hasSuffix("|") { t.removeLast() }
+            return t.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+        while let line = lines.popFirst() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let indent = line.prefix(while: { $0 == " " }).count / 2
+            if trimmed.hasPrefix("```") {
+                flushParagraph()
+                let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                var code: [String] = []
+                while let l = lines.popFirst() {
+                    if l.trimmingCharacters(in: .whitespaces).hasPrefix("```") { break }
+                    code.append(l)
+                }
+                out.append(.code(language, code.joined(separator: "\n")))
+            } else if trimmed.isEmpty {
+                flushParagraph()
+            } else if let level = heading(trimmed) {
+                flushParagraph()
+                out.append(.heading(level, String(trimmed.drop(while: { $0 == "#" })).trimmingCharacters(in: .whitespaces)))
+            } else if ["---", "***", "___"].contains(trimmed) {
+                flushParagraph()
+                out.append(.rule)
+            } else if trimmed.hasPrefix("> ") || trimmed == ">" {
+                flushParagraph()
+                out.append(.quote(String(trimmed.dropFirst(trimmed == ">" ? 1 : 2))))
+            } else if let r = trimmed.range(of: #"^[-*+]\s+"#, options: .regularExpression) {
+                flushParagraph()
+                var item = String(trimmed[r.upperBound...])
+                if item.hasPrefix("[ ] ") { item = "☐ " + item.dropFirst(4) }
+                if item.hasPrefix("[x] ") || item.hasPrefix("[X] ") { item = "☑︎ " + item.dropFirst(4) }
+                out.append(.bullet(item, indent))
+            } else if let r = trimmed.range(of: #"^\d+[.)]\s+"#, options: .regularExpression) {
+                flushParagraph()
+                let n = Int(trimmed.prefix(while: \.isNumber)) ?? 1
+                out.append(.numbered(n, String(trimmed[r.upperBound...]), indent))
+            } else if trimmed.hasPrefix("|"), let next = lines.first, next.contains("---"), next.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                flushParagraph()
+                _ = lines.popFirst()
+                var rows = [cells(trimmed)]
+                while let l = lines.first, l.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                    rows.append(cells(l))
+                    _ = lines.popFirst()
+                }
+                out.append(.table(rows))
+            } else {
+                paragraph.append(line)
+            }
+        }
+        flushParagraph()
+        return out
+    }
+
     @Test("dates : celles de Dart (heure locale) et les nôtres, relues à l'identique")
     func dates() throws {
         let d = Date(timeIntervalSince1970: 1_794_300_000.123)
