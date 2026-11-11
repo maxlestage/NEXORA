@@ -110,14 +110,21 @@ jobs:
         run: |
           set -o pipefail
           udid=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
+          import json, re, sys
           d = json.load(sys.stdin)["devices"]
-          ios = sorted((k for k in d if "iOS" in k), key=lambda k: [int(x) for x in k.split("iOS-")[-1].split("-")])
-          for k in reversed(ios):
+          def version(k):
+              m = re.search(r"iOS[-.](\d+)(?:[-.](\d+))?", k)
+              return (int(m.group(1)), int(m.group(2) or 0)) if m else (-1, 0)
+          for k in sorted(d, key=version, reverse=True):
+              if version(k)[0] < 0:
+                  continue
               for dev in d[k]:
-                  if dev["name"].startswith("iPhone"):
+                  if dev.get("isAvailable", True) and dev["name"].startswith("iPhone"):
                       print(dev["udid"]); sys.exit()
           ')
+          if [ -z "$udid" ]; then
+            echo "Aucun simulateur iPhone trouvé :"; xcrun simctl list devices available; exit 1
+          fi
           echo "Simulateur : $udid"
           xcodebuild test -project Nexora.xcodeproj -scheme Nexora \
             -destination "id=$udid" -skipPackagePluginValidation \

@@ -17,7 +17,7 @@ l'app Android.
 
 | Outil | Version |
 |---|---|
-| Xcode | 27.2 (SDK iOS 27.2), runner GitHub `xcode-27` |
+| Xcode | 27.2 (SDK iOS 27.2) ; le runner GitHub `xcode-27` a encore Xcode 27.1 |
 | Swift | 6.4.2, mode de langage Swift 6 (concurrence stricte) |
 | iOS minimum | 18.0 (iPhone et iPad) |
 | XcodeGen | 2.46.0 |
