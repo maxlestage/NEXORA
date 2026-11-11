@@ -994,37 +994,52 @@ class AgentRun extends ChangeNotifier {
           : tree.join('\n');
       tests = testLayout(tree);
     } catch (_) {}
-    try {
-      final out = await _askOnce(
-        system:
-            'Tu traduis la demande d\'un utilisateur en LANGAGE NEXORA, un format '
-            'précis que les agents de code comprennent sans ambiguïté. Reste '
-            'FIDÈLE : n\'invente aucun besoin, n\'en retire aucun, garde ses mots '
-            'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
-            'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
-            'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
-            'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
-            'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
-            'fichier des utilitaires ») sans inventer de chemin. De même, ne '
-            'nomme une fonction, une classe ou une variable que si la demande la '
-            'nomme : sinon décris-la (« la fonction qui compare les versions »), '
-            'car un nom deviné envoie l\'agent chercher ce qui n\'existe pas. '
-            'Si la demande décrit un fichier par son rôle (« le fichier qui gère '
-            'les nouveautés ») sans le nommer, ne le choisis pas d\'après son '
-            'nom : garde la description, l\'agent le trouvera en lisant le code. '
-            'Ne mets dans CONTRAINTES que les fichiers que l\'utilisateur nomme. '
-            'N\'écris pas de '
-            'code : l\'agent le fera après avoir lu le dépôt. '
-            'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
-        prompt:
-            'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
-            '${files.isEmpty ? '' : 'Fichiers du dépôt :\n$files\n'}'
-            '${tests.isEmpty ? '' : 'Où vont les tests (à respecter pour les tests à écrire) :\n$tests\n'}'
-            '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
-            'Demande à traduire : « $text »',
-      ).timeout(const Duration(seconds: 90));
-      final spec = (out ?? '').trim();
-      if (!spec.contains('OBJECTIF')) return '';
+    // Une traduction coupée en route (connexion interrompue, réponse
+    // tronquée) est redemandée une fois ; sinon la demande brute sert.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      String? stop;
+      final String out;
+      try {
+        out =
+            await _askOnce(
+              onStop: (s) => stop = s,
+              system:
+                  'Tu traduis la demande d\'un utilisateur en LANGAGE NEXORA, un format '
+                  'précis que les agents de code comprennent sans ambiguïté. Reste '
+                  'FIDÈLE : n\'invente aucun besoin, n\'en retire aucun, garde ses mots '
+                  'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
+                  'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
+                  'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
+                  'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
+                  'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
+                  'fichier des utilitaires ») sans inventer de chemin. De même, ne '
+                  'nomme une fonction, une classe ou une variable que si la demande la '
+                  'nomme : sinon décris-la (« la fonction qui compare les versions »), '
+                  'car un nom deviné envoie l\'agent chercher ce qui n\'existe pas. '
+                  'Si la demande décrit un fichier par son rôle (« le fichier qui gère '
+                  'les nouveautés ») sans le nommer, ne le choisis pas d\'après son '
+                  'nom : garde la description, l\'agent le trouvera en lisant le code. '
+                  'Ne mets dans CONTRAINTES que les fichiers que l\'utilisateur nomme. '
+                  'N\'écris pas de '
+                  'code : l\'agent le fera après avoir lu le dépôt. '
+                  'Réponds UNIQUEMENT dans ce format, en français :\n$nxlFormat',
+              prompt:
+                  'Dépôt(s) : ${targets.map((t) => '${t.fullName} (${t.branch})').join(', ')}\n'
+                  '${files.isEmpty ? '' : 'Fichiers du dépôt :\n$files\n'}'
+                  '${tests.isEmpty ? '' : 'Où vont les tests (à respecter pour les tests à écrire) :\n$tests\n'}'
+                  '${before.isEmpty ? '' : 'Demandes précédentes (contexte) :\n${before.map((r) => '- $r').join('\n')}\n'}'
+                  'Demande à traduire : « $text »',
+            ).timeout(const Duration(seconds: 90)) ??
+            '';
+      } catch (_) {
+        return '';
+      }
+      if (_stop) return '';
+      final spec = out.trim();
+      final cut = isCutStop(stop);
+      // Pas au format, sans être coupée : le modèle ne sait pas traduire.
+      if (!spec.contains('OBJECTIF') && !cut) return '';
+      if (!specComplete(spec, cut: cut)) continue;
       return withTestLayout(
         markGuesses(
           fixRustTestPaths(spec, files.split('\n')),
@@ -1033,9 +1048,40 @@ class AgentRun extends ChangeNotifier {
         ),
         tests,
       );
-    } catch (_) {
-      return '';
     }
+    return '';
+  }
+
+  static final _specHead = RegExp(
+    r'^\W*(OBJECTIF|DEMANDES|CONTRAINTES|CRIT[ÈE]RES DE R[ÉE]USSITE|INTERPR[ÉE]TATIONS)\b',
+    caseSensitive: false,
+  );
+
+  /// Une traduction utilisable : un objectif, des demandes vraiment écrites,
+  /// et, si la réponse a été coupée, au moins jusqu'aux critères de réussite.
+  /// En essai réel, la traduction s'arrêtait sur « DEMANDES : 1. Dans » : la
+  /// demande traduite, redonnée à chaque étape, ne disait plus quoi faire.
+  @visibleForTesting
+  static bool specComplete(String spec, {bool cut = false}) {
+    final sections = <String, StringBuffer>{};
+    StringBuffer? current;
+    for (final line in spec.split('\n')) {
+      final head = _specHead.firstMatch(line);
+      if (head != null) {
+        final name = head[1]!.toUpperCase().substring(0, 4);
+        current = sections.putIfAbsent(name, StringBuffer.new);
+        current.writeln(line.substring(head.end));
+      } else {
+        current?.writeln(line);
+      }
+    }
+    int letters(String k) => RegExp(
+      r'\p{L}',
+      unicode: true,
+    ).allMatches('${sections[k] ?? ''}').length;
+    if (letters('OBJE') < 8 || letters('DEMA') < 8) return false;
+    // Coupée : ce qui précède les critères (les demandes) doit être entier.
+    return !cut || letters('CRIT') >= 8;
   }
 
   /// La traduction, complétée par l'endroit où vont les tests des projets
@@ -2490,7 +2536,11 @@ class AgentRun extends ChangeNotifier {
 
   /// Une réponse du modèle hors de l'historique (pour un sous-agent), qui s'arrête
   /// avec la session.
-  Future<String?> _askOnce({required String system, required String prompt}) {
+  Future<String?> _askOnce({
+    required String system,
+    required String prompt,
+    void Function(String stop)? onStop,
+  }) {
     final cancel = _cancel = Completer<String?>();
     final p = provider;
     final m = model;
@@ -2511,6 +2561,7 @@ class AgentRun extends ChangeNotifier {
         ),
         onHeaders: onHeaders == null ? null : (h, _) => onHeaders!(p, h),
         onUsage: onUsage == null ? null : (t) => onUsage!(p, m, t),
+        onStop: onStop,
       ),
     ]);
   }

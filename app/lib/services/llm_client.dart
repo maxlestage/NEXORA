@@ -501,6 +501,8 @@ class LlmClient {
   }
 
   /// Toute la réponse d'un coup (pour les titres, l'agent autonome…).
+  /// La réponse entière. [onStop] reçoit la raison d'arrêt (« cut » : la
+  /// connexion a été coupée avant la fin, « length » : limite de longueur).
   Future<String> complete({
     required ProviderDef provider,
     required String? apiKey,
@@ -510,9 +512,11 @@ class LlmClient {
     LlmOptions options = const LlmOptions(),
     void Function(Map<String, String> headers, int status)? onHeaders,
     void Function(TokenUsage usage)? onUsage,
+    void Function(String stop)? onStop,
   }) async {
     final b = StringBuffer();
     var total = const TokenUsage(0, 0);
+    String? stop;
     await for (final d in stream(
       provider: provider,
       apiKey: apiKey,
@@ -524,7 +528,9 @@ class LlmClient {
     )) {
       b.write(d.text);
       if (d.usage != null) total = total + d.usage!;
+      if (d.stop != null) stop = d.stop;
     }
+    if (stop case final s?) onStop?.call(s);
     if (onUsage != null) {
       onUsage(total.total > 0 ? total : _estimate(messages, system, b));
     }
