@@ -213,4 +213,47 @@ void main() {
     await runWith(llm).run();
     expect(seen[1], contains('il manque le texte'));
   });
+  const fn = 'pub fn vide(s: &str) -> bool {\n    s.trim().is_empty()\n}';
+
+  test('essai réel : edit_file "at_end" sans texte attend l\'ajout', () async {
+    final (llm, seen) = scripted([
+      action({'path': 'site/src/lib.rs', 'at_end': true}),
+      '```rust\n$fn\n```',
+      _finish,
+    ]);
+    final run = runWith(llm);
+    await run.run();
+    expect(seen[1], contains('EN ATTENTE du texte à AJOUTER à la fin'));
+    expect(seen[1], isNot(contains('il manque le texte')));
+    expect(run.changes['site/src/lib.rs'], '$_orig$fn\n');
+  });
+
+  test('essai réel : la ligne juste après la dernière est un ajout', () async {
+    final (llm, seen) = scripted([
+      action({'path': 'site/src/lib.rs', 'line_start': 14, 'line_end': 14}),
+      '```rust\n$fn\n```',
+      _finish,
+    ]);
+    final run = runWith(llm);
+    await run.run();
+    expect(seen[1], contains('EN ATTENTE du texte à AJOUTER à la fin'));
+    expect(seen[1], isNot(contains("n'existe pas")));
+    expect(run.changes['site/src/lib.rs'], '$_orig$fn\n');
+  });
+
+  test('après la dernière ligne avec "new" : ajouté tout de suite', () async {
+    final (llm, seen) = scripted([
+      action({
+        'path': 'site/src/lib.rs',
+        'line_start': 14,
+        'line_end': 20,
+        'new': fn,
+      }),
+      _finish,
+    ]);
+    final run = runWith(llm);
+    await run.run();
+    expect(seen[1], contains('modifié en brouillon'));
+    expect(run.changes['site/src/lib.rs'], '$_orig$fn\n');
+  });
 }

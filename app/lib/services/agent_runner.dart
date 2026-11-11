@@ -4117,6 +4117,25 @@ class AgentRun extends ChangeNotifier {
         final (spanStart, spanEnd, _) = readSpan(call.args);
         final ranged =
             spanStart != null && spanEnd != null && spanEnd >= spanStart;
+        // « Ajouter à la fin » (at_end, ou une plage qui commence juste après
+        // la dernière ligne) : un ajout, pas un remplacement.
+        var atEnd = appendMode(call.args);
+        // Ajout demandé sans texte : le texte est attendu au tour suivant (essai
+        // réel : {"path", "at_end": true} seul recevait « il manque le texte »).
+        String awaitAppend() {
+          _awaitContent = p;
+          _awaitAppend = true;
+          return 'EN ATTENTE du texte à AJOUTER à la fin de $p (edit_file est '
+              'arrivé sans texte). Réponds MAINTENANT avec, seul, ce texte à '
+              'ajouter (pas tout le fichier) dans un bloc de code (```), sans '
+              'bloc JSON : il sera ajouté à la fin, le reste du fichier est '
+              'gardé. Pour insérer ailleurs, utilise plutôt edit_file avec "old" '
+              '(la ligne exacte après laquelle insérer) et "new".';
+        }
+
+        if (!ranged && atEnd && oldText == null && newText == null) {
+          return awaitAppend();
+        }
         if (ranged && oldText != null && newText == null) {
           // Un seul texte avec une plage : il remplace ces lignes.
           newText = oldText;
@@ -4127,30 +4146,40 @@ class AgentRun extends ChangeNotifier {
           if (text == null) return problem ?? 'ERREUR : $p introuvable.';
           final lines = text.split('\n');
           if (text.endsWith('\n')) lines.removeLast();
-          if (spanStart < 1 || spanStart > lines.length) {
+          // La ligne juste après la dernière : le modèle veut ajouter à la fin
+          // (essai réel : « lignes 135 à 135 » d'un fichier de 134 lignes, trois
+          // fois de suite).
+          if (spanStart == lines.length + 1 && lines.isNotEmpty) {
+            if (newText == null) return awaitAppend();
+            oldText = '';
+            atEnd = true;
+          } else if (spanStart < 1 || spanStart > lines.length) {
             return 'ERREUR : $p a ${lines.length} lignes, la ligne $spanStart '
                 'n\'existe pas. Relis le fichier (read_file) puis recommence.';
           }
-          final end = spanEnd > lines.length ? lines.length : spanEnd;
-          final excerpt = lines.sublist(spanStart - 1, end).join('\n');
-          if (excerpt.trim().isEmpty) {
-            return 'ERREUR : les lignes $spanStart à $end de $p sont vides. Mets '
-                '"old" (la ligne exacte après laquelle insérer) et "new" (cette '
-                'ligne suivie de l\'ajout) dans args.';
+          if (oldText == null) {
+            final end = spanEnd > lines.length ? lines.length : spanEnd;
+            final excerpt = lines.sublist(spanStart - 1, end).join('\n');
+            if (excerpt.trim().isEmpty) {
+              return 'ERREUR : les lignes $spanStart à $end de $p sont vides. '
+                  'Mets "old" (la ligne exacte après laquelle insérer) et "new" '
+                  '(cette ligne suivie de l\'ajout) dans args.';
+            }
+            if (newText == null) {
+              _awaitLines = (p, spanStart, end);
+              final shown = [
+                for (var i = spanStart; i <= end; i++) '$i: ${lines[i - 1]}',
+              ].join('\n');
+              return 'EN ATTENTE du nouveau texte des lignes $spanStart à $end '
+                  'de $p (edit_file est arrivé sans texte). Les voici :\n'
+                  '$shown\nRéponds MAINTENANT avec, seul, le texte qui REMPLACE '
+                  'ces lignes en entier (sans les numéros) dans un bloc de code '
+                  '(```), sans bloc JSON. Pour un changement plus précis, '
+                  'utilise plutôt edit_file avec "old" (le passage exact) et '
+                  '"new".';
+            }
+            oldText = excerpt;
           }
-          if (newText == null) {
-            _awaitLines = (p, spanStart, end);
-            final shown = [
-              for (var i = spanStart; i <= end; i++) '$i: ${lines[i - 1]}',
-            ].join('\n');
-            return 'EN ATTENTE du nouveau texte des lignes $spanStart à $end de '
-                '$p (edit_file est arrivé sans texte). Les voici :\n$shown\n'
-                'Réponds MAINTENANT avec, seul, le texte qui REMPLACE ces lignes '
-                'en entier (sans les numéros) dans un bloc de code (```), sans '
-                'bloc JSON. Pour un changement plus précis, utilise plutôt '
-                'edit_file avec "old" (le passage exact) et "new".';
-          }
-          oldText = excerpt;
         }
         // Un seul bloc : c'est le texte à ajouter (à la fin du fichier).
         if (newText == null && oldText != null) {
@@ -4187,10 +4216,7 @@ class AgentRun extends ChangeNotifier {
           r'(\.(md|markdown|txt|rst|log)$|changelog|readme)',
           caseSensitive: false,
         ).hasMatch(p);
-        if (oldText.isEmpty &&
-            text.trim().isNotEmpty &&
-            !doc &&
-            call.args['at_end'] != true) {
+        if (oldText.isEmpty && text.trim().isNotEmpty && !doc && !atEnd) {
           return 'ERREUR : "old" vide ajouterait le texte à la toute FIN de $p, ce '
               'qui est rarement le bon endroit dans du code. Pour insérer à un '
               'endroit précis : trouve-le (find_in_file), mets dans "old" la ligne '
