@@ -1026,7 +1026,11 @@ class AgentRun extends ChangeNotifier {
       final spec = (out ?? '').trim();
       if (!spec.contains('OBJECTIF')) return '';
       return withTestLayout(
-        markGuesses(spec, [...before, text].join('\n'), files.split('\n')),
+        markGuesses(
+          fixRustTestPaths(spec, files.split('\n')),
+          [...before, text].join('\n'),
+          files.split('\n'),
+        ),
         tests,
       );
     } catch (_) {
@@ -1053,6 +1057,35 @@ class AgentRun extends ChangeNotifier {
     if (lines.isEmpty) return spec;
     return '$spec\n\nOÙ VONT LES TESTS (d\'après les fichiers du dépôt ; '
         'prime sur tout autre chemin de test ci-dessus) :\n${lines.join('\n')}';
+  }
+
+  static final _rustTestPath = RegExp(
+    r'(?<![\w/.-])((?:[\w.-]+/)*)tests/[\w-]+\.rs(?![\w/])',
+  );
+
+  /// Un test Rust que la traduction veut créer dans tests/ alors qu'il ne peut
+  /// pas y compiler : ce qu'il teste est dans le programme (src/main.rs), que
+  /// tests/ ne voit pas. Malgré le repère « où vont les tests », la demande
+  /// gardait « Créer site/tests/sante_test.rs » et « ce test passe » : l'agent
+  /// suivait ce chemin, cherchait longtemps comment importer le programme et
+  /// tournait en rond. Le chemin devient le module de tests de src/main.rs.
+  /// Un fichier de tests qui existe déjà, ou un test de la bibliothèque
+  /// (src/lib.rs), ne change pas.
+  @visibleForTesting
+  static String fixRustTestPaths(String spec, Iterable<String> tree) {
+    final files = tree.map((f) => f.trim()).toSet();
+    return spec.replaceAllMapped(_rustTestPath, (m) {
+      final path = m[0]!;
+      final root = m[1]!;
+      final main = '${root}src/main.rs';
+      if (files.contains(path) || !files.contains(main)) return path;
+      if (files.contains('${root}src/lib.rs') &&
+          (!spec.contains(main) || spec.contains('${root}src/lib.rs'))) {
+        return path;
+      }
+      return '$main (dans son module « #[cfg(test)] mod tests », pas dans '
+          '${root}tests/ qui ne voit pas le programme)';
+    });
   }
 
   static final _pathLike = RegExp(
