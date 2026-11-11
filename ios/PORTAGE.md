@@ -59,3 +59,12 @@ Légende : ✅ porté · 🟡 en partie · ⬜ à faire
 |---|---|
 | CI : `swift test` sous Linux, `xcodebuild test` sur simulateur | ✅ |
 | Envoi sur TestFlight de l'app Swift (remplace l'app Flutter sur iOS) | 🟡 (workflow « TestFlight (Swift) », à lancer à la main ; l'envoi automatique reste celui de l'app Flutter) |
+
+## Suivi de parité
+
+L'app Flutter continue d'évoluer (une version 2.2.x par amélioration). La routine horaire de
+l'app Swift porte chaque nouvelle version, de la plus ancienne à la plus récente, puis met à
+jour cette ligne.
+
+Dernière version Flutter portée : **2.2.74** (à porter ensuite : 2.2.75 et suivantes,
+`git log --oneline -- app/lib`).
