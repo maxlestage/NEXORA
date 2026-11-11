@@ -5,8 +5,8 @@ import Testing
 // Les bancs d'essai : chacun chronomètre un travail réel de l'app sur des données
 // réalistes (longues conversations, centaines de conversations enregistrées,
 // réponses Markdown longues…) et vérifie une borne large (ces tests tournent
-// aussi en mode debug, en parallèle d'autres). Les temps sont affichés pour
-// comparer avant et après une optimisation.
+// aussi en mode debug, en parallèle d'autres : environ 10 fois le temps mesuré).
+// Les temps sont affichés pour comparer avant et après une optimisation.
 
 /// La durée d'un travail, en millisecondes.
 private func ms(_ body: () throws -> Void) rethrows -> Double {
@@ -70,7 +70,7 @@ struct PerformanceTests {
         report("décodage 600 messages", dec)
         #expect(back.count == 600)
         #expect(back[3].at.timeIntervalSince1970.rounded() == c.messages[3].at.timeIntervalSince1970.rounded())
-        #expect(enc + dec < 2000)
+        #expect(enc + dec < 600)
     }
 
     @Test("150 conversations : enregistrements pendant une réponse, liste, recherche")
@@ -104,7 +104,7 @@ struct PerformanceTests {
         report("recherche tapée (7 frappes)", typed)
         #expect(found.count == 150)
         #expect(await store.search("absent-de-partout").isEmpty)
-        #expect(saves < 500 && typed < 20000)
+        #expect(saves < 150 && typed < 8000)
         try await store.deleteAll()
     }
 
@@ -115,7 +115,7 @@ struct PerformanceTests {
         let t = ms { for _ in 0..<10 { blocks = MarkdownBlock.parse(text) } } / 10
         report("MarkdownBlock.parse (\(text.count) car.)", t)
         #expect(blocks.count > 500)
-        #expect(t < 2000)
+        #expect(t < 150)
     }
 
     @Test("journal de session : textes nettoyés (expressions régulières)")
@@ -125,7 +125,7 @@ struct PerformanceTests {
         let t = ms { for l in lines { out = WorkspaceText.plain(l) } }
         report("WorkspaceText.plain × 1500", t)
         #expect(out == "Étape 1499 : lire lib/main.dart et corriger")
-        #expect(t < 5000)
+        #expect(t < 600)
     }
 
     @Test("JSON écrit de travers : un long objet réparé")
@@ -136,7 +136,7 @@ struct PerformanceTests {
         let t = ms { fixed = LooseJSON.repair(text) }
         report("LooseJSON.repair (2500 objets)", t)
         #expect((LooseJSON.object(fixed ?? "") as? [String: Any])?["note"] as? String == "fin")
-        #expect(t < 5000)
+        #expect(t < 400)
     }
 
     @Test("sessions enregistrées : relues au lancement")
@@ -152,7 +152,7 @@ struct PerformanceTests {
         let t = await msAsync { n = await files.loadObjects().count }
         report("40 sessions relues", t)
         #expect(n == 40)
-        #expect(t < 10000)
+        #expect(t < 2500)
         try? FileManager.default.removeItem(at: dir)
     }
 
@@ -172,7 +172,7 @@ struct PerformanceTests {
         } / 20
         report("ModelList.models (\(live.count) modèles)", t)
         #expect(list.count >= live.count)
-        #expect(t < 2000)
+        #expect(t < 200)
     }
 
     @Test("photos jointes : lues et encodées pour le modèle (travail retiré du fil principal)")
@@ -192,8 +192,31 @@ struct PerformanceTests {
         let t = ms { out = ChatImages.attach(plain, from: messages, dropped: dropped, load: { files.llmImage($0) }) }
         report("ChatImages.attach (6 photos de 2 Mo)", t)
         #expect(out.flatMap(\.images).count == 6)
-        #expect(t < 10000)
+        #expect(t < 1500)
         files.deleteAll()
+    }
+
+    @Test("flux d'une réponse : 5 000 lignes SSE lues et triées (raisonnement / texte)")
+    func streamParsing() throws {
+        let lines = (0..<5000).map { i -> String in
+            let piece = i < 500 ? (i == 0 ? "<think>je réfléchis " : "encore \(i) ") : (i == 500 ? "</think>Voici " : "mot\(i) ")
+            return #"data: {"id":"x","choices":[{"index":0,"delta":{"content":"\#(piece)"},"finish_reason":null}]}"#
+        }
+        var parser = StreamLineParser(kind: .openai)
+        var splitter = ThinkSplitter()
+        var text = ""
+        var thinking = ""
+        let t = try ms {
+            for l in lines {
+                guard let d = try parser.parse(l) else { continue }
+                let o = splitter.feed(d)
+                text += o.text
+                thinking += o.thinking
+            }
+        }
+        report("StreamLineParser + ThinkSplitter (5 000 lignes)", t)
+        #expect(thinking.hasPrefix("je réfléchis") && text.hasPrefix("Voici "))
+        #expect(t < 2000)
     }
 
     @Test("suggestions « / » et « @ » pendant la frappe")
@@ -209,7 +232,7 @@ struct PerformanceTests {
         }
         report("ChatLibrary.suggestions × 4000", t)
         #expect(n >= 0)
-        #expect(t < 5000)
+        #expect(t < 3000)
     }
 }
 
