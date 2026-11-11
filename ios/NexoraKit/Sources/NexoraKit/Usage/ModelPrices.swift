@@ -114,8 +114,8 @@ public enum ModelPrices {
             var table: [String: ModelPrice] = [:]
             for case let m as [String: Any] in list {
                 guard let id = m["id"] as? String,
-                      let input = JSONValue.double(m["in"]),
-                      let output = JSONValue.double(m["out"]) else { continue }
+                      let input = UsageJSON.double(m["in"]),
+                      let output = UsageJSON.double(m["out"]) else { continue }
                 table[id.lowercased()] = ModelPrice(input: input, output: output)
             }
             out[provider] = table

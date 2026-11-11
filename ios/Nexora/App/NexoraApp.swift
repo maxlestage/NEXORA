@@ -24,7 +24,7 @@ struct NexoraApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            HomeShell()
                 .environment(settings)
                 .environment(agents)
                 .environment(chats)
@@ -41,44 +41,4 @@ struct NexoraApp: App {
 /// Les onglets de l'app.
 enum AppTab: Hashable {
     case chat, agents, github, models, settings
-}
-
-struct RootView: View {
-    @Environment(SettingsStore.self) private var settings
-    @Environment(UsageStore.self) private var usage
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var tab: AppTab = .chat
-
-    var body: some View {
-        TabView(selection: $tab) {
-            Tab("Chat", systemImage: "bubble.left.and.text.bubble.right", value: .chat) {
-                ConversationsView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
-            }
-            Tab("Agents", systemImage: "person.2.badge.gearshape", value: .agents) {
-                AgentsView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
-            }
-            Tab("GitHub", systemImage: "chevron.left.forwardslash.chevron.right", value: .github) {
-                GitHubView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
-            }
-            Tab("Modèles", systemImage: "cpu", value: .models) {
-                ProvidersView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
-            }
-            Tab("Réglages", systemImage: "gearshape", value: .settings) {
-                SettingsView()
-                    .safeAreaInset(edge: .bottom) { CreditBar() }
-            }
-        }
-        .tabViewStyle(.sidebarAdaptable)
-        .sensoryFeedback(.selection, trigger: tab) { _, _ in settings.haptics }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { usage.saveNow() }
-        }
-        .fullScreenCover(isPresented: Binding(get: { !settings.onboarded }, set: { settings.onboarded = !$0 })) {
-            OnboardingView()
-        }
-    }
 }

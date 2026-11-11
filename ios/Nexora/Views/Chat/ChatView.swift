@@ -1,194 +1,389 @@
 import NexoraKit
 import SwiftUI
+import UIKit
 
-/// Une conversation : les messages en flux, le choix du modèle, de l'effort et de
-/// l'agent, et la barre de saisie (texte ou dictée).
+/// Une conversation (`ui/chat/chat_screen.dart`) : les messages en flux, l'agent, le
+/// modèle et l'effort réglables d'un geste, la dictée (et la conversation vocale),
+/// et des flèches pour aller tout en haut ou tout en bas.
 struct ChatView: View {
     let conversationId: String
+    /// Le texte à placer dans la saisie à l'ouverture (départs rapides).
+    var initialPrompt: String?
+    /// Ouvre une autre conversation à la place de celle-ci (« Nouvelle conversation »).
+    var onReplace: ((String) -> Void)?
 
     @Environment(ChatStore.self) private var chats
     @Environment(SettingsStore.self) private var settings
     @Environment(AgentLibrary.self) private var agents
     @Environment(SpeechService.self) private var speech
     @Environment(GitHubSession.self) private var github
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @State private var input = ""
     /// Les fichiers d'un dépôt joints au prochain message.
     @State private var attachments: [ChatAttachment] = []
     @State private var pickingFile = false
     @State private var notice: String?
-    @State private var showModels = false
     @State private var showAgents = false
     @State private var editing: ChatMessage?
     @State private var editText = ""
+    @State private var renaming = false
+    @State private var newTitle = ""
+    @State private var changeModelFor: ChatMessage?
+    @State private var toast: Toast?
+    @State private var voiceMode = false
+    @State private var position = ScrollPosition(edge: .bottom)
+    @State private var metrics = ScrollMetrics()
+    @State private var dragging = false
+    @State private var stickToBottom = true
+    @State private var sent = 0
     @FocusState private var focused: Bool
 
     private var conversation: Conversation? { chats.conversation(conversationId) }
     private var running: Bool { chats.isRunning(conversationId) }
     private var agent: Agent? { conversation?.agentId.flatMap { agents.agent($0) } }
+    private var ref: ModelRef { settings.resolve(agent?.model ?? conversation?.model) }
 
     var body: some View {
         VStack(spacing: 0) {
-            messages
-            inputBar
-        }
-        .navigationTitle(conversation?.title ?? "Conversation")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { toolbar }
-        .task { await chats.ensureLoaded(conversationId) }
-        .sheet(isPresented: $showModels) {
-            ModelPickerSheet(selected: settings.resolve(agent?.model ?? conversation?.model)) { ref in
-                chats.setModel(conversationId, ref)
+            if let c = conversation {
+                header(c)
+                ZStack(alignment: .bottomTrailing) {
+                    messages(c)
+                    if !c.messages.isEmpty { scrollArrows }
+                }
+                if let t = chats.trimmed[conversationId], t > 0 {
+                    Label(ChatDisplay.trimmedNote(t), systemImage: "memorychip")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                HStack {
+                    ModelEffortButton(current: ref, level: chats.level(for: c, agent: agent), onModel: chooseModel) { l in
+                        chats.setLevel(conversationId, l)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                if !attachments.isEmpty { attachmentChips.padding(.horizontal, 10) }
+                // « / » : les commandes ; « @ » : les sous-agents.
+                suggestionList.padding(.horizontal, 10)
+                if voiceMode { voiceBar }
+                composer
+            } else {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .background(Theme.background(dark: scheme == .dark, oled: settings.oledBlack).opacity(scheme == .dark ? 1 : 0))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { toolbar }
+        .task {
+            if let p = initialPrompt, input.isEmpty { input = p }
+            await chats.ensureLoaded(conversationId)
+        }
+        .onDisappear {
+            speech.cancelListening()
+            speech.stopSpeaking()
+        }
+        .onChange(of: chats.spokenTurn?.count) { onSpokenTurn() }
         .sheet(isPresented: $showAgents) {
             AgentPickerSheet(selected: agent) { chats.setAgent(conversationId, $0) }
+        }
+        .sheet(item: $changeModelFor) { _ in
+            ModelPickerSheet(selected: ref) { r in
+                // Réessayer avec un autre modèle : la dernière réponse est refaite.
+                chats.setModel(conversationId, r)
+                if agent != nil && ChatDisplay.agentKept(afterChoosingModel: agent) == nil { chats.setAgent(conversationId, nil) }
+                chats.regenerate(conversationId)
+            }
         }
         .alert("Modifier le message", isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
             TextField("Message", text: $editText, axis: .vertical)
             Button("Annuler", role: .cancel) {}
-            Button("Renvoyer") {
-                if let m = editing { chats.editAndResend(conversationId, messageId: m.id, text: editText) }
+            Button("OK") {
+                let t = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let m = editing, !t.isEmpty { chats.editAndResend(conversationId, messageId: m.id, text: t) }
             }
         }
-        .onChange(of: speech.transcript) { _, t in
-            if speech.listening { input = t }
+        .alert("Renommer", isPresented: $renaming) {
+            TextField("Titre", text: $newTitle)
+            Button("Annuler", role: .cancel) {}
+            Button("OK") {
+                let t = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty { chats.rename(conversationId, t) }
+            }
         }
         .sheet(isPresented: $pickingFile) {
             RepoFilePickerSheet { f in
                 if !attachments.contains(f) { attachments.append(f) }
             }
         }
+        .alert(notice ?? "", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
+        .sensoryFeedback(.impact(weight: .medium), trigger: sent) { _, _ in settings.haptics }
+        .toast($toast)
+    }
+
+    // MARK: - En-tête
+
+    private func header(_ c: Conversation) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        showAgents = true
+                    } label: {
+                        Label { Text(agent?.name ?? "Assistant") } icon: { Text(agent?.emoji ?? "💬") }
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .accessibilityLabel("Agent : \(agent?.name ?? "Assistant")")
+                    if let p = settings.provider(ref.providerId), !settings.isReady(p) {
+                        Label("Clé manquante", systemImage: "key.slash")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.amber)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Theme.amber.opacity(0.12), in: .capsule)
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            Label(ChatDisplay.spendLine(c), systemImage: "receipt")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - Messages
 
-    private var messages: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    if let c = conversation {
-                        if c.messages.isEmpty { emptyState }
-                        if let dropped = chats.trimmed[conversationId], dropped > 0 {
-                            Label("Les \(dropped) premiers messages n'ont pas été envoyés au modèle (mémoire réglée dans Réglages).", systemImage: "info.circle")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        ForEach(c.messages) { m in
-                            MessageBubble(
-                                message: m,
-                                running: running && m.id == c.messages.last?.id,
-                                showThinking: settings.showThinking,
-                                onRate: { chats.rate(conversationId, messageId: m.id, $0) },
-                                onEdit: m.role == .user ? {
-                                    editText = m.content
-                                    editing = m
-                                } : nil,
-                                onRegenerate: m.role == .assistant && m.id == c.messages.last?.id && !running ? {
-                                    chats.regenerate(conversationId)
-                                } : nil,
-                                onSpeak: { speech.speak(SpeechService.clean(m.content)) }
-                            )
-                            .id(m.id)
-                        }
+    private func messages(_ c: Conversation) -> some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 4) {
+                if c.messages.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(Array(c.messages.enumerated()), id: \.element.id) { i, m in
+                        let isLast = i == c.messages.count - 1
+                        MessageBubble(
+                            message: m,
+                            streaming: running && isLast,
+                            showThinking: settings.showThinking,
+                            provider: ModelRef.parse(m.model).flatMap { settings.provider($0.providerId) },
+                            onRate: { chats.rate(conversationId, messageId: m.id, $0) },
+                            onEdit: m.role == .user && !running ? {
+                                editText = m.content
+                                editing = m
+                            } : nil,
+                            onRegenerate: isLast && m.role == .assistant && !running ? {
+                                chats.regenerate(conversationId)
+                            } : nil,
+                            onChangeModel: { changeModelFor = m },
+                            onCopied: { toast = Toast(text: "Copié") }
+                        )
+                        .id(m.id)
                     }
-                    Color.clear.frame(height: 1).id("bottom")
                 }
-                .padding()
             }
-            .scrollDismissesKeyboard(.interactively)
-            .defaultScrollAnchor(.bottom)
-            .onChange(of: conversation?.messages.last?.content) {
-                if running { proxy.scrollTo("bottom", anchor: .bottom) }
-            }
-            .onChange(of: conversation?.messages.count) {
-                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+        }
+        .scrollPosition($position)
+        .defaultScrollAnchor(.bottom)
+        .scrollDismissesKeyboard(.interactively)
+        .onScrollGeometryChange(for: ScrollMetrics.self) { g in
+            ScrollMetrics(
+                fromTop: g.contentOffset.y + g.contentInsets.top,
+                toBottom: g.contentSize.height + g.contentInsets.bottom - g.contentOffset.y - g.containerSize.height
+            )
+        } action: { _, m in
+            metrics = m
+            if !dragging && m.toBottom < 80 { stickToBottom = true }
+        }
+        .onScrollPhaseChange { _, phase in
+            dragging = phase == .interacting
+            // Le doigt remonte dans la conversation : on ne la fait plus défiler à sa place.
+            if dragging { stickToBottom = false }
+            if phase == .idle { stickToBottom = metrics.toBottom < 80 }
+        }
+        .onChange(of: c.messages.last?.content.count) {
+            // Pendant une réponse : on suit le texte, sauf si vous êtes remonté.
+            if running && stickToBottom && !dragging { position.scrollTo(edge: .bottom) }
+        }
+        .onChange(of: c.messages.count) {
+            stickToBottom = true
+            withAnimation(.easeOut(duration: 0.22)) { position.scrollTo(edge: .bottom) }
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Text(agent?.emoji ?? "✨").font(.system(size: 52))
-            Text(agent?.name ?? "Que puis-je faire pour vous ?").font(.title3.bold())
-            if let d = agent?.description, !d.isEmpty {
-                Text(d).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+    /// Deux flèches pour aller tout en haut ou tout en bas ; chacune n'apparaît que
+    /// si elle sert.
+    private var scrollArrows: some View {
+        VStack(spacing: 8) {
+            arrow("arrow.up.to.line", "Tout en haut", visible: metrics.fromTop > 400) {
+                position.scrollTo(edge: .top)
             }
-            let suggestions = ["Explique-moi un concept simplement", "Écris une fonction Swift qui trie une liste", "Résume ce texte en 3 points", "Aide-moi à rédiger un e-mail"]
-            VStack(spacing: 8) {
-                ForEach(suggestions, id: \.self) { s in
-                    Button(s) { input = s; focused = true }
-                        .buttonStyle(.bordered)
-                        .frame(maxWidth: .infinity)
+            arrow("arrow.down.to.line", "Tout en bas", visible: metrics.toBottom > 300) {
+                stickToBottom = true
+                position.scrollTo(edge: .bottom)
+            }
+        }
+        .padding(.trailing, 14)
+        .padding(.bottom, 12)
+    }
+
+    private func arrow(_ symbol: String, _ label: String, visible: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .frame(width: 40, height: 40)
+                .background(.regularMaterial, in: .circle)
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(visible ? 1 : 0.01)
+        .opacity(visible ? 1 : 0)
+        .animation(.easeOut(duration: 0.18), value: visible)
+        .allowsHitTesting(visible)
+        .accessibilityHidden(!visible)
+        .accessibilityLabel(label)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            NexusOrb(size: 200)
+            Text(ChatDisplay.emptyTitle(agent: agent))
+                .font(.title2.weight(.heavy))
+                .multilineTextAlignment(.center)
+            Text(ChatDisplay.emptyText(agent: agent))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 12)
+            ForEach(Array(ChatDisplay.ideas(agent: agent).enumerated()), id: \.offset) { i, idea in
+                GlassCard(padding: 12, action: {
+                    input = idea
+                    focused = true
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "sparkles").foregroundStyle(.tint)
+                        Text(idea).multilineTextAlignment(.leading)
+                    }
                 }
+                .reveal(i)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 40)
+        .padding(12)
     }
 
     // MARK: - Saisie
 
-    private var inputBar: some View {
-        VStack(spacing: 6) {
-            if let e = speech.error {
-                Text(e).font(.caption).foregroundStyle(Theme.red)
-            }
-            if !attachments.isEmpty { attachmentChips }
-            // « / » : les commandes ; « @ » : les sous-agents.
-            suggestionList
-            HStack(alignment: .bottom, spacing: 8) {
-                Button(action: attach) {
-                    Image(systemName: "paperclip").font(.title3)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Joindre un fichier d'un dépôt")
-
-                Button {
-                    speech.toggleListening()
-                } label: {
-                    Image(systemName: speech.listening ? "waveform.circle.fill" : "mic")
-                        .font(.title3)
-                        .symbolEffect(.pulse, isActive: speech.listening)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(speech.listening ? "Arrêter la dictée" : "Dicter")
-
-                TextField(agent.map { "Message à \($0.name)…" } ?? "Votre message…", text: $input, axis: .vertical)
-                    .lineLimit(1...8)
-                    .focused($focused)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 18))
-                    .onSubmit(send)
-
-                if running {
-                    Button { chats.stop(conversationId) } label: {
-                        Image(systemName: "stop.circle.fill").font(.title)
-                    }
-                    .accessibilityLabel("Arrêter la réponse")
-                } else {
-                    Button(action: send) {
-                        Image(systemName: "arrow.up.circle.fill").font(.title)
-                    }
-                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("Envoyer")
-                }
-            }
+    private var voiceBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: speech.listening ? "ear" : speech.speaking ? "speaker.wave.2.fill" : "headphones")
+                .foregroundStyle(.tint)
+            Text(speech.listening ? "Je vous écoute…" : speech.speaking ? "Je réponds à voix haute…" : "Conversation vocale")
+                .font(.footnote)
+            Spacer()
+            Button("Terminer", systemImage: "stop.circle") { stopVoice() }
+                .font(.footnote)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .sensoryFeedback(.impact(weight: .light), trigger: chats.conversation(conversationId)?.messages.count ?? 0) { _, _ in settings.haptics }
-        .alert(notice ?? "", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
-            Button("OK", role: .cancel) {}
-        }
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
     }
 
-    private func send() {
-        let text = input
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !running else { return }
-        if speech.listening { speech.stopListening() }
+    private var composer: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            Button(action: attach) {
+                Image(systemName: "paperclip")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 38, height: 38)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Joindre un fichier d'un dépôt")
+            TextField("Écrivez une instruction…", text: $input, axis: .vertical)
+                .lineLimit(1...8)
+                .focused($focused)
+                .submitLabel(settings.sendOnEnter ? .send : .return)
+                .padding(.leading, 14)
+                .padding(.vertical, 10)
+                .onChange(of: input) { _, v in
+                    // Entrée pour envoyer : le retour à la ligne tapé envoie le message.
+                    if settings.sendOnEnter, v.hasSuffix("\n") {
+                        input = String(v.dropLast())
+                        send()
+                    }
+                }
+                .onKeyPress(.return, phases: .down) { press in
+                    guard settings.sendOnEnter, !press.modifiers.contains(.shift) else { return .ignored }
+                    send()
+                    return .handled
+                }
+            micButton
+            if running {
+                Button { chats.stop(conversationId) } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Theme.red, in: .circle)
+                }
+                .accessibilityLabel("Arrêter la réponse")
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                Button(action: { send() }) {
+                    Image(systemName: "arrow.up")
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Theme.gradient(settings.accent), in: .circle)
+                }
+                .accessibilityLabel("Envoyer")
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: running)
+        .padding(4)
+        .background(scheme == .dark ? Theme.panel2 : Color.white, in: .rect(cornerRadius: 26))
+        .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(scheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.08)))
+        .shadow(color: Theme.violet.opacity(0.12), radius: 12, y: 8)
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
+    }
+
+    /// Le micro : rouge et animé pendant l'écoute.
+    private var micButton: some View {
+        let on = speech.listening
+        return Button { dictate() } label: {
+            Image(systemName: on ? "mic.fill" : "mic")
+                .font(.title3)
+                .foregroundStyle(on ? Theme.red : .secondary)
+                .frame(width: 38, height: 38)
+                .background(on ? Theme.red.opacity(0.15) : .clear, in: .circle)
+                .shadow(color: on ? Theme.red.opacity(0.45) : .clear, radius: 3 + speech.level * 9)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(on ? "Arrêter la dictée" : "Parler")
+    }
+
+    private func send(voice: Bool = false) {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, conversation != nil, !running else { return }
+        sent += 1
         input = ""
-        chats.send(conversationId, text: ChatLibrary.withAttachments(text.trimmingCharacters(in: .whitespacesAndNewlines), attachments))
+        stickToBottom = true
+        chats.send(conversationId, text: ChatLibrary.withAttachments(text, attachments), voice: voice)
         attachments.removeAll()
     }
 
@@ -263,39 +458,90 @@ struct ChatView: View {
         }
     }
 
+    /// Dicte un message. Envoyé dès la fin de la dictée (si réglé ainsi), et la
+    /// réponse est lue à voix haute.
+    private func dictate() {
+        if speech.listening {
+            speech.stopListening()
+            return
+        }
+        speech.rate = settings.voiceRate
+        let before = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        speech.listen { t in
+            input = before.isEmpty ? t : "\(before) \(t)"
+        } onFinal: { _ in
+            if settings.voiceAutoSend {
+                voiceMode = settings.voiceConversation
+                send(voice: true)
+            }
+        }
+    }
+
+    private func stopVoice() {
+        voiceMode = false
+        speech.cancelListening()
+        speech.stopSpeaking()
+    }
+
+    /// La réponse lue est finie : en conversation vocale, on écoute de nouveau.
+    private func onSpokenTurn() {
+        guard voiceMode, chats.spokenTurn?.id == conversationId, !speech.listening else { return }
+        dictate()
+    }
+
+    /// Un modèle choisi dans le bouton de la barre de saisie.
+    private func chooseModel(_ r: ModelRef) {
+        let wasRunning = running
+        chats.setModel(conversationId, r)
+        // Un agent qui impose son modèle est retiré, pour que le modèle choisi soit
+        // bien utilisé.
+        if agent != nil && ChatDisplay.agentKept(afterChoosingModel: agent) == nil { chats.setAgent(conversationId, nil) }
+        // Changé pendant une réponse : elle repart tout de suite avec le nouveau modèle.
+        if wasRunning {
+            chats.stop(conversationId)
+            chats.regenerate(conversationId)
+        }
+    }
+
     // MARK: - Barre d'outils
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Button { showModels = true } label: {
-                let ref = settings.resolve(agent?.model ?? conversation?.model)
-                HStack(spacing: 4) {
-                    if let p = settings.provider(ref.providerId) { Text(p.emoji) }
-                    Text(ref.model).font(.subheadline.weight(.semibold)).lineLimit(1)
-                    Image(systemName: "chevron.down").font(.caption2)
-                }
+            Button {
+                newTitle = conversation?.title ?? ""
+                renaming = true
+            } label: {
+                Text(conversation?.title ?? "Conversation")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
             }
-            .accessibilityLabel("Changer de modèle")
+            .accessibilityHint("Renommer la conversation")
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                let c = conversation
+                let n = chats.create(agent: agent, model: c?.model)
+                if let onReplace { onReplace(n.id) }
+            } label: {
+                Image(systemName: "square.and.pencil")
+            }
+            .accessibilityLabel("Nouvelle conversation")
             Menu {
                 if let c = conversation {
-                    let current = chats.level(for: c, agent: agent)
-                    Picker("Effort", selection: Binding(get: { current }, set: { chats.setLevel(conversationId, $0) })) {
-                        ForEach(ThinkLevel.allCases) { l in
-                            Label("\(l.label)\(l.badge.map { " · \($0)" } ?? "")", systemImage: levelSymbol(l)).tag(l)
-                        }
+                    Button("Copier en Markdown", systemImage: "doc.on.doc") {
+                        UIPasteboard.general.string = ChatDisplay.export(c)
+                        toast = Toast(text: "Conversation copiée")
                     }
-                    Button("Agent : \(agent?.name ?? "aucun")", systemImage: "person.crop.circle") { showAgents = true }
-                    Divider()
-                    ShareLink(item: c.markdown(), preview: SharePreview(c.title)) {
-                        Label("Exporter en Markdown", systemImage: "square.and.arrow.up")
+                    ShareLink(item: ChatDisplay.export(c), preview: SharePreview(c.title)) {
+                        Label("Partager", systemImage: "square.and.arrow.up")
                     }
-                    if c.cost > 0 || c.tokens > 0 {
-                        Text("\(c.tokens) tokens · \(c.cost.dollars)")
+                    Button("Effacer les messages", systemImage: "eraser") { chats.clearMessages(conversationId) }
+                    Button("Supprimer", systemImage: "trash", role: .destructive) {
+                        chats.delete(conversationId)
+                        dismiss()
                     }
-                    Button("Effacer les messages", systemImage: "eraser", role: .destructive) { chats.clearMessages(conversationId) }
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -303,14 +549,44 @@ struct ChatView: View {
             .accessibilityLabel("Options de la conversation")
         }
     }
+}
 
-    private func levelSymbol(_ l: ThinkLevel) -> String {
-        switch l {
-        case .faible: "hare"
-        case .moyen: "scalemass"
-        case .eleve: "brain"
-        case .extra: "atom"
-        case .max: "flame"
+/// La position dans la liste des messages : distance au haut et au bas.
+struct ScrollMetrics: Equatable {
+    var fromTop: CGFloat = 0
+    var toBottom: CGFloat = 0
+}
+
+/// Un texte entier, sélectionnable et copiable, en plein écran.
+struct FullTextView: View {
+    let title: String
+    let text: String
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(text)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        UIPasteboard.general.string = text
+                        copied = true
+                    } label: {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    }
+                    .accessibilityLabel("Copier")
+                }
+            }
         }
     }
 }

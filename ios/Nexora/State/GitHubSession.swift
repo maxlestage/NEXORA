@@ -16,8 +16,11 @@ final class GitHubSession {
     var deviceCode: DeviceCode?
     @ObservationIgnored private var deviceTask: Task<Void, Never>?
 
-    /// L'identifiant de l'application OAuth GitHub (flux « device »), dans Info.plist.
+    /// L'identifiant de l'application OAuth GitHub (flux « device ») : celui saisi
+    /// dans Réglages, sinon celui d'Info.plist.
     static var clientId: String? {
+        let own = UserDefaults.standard.string(forKey: "github_client_id")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !own.isEmpty { return own }
         let id = Bundle.main.object(forInfoDictionaryKey: "GitHubClientID") as? String
         return (id?.isEmpty ?? true) ? nil : id
     }
