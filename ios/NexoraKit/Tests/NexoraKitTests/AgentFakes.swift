@@ -15,6 +15,8 @@ enum Reply: Sendable {
     /// Du texte, puis la connexion se ferme avant la fin (ni raison d'arrêt, ni
     /// `[DONE]`).
     case cut(String)
+    /// Rien ne vient jamais (jusqu'à l'annulation).
+    case hang
 }
 
 /// Un faux modèle : rend les réponses prévues, dans l'ordre (ou calculées d'après
@@ -33,6 +35,8 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
     var finish: String? = "stop"
     /// La réponse donnée quand la liste est épuisée (`nil` : une erreur).
     var whenEmpty: String?
+    /// Appelé (et attendu) à chaque requête, avant la réponse.
+    var onRequest: (@Sendable (Int) async -> Void)?
 
     init(_ replies: [String] = []) {
         self.replies = replies.map { .text($0) }
@@ -96,6 +100,7 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
             bodies.append(body)
             return (n, dynamic, n < stops.count ? stops[n] : finish)
         }
+        if let hook = lock.withLock({ onRequest }) { await hook(n) }
         var reply: Reply?
         if let dyn { reply = dyn(n, Self.text(body), request.url?.host ?? "") }
         if reply == nil, let f = lock.withLock({ byModel }) {
@@ -122,6 +127,11 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
                 Self.chunk(["tool_calls": [["index": 0, "function": ["arguments": String(args.dropFirst(half))]]]], finish: "tool_calls"),
                 "data: [DONE]\n",
             ].joined(separator: "\n")
+        case .hang?:
+            return (HTTPHead(status: 200, headers: ["content-type": "text/event-stream"]), AsyncThrowingStream { c in
+                // Gardée vivante jusqu'à l'annulation.
+                c.onTermination = { _ in _ = c }
+            })
         case .cut(let t)?:
             text = Self.chunk(["content": t])
         case .error(let s, let b)?:
