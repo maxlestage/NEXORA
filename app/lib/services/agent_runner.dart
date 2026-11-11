@@ -10,6 +10,7 @@ import 'dart_check.dart';
 import 'diff.dart';
 import 'github_api.dart';
 import 'llm_client.dart';
+import 'rust_check.dart';
 
 /// Les outils que l'agent autonome peut utiliser sur un dépôt.
 const Map<String, String> agentTools = {
@@ -916,6 +917,11 @@ class AgentRun extends ChangeNotifier {
 
   /// Ce contenu attendu s'ajoute à la fin du fichier (write_file en mode ajout).
   bool _awaitAppend = false;
+
+  /// Les lignes d'un `edit_file` arrivé avec seulement une plage de lignes
+  /// (chemin, début, fin) : leur nouveau texte est attendu dans la réponse
+  /// suivante.
+  (String, int, int)? _awaitLines;
 
   /// Un write_file qui veut AJOUTER à la fin (« at_end », « append », « mode »
   /// « append »…) au lieu de remplacer tout le fichier.
@@ -2228,6 +2234,25 @@ class AgentRun extends ChangeNotifier {
           final appending = _awaitAppend;
           _awaitContent = null;
           _awaitAppend = false;
+          // Le nouveau texte des lignes montrées après un edit_file qui ne
+          // donnait qu'une plage : elles sont remplacées.
+          final range = _awaitLines;
+          _awaitLines = null;
+          if (range != null) {
+            final content = pendingContent(reply);
+            if (content != null) {
+              calls = [
+                ToolCall('edit_file', {
+                  'path': range.$1,
+                  'line_start': range.$2,
+                  'line_end': range.$3,
+                  'new': content.endsWith('\n')
+                      ? content.substring(0, content.length - 1)
+                      : content,
+                }),
+              ];
+            }
+          }
           // Le contenu attendu n'est pas arrivé : l'agent le saura (il croyait
           // souvent le fichier écrit et passait à la suite).
           var lost = '';
@@ -2505,12 +2530,12 @@ class AgentRun extends ChangeNotifier {
             nudged = true;
             continue;
           }
-          // Un fichier Dart qui ne compilera pas : l'agent est renvoyé le
+          // Un fichier Dart ou Rust qui ne compilera pas : l'agent est renvoyé le
           // corriger avant de terminer (deux fois au plus), au lieu de laisser
           // la CI échouer.
           final broken = finish == null || brokenAsked >= 2
               ? const <String>[]
-              : await _brokenDart();
+              : await _brokenCode();
           if (finish != null && broken.isNotEmpty) {
             brokenAsked++;
             dropReminders(history);
@@ -3623,15 +3648,18 @@ class AgentRun extends ChangeNotifier {
     final text = changes[p];
     if (text == null) return '';
     if (p.endsWith('.dart')) {
-      return await _dartPitfalls(p, text) + await _formatPitfalls(p, text);
+      return await _syntaxPitfalls(p, text) + await _formatPitfalls(p, text);
     }
-    if (!_rustTest.hasMatch(p)) return '';
+    if (!p.endsWith('.rs')) return '';
+    final syntax = await _syntaxPitfalls(p, text);
+    if (!_rustTest.hasMatch(p)) return syntax;
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
     final (libRs, _) = await _current('${p.substring(0, i)}src/lib.rs');
-    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
-        '';
+    return syntax +
+        (rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
+            '');
   }
 
   /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule
@@ -3758,38 +3786,52 @@ class AgentRun extends ChangeNotifier {
         'd\'une chaîne sur sa propre ligne (4 espaces de plus).';
   }
 
-  /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
-  /// chaîne, chaîne ou accolade jamais fermée…) : signalé tout de suite, au
-  /// lieu d'attendre l'échec de la CI. Une erreur déjà présente dans la
-  /// version d'origine n'est pas signalée (rien de certain à corriger).
-  Future<String> _dartPitfalls(String p, String text) async {
-    final hint = dartSyntaxHint(p, text);
+  /// Un fichier Dart ou Rust qui ne compilera pas (barre oblique inverse hors
+  /// d'une chaîne, chaîne ou accolade jamais fermée, accolade en trop…) :
+  /// signalé tout de suite, au lieu d'attendre l'échec de la CI. Une erreur
+  /// déjà présente dans la version d'origine n'est pas signalée (rien de
+  /// certain à corriger).
+  Future<String> _syntaxPitfalls(String p, String text) async {
+    final hint = syntaxHint(p, text);
     if (hint == null) return '';
     try {
       final before = await original(p);
-      if (before != null && dartSyntaxError(before) != null) return '';
+      if (before != null && syntaxError(p, before) != null) return '';
     } catch (_) {}
     return hint;
   }
 
-  /// Les avertissements des brouillons Dart qui ne compileront pas (et qui
-  /// compilaient avant).
-  Future<List<String>> _brokenDart() async {
+  /// Les avertissements des brouillons Dart et Rust qui ne compileront pas (et
+  /// qui compilaient avant).
+  Future<List<String>> _brokenCode() async {
     final out = <String>[];
     for (final e in changes.entries) {
       final text = e.value;
-      if (text == null || !e.key.endsWith('.dart')) continue;
-      final hint = await _dartPitfalls(e.key, text);
+      if (text == null) continue;
+      if (!e.key.endsWith('.dart') && !e.key.endsWith('.rs')) continue;
+      final hint = await _syntaxPitfalls(e.key, text);
       if (hint.isNotEmpty) out.add(hint);
     }
     return out;
   }
 
+  /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou null.
+  @visibleForTesting
+  static String? syntaxError(String path, String content) {
+    if (path.endsWith('.dart')) return dartSyntaxError(content);
+    if (path.endsWith('.rs')) return rustSyntaxError(content);
+    return null;
+  }
+
   /// L'avertissement à donner au modèle pour un fichier Dart qui ne compilera
   /// pas, ou null.
-  static String? dartSyntaxHint(String path, String content) {
-    if (!path.endsWith('.dart')) return null;
-    final error = dartSyntaxError(content);
+  static String? dartSyntaxHint(String path, String content) =>
+      path.endsWith('.dart') ? syntaxHint(path, content) : null;
+
+  /// L'avertissement à donner au modèle pour un fichier Dart ou Rust qui ne
+  /// compilera pas, ou null.
+  static String? syntaxHint(String path, String content) {
+    final error = syntaxError(path, content);
     if (error == null) return null;
     return '\n\nATTENTION : $path ne compilera pas, $error. Corrige ce passage '
         'maintenant avec edit_file (recopie la ligne exacte dans "old"), sans '
@@ -4068,6 +4110,48 @@ class AgentRun extends ChangeNotifier {
           'text',
           'append',
         ]);
+        // Une plage de lignes (line_start/line_end…) sans passage exact : ces
+        // lignes sont celles à remplacer. Essai réel : le modèle envoyait
+        // {"path", "line_start": 404, "line_end": 420} seul, quatre fois de
+        // suite, et recevait chaque fois « il manque le texte ».
+        final (spanStart, spanEnd, _) = readSpan(call.args);
+        final ranged =
+            spanStart != null && spanEnd != null && spanEnd >= spanStart;
+        if (ranged && oldText != null && newText == null) {
+          // Un seul texte avec une plage : il remplace ces lignes.
+          newText = oldText;
+          oldText = null;
+        }
+        if (ranged && oldText == null) {
+          final (text, problem) = await _current(p);
+          if (text == null) return problem ?? 'ERREUR : $p introuvable.';
+          final lines = text.split('\n');
+          if (text.endsWith('\n')) lines.removeLast();
+          if (spanStart < 1 || spanStart > lines.length) {
+            return 'ERREUR : $p a ${lines.length} lignes, la ligne $spanStart '
+                'n\'existe pas. Relis le fichier (read_file) puis recommence.';
+          }
+          final end = spanEnd > lines.length ? lines.length : spanEnd;
+          final excerpt = lines.sublist(spanStart - 1, end).join('\n');
+          if (excerpt.trim().isEmpty) {
+            return 'ERREUR : les lignes $spanStart à $end de $p sont vides. Mets '
+                '"old" (la ligne exacte après laquelle insérer) et "new" (cette '
+                'ligne suivie de l\'ajout) dans args.';
+          }
+          if (newText == null) {
+            _awaitLines = (p, spanStart, end);
+            final shown = [
+              for (var i = spanStart; i <= end; i++) '$i: ${lines[i - 1]}',
+            ].join('\n');
+            return 'EN ATTENTE du nouveau texte des lignes $spanStart à $end de '
+                '$p (edit_file est arrivé sans texte). Les voici :\n$shown\n'
+                'Réponds MAINTENANT avec, seul, le texte qui REMPLACE ces lignes '
+                'en entier (sans les numéros) dans un bloc de code (```), sans '
+                'bloc JSON. Pour un changement plus précis, utilise plutôt '
+                'edit_file avec "old" (le passage exact) et "new".';
+          }
+          oldText = excerpt;
+        }
         // Un seul bloc : c'est le texte à ajouter (à la fin du fichier).
         if (newText == null && oldText != null) {
           newText = oldText;
@@ -4125,7 +4209,9 @@ class AgentRun extends ChangeNotifier {
           oldText,
           newText,
           all: call.args['all'] == true,
-          near: int.tryParse('${call.args['line'] ?? call.args['near'] ?? ''}'),
+          near:
+              int.tryParse('${call.args['line'] ?? call.args['near'] ?? ''}') ??
+              (ranged ? spanStart : null),
         );
         if (edited.$1 == null) return 'ERREUR : ${edited.$2}';
         changes[p] = tidyCode(p, edited.$1!, before: originals[p] ?? text);

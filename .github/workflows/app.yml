@@ -31,6 +31,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Version figée : Flutter 3.50 déclare material.dart obsolète, et
+          # « flutter analyze » refuse alors tout le projet.
+          flutter-version: 3.47.9
           cache: true
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v7
@@ -46,6 +49,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Version figée : Flutter 3.50 déclare material.dart obsolète, et
+          # « flutter analyze » refuse alors tout le projet.
+          flutter-version: 3.47.9
           cache: true
       - run: flutter build ios --release --no-codesign
 
@@ -57,6 +63,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Version figée : Flutter 3.50 déclare material.dart obsolète, et
+          # « flutter analyze » refuse alors tout le projet.
+          flutter-version: 3.47.9
           cache: true
       - run: flutter build web --release
       - uses: actions/upload-artifact@v7
