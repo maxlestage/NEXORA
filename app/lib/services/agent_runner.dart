@@ -1011,6 +1011,9 @@ class AgentRun extends ChangeNotifier {
                   'exacts pour les textes et valeurs ; explicite seulement ce que le bon '
                   'sens implique (la vraie cause à corriger, toutes les pages ou fichiers '
                   'concernés, les tests qui prouvent le changement, la CI GitHub verte). '
+                  'Recopie tel quel chaque chemin (fichier ou dossier) écrit par '
+                  'l\'utilisateur, même s\'il n\'existe pas encore : c\'est là que '
+                  'le travail doit se faire. '
                   'Ne cite un fichier que s\'il figure dans la liste des fichiers du '
                   'dépôt ou que la demande le nomme ; sinon décris son rôle (« le '
                   'fichier des utilitaires ») sans inventer de chemin. De même, ne '
@@ -1042,9 +1045,13 @@ class AgentRun extends ChangeNotifier {
       if (!spec.contains('OBJECTIF') && !cut) return '';
       if (!specComplete(spec, cut: cut)) continue;
       return withTestLayout(
-        markGuesses(
-          fixRustTestPaths(spec, files.split('\n')),
-          [...before, text].join('\n'),
+        keepUserPaths(
+          markGuesses(
+            fixRustTestPaths(spec, files.split('\n')),
+            [...before, text].join('\n'),
+            files.split('\n'),
+          ),
+          text,
           files.split('\n'),
         ),
         tests,
@@ -1104,6 +1111,65 @@ class AgentRun extends ChangeNotifier {
     if (lines.isEmpty) return spec;
     return '$spec\n\nOÙ VONT LES TESTS (d\'après les fichiers du dépôt ; '
         'prime sur tout autre chemin de test ci-dessus) :\n${lines.join('\n')}';
+  }
+
+  static final _userPath = RegExp(r'(?<![\w/.:-])((?:[\w.-]+/)+[\w.-]*)');
+
+  /// Les chemins (fichiers ou dossiers) écrits par l'utilisateur, que la
+  /// traduction a perdus. En essai réel, « ajoute slugify dans app/lib/utils/ »
+  /// (dossier qui n'existe pas encore) devenait « dans le fichier utilitaire de
+  /// l'application » : l'agent ne savait plus où créer la fonction et la
+  /// mettait ailleurs. Chaque chemin oublié revient dans CONTRAINTES, à
+  /// respecter tel quel. Ne compte comme chemin qu'un texte qui commence par un
+  /// dossier du dépôt ou finit par une extension (pas « et/ou », « Ko/Mo »,
+  /// ni une adresse web).
+  @visibleForTesting
+  static String keepUserPaths(
+    String spec,
+    String said, [
+    Iterable<String> tree = const [],
+  ]) {
+    if (spec.isEmpty) return spec;
+    final roots = {
+      for (final f in tree)
+        if (f.trim().contains('/')) f.trim().split('/').first,
+    };
+    final low = spec.toLowerCase();
+    final lost = <String>[];
+    for (final m in _userPath.allMatches(said)) {
+      final path = m[1]!.replaceFirst(RegExp(r'[.,;:!?)]+$'), '');
+      final bare = path.replaceFirst(RegExp(r'/+$'), '');
+      if (bare.isEmpty || !bare.contains(RegExp(r'[A-Za-z]'))) continue;
+      final ext = RegExp(r'\.[A-Za-z][A-Za-z0-9]{0,5}$').hasMatch(bare);
+      if (!ext && !roots.contains(bare.split('/').first)) continue;
+      if (low.contains(bare.toLowerCase())) continue;
+      if (!lost.contains(path)) lost.add(path);
+    }
+    if (lost.isEmpty) return spec;
+    final notes = [
+      for (final p in lost)
+        '- Emplacement écrit par l\'utilisateur, à respecter tel quel : $p'
+            '${p.endsWith('/') || !p.contains('.') ? ' (dossier à créer s\'il '
+                      'n\'existe pas : le nouveau code va dedans)' : ''}',
+    ];
+    final out = spec.split('\n');
+    final ci = out.indexWhere(
+      (l) => RegExp(r'^\W*CONTRAINTES\b', caseSensitive: false).hasMatch(l),
+    );
+    if (ci < 0) {
+      return '$spec\nCONTRAINTES :\n${notes.join('\n')}';
+    }
+    // « aucune » n'a plus de sens à côté de ces emplacements.
+    out[ci] = out[ci].replaceFirst(
+      RegExp(r'\s*:\s*aucune\W*$', caseSensitive: false),
+      ' :',
+    );
+    if (ci + 1 < out.length &&
+        RegExp(r'^\W*aucune\W*$', caseSensitive: false).hasMatch(out[ci + 1])) {
+      out.removeAt(ci + 1);
+    }
+    out.insertAll(ci + 1, notes);
+    return out.join('\n');
   }
 
   static final _rustTestPath = RegExp(

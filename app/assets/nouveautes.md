@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.73 — 11 novembre 2026 — L'agent travaille là où vous l'avez dit
+- Corrigé : en essai réel, « ajoute slugify dans app/lib/utils/ » devenait, une fois traduit en langage NEXORA, « dans le fichier utilitaire de l'application ». Le dossier demandé disparaissait et l'agent ne savait plus où créer le code.
+- Chaque chemin de fichier ou de dossier que vous écrivez est maintenant gardé tel quel dans la demande traduite, même s'il n'existe pas encore : l'agent le crée et y met le nouveau code.
+- Un chemin oublié par la traduction est remis automatiquement dans ses contraintes, à respecter au mot près.
+- Pas de fausse alerte : « et/ou », « Ko/Mo » ou une adresse web ne sont pas pris pour des chemins.
+
 ## 2.2.72 — 11 novembre 2026 — L'agent ne confond plus « utils » et « outils »
 - Corrigé : en essai réel, l'agent cherchait « utils » et trouvait 21 lignes contenant « outils ». Il croyait avoir trouvé quelque chose, refaisait la même recherche et la session finissait arrêtée sans rien faire.
 - Pour un mot simple, la recherche montre d'abord les lignes où il apparaît vraiment (nom de fichier, de fonction…) et met de côté celles où il n'est qu'un morceau d'un autre mot.
