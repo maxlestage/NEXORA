@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.68 — 11 novembre 2026 — Le test d'une route du site au bon endroit dès la traduction
+- Corrigé : pour « ajoute une route au site, avec son test », la traduction en langage NEXORA demandait encore de créer le test dans site/tests/, où il ne peut pas compiler. L'agent suivait ce chemin et cherchait longtemps comment faire.
+- La demande traduite indique maintenant directement le module de tests du programme (site/src/main.rs) : l'agent écrit le test là où il compile.
+- Un fichier de tests qui existe déjà, ou un test de la bibliothèque, garde son chemin.
+
 ## 2.2.67 — 11 novembre 2026 — L'agent trouve ce qu'il cherche du premier coup
 - Corrigé : quand l'agent cherchait dans le code avec un motif (« async fn .* -> String », « get|post »), la recherche le prenait mot à mot et ne trouvait jamais rien. Il répétait la même recherche, tournait en rond et perdait de longues minutes.
 - Ces motifs sont maintenant compris : l'agent voit tout de suite les lignes qui correspondent, avec le code autour.
