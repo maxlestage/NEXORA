@@ -3050,6 +3050,14 @@ class AgentRun extends ChangeNotifier {
     return RegExp(r'[A-Za-z0-9]_[A-Za-z0-9]|[a-z0-9][A-Z]|::').hasMatch(q);
   }
 
+  /// Le nom dont [query] cherche la définition (« pub struct Response »,
+  /// « fn sante », « class Foo » → Response, sante, Foo) ; null sinon.
+  static String? definedName(String query) => RegExp(
+    r'^(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:abstract\s+)?'
+    r'(?:struct|enum|trait|fn|type|union|class|mixin|extension|interface|def|'
+    r'function|typedef)\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<({:]?\s*$',
+  ).firstMatch(query.trim())?[1];
+
   /// Les mots d'une ligne trouvée qui contiennent [q] (« outils »).
   static Iterable<String> otherWords(String hit, String q) =>
       RegExp(r'[\p{L}\p{N}_]+', unicode: true)
@@ -3068,7 +3076,13 @@ class AgentRun extends ChangeNotifier {
       final all = await _grepIn(query, '');
       // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
       // à créer est signalé comme tel, pas seulement « dans ce dossier »).
-      if (here.$2 == 0 && all.$2 == 0 && isNewName(query)) return all.$1;
+      if (here.$2 == 0 &&
+          all.$2 == 0 &&
+          (isNewName(query) ||
+              (definedName(query) != null &&
+                  !here.$1.startsWith('Aucune définition')))) {
+        return all.$1;
+      }
       if (all.$2 > here.$2) {
         return '${here.$1}\n\nDans tout le dépôt (pas seulement $prefix) :\n${all.$1}';
       }
@@ -3210,6 +3224,63 @@ class AgentRun extends ChangeNotifier {
         0,
       );
     }
+    // « pub struct Response » : la définition d'un nom que le code utilise
+    // mais qui vient d'une dépendance (Paquets, un paquet pub…). Essai réel
+    // (« ajoute une route /sante en texte brut ») : l'agent cherchait cette
+    // définition des dizaines de fois sans la trouver et la session s'arrêtait
+    // sans rien livrer, alors que l'usage existant montrait comment faire.
+    final defined = hits.isEmpty && !_stop ? definedName(query) : null;
+    if (defined != null) {
+      final word = RegExp(
+        '(?<![A-Za-z0-9_])${RegExp.escape(defined)}(?![A-Za-z0-9_])',
+      );
+      final uses = <String>[];
+      final drafted = <String>[];
+      for (final e in texts.entries) {
+        final before = changes.containsKey(e.key) ? originals[e.key] : e.value;
+        final had = before == null
+            ? const <String>{}
+            : {
+                for (final l in before.split('\n'))
+                  if (word.hasMatch(l)) l.trim(),
+              };
+        final lines = e.value.split('\n');
+        for (final (n, l) in lines.indexed) {
+          if (!word.hasMatch(l)) continue;
+          if (!had.contains(l.trim())) {
+            drafted.add('${e.key}:${n + 1}: ${l.trim()}');
+            continue;
+          }
+          if (uses.length >= 4) continue;
+          final from = n - 2 < 0 ? 0 : n - 2;
+          final to = n + 3 >= lines.length ? lines.length - 1 : n + 3;
+          uses.add(
+            '${e.key} :\n${[for (var k = from; k <= to; k++) '${k == n ? '>' : ' '}${k + 1}: ${lines[k]}'].join('\n')}',
+          );
+        }
+      }
+      if (uses.isNotEmpty) {
+        return (
+          'Aucune définition de « $defined » dans le dépôt '
+              '(${texts.length} fichiers parcourus), mais le code existant '
+              "l'utilise : « $defined » vient d'une dépendance (bibliothèque "
+              'externe), sa définition n\'est pas ici. Ne la cherche plus : '
+              'fais comme le code existant, qui montre comment '
+              "l'utiliser :\n${uses.join('\n\n')}"
+              '\nPuis fais la modification demandée (edit_file).',
+          0,
+        );
+      }
+      if (drafted.isNotEmpty) {
+        return (
+          "« $defined » n'est défini nulle part : seuls tes brouillons "
+              "l'utilisent :\n${drafted.take(5).join('\n')}\nNe le cherche "
+              'plus : crée sa définition maintenant (edit_file), à côté du '
+              'code semblable du même fichier.',
+          0,
+        );
+      }
+    }
     if (hits.isEmpty) {
       return (
         'Aucune ligne ne contient « $query » (${texts.length} fichiers '
@@ -3295,12 +3366,13 @@ class AgentRun extends ChangeNotifier {
     String content, {
     String? cargo,
     String? mainRs,
+    String? libRs,
   }) {
     if (!_rustTest.hasMatch(path)) return null;
     final crate = cargo == null ? null : rustCrateName(cargo);
     final both = [
       ?_rustCrateHint(path, content, crate),
-      ?_rustBinHint(path, content, mainRs),
+      ?_rustBinHint(path, content, mainRs, libRs: libRs, crate: crate),
     ];
     return both.isEmpty ? null : both.join();
   }
@@ -3312,7 +3384,17 @@ class AgentRun extends ChangeNotifier {
   /// invisible depuis tests/ (essai réel : « app().test() » pour une route du
   /// site). Le test ne compile pas ; sa place est dans le module de tests de
   /// main.rs.
-  static String? _rustBinHint(String path, String content, String? mainRs) {
+  ///
+  /// Un `use nom_du_crate::app;` n'y change rien quand app() n'est pas dans
+  /// src/lib.rs (essai réel : l'avertissement ne venait plus, et le test
+  /// écrit par l'agent ne pouvait pas compiler).
+  static String? _rustBinHint(
+    String path,
+    String content,
+    String? mainRs, {
+    String? libRs,
+    String? crate,
+  }) {
     if (mainRs == null) return null;
     final code = content
         .split('\n')
@@ -3321,10 +3403,20 @@ class AgentRun extends ChangeNotifier {
     final mine = {for (final m in _fnDef.allMatches(code)) m[1]!};
     final imported = code
         .split('\n')
-        .where((l) => l.trim().startsWith('use '))
+        .map((l) => l.trim())
+        .where(
+          (l) =>
+              l.startsWith('use ') &&
+              (crate == null || !RegExp('^use\\s+(::)?$crate::').hasMatch(l)),
+        )
         .join(' ');
+    final inLib = {
+      if (libRs != null)
+        for (final m in _fnDef.allMatches(libRs)) m[1]!,
+    };
     final inMain = {for (final m in _fnDef.allMatches(mainRs)) m[1]!}
-      ..remove('main');
+      ..remove('main')
+      ..removeAll(inLib);
     final used = <String>[];
     for (final m in _call.allMatches(code)) {
       final name = m[1]!;
@@ -3383,7 +3475,9 @@ class AgentRun extends ChangeNotifier {
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
-    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs) ?? '';
+    final (libRs, _) = await _current('${p.substring(0, i)}src/lib.rs');
+    return rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
+        '';
   }
 
   /// Un fichier Dart qui ne compilera pas (barre oblique inverse hors d'une
