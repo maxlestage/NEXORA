@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.72 — 11 novembre 2026 — L'agent ne confond plus « utils » et « outils »
+- Corrigé : en essai réel, l'agent cherchait « utils » et trouvait 21 lignes contenant « outils ». Il croyait avoir trouvé quelque chose, refaisait la même recherche et la session finissait arrêtée sans rien faire.
+- Pour un mot simple, la recherche montre d'abord les lignes où il apparaît vraiment (nom de fichier, de fonction…) et met de côté celles où il n'est qu'un morceau d'un autre mot.
+- S'il n'apparaît nulle part comme mot à part entière, l'agent l'apprend clairement (« n'existe pas encore ») et crée ce qui manque au lieu de chercher en boucle.
+- Rien ne change pour un nom en camelCase (« formatDuree » est toujours trouvé avec « duree ») ni pour les autres recherches.
+
 ## 2.2.71 — 11 novembre 2026 — L'agent repère le code Dart qui ne compile pas
 - Corrigé : en essai réel, l'agent écrivait « padLeft(2, \'0\') » à l'intérieur d'un « ${…} ». Ce code Dart ne compile pas, mais l'agent terminait quand même et la CI échouait.
 - Chaque fichier Dart écrit ou modifié par l'agent est maintenant relu aussitôt : barre oblique inverse hors d'une chaîne, chaîne jamais fermée, parenthèse ou accolade oubliée. L'agent est prévenu avec la ligne exacte et corrige tout de suite.
