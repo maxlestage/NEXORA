@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.81 — 11 novembre 2026 — L'agent écrit des lignes que dart format accepte
+- Corrigé : en essai réel, pour « ajoute un getter totalWords », l'agent écrivait une ligne Dart de 86 caractères. Quand la CI vérifie « dart format », elle échouait en disant seulement « Changed lib/models/chat.dart », sans dire quoi changer.
+- Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture du fichier, avec chaque ligne trop longue et la façon de la couper comme le formateur.
+- La largeur choisie par le projet (page_width de analysis_options.yaml) est respectée ; les imports, commentaires, textes et lignes déjà présentes ne sont pas signalés.
+- Une seule alerte par fichier, et aucune quand la CI ne vérifie pas le format. Vérifié sur plus de 1 200 fichiers Dart réels.
+
 ## 2.2.80 — 11 novembre 2026 — Le Dart de l'agent passe l'analyseur
 - Corrigé : en essai réel, pour « ajoute une fonction formatDuree », l'agent écrivait '${hours} h ${minutesStr} min' et ouvrait le fichier par un commentaire de documentation rattaché à rien. « flutter analyze » signale les deux : la CI échouait pour une question d'écriture.
 - Dans le Dart écrit par l'agent, les accolades inutiles sont retirées ('$hours h $minutesStr min') et ce commentaire de tête devient un commentaire simple, dès le brouillon.
