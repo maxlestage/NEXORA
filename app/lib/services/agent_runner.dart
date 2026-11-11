@@ -4347,6 +4347,58 @@ class AgentRun extends ChangeNotifier {
           'unique, ou "all": true pour tout remplacer.',
     );
   }
+  // Un passage recopié à moitié, coupé au milieu d'un mot (« …", men » pour
+  // « …", mentions); ») : remplacé tel quel, l'ajout atterrissait au milieu du
+  // mot (« men⏎ app.get(…);tions); ») et le code ne compilait plus.
+  final at = source.indexOf(needle);
+  final end = at + needle.length;
+  final word = RegExp(r'[\p{L}\p{N}_]', unicode: true);
+  bool isWord(String c) => word.hasMatch(c);
+  final cutEnd =
+      end < source.length &&
+      isWord(needle[needle.length - 1]) &&
+      isWord(source[end]);
+  final cutStart = at > 0 && isWord(needle[0]) && isWord(source[at - 1]);
+  if (cutEnd) {
+    final lineEnd = source.indexOf('\n', end);
+    final rest = source.substring(end, lineEnd < 0 ? source.length : lineEnd);
+    final added = replacement.startsWith(needle)
+        ? replacement.substring(needle.length)
+        : null;
+    if (!all && n == 1 && added != null && added.startsWith('\n')) {
+      // Le modèle voulait ajouter des lignes après celle-ci : elles vont après
+      // la ligne entière, qui reste intacte.
+      return (
+        source.replaceRange(end, end + rest.length, '$rest$added'),
+        '1 ajout après la ligne entière (old s\'arrêtait au milieu de '
+            '« ${source.substring(at, end).split('\n').last}$rest »)',
+      );
+    }
+    final tail = RegExp(r'[\p{L}\p{N}_]+$', unicode: true).firstMatch(needle);
+    if (tail != null && !replacement.endsWith(tail[0]!)) {
+      final lineStart = source.lastIndexOf('\n', at) + 1;
+      return (
+        null,
+        'old s\'arrête au milieu d\'un mot (« ${tail[0]}|${RegExp(r'^[\p{L}\p{N}_]+', unicode: true).firstMatch(rest)?[0] ?? ''} ») : '
+            'le remplacer couperait ce mot en deux. Recopie la ligne ENTIÈRE '
+            'dans old (et dans new) :\n'
+            '${source.substring(lineStart, lineEnd < 0 ? source.length : lineEnd)}',
+      );
+    }
+  }
+  if (cutStart) {
+    final head = RegExp(r'^[\p{L}\p{N}_]+', unicode: true).firstMatch(needle);
+    if (head != null && !replacement.startsWith(head[0]!)) {
+      final lineStart = source.lastIndexOf('\n', at) + 1;
+      final lineEnd = source.indexOf('\n', at);
+      return (
+        null,
+        'old commence au milieu d\'un mot : le remplacer couperait ce mot en '
+            'deux. Recopie la ligne ENTIÈRE dans old (et dans new) :\n'
+            '${source.substring(lineStart, lineEnd < 0 ? source.length : lineEnd)}',
+      );
+    }
+  }
   final out = all
       ? source.replaceAll(needle, replacement)
       : source.replaceFirst(needle, replacement);
