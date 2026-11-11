@@ -189,6 +189,12 @@ public enum UsageText {
             if b.remaining == nil && b.freeTier == true { return "Offre gratuite" }
             return b.label
         }
+        // L'argent dépensé passe avant les fenêtres de limite (souvent pleines,
+        // donc toujours les mêmes) : c'est ce qui bouge à chaque réponse.
+        if u.costToday > 0 {
+            let today = "≈ \(UsageFormat.dollars(u.costToday)) auj."
+            return u.costMonth > u.costToday ? "\(today) · \(UsageFormat.dollars(u.costMonth)) ce mois" : today
+        }
         if let w = u.windows.first { return w.label }
         if p.local { return "Local · illimité" }
         if u.costMonth > 0 { return "≈ \(UsageFormat.dollars(u.costMonth)) ce mois" }
@@ -258,6 +264,13 @@ public enum UsageText {
     }
 
     /// Le résumé d'une conversation : « ≈ 0,012 $ · 3,4k tokens ».
+    /// La consommation d'une session de l'agent : « 1,2M tokens · ≈ 3,40 $ ».
+    public static func session(tokensIn: Int, tokensOut: Int, cost: Double, partial: Bool) -> String {
+        let tokens = "\(UsageFormat.compact(tokensIn + tokensOut)) tokens (\(UsageFormat.compact(tokensIn)) envoyés · \(UsageFormat.compact(tokensOut)) reçus)"
+        if cost > 0 { return "\(tokens) · ≈ \(UsageFormat.dollars(cost))\(partial ? " ou plus" : "")" }
+        return partial ? "\(tokens) · prix inconnu" : "\(tokens) · gratuit"
+    }
+
     public static func conversation(tokens: Int, cost: Double) -> String {
         if tokens == 0 { return "Aucune dépense" }
         return (cost > 0 ? "≈ \(UsageFormat.costLabel(cost)) · " : "") + "\(UsageFormat.compact(tokens)) tokens"
