@@ -19,7 +19,7 @@ name: TestFlight
 on:
   push:
     branches: [master]
-    paths: ["ios/**", "app/assets/nouveautes.md", "app/assets/models.json", ".github/workflows/testflight.yml"]
+    paths: ["ios/**", ".github/workflows/testflight.yml"]
     tags: ["v*"]
   workflow_dispatch:
 
