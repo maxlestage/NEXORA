@@ -210,7 +210,7 @@ final class ChatStore {
         let speak = settings.speakReplies
         let llm = self.llm
 
-        tasks[id] = Task { [weak self] in
+        tasks[id] = Task { @MainActor [weak self] in
             var text = ""
             var thinking = ""
             var tokens = TokenUsage.zero
@@ -219,7 +219,7 @@ final class ChatStore {
             var lastFlush = ContinuousClock.now
             var spoken = 0
 
-            func flush(final: Bool = false) {
+            @MainActor func flush(final: Bool = false) {
                 guard let self else { return }
                 let tin = tokens.input > 0 ? tokens.input : (inputChars + 3) / 4
                 let tout = tokens.output > 0 && final ? tokens.output : (text.count + thinking.count + 3) / 4
