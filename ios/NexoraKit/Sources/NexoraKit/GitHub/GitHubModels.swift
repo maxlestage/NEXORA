@@ -72,6 +72,13 @@ public struct FileContent: Sendable, Hashable {
     public let text: String
     public let sha: String
     public let binary: Bool
+
+    public init(path: String, text: String, sha: String, binary: Bool = false) {
+        self.path = path
+        self.text = text
+        self.sha = sha
+        self.binary = binary
+    }
 }
 
 public struct Issue: Decodable, Sendable, Hashable, Identifiable {
