@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.94 — 12 novembre 2026 — Un test Rust qui ne compile pas est repéré tout de suite
+- Corrigé : en essai réel, pour « fais reconnaître « Retiré » dans nature()… Ajoute un test », le modèle créait site/tests/contenu.rs avec « use super::*; » en tête. NEXORA l'acceptait sans rien dire, alors que ce test ne peut pas compiler : la CI l'aurait découvert bien plus tard.
+- Un test du dossier tests/ qui utilise super:: hors de ses propres modules est maintenant signalé dès son écriture, avec la bonne façon d'importer la bibliothèque (« use nom_du_crate::… ») ou de mettre le test dans le module de tests du fichier testé.
+- Même avertissement pour un « mod tests { use super::*; } » qui n'importe jamais la bibliothèque : aucune de ses fonctions n'y serait trouvée.
+- Prudent : un super:: dans un module du fichier, dans une macro, un test qui lance le programme, ou les tests de src/ ne sont jamais visés (aucune fausse alerte sur 742 vrais tests Rust).
+
 ## 2.2.93 — 11 novembre 2026 — Une fonction ajoutée n'est plus refusée
 - Corrigé : en essai réel, pour « ajoute shortModelName dans llm_parsers.dart », le modèle écrivait le fichier avec seulement sa nouvelle fonction. NEXORA refusait (tout le reste du fichier aurait été effacé), et le modèle mettait quatre étapes à trouver comment l'ajouter.
 - Quand ce texte n'est que du code nouveau (une fonction, un test, sans aucune ligne du fichier ni import), il est maintenant ajouté à la fin du fichier, et le code existant est gardé.

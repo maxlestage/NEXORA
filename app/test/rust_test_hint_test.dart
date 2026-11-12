@@ -183,6 +183,32 @@ void main() {
     expect(seen[1], contains('use nexora_site::'));
   });
 
+  test('write_file d\'un test de tests/ avec « use super::* » : prévenu', () async {
+    // Le test réellement écrit par Pollinations pour « Retiré » dans nature().
+    const content =
+        'use super::*;\n\n#[test]\nfn retire() {\n'
+        '    assert_eq!(nature("Retiré : x").0, "Retiré");\n}\n';
+    final (llm, seen) = scripted([
+      '```json\n{"tool":"write_file","args":{"path":"site/tests/contenu.rs",'
+          '"content":${jsonEncode(content)}}}\n```',
+    ]);
+    final run = AgentRun(
+      llm: llm,
+      github: fake(),
+      provider: providersCatalog.firstWhere((p) => p.id == 'pollinations'),
+      apiKey: null,
+      model: 'openai',
+      owner: 'max',
+      repo: 'NEXORA',
+      branch: 'master',
+      task: 'Fais reconnaître « Retiré » dans nature(), avec un test',
+    )..specs.add('déjà compris');
+    await run.run();
+    expect(seen[1], contains('enregistré en brouillon'));
+    expect(seen[1], contains('« use super::*; » ne compilera pas'));
+    expect(seen[1], contains('use nexora_site::'));
+  });
+
   // Le test réellement écrit par Pollinations pour « ajoute une route
   // /version au site, avec un test » : app() est dans src/main.rs.
   const mainRs = '''
