@@ -37,8 +37,15 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   `compactHistory` en profite pour les retirer quand il raccourcit. Le banc simule
   désormais le rappel (≈ 290 caractères). Tests : 351 (1 test adapté : ≤ 4 rappels).
 
-## Prochain passage : INTERFACE (écran Agents)
-Puis Code/GitHub, Modèles, Réglages.
+- 3.0.11 (interface) : écran Agents — `AgentsDisplay.matches` (recherche sans accents ni
+  casse, description des agents cloud comprise), état vide de recherche (agents et skills),
+  balayage à droite « Discuter » (action fréquente, avant cachée dans le menu ou la fiche),
+  outils résumés « 5 outils », bouton Bibliothèque en double retiré de la barre (reste
+  dans +). Barre du haut : 2 boutons → 1. Tests : 351 → 353.
+
+## Prochain passage : TOKENS
+Piste : `cache_control` des petites requêtes internes, ou mémoire du chat résumée.
+Interface ensuite : Code/GitHub, Modèles, Réglages.
 
 ## Pistes tokens à faire
 - `cache_control` Anthropic seulement quand `reasoning` est vrai (LLMClient.body) : vérifier
