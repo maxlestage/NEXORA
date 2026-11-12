@@ -25,7 +25,13 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   toujours tout de suite. Paquet de 6 essayé : −56 % Anthropic mais +13 % envoyés
   (fournisseurs sans cache) ; 4 retenu (+6 % envoyés seulement).
 
-## Prochain passage : INTERFACE (écran suivant : session de l'agent)
+- 3.0.9 (interface) : session de l'agent — en-tête sans mission ni crédit répétés
+  (`WorkspaceText.headerDetail`, « 1 action »), un seul bouton Envoyer/Arrêter en bas
+  (`WorkspaceText.composerButton`), Arrêter retiré de la barre du haut, cibles 44 pt.
+  Tests : 350 → 351.
+
+## Prochain passage : TOKENS (piste : rappel `dropReminders` hors du dernier message)
+Écran d'interface suivant : Agents, puis Code/GitHub, Modèles, Réglages.
 
 ## Pistes tokens à faire
 - `dropReminders` retire le rappel du dernier message à chaque étape : ce message change

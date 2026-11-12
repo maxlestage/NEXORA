@@ -135,6 +135,33 @@ public enum WorkspaceText {
         "\(status.label) · \(actions) actions" + (added + removed > 0 ? " · +\(added) −\(removed)" : "")
     }
 
+    /// « 1 action · +12 −3 », « Aucune action » : le détail sous l'état, en tête de session.
+    public static func headerDetail(actions: Int, added: Int, removed: Int) -> String {
+        let a = switch actions {
+        case 0: "Aucune action"
+        case 1: "1 action"
+        default: "\(actions) actions"
+        }
+        return a + (added + removed > 0 ? " · +\(added) −\(removed)" : "")
+    }
+
+    /// Le bouton rond de la barre d'instruction d'une session.
+    public enum ComposerButton: Equatable, Sendable {
+        /// Envoyer (ou préciser pendant le travail) : il y a quelque chose à envoyer.
+        case send
+        /// L'agent travaille et rien n'est écrit : le même bouton l'arrête.
+        case stop
+        /// Rien à envoyer : le bouton Envoyer s'estompe.
+        case idle
+    }
+
+    /// Un seul bouton au lieu de deux : Arrêter tant que l'agent travaille et que
+    /// rien n'est écrit, sinon Envoyer (estompé s'il n'y a rien).
+    public static func composerButton(busy: Bool, text: String, photos: Int) -> ComposerButton {
+        if ChatDisplay.canSend(text, photos: photos) { return .send }
+        return busy ? .stop : .idle
+    }
+
     /// Le sous-titre d'une session dans la liste (sans les lignes ni la date).
     public static func tileSubtitle(_ status: SessionStatus, reposLabel: String) -> String {
         switch status {
