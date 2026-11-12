@@ -365,3 +365,148 @@ List<String> dartIndentProblems(
   }
   return problems;
 }
+
+/// Une déclaration écrite à l'intérieur du bloc d'une autre, ou null.
+///
+/// En essai réel, pour « ajoute une fonction publique summarizeDiff dans
+/// diff.dart », le modèle a collé la nouvelle fonction juste avant la « } »
+/// qui fermait lineDiff, après son `return`. Les accolades restaient
+/// équilibrées : rien ne le signalait, mais summarizeDiff devenait une
+/// fonction locale, invisible du reste du code (tests qui ne compilent pas,
+/// `flutter analyze` en échec).
+///
+/// Ne vise qu'une ligne au tout début (sans indentation) qui déclare une
+/// fonction, une classe, un enum, une extension ou un typedef, alors qu'une
+/// accolade « { » reste ouverte : un code formaté n'en a jamais. Les textes
+/// sur plusieurs lignes et les commentaires sont ignorés. Rend
+/// « ligne N (« … ») : … », ou null.
+String? dartNestedDeclarationError(String code) {
+  if (dartSyntaxError(code) != null) return null;
+  final lines = code.split('\n');
+  // Les « { » ouvertes au début de chaque ligne (null : la ligne commence
+  // dans un texte, un commentaire /* */, des parenthèses ou une interpolation).
+  final opened = List<List<int>?>.filled(lines.length, null);
+  final stack = <_Frame>[];
+  final n = code.length;
+  var line = 0;
+  bool isIdent(int i) => i >= 0 && RegExp(r'[A-Za-z0-9_$]').hasMatch(code[i]);
+  void mark() {
+    if (stack.every((f) => f.quote == null && f.open == '{')) {
+      opened[line] = [for (final f in stack) f.line];
+    }
+  }
+
+  mark();
+  for (var i = 0; i < n; i++) {
+    final c = code[i];
+    final top = stack.isEmpty ? null : stack.last;
+    if (c == '\n') {
+      line++;
+      if (top == null || top.quote == null) mark();
+      continue;
+    }
+    if (top != null && top.quote != null) {
+      if (!top.raw && c == '\\') {
+        if (i + 1 < n && code[i + 1] == '\n') line++;
+        i++;
+        continue;
+      }
+      if (!top.raw && c == r'$' && i + 1 < n && code[i + 1] == '{') {
+        stack.add(_Frame.code(r'${', line));
+        i++;
+        continue;
+      }
+      final q = top.quote!;
+      if (c == q) {
+        if (!top.triple) {
+          stack.removeLast();
+        } else if (code.startsWith('$q$q$q', i)) {
+          stack.removeLast();
+          i += 2;
+        }
+      }
+      continue;
+    }
+    if (c == '/' && i + 1 < n && code[i + 1] == '/') {
+      final end = code.indexOf('\n', i);
+      if (end < 0) break;
+      i = end - 1;
+      continue;
+    }
+    if (c == '/' && i + 1 < n && code[i + 1] == '*') {
+      var depth = 1;
+      var j = i + 2;
+      while (j < n && depth > 0) {
+        if (code.startsWith('/*', j)) {
+          depth++;
+          j += 2;
+        } else if (code.startsWith('*/', j)) {
+          depth--;
+          j += 2;
+        } else {
+          if (code[j] == '\n') line++;
+          j++;
+        }
+      }
+      if (depth > 0) return null;
+      i = j - 1;
+      continue;
+    }
+    if (c == "'" || c == '"') {
+      final raw = i > 0 && code[i - 1] == 'r' && !isIdent(i - 2);
+      final triple = code.startsWith('$c$c$c', i);
+      stack.add(_Frame.string(c, triple: triple, raw: raw, line: line));
+      if (triple) i += 2;
+      continue;
+    }
+    if (c == '(' || c == '[' || c == '{') {
+      stack.add(_Frame.code(c, line));
+      continue;
+    }
+    if ((c == ')' || c == ']' || c == '}') && stack.isNotEmpty) {
+      stack.removeLast();
+    }
+  }
+  for (var l = 0; l < lines.length; l++) {
+    final open = opened[l];
+    if (open == null || open.isEmpty) continue;
+    final text = lines[l];
+    if (!_topLevelDeclaration(text)) continue;
+    final outer = lines[open.first].trim();
+    String cut(String s) => s.length > 100 ? '${s.substring(0, 100)}…' : s;
+    return 'ligne ${l + 1} (« ${cut(text.trim())} ») : cette déclaration est '
+        'écrite à l\'intérieur de « ${cut(outer)} » (ligne ${open.first + 1}), '
+        'dont l\'accolade « { » n\'est pas encore fermée à cet endroit : elle '
+        'n\'est donc pas visible du reste du code. Déplace-la après la « } » '
+        'qui ferme ce bloc, au niveau des autres déclarations';
+  }
+  return null;
+}
+
+/// Une ligne sans indentation qui déclare une fonction (avec son corps « { »
+/// ou « => »), une classe, un enum, un mixin, une extension ou un typedef.
+bool _topLevelDeclaration(String line) {
+  if (line.isEmpty || line.startsWith(RegExp(r'\s'))) return false;
+  if (RegExp(
+    r'^(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*'
+    r'(?:class|enum|mixin|extension|typedef)\s+[A-Za-z_$]',
+  ).hasMatch(line)) {
+    return true;
+  }
+  final fn = RegExp(
+    r'^(?:[A-Za-z_$][\w$.]*(?:<[^()]*>)?\??\s+)?'
+    r'([A-Za-z_$][\w$]*)\s*(?:<[^()]*>)?\s*\(',
+  ).firstMatch(line);
+  if (fn == null) return false;
+  const keywords = {
+    'if', 'for', 'while', 'switch', 'catch', 'return', 'await', 'assert', //
+    'super', 'this', 'do', 'else', 'try', 'throw', 'new', 'const', 'late',
+  };
+  if (keywords.contains(fn[1])) return false;
+  final first = RegExp(r'^[A-Za-z_$][\w$]*').firstMatch(line)![0]!;
+  if (keywords.contains(first) || first == 'var' || first == 'final') {
+    return false;
+  }
+  final t = line.trimRight();
+  return t.endsWith('{') || t.contains(') =>') || t.contains(')=>');
+}

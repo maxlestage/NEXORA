@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.104 — 12 novembre 2026 — Une fonction collée dans le corps d'une autre est repérée
+- Corrigé : en essai réel, pour « ajoute une fonction publique summarizeDiff(before, after) dans app/lib/services/diff.dart, avec des tests », le modèle collait la nouvelle fonction juste avant la « } » qui fermait lineDiff. Les accolades restaient équilibrées et NEXORA ne disait rien, mais summarizeDiff devenait invisible du reste du code : tests qui ne compilent pas, CI en échec.
+- L'agent est maintenant prévenu dès l'écriture, avec la ligne de la déclaration mal placée et celle du bloc qui la contient, et il ne peut pas terminer sans l'avoir déplacée.
+- Prudent : seule une déclaration sans indentation (fonction, classe, enum, extension, typedef) dans une accolade encore ouverte est visée ; textes et commentaires sont ignorés. Aucune fausse alerte sur 17 160 vrais fichiers Dart.
+
 ## 2.2.103 — 12 novembre 2026 — Le résumé de l'agent n'affirme plus des tests qu'il n'a pas lancés
 - Corrigé : en essai réel, pour « la méthode label de RateWindow doit afficher le temps avant remise à zéro… Ajoute des tests unitaires », le modèle terminait par « Tous les tests passent et la CI reste verte ». Il n'avait rien lancé, et cette phrase partait telle quelle dans le résumé et la pull request.
 - Ces affirmations (tests qui passent, CI verte, code qui compile) sont maintenant retirées du résumé de fin : le vrai résultat est celui de la CI, que NEXORA suit après l'envoi.

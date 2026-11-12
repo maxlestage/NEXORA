@@ -4418,7 +4418,9 @@ class AgentRun extends ChangeNotifier {
   /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou null.
   @visibleForTesting
   static String? syntaxError(String path, String content) {
-    if (path.endsWith('.dart')) return dartSyntaxError(content);
+    if (path.endsWith('.dart')) {
+      return dartSyntaxError(content) ?? dartNestedDeclarationError(content);
+    }
     if (path.endsWith('.rs')) {
       return rustSyntaxError(content) ?? rustDuplicateFnError(content);
     }
