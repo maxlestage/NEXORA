@@ -349,7 +349,7 @@ extension AgentRun {
                 if !results.isEmpty {
                     Self.dropReminders(&history)
                     history.append(LLMMessage("user", results.joined(separator: "\n\n") + lost + circling + reminder))
-                    Self.compactHistory(&history)
+                    Self.compactHistory(&history, batch: Self.compactBatch)
                 }
                 let finish = calls.first { $0.tool == "finish" }
                 if finish != nil && actsSince == 0 && !nudged && inbox.isEmpty {
@@ -474,7 +474,7 @@ extension AgentRun {
                         + "tournes en rond, change d'approche (autre fichier, autre méthode, "
                         + "solution plus simple). Puis continue jusqu'au bout.\(reminder)"
                 ))
-                Self.compactHistory(&history)
+                Self.compactHistory(&history, batch: Self.compactBatch)
                 again = true
             }
         } while (again || !inbox.isEmpty) && !stopFlag
