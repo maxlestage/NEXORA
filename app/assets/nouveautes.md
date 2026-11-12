@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.106 — 12 novembre 2026 — Un brouillon cassé n'est plus oublié en route
+- Corrigé : en essai réel, pour « ajoute une route /version et un test », le modèle collait son test au milieu d'un autre et laissait une « } » de trop. NEXORA le prévenait une fois, mais l'avertissement disparaissait au point d'étape : le modèle cherchait ailleurs jusqu'à l'arrêt, et la session finissait avec un fichier qui ne compile pas.
+- Le rappel revient maintenant à chaque point d'étape et dès que l'agent tourne en rond, avec la ligne fautive, en tête des priorités.
+- Prudent : rien n'est ajouté quand les brouillons compilent, et une erreur déjà présente dans le dépôt d'origine n'est jamais reprochée à l'agent.
+
 ## 2.2.105 — 12 novembre 2026 — Les majuscules accentuées ne sont plus oubliées
 - Corrigé : en essai réel, pour « ajoute slug() : minuscules, accents retirés (é→e, à→a…), avec des tests », le modèle passait chaque lettre par to_ascii_lowercase puis cherchait 'à', 'é'… Or to_ascii_lowercase ne change que A à Z : « À » n'était jamais reconnu, slug("Àlà") rendait "la" et le test de l'agent échouait.
 - L'agent est maintenant prévenu dès l'écriture, avec la ligne fautive et la correction (to_lowercase, qui connaît les accents, ou les majuscules ajoutées au match).
