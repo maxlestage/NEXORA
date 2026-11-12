@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.15 — 12 novembre 2026 — Des dépôts plus faciles à trouver
+
+- Nouveau : un bouton « + » en haut de la liste des dépôts pour en créer un (avant caché dans le menu du compte).
+- Amélioré : la recherche trouve aussi la description et le langage, sans tenir compte des accents.
+- Amélioré : un message clair quand il n'y a aucun dépôt ou aucun résultat ; date de la dernière modification affichée, étoiles seulement s'il y en a.
+
 ## 3.0.14 — 12 novembre 2026 — Les longues conversations coûtent moins cher
 
 - Amélioré : quand une conversation dépasse la mémoire réglée, les vieux messages sont mis de côté par paquets et non plus un par un à chaque message.
