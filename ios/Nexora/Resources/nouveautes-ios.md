@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.11 — 12 novembre 2026 — Un écran Agents plus simple
+- Nouveau : balayez un agent vers la droite pour discuter avec lui tout de suite.
+- Amélioré : la recherche trouve « écrire » en tapant « ecrire » (accents et majuscules ignorés), et dit clairement quand rien ne correspond.
+- Amélioré : les outils d'un agent sont résumés (« 5 outils ») au lieu d'une liste technique.
+- Simplifié : un seul bouton en haut (+) ; la bibliothèque GitHub reste dedans.
+
 ## 3.0.10 — 12 novembre 2026 — Agent : encore moins de tokens hors cache
 - Amélioré : le rappel de la demande n'est plus retiré du message précédent à chaque étape, mais par paquets ; le début des requêtes reste identique et le cache de prompt sert davantage.
 - Amélioré : les sessions de l'agent consomment environ 11 % de tokens hors cache en moins (coût Anthropic −9 %, OpenAI −2 %).

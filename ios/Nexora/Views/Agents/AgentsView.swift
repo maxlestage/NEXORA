@@ -73,9 +73,6 @@ struct AgentsView: View {
             .searchable(text: $query, prompt: searchPrompt)
             .navigationTitle("Agents")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Bibliothèque", systemImage: "square.and.arrow.down") { openLibrary() }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button("Nouvel agent", systemImage: "plus") {
@@ -207,7 +204,7 @@ struct AgentsView: View {
     @ViewBuilder
     private var agentList: some View {
         ForEach(agents.byCategory, id: \.0) { category, list in
-            let visible = list.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query) }
+            let visible = list.filter { AgentsDisplay.matches(query, $0.name, $0.description) }
             if !visible.isEmpty {
                 Section(category) {
                     ForEach(visible) { a in
@@ -215,6 +212,10 @@ struct AgentsView: View {
                     }
                 }
             }
+        }
+        if !agents.all.contains(where: { AgentsDisplay.matches(query, $0.name, $0.description) }) {
+            ContentUnavailableView.search(text: query)
+                .listRowBackground(Color.clear)
         }
         if agents.custom.isEmpty && query.isEmpty {
             Section {
@@ -237,7 +238,7 @@ struct AgentsView: View {
                         Text(a.description).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                     if !a.tools.isEmpty {
-                        Text(a.tools.joined(separator: " · ")).font(.caption2.monospaced()).foregroundStyle(.tertiary).lineLimit(1)
+                        Text(AgentsDisplay.toolsSummary(a.tools)).font(.caption).foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -256,6 +257,10 @@ struct AgentsView: View {
             ShareLink(item: a.toMarkdown(), preview: SharePreview("\(a.name).md")) {
                 Label("Partager (.md)", systemImage: "square.and.arrow.up")
             }
+        }
+        .swipeActions(edge: .leading) {
+            Button { chatPath.append(chats.create(agent: a).id) } label: { Label("Discuter", systemImage: "bubble.left") }
+                .tint(.accentColor)
         }
         .swipeActions {
             if !a.builtin {
@@ -352,8 +357,8 @@ struct AgentsView: View {
     @ViewBuilder
     private var skillList: some View {
         addSkillsSection
-        let skills = agents.skills.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query) }
-        let commands = agents.commands.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query) }
+        let skills = agents.skills.filter { AgentsDisplay.matches(query, $0.name, $0.description) }
+        let commands = agents.commands.filter { AgentsDisplay.matches(query, $0.name, $0.description) }
         if agents.skills.isEmpty && agents.commands.isEmpty {
             Section {
                 ContentUnavailableView {
@@ -367,6 +372,10 @@ struct AgentsView: View {
             }
             .listRowBackground(Color.clear)
         } else {
+            if skills.isEmpty && commands.isEmpty {
+                ContentUnavailableView.search(text: query)
+                    .listRowBackground(Color.clear)
+            }
             if !skills.isEmpty {
                 Section {
                     ForEach(skills) { sk in
@@ -466,7 +475,7 @@ struct AgentsView: View {
             .padding(.vertical, 4)
         }
         Section {
-            ForEach(Catalog.cloudAgents.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }) { a in
+            ForEach(Catalog.cloudAgents.filter { AgentsDisplay.matches(query, $0.name, $0.description) }) { a in
                 Button {
                     cloud = a
                 } label: {
