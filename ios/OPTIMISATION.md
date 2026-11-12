@@ -70,11 +70,17 @@ mémoire 32k tokens, consigne 3 000 car.
   point de coupure recalculé depuis le début (sans état). Diffère de l'app Flutter
   (qui coupe à chaque tour) : à porter côté Flutter si voulu. Tests : 357 → 358.
 
-## Prochain passage : INTERFACE
-Dépôts (ReposView/RepoView), puis Modèles, Réglages.
-Tokens ensuite : modèle moins cher pour titres/résumés (réglage), ou résumé des vieux
-messages du chat (attention : un résumé change le début de la requête, à faire au
-moment d'une coupure seulement).
+- 3.0.15 (interface) : onglet Code › Dépôts — `ReposDisplay.filter` (nom, description,
+  langage ; sans accents ni casse), `ReposDisplay.meta` (« Swift · ★ 12 · il y a 3 j »,
+  étoiles seulement si > 0, date de dernière modification), bouton « + » Nouveau dépôt
+  dans la barre (avant caché dans le menu du compte, qui ne garde que Se déconnecter,
+  cible 44 pt), états vides « Aucun dépôt » (avec bouton) et recherche sans résultat.
+  Tests : 358 → 360.
+
+## Prochain passage : TOKENS
+Modèle moins cher pour titres/résumés (réglage), ou résumé des vieux messages du chat
+(attention : un résumé change le début de la requête, à faire au moment d'une coupure
+seulement). Interface ensuite : fiche d'un dépôt (RepoView), puis Modèles, Réglages.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.

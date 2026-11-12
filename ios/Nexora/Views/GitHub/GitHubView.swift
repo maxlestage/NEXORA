@@ -86,6 +86,9 @@ struct ReposView: View {
     @State private var query = ""
     @State private var creating = false
 
+    /// Les dépôts affichés (recherche sans accents ni casse, description et langage compris).
+    private var shown: [Repo] { ReposDisplay.filter(github.repos, query: query) }
+
     var body: some View {
         List {
             if let u = github.user {
@@ -100,9 +103,12 @@ struct ReposView: View {
                         }
                         Spacer()
                         Menu {
-                            Button("Nouveau dépôt", systemImage: "plus") { creating = true }
                             Button("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { github.signOut() }
-                        } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+                        } label: {
+                            Image(systemName: "ellipsis.circle").font(.title3)
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
+                        }
                         .accessibilityLabel("Options du compte GitHub")
                     }
                 }
@@ -111,7 +117,7 @@ struct ReposView: View {
                 Text(e).foregroundStyle(Theme.red).font(.footnote)
             }
             Section("Dépôts") {
-                ForEach(github.repos.filter { query.isEmpty || $0.fullName.localizedCaseInsensitiveContains(query) }) { r in
+                ForEach(shown) { r in
                     NavigationLink(value: r) {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack {
@@ -121,20 +127,38 @@ struct ReposView: View {
                             if let d = r.description, !d.isEmpty {
                                 Text(d).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                             }
-                            HStack(spacing: 12) {
-                                if let l = r.language { Label(l, systemImage: "chevron.left.forwardslash.chevron.right") }
-                                Label("\(r.stars ?? 0)", systemImage: "star")
+                            let meta = ReposDisplay.meta(r)
+                            if !meta.isEmpty {
+                                Text(meta).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
-                            .font(.caption).foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
         }
         .overlay {
-            if github.loading && github.repos.isEmpty { ProgressView() }
+            if github.loading && github.repos.isEmpty {
+                ProgressView()
+            } else if github.repos.isEmpty && github.user != nil && github.error == nil {
+                ContentUnavailableView {
+                    Label("Aucun dépôt", systemImage: "folder")
+                } description: {
+                    Text("Créez votre premier dépôt pour y faire travailler l'agent.")
+                } actions: {
+                    Button("Nouveau dépôt", systemImage: "plus") { creating = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if !github.repos.isEmpty && shown.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
         }
-        .searchable(text: $query, prompt: "Chercher un dépôt")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Nouveau dépôt", systemImage: "plus") { creating = true }
+            }
+        }
+        .searchable(text: $query, prompt: "Nom, description ou langage")
         .refreshable { await github.refresh() }
         .navigationDestination(for: Repo.self) { RepoView(repo: $0) }
         .sheet(isPresented: $creating) { CreateRepoSheet() }
