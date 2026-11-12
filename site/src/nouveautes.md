@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.98 — 12 novembre 2026 — Le Dart de l'agent n'échappe plus les guillemets pour rien
+- Corrigé : en essai réel, pour « fais renvoyer le titre d'une page d'erreur HTML par errorFromBody… Ajoute des tests unitaires », le modèle écrivait dans son test '''{\"message\": \"Invalid API key\"}'''. Ces barres obliques ne servent à rien et « flutter analyze » les refuse (unnecessary_string_escapes) : la CI aurait échoué pour un détail d'écriture.
+- Dans le Dart écrit par l'agent, la barre oblique inutile devant un guillemet de l'autre sorte (\" entre apostrophes, \' entre guillemets) est maintenant retirée dès le brouillon. Le texte reste exactement le même.
+- Prudent : les barres obliques utiles ('c\'est'), les chaînes brutes (r'…'), les commentaires et les lignes déjà présentes dans le fichier ne sont jamais touchés (aucune modification à tort sur 16 688 vrais fichiers Dart).
+
 ## 2.2.97 — 12 novembre 2026 — Une fonction Rust écrite deux fois est repérée
 - Corrigé : en essai réel, pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test unitaire », le modèle insérait deux fois le même test « fn test_compter_mots ». NEXORA l'acceptait, alors que le fichier ne peut plus compiler (« defined multiple times ») : la CI l'aurait découvert bien plus tard.
 - Une fonction définie deux fois dans le même bloc (même module, même impl) est maintenant signalée dès l'écriture, avec les deux numéros de ligne, et l'agent ne peut pas terminer sans corriger.
