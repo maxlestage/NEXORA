@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.110 — 12 novembre 2026 — La recherche ne fait plus croire à un nom qui n'existe pas
+- Corrigé : en essai réel, pour « quand GitHub répond 401, le message doit être… Ajoute un test », l'agent cherchait « getUser ». La recherche répondait « 1 ligne contient getUser » à cause de « String get user » : l'agent appelait api.getUser() dans son test (qui ne compilait pas), puis refaisait la même recherche jusqu'à l'arrêt.
+- Un nom de code retrouvé seulement en mots séparés est maintenant annoncé comme absent, avec la consigne de prendre un nom qui existe vraiment. Les lignes approchantes restent montrées, et « getToken » trouve toujours « get_token ».
+- Corrigé : la recherche dans un fichier ratait un texte exact comme « if (res.statusCode >= 400) », lu comme une expression régulière (les parenthèses y forment un groupe). Quand l'expression ne trouve rien, le texte tel quel est maintenant cherché.
+
 ## 2.2.109 — 12 novembre 2026 — L'agent est prévenu d'un texte collé que flutter analyze refusera
 - Corrigé : en essai réel, pour « coupe les titres rapides à 40 caractères, sans couper un mot… Ajoute des tests unitaires », le modèle écrivait dans son test « String.fromCharCodes(…) + ' b' ». « flutter analyze » le refuse (prefer_interpolation_to_compose_strings) : la CI aurait échoué pour un détail d'écriture.
 - Quand la CI du dépôt passe « flutter analyze » avec les règles recommandées, l'agent est maintenant prévenu dès l'écriture, avec chaque ligne fautive et la correction (« x + ' b' » devient « '$x b' »).

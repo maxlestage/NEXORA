@@ -12,6 +12,12 @@ import 'github_api.dart';
 import 'llm_client.dart';
 import 'rust_check.dart';
 
+/// Un nom de code écrit d'un seul tenant, qui ne serait pas un mot ordinaire :
+/// des majuscules au milieu (`getUser`), un « _ » (`get_user`) ou un « $ ».
+bool codeName(String s) =>
+    RegExp(r'^[A-Za-z_$][\w$]*$').hasMatch(s) &&
+    RegExp(r'^.+[A-Z]|[_$]').hasMatch(s);
+
 /// Un texte sans espaces, « _ » ni « - », pour retrouver « compare versions »
 /// dans compareVersions ou compare_versions. La ponctuation et les accents
 /// restent : ils comptent dans ce que l'agent cherche.
@@ -3609,6 +3615,7 @@ class AgentRun extends ChangeNotifier {
     // session finissait arrêtée. Les vraies correspondances passent d'abord ;
     // sans aucune, il est prévenu que le nom n'existe pas.
     var inOther = <String>[];
+    var split = false;
     if (hits.isNotEmpty && RegExp(r'^[a-z0-9_]{3,}$').hasMatch(q)) {
       final whole = find(
         (l) => l.contains(q),
@@ -3647,6 +3654,21 @@ class AgentRun extends ChangeNotifier {
         hits = find((l) => squashForSearch(l).contains(squashed));
         if (hits.isNotEmpty) {
           note = ' (en ignorant espaces, « _ » et majuscules)';
+          // Un nom de code (« getUser ») retrouvé seulement en mots séparés
+          // (« String get user ») : ce nom n'existe pas. Essai réel : « 1
+          // ligne contient getUser » faisait croire à une méthode getUser ;
+          // l'agent l'appelait dans son test (qui ne compilait pas), puis
+          // refaisait la même recherche jusqu'à l'arrêt.
+          if (codeName(query.trim()) &&
+              !hits.any(
+                (h) => h
+                    .substring(h.indexOf(': ') + 2)
+                    .toLowerCase()
+                    .replaceAll(RegExp(r'[_\-]'), '')
+                    .contains(squashed),
+              )) {
+            split = true;
+          }
         }
       }
     }
@@ -3765,6 +3787,14 @@ class AgentRun extends ChangeNotifier {
         0,
       );
     }
+    final lead = split
+        ? 'Aucune ligne ne contient le nom « $query » : il n\'existe pas '
+              '(${texts.length} fichiers parcourus). ${hits.length} ligne(s) '
+              'ont seulement les mêmes lettres en mots séparés$note. '
+              'N\'écris pas « $query » dans le code : prends un nom qui '
+              'existe vraiment (dans ces lignes ou ailleurs), ou crée-le si '
+              'la demande le dit'
+        : '${hits.length} ligne(s) contiennent « $query »$note';
     // Peu de résultats : le code autour de chacun, pour savoir quoi modifier.
     if (hits.length <= 6) {
       final shown = <String>[];
@@ -3779,15 +3809,14 @@ class AgentRun extends ChangeNotifier {
         );
       }
       return (
-        '${hits.length} ligne(s) contiennent « $query »$note, avec le code '
-            'autour :\n${shown.join('\n\n')}'
+        '$lead, avec le code autour :\n${shown.join('\n\n')}'
             '${names.isEmpty ? '' : '\nFichiers dont le nom correspond : ${names.join(', ')}'}'
             '$limited',
         hits.length,
       );
     }
     return (
-      '${hits.length} ligne(s) contiennent « $query »$note :\n'
+      '$lead :\n'
           '${hits.take(80).join('\n')}'
           '${hits.length > 80 ? '\n… (${hits.length - 80} de plus : précise "path")' : ''}'
           '${names.isEmpty ? '' : '\nFichiers dont le nom correspond : ${names.join(', ')}'}'
@@ -4922,10 +4951,21 @@ class AgentRun extends ChangeNotifier {
           re = RegExp(RegExp.escape(pattern), caseSensitive: false);
         }
         final lines = text.split('\n');
-        final at = [
+        var at = [
           for (var i = 0; i < lines.length; i++)
             if (re.hasMatch(lines[i])) i,
         ];
+        // Le texte exact, quand l'expression régulière ne trouve rien. Essai
+        // réel : « if (res.statusCode >= 400) » était lu comme une expression
+        // (les parenthèses y forment un groupe) et ne trouvait jamais la ligne,
+        // pourtant présente deux fois ; l'agent relisait tout le fichier.
+        if (at.isEmpty) {
+          final plain = pattern.toLowerCase();
+          at = [
+            for (var i = 0; i < lines.length; i++)
+              if (lines[i].toLowerCase().contains(plain)) i,
+          ];
+        }
         if (at.isEmpty) {
           return 'Aucune ligne ne contient « $pattern » dans $p.';
         }
