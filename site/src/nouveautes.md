@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.95 — 12 novembre 2026 — Le test va avec les autres tests du fichier
+- Corrigé : en essai réel, pour « fais reconnaître « Retiré » dans nature() (site/src/contenu.rs)… Ajoute un test », la traduction inventait un nouveau fichier site/tests/retrait_test.rs. L'agent y écrivait un test qui ne pouvait pas compiler, et perdait ses étapes sur les imports.
+- Quand le fichier modifié a déjà son module de tests (#[cfg(test)]), la demande traduite y place maintenant le nouveau test, avec les autres : il passe du premier coup (vérifié en essai réel).
+- Corrigé aussi : dans un gros dépôt, ces repères sur les tests Rust ne voyaient que les 300 premiers fichiers ; ils voient maintenant tout le dépôt.
+- Prudent : un fichier de tests nommé par vous, un fichier qui existe déjà, ou un fichier modifié sans module de tests ne changent pas.
+
 ## 2.2.94 — 12 novembre 2026 — Un test Rust qui ne compile pas est repéré tout de suite
 - Corrigé : en essai réel, pour « fais reconnaître « Retiré » dans nature()… Ajoute un test », le modèle créait site/tests/contenu.rs avec « use super::*; » en tête. NEXORA l'acceptait sans rien dire, alors que ce test ne peut pas compiler : la CI l'aurait découvert bien plus tard.
 - Un test du dossier tests/ qui utilise super:: hors de ses propres modules est maintenant signalé dès son écriture, avec la bonne façon d'importer la bibliothèque (« use nom_du_crate::… ») ou de mettre le test dans le module de tests du fichier testé.

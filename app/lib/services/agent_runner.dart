@@ -1092,8 +1092,11 @@ class AgentRun extends ChangeNotifier {
     // (« lib/… » au lieu de « app/lib/… ») que l'agent suivrait ensuite.
     var files = '';
     var tests = '';
+    // Tous les fichiers (la liste donnée au traducteur est raccourcie).
+    var all = const <String>[];
     try {
       final tree = await _files();
+      all = tree;
       files = tree.length > 300
           ? '${tree.take(300).join('\n')}\n… (${tree.length - 300} de plus)'
           : tree.join('\n');
@@ -1148,13 +1151,21 @@ class AgentRun extends ChangeNotifier {
       // Pas au format, sans être coupée : le modèle ne sait pas traduire.
       if (!spec.contains('OBJECTIF') && !cut) return '';
       if (!specComplete(spec, cut: cut)) continue;
+      final tree = all.isEmpty ? files.split('\n') : all;
+      var fixed = fixRustTestPaths(spec, tree);
+      // Les fichiers Rust de la demande, lus pour savoir s'ils ont déjà leur
+      // module de tests.
+      final sources = <String, String>{};
+      for (final src in rustSourcesFor(fixed, tree)) {
+        try {
+          final (code, _) = await _current(src);
+          if (code != null) sources[src] = code;
+        } catch (_) {}
+      }
+      fixed = preferTestModule(fixed, [...before, text].join('\n'), sources);
       return withTestLayout(
         keepUserPaths(
-          markGuesses(
-            fixRustTestPaths(spec, files.split('\n')),
-            [...before, text].join('\n'),
-            files.split('\n'),
-          ),
+          markGuesses(fixed, [...before, text].join('\n'), files.split('\n')),
           text,
           files.split('\n'),
         ),
@@ -1303,6 +1314,78 @@ class AgentRun extends ChangeNotifier {
       return '$main (dans son module « #[cfg(test)] mod tests », pas dans '
           '${root}tests/ qui ne voit pas le programme)';
     });
+  }
+
+  static final _rustSource = RegExp(
+    r'(?<![\w/.-])((?:[\w.-]+/)*)src/(?:[\w-]+/)*[\w-]+\.rs(?![\w/])',
+  );
+
+  /// Les fichiers Rust de src/ cités par la traduction (et présents dans le
+  /// dépôt) à côté d'un nouveau fichier de tests/ : à lire pour
+  /// [preferTestModule].
+  @visibleForTesting
+  static List<String> rustSourcesFor(String spec, Iterable<String> tree) {
+    final files = tree.map((f) => f.trim()).toSet();
+    final fresh = _rustTestPath
+        .allMatches(spec)
+        .where((m) => !files.contains(m[0]))
+        .toList();
+    if (fresh.isEmpty) return const [];
+    return {
+      for (final m in _rustSource.allMatches(spec))
+        if (files.contains(m[0]) && fresh.any((t) => t[1] == m[1])) m[0]!,
+    }.take(4).toList();
+  }
+
+  /// Un NOUVEAU fichier de tests/ que la traduction invente (l'utilisateur
+  /// ne l'a pas nommé) alors que le fichier modifié a déjà son module
+  /// « #[cfg(test)] » : le test va dans ce module, avec les autres. Essai
+  /// réel : pour « fais reconnaître « Retiré » dans nature() (contenu.rs)…
+  /// Ajoute un test », la traduction supposait site/tests/retrait_test.rs ;
+  /// l'agent y écrivait « use super::* » ou crate::, un test qui ne compilait
+  /// pas, et perdait ses étapes sur l'import. Quand il gardait le module
+  /// existant, tout passait du premier coup.
+  ///
+  /// [sources] : le contenu des fichiers de src/ cités (voir
+  /// [rustSourcesFor]). Rien ne change si plusieurs fichiers modifiés ont un
+  /// module de tests (ambigu), ou si aucun n'en a.
+  @visibleForTesting
+  static String preferTestModule(
+    String spec,
+    String said,
+    Map<String, String> sources,
+  ) {
+    final heard = said.toLowerCase();
+    // Les fichiers remplacés : leur nom seul (« le test `retrait_test.rs` »
+    // dans les critères) devient le module de tests, lui aussi.
+    final moved = <String, String>{};
+    final out = spec.replaceAllMapped(_rustTestPath, (m) {
+      final path = m[0]!;
+      final root = m[1]!;
+      if (heard.contains(path.toLowerCase()) ||
+          heard.contains(path.split('/').last.toLowerCase())) {
+        return path;
+      }
+      final withTests = [
+        for (final e in sources.entries)
+          if (e.key.startsWith('${root}src/') &&
+              e.value.contains('#[cfg(test)]'))
+            e.key,
+      ];
+      if (withTests.length != 1) return path;
+      moved[path.split('/').last] = withTests.single;
+      return '${withTests.single} (dans son module « #[cfg(test)] » '
+          'existant, avec les autres tests, edit_file ; pas de nouveau '
+          'fichier dans ${root}tests/)';
+    });
+    var done = out;
+    for (final e in moved.entries) {
+      done = done.replaceAll(
+        RegExp('(?<![\\w/.-])${RegExp.escape(e.key)}(?![\\w/])'),
+        'module de tests de ${e.value}',
+      );
+    }
+    return done;
   }
 
   static final _pathLike = RegExp(
