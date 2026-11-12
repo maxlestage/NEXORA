@@ -23,44 +23,63 @@ struct ConversationsView: View {
     @State private var toast: Toast?
 
     private var list: [ConversationStore.Meta] { results ?? chats.index }
+    private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Group {
-                    header
-                    starters
-                    GettingStartedCard()
+                // Pendant une recherche : seulement les résultats.
+                if !searching {
+                    Group {
+                        header
+                        starters
+                        GettingStartedCard()
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
 
                 if list.isEmpty {
                     empty
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(Array(list.enumerated()), id: \.element.id) { i, meta in
-                        row(meta)
-                            .reveal(i)
+                    // Rangées par groupes (épinglées, aujourd'hui, hier…), chacune avec
+                    // sa date : on retrouve une conversation d'un coup d'œil.
+                    ForEach(ChatDisplay.groups(list)) { group in
+                        Text(group.title)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .accessibilityAddTraits(.isHeader)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) { delete(meta) } label: {
-                                    Label("Supprimer", systemImage: "trash")
+                            .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 2, trailing: 12))
+                        ForEach(Array(group.items.enumerated()), id: \.element.id) { i, meta in
+                            row(meta)
+                                .reveal(i)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) { delete(meta) } label: {
+                                        Label("Supprimer", systemImage: "trash")
+                                    }
                                 }
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button { chats.togglePin(meta.id) } label: {
-                                    Label(meta.pinned ? "Désépingler" : "Épingler", systemImage: meta.pinned ? "pin.slash" : "pin")
+                                .swipeActions(edge: .leading) {
+                                    Button { chats.togglePin(meta.id) } label: {
+                                        Label(meta.pinned ? "Désépingler" : "Épingler", systemImage: meta.pinned ? "pin.slash" : "pin")
+                                    }
+                                    .tint(Theme.amber)
                                 }
-                                .tint(Theme.amber)
-                            }
+                        }
                     }
                 }
             }
             .listStyle(.plain)
+            // Le bouton « Nouveau chat » flotte en bas : la dernière conversation
+            // n'est pas cachée dessous.
+            .contentMargins(.bottom, 84, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .auroraBackground()
             .searchable(text: $query, prompt: "Rechercher dans les conversations")
@@ -146,10 +165,12 @@ struct ConversationsView: View {
     private var header: some View {
         let current = settings.resolve(settings.defaultModel)
         let provider = settings.provider(current.providerId)
+        // Avec des conversations, le logo se fait plus petit : la liste remonte.
+        let orb: CGFloat = chats.index.isEmpty ? 180 : 110
         return VStack(spacing: 6) {
-            NexusOrb(size: 180, pulse: !chats.running.isEmpty)
+            NexusOrb(size: orb, pulse: !chats.running.isEmpty)
             // L'orbite dépasse du globe : le titre reste en dessous.
-            Spacer().frame(height: 30)
+            Spacer().frame(height: orb / 6)
             Text("Que voulez-vous créer aujourd'hui ?")
                 .font(.headline)
                 .multilineTextAlignment(.center)
@@ -217,11 +238,25 @@ struct ConversationsView: View {
                     HStack(spacing: 4) {
                         if meta.pinned { Image(systemName: "pin.fill").font(.caption) }
                         Text(meta.title).font(.subheadline.weight(.bold)).lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(ChatDisplay.when(meta.updated))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .layoutPriority(1)
                     }
-                    Text(meta.preview.isEmpty ? (ModelRef.parse(meta.model)?.model ?? "") : meta.preview)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    if running {
+                        // Une réponse s'écrit : on le voit sans ouvrir la conversation.
+                        Label("Réponse en cours…", systemImage: "ellipsis.bubble")
+                            .font(.caption)
+                            .foregroundStyle(.tint)
+                            .lineLimit(1)
+                    } else {
+                        Text(meta.preview.isEmpty ? (ModelRef.parse(meta.model)?.model ?? "") : meta.preview)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 Spacer(minLength: 0)
                 Menu {

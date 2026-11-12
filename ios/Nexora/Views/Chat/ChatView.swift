@@ -68,15 +68,6 @@ struct ChatView: View {
                         .padding(.bottom, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                HStack {
-                    ModelEffortButton(current: ref, level: chats.level(for: c, agent: agent), onModel: chooseModel) { l in
-                        chats.setLevel(conversationId, l)
-                    }
-                    Spacer(minLength: 0)
-                    // Le crédit de l'IA de CETTE conversation (et pas du modèle par défaut).
-                    QuotaBadge(providerId: ref.providerId, dense: true)
-                }
-                .padding(.horizontal, 10)
                 if !attachments.isEmpty { attachmentChips.padding(.horizontal, 10) }
                 if !photos.isEmpty || loadingPhotos { photoBar.padding(.horizontal, 10) }
                 // « / » : les commandes ; « @ » : les sous-agents.
@@ -147,9 +138,11 @@ struct ChatView: View {
         ChatHeaderBar(
             agentName: agent?.name ?? "Assistant",
             agentEmoji: agent?.emoji ?? "💬",
-            providerId: ref.providerId,
-            spend: ChatDisplay.spendLine(c),
-            onAgents: { showAgents = true }
+            current: ref,
+            level: chats.level(for: c, agent: agent),
+            onAgents: { showAgents = true },
+            onModel: chooseModel,
+            onLevel: { chats.setLevel(conversationId, $0) }
         )
         .equatable()
     }
@@ -334,13 +327,18 @@ struct ChatView: View {
                 .accessibilityLabel("Arrêter la réponse")
                 .transition(.scale.combined(with: .opacity))
             } else {
+                // Rien à envoyer : le bouton s'efface (on voit tout de suite qu'il
+                // faut écrire d'abord).
+                let ready = ChatDisplay.canSend(input, photos: photos.count)
                 Button(action: { send() }) {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.bold))
                         .foregroundStyle(.white)
                         .frame(width: 38, height: 38)
                         .background(Theme.gradient(settings.accent), in: .circle)
+                        .opacity(ready ? 1 : 0.35)
                 }
+                .disabled(!ready)
                 .accessibilityLabel("Envoyer")
                 .transition(.scale.combined(with: .opacity))
             }
@@ -665,10 +663,20 @@ struct ChatView: View {
                 newTitle = conversation?.title ?? ""
                 renaming = true
             } label: {
-                Text(conversation?.title ?? "Conversation")
-                    .font(.headline)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
+                // Le titre (toucher pour renommer) et, dessous, ce que la
+                // conversation a coûté.
+                VStack(spacing: 0) {
+                    Text(conversation?.title ?? "Conversation")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                    if let c = conversation {
+                        Text(ChatDisplay.spendLine(c))
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
             }
             .accessibilityHint("Renommer la conversation")
         }
@@ -705,54 +713,64 @@ struct ChatView: View {
     }
 }
 
-/// L'en-tête d'une conversation : l'agent (toucher pour en changer), « Clé
-/// manquante » si besoin, et ce que la conversation a coûté.
+/// La barre du haut d'une conversation, sur une seule ligne : l'agent, le modèle
+/// et l'effort (toucher pour en changer), « Clé manquante » si besoin (toucher pour
+/// l'ajouter), et le crédit restant chez le fournisseur.
 struct ChatHeaderBar: View {
     let agentName: String
     let agentEmoji: String
-    let providerId: String
-    let spend: String
+    let current: ModelRef
+    let level: ThinkLevel
     var onAgents: () -> Void
+    var onModel: (ModelRef) -> Void
+    var onLevel: (ThinkLevel) -> Void
 
     @Environment(SettingsStore.self) private var settings
+    @Environment(AppNavigation.self) private var navigation: AppNavigation?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 4) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Button(action: onAgents) {
-                        Label { Text(agentName) } icon: { Text(agentEmoji) }
+                        Label { Text(agentName).lineLimit(1) } icon: { Text(agentEmoji) }
                             .font(.subheadline)
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
                     .accessibilityLabel("Agent : \(agentName)")
                     .accessibilityHint("Changer d'agent")
-                    if let p = settings.provider(providerId), !settings.isReady(p) {
-                        Label("Clé manquante", systemImage: "key.slash")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.amber)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Theme.amber.opacity(0.12), in: .capsule)
+                    ModelEffortButton(current: current, level: level, onModel: onModel, onLevel: onLevel)
+                    if let p = settings.provider(current.providerId), !settings.isReady(p) {
+                        Button {
+                            navigation?.tab = .models
+                        } label: {
+                            Label("Clé manquante", systemImage: "key.slash")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.amber)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Theme.amber.opacity(0.12), in: .capsule)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Ouvrir l'onglet Modèles pour ajouter la clé")
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.leading, 12)
             }
-            Label(spend, systemImage: "receipt")
-                .font(.caption2.monospaced())
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
+            // Le crédit de l'IA de CETTE conversation (et pas du modèle par défaut).
+            QuotaBadge(providerId: current.providerId, dense: true)
+                .frame(maxWidth: 140, alignment: .trailing)
+                .padding(.trailing, 8)
         }
-        .padding(.top, 4)
+        .padding(.vertical, 4)
     }
 }
 
 extension ChatHeaderBar: @preconcurrency Equatable {
-    /// L'action ne fait qu'ouvrir le choix de l'agent : seules les données comptent.
+    /// Les actions ne font qu'ouvrir un choix : seules les données comptent.
     static func == (a: ChatHeaderBar, b: ChatHeaderBar) -> Bool {
-        a.agentName == b.agentName && a.agentEmoji == b.agentEmoji && a.providerId == b.providerId && a.spend == b.spend
+        a.agentName == b.agentName && a.agentEmoji == b.agentEmoji && a.current == b.current && a.level == b.level
     }
 }
 
