@@ -183,6 +183,31 @@ void main() {
     expect(run.changes['app/lib/utils.dart'], _fixed);
   });
 
+  test(
+    'fonction collée dans une autre : finish refusé, avec la ligne',
+    () async {
+      const nested =
+          'int a() {\n  return 1;\n\n/// Doc.\nint b() {\n  return 2;\n}\n}\n';
+      const placed =
+          'int a() {\n  return 1;\n}\n\n/// Doc.\nint b() {\n  return 2;\n}\n';
+      final (llm, seen) = scripted([
+        '```json\n{"tool":"write_file","args":{"path":"app/lib/utils.dart",'
+            '"content":${jsonEncode(nested)}}}\n```',
+        '```json\n{"tool":"finish","args":{"summary":"fait"}}\n```',
+        '```json\n{"tool":"write_file","args":{"path":"app/lib/utils.dart",'
+            '"content":${jsonEncode(placed)}}}\n```',
+        '```json\n{"tool":"finish","args":{"summary":"corrigé"}}\n```',
+      ]);
+      final run = runWith(llm);
+      await run.run();
+      expect(seen[1], contains('à l\'intérieur de « int a() { »'));
+      expect(seen[2], contains('Tu ne peux pas terminer'));
+      expect(seen[2], contains('ligne 5'));
+      expect(run.summary, 'corrigé');
+      expect(run.changes['app/lib/utils.dart'], placed);
+    },
+  );
+
   test('refusé deux fois au plus : la session se termine quand même', () async {
     final finish = '```json\n{"tool":"finish","args":{"summary":"fait"}}\n```';
     final (llm, seen) = scripted([
