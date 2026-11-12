@@ -4021,6 +4021,12 @@ class AgentRun extends ChangeNotifier {
       return await _syntaxPitfalls(p, text) + await _formatPitfalls(p, text);
     }
     if (!p.endsWith('.rs')) return '';
+    return await _rustPitfalls(p, text) + await _clippyPitfalls(p, text);
+  }
+
+  /// Les erreurs certaines d'un brouillon Rust (syntaxe, doctests, tests
+  /// d'intégration).
+  Future<String> _rustPitfalls(String p, String text) async {
     final syntax = await _syntaxPitfalls(p, text);
     if (!_rustTest.hasMatch(p)) {
       final src = p.lastIndexOf('src/');
@@ -4046,6 +4052,84 @@ class AgentRun extends ChangeNotifier {
     return syntax +
         (rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ??
             '');
+  }
+
+  /// Les tournures déjà signalées à clippy (`chemin:ligne`), pour ne pas
+  /// répéter le même avertissement si le modèle n'y arrive pas.
+  final Set<String> _clippyWarned = {};
+
+  /// Par dépôt : sa CI passe-t-elle `cargo clippy` avec `-D warnings` ?
+  final Map<String, bool> _clippyChecked = {};
+
+  /// Quand la CI du dépôt refuse les avertissements de clippy, les tournures
+  /// qu'il refusera dans les lignes écrites par l'agent (une fois chacune).
+  Future<String> _clippyPitfalls(String p, String text) async {
+    try {
+      if (!await _checksClippy(p)) return '';
+      final hint = rustClippyHint(
+        p,
+        text,
+        before: await original(p),
+        skip: _clippyWarned,
+      );
+      return hint ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// La CI du dépôt de [p] passe-t-elle clippy en refusant ses avertissements ?
+  Future<bool> _checksClippy(String p) async {
+    final where = resolve(p);
+    if (where == null) return false;
+    final prefix = multi ? '${mountOf(where.$1)}/' : '';
+    final known = _clippyChecked[prefix];
+    if (known != null) return known;
+    var found = false;
+    for (final f in await _files()) {
+      if (!f.startsWith('$prefix.github/workflows/') ||
+          !(f.endsWith('.yml') || f.endsWith('.yaml'))) {
+        continue;
+      }
+      final (t, _) = await _current(f);
+      if (t != null && clippyDeniesWarnings(t)) {
+        found = true;
+        break;
+      }
+    }
+    return _clippyChecked[prefix] = found;
+  }
+
+  /// Un workflow qui passe clippy en refusant ses avertissements
+  /// (`cargo clippy … -- -D warnings`, ou `RUSTFLAGS: -Dwarnings`).
+  static bool clippyDeniesWarnings(String workflow) =>
+      workflow.contains('cargo clippy') &&
+      RegExp(r'-D\s*warnings|-D\s*clippy::').hasMatch(workflow);
+
+  /// L'avertissement pour les tournures que clippy refusera dans les lignes
+  /// écrites par l'agent (celles du fichier d'origine ne comptent pas), ou
+  /// null. Les lignes déjà dans [skip] (`chemin:texte`) ne sont pas répétées ;
+  /// celles signalées y sont ajoutées.
+  static String? rustClippyHint(
+    String path,
+    String text, {
+    String? before,
+    Set<String>? skip,
+  }) {
+    if (!path.endsWith('.rs')) return null;
+    final old = before == null ? const <String>{} : before.split('\n').toSet();
+    final found = [
+      for (final f in rustClippyProblems(text, old: old))
+        if (skip == null ||
+            skip.add('$path:${f.substring(f.indexOf(' : ') + 3)}'))
+          f,
+    ];
+    if (found.isEmpty) return null;
+    return '\n\nATTENTION : la CI de ce dépôt passe « cargo clippy » en '
+        'refusant ses avertissements (-D warnings) et échouera sur $path :\n'
+        '${found.take(5).join('\n')}\n'
+        'Corrige maintenant avec edit_file (même résultat, écrit comme clippy '
+        'le demande).';
   }
 
   /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule
