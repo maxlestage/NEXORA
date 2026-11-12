@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.13 — 12 novembre 2026 — Des sessions plus faciles à suivre
+- Amélioré : dans l'onglet Code, les sessions qui attendent votre relecture passent en tête, puis celles en cours, puis les récentes.
+- Amélioré : le sélecteur indique « Sessions · 2 à relire » quand des brouillons vous attendent.
+- Nouveau : une recherche (par mission ou par dépôt) apparaît dès 8 sessions.
+
 ## 3.0.12 — 12 novembre 2026 — Fichiers relus sans les renvoyer
 - Amélioré : quand l'agent relit un fichier qui n'a pas changé, son contenu n'est plus renvoyé au modèle une seconde fois.
 - Amélioré : les sessions de l'agent coûtent environ 20 % de tokens en moins quand il relit des fichiers.

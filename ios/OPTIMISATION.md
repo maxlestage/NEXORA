@@ -52,9 +52,15 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   `cache_control` vérifié : automatique (niveau requête) pour Anthropic, retiré seulement
   si le serveur refuse ; rien à gagner. Tests : 353 (banc enrichi).
 
-## Prochain passage : INTERFACE
-Écran suivant : Code/GitHub, puis Modèles, Réglages.
-Tokens ensuite : mémoire du chat résumée, ou modèle moins cher pour titres/résumés.
+- 3.0.13 (interface) : onglet Code, liste des sessions — `SessionsDisplay.sections`
+  (« À relire (n) » en tête, « En cours (n) », « Récentes » ; pas d'en-tête si tout est
+  terminé), sélecteur « Sessions · n à relire », recherche (mission ou dépôt) dès 8
+  sessions avec état vide, texte d'accueil raccourci (2 phrases au lieu de 3).
+  Tests : 353 → 357.
+
+## Prochain passage : TOKENS
+Mémoire du chat résumée, ou modèle moins cher pour titres/résumés (réglage).
+Interface ensuite : dépôts (ReposView/RepoView), puis Modèles, Réglages.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au lieu de les couper.
