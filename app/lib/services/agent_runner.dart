@@ -3609,6 +3609,7 @@ class AgentRun extends ChangeNotifier {
     final crate = cargo == null ? null : rustCrateName(cargo);
     final both = [
       ?_rustCrateHint(path, content, crate),
+      ?_rustSuperHint(path, content, crate),
       ?_rustBinHint(path, content, mainRs, libRs: libRs, crate: crate),
     ];
     return both.isEmpty ? null : both.join();
@@ -3673,6 +3674,86 @@ class AgentRun extends ChangeNotifier {
         'compilera pas. Mets ce test dans $main, '
         '${hasTests ? 'dans son module « #[cfg(test)] mod tests » existant (avec les autres tests, edit_file)' : 'dans un module « #[cfg(test)] mod tests { use super::*; … } » à la fin du fichier'}, '
         'puis supprime $path (delete_file). Fais-le maintenant.';
+  }
+
+  /// `super::` dans un test d'intégration Rust (dossier tests/) : ce fichier
+  /// est la racine de son propre crate. Essai réel : pour « ajoute un test »
+  /// de nature() (site/src/contenu.rs), le modèle écrivait
+  /// site/tests/contenu.rs avec « use super::*; » en tête. Accepté sans un
+  /// mot, le test ne pouvait pas compiler (« too many leading super
+  /// keywords »), et la CI l'aurait découvert bien plus tard.
+  ///
+  /// Signalé : un `super::` hors de tout module du fichier (erreur certaine),
+  /// ou un « mod tests { use super::*; } » dans un fichier qui n'importe jamais
+  /// la bibliothèque (il ne voit alors aucune de ses fonctions). Vérifié sans
+  /// fausse alerte sur les 742 tests d'intégration des crates du site.
+  static String? _rustSuperHint(String path, String content, String? name) {
+    final strings = RegExp(
+      r'"(?:\\.|[^"\\])*"'
+      "|'(?:\\\\.|[^'\\\\])'",
+    );
+    // Un module, ou une macro (où super:: sera dans le module qui l'appelle).
+    final modOpen = RegExp(r'\b(mod\s+\w+|macro_rules!\s*\w+)\s*\{');
+    // Chaque accolade ouverte : 0 (bloc), 1 (module), 2 (macro).
+    final mods = <int>[];
+    String? top;
+    String? inner;
+    for (final raw in content.split('\n')) {
+      final l = raw.trim();
+      if (l.startsWith('//')) continue;
+      final code = l.replaceAll(strings, '""');
+      if (RegExp(r'\bsuper::').hasMatch(code) && !mods.contains(2)) {
+        if (!mods.contains(1)) {
+          top ??= l;
+        } else {
+          inner ??= l;
+        }
+      }
+      final open = modOpen.firstMatch(code);
+      for (var i = 0; i < code.length; i++) {
+        if (code[i] == '{') {
+          mods.add(
+            open == null || i != open.end - 1
+                ? 0
+                : open[1]!.startsWith('mod')
+                ? 1
+                : 2,
+          );
+        } else if (code[i] == '}' && mods.isNotEmpty) {
+          mods.removeLast();
+        }
+      }
+    }
+    final use = name == null
+        ? 'le nom de la bibliothèque (celui de [lib] ou [package] dans '
+              'Cargo.toml, tirets remplacés par « _ »)'
+        : '« use $name::… » (par exemple « use $name::module::fonction; »)';
+    const fix =
+        ', rends publics les éléments testés (pub mod, pub fn), et '
+        'n\'enveloppe pas les tests dans « mod tests ». Ou bien mets ces tests '
+        'dans le module « #[cfg(test)] mod tests » du fichier testé (dans '
+        'src/, où « use super::*; » est juste) et supprime ce fichier '
+        '(delete_file). Corrige maintenant.';
+    if (top != null) {
+      return '\n\nATTENTION : $path est un test d\'intégration Rust (dossier '
+          'tests/) : il est compilé à part, comme la racine de son propre '
+          'crate. « $top » ne compilera pas (super:: n\'y désigne aucun '
+          'module : « too many leading super keywords »). Importe la '
+          'bibliothèque avec $use$fix';
+    }
+    if (inner == null || name == null) return null;
+    // Le fichier importe la bibliothèque, ou teste le programme lui-même
+    // (CARGO_BIN_EXE, Command) : super::* y est juste.
+    if (RegExp('\\b$name\\b').hasMatch(content) ||
+        content.contains('CARGO_BIN_EXE') ||
+        content.contains('Command')) {
+      return null;
+    }
+    return '\n\nATTENTION : $path est un test d\'intégration Rust (dossier '
+        'tests/) : il est compilé à part, et n\'importe jamais la bibliothèque. '
+        '« $inner » n\'y donne accès qu\'à ce fichier : aucune fonction du '
+        'crate ne sera trouvée, et le test ne compilera pas. Importe la '
+        'bibliothèque avec $use$fix';
   }
 
   static String? _rustCrateHint(String path, String content, String? name) {
