@@ -103,8 +103,16 @@ mémoire 32k tokens, consigne 3 000 car.
   tokens (−47 %). `spec` vérifie désormais les chemins sur la vraie liste (pas le texte).
   Tests : 365 → 367.
 
-## Prochain passage : INTERFACE
-Interface : Modèles, Réglages, éditeur de fichier (FileEditorView). Tokens : résumé des vieux
+- 3.0.19 (interface) : éditeur de fichier (FileEditorView) — `FileEditorDisplay`
+  (`defaultMessage` affiché dans le champ du commit, `pathProblem` pour un nouveau fichier
+  en mots simples, `summary` « 42 lignes · 1,2 Ko ») ; « Commit » → « Enregistrer » ;
+  bouton Annuler les modifications ; confirmation avant de quitter avec des modifications
+  (retour et balayage de la feuille) ; erreur de lecture → « Lecture impossible » +
+  Réessayer (avant : chargement sans fin) ; vibration de réussite ; cibles 44 pt.
+  Tests : 367 → 370.
+
+## Prochain passage : TOKENS
+Interface ensuite : Modèles, Réglages. Tokens : résumé des vieux
 messages du chat au moment d'une coupure par paquets ; modèle moins cher pour les
 sous-agents / traductions internes (`askOnce`) si réglage.
 

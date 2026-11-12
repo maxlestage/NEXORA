@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.19 — 12 novembre 2026 — Éditeur de fichier plus sûr
+- Nouveau : quitter un fichier modifié demande confirmation, et un bouton annule les modifications en un geste.
+- Amélioré : le bouton « Enregistrer » remplace « Commit » ; le message proposé s'affiche dans le champ.
+- Amélioré : le chemin d'un nouveau fichier est vérifié avec une explication simple ; taille du fichier affichée (« 42 lignes · 1,2 Ko »).
+- Corrigé : un fichier impossible à lire n'affiche plus un chargement sans fin, mais « Réessayer ».
+
 ## 3.0.18 — 12 novembre 2026 — Agent : liste des fichiers plus courte
 
 - Amélioré : la liste des fichiers du dépôt envoyée au modèle regroupe les fichiers par dossier (« app/lib/{a.dart, b.dart} ») : environ 47 % de tokens en moins pour cette liste.
