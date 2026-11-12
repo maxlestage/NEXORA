@@ -77,14 +77,26 @@ mémoire 32k tokens, consigne 3 000 car.
   cible 44 pt), états vides « Aucun dépôt » (avec bouton) et recherche sans résultat.
   Tests : 358 → 360.
 
-## Prochain passage : TOKENS
-Modèle moins cher pour titres/résumés (réglage), ou résumé des vieux messages du chat
-(attention : un résumé change le début de la requête, à faire au moment d'une coupure
-seulement). Interface ensuite : fiche d'un dépôt (RepoView), puis Modèles, Réglages.
+- 3.0.16 (tokens) : `CILog.condense` (dans `GitHubAPI.jobLog`, lu par l'outil github de
+  l'agent et la boucle CI) — sans horodatage, couleurs, vides, doublons, contenu des
+  groupes repliés (sauf erreurs), nettoyage de fin de job ; suites de lignes « [n/N] … »
+  réduites à la dernière ; erreurs d'avant la fin gardée reprises (2 lignes avant, 1
+  après, ¼ du budget, les premières d'abord). Banc `CILogTests.bench` (journal simulé :
+  préparation + 400 lignes de compilation, erreur au milieu, nettoyage) : 200 lignes
+  2 418 → 406 tokens (−83 %), 120 lignes 1 487 → 406 ; l'erreur, absente avant, est
+  présente. Correction au passage : « \r\n » découpé par `isNewline`. Tests : 360 → 363.
+  Remarque : les chats n'appellent pas de modèle pour les titres (`quickTitle` local) ;
+  piste « modèle moins cher pour titres » sans objet côté chat.
+
+## Prochain passage : INTERFACE
+Fiche d'un dépôt (RepoView), puis Modèles, Réglages. Tokens ensuite : résumé des vieux
+messages du chat au moment d'une coupure par paquets ; modèle moins cher pour les
+sous-agents / traductions internes (`askOnce`) si réglage.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
-- Modèle moins cher pour titres/résumés (réglage).
+- Modèle moins cher pour les tâches internes `askOnce` (traduction, rapport) via réglage.
+- Journal CI réel : vérifier le gain sur un vrai journal (banc simulé seulement).
 
 ## Idées écartées
 - Rappel dans un message utilisateur à part : deux messages « user » de suite sont

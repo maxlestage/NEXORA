@@ -161,7 +161,7 @@ extension GitHubAPI {
             r.timeoutInterval = 30
             for (k, v) in headers { r.setValue(v, forHTTPHeaderField: k) }
             let (head, data) = try await t.data(r)
-            var text: String
+            let text: String
             if (300..<400).contains(head.status), let to = head.headers["location"], let u = URL(string: to) {
                 var lr = URLRequest(url: u)
                 lr.httpMethod = "GET"
@@ -174,11 +174,8 @@ extension GitHubAPI {
             } else {
                 return nil
             }
-            // Sans l'horodatage de chaque ligne.
-            let stamp = DRegex(#"^\d{4}-\d\d-\d\dT[\d:.]+Z "#)
-            let all = text.dsplit("\n").map { stamp.replaceFirst($0, "") }
-            text = all.dropFirst(all.count > lines ? all.count - lines : 0).joined(separator: "\n")
-            return text
+            // Sans horodatage, groupes repliés ni nettoyage de fin ; erreurs gardées.
+            return CILog.condense(text, lines: lines)
         } catch {
             return nil
         }
