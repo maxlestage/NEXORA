@@ -131,6 +131,62 @@ void main() {
       );
     });
 
+    test('essai réel : guillemets échappés pour rien dans un test', () {
+      const agent =
+          r"""      final json = '''{\"message\": \"Invalid API key\"}''';"""
+          '\n';
+      expect(
+        tidyCode('app/test/html_error_parser_test.dart', agent),
+        r"""      final json = '''{"message": "Invalid API key"}''';"""
+        '\n',
+      );
+    });
+
+    test('un guillemet de l\'autre sorte perd sa barre oblique', () {
+      const agent =
+          r"""final a = 'dit \"oui\"';"""
+          '\n'
+          r'''final b = "c\'est";'''
+          '\n'
+          r"""final c = '${n}s \"x\"';"""
+          '\n';
+      expect(
+        tidyCode('lib/a.dart', agent),
+        r"""final a = 'dit "oui"';"""
+        '\n'
+        r'''final b = "c'est";'''
+        '\n'
+        r"""final c = '${n}s "x"';"""
+        '\n',
+      );
+    });
+
+    test('les barres obliques utiles restent', () {
+      const agent =
+          r"""final a = 'c\'est';"""
+          '\n'
+          r'''final b = "dit \"oui\"";'''
+          '\n'
+          r"""final c = r'\"';"""
+          '\n'
+          r"""final d = 'a\\"';"""
+          '\n'
+          r'''// 'dit \"oui\"' '''
+          '\n'
+          r'''final e = """a\"""";'''
+          '\n';
+      expect(tidyCode('lib/a.dart', agent), agent);
+    });
+
+    test('un guillemet échappé du fichier d\'origine reste', () {
+      const before = "final a = 'dit \\\"oui\\\"';\n";
+      const agent = "${before}final b = 'et \\\"non\\\"';\n";
+      expect(
+        tidyCode('lib/a.dart', agent, before: before),
+        "${before}final b = 'et \"non\"';\n",
+      );
+    });
+
     test('le Rust n\'est pas concerné', () {
       const rust = '/// Doc.\n\nfn f() { format!("\${x}"); }\n';
       expect(tidyCode('src/lib.rs', rust), rust);

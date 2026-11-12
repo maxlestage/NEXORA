@@ -5840,8 +5840,9 @@ String _dartLints(String text, String? before) {
     return !old.contains(text.substring(s, e < 0 ? text.length : e));
   }
 
+  final (interpolations, escapes) = _scanDartStrings(text);
   final cuts = <(int, int)>[];
-  for (final at in _plainInterpolations(text)) {
+  for (final at in interpolations) {
     final m = RegExp(r'\$\{([A-Za-z_]\w*)\}').matchAsPrefix(text, at);
     if (m == null) continue;
     if (m.end < text.length && RegExp(r'[\w$]').hasMatch(text[m.end])) {
@@ -5849,11 +5850,19 @@ String _dartLints(String text, String? before) {
     }
     if (mine(at)) cuts.add((at, m.end));
   }
+  // `'{\"a\": 1}'` : un guillemet de l'autre sorte n'a pas besoin de « \ »
+  // (« unnecessary_string_escapes », essai réel dans un test écrit par
+  // l'agent). La barre oblique est retirée, le texte reste le même.
+  for (final at in escapes) {
+    if (mine(at)) cuts.add((at, at + 1));
+  }
+  cuts.sort((a, b) => a.$1.compareTo(b.$1));
   var out = text;
   for (final (s, e) in cuts.reversed) {
-    out =
-        '${out.substring(0, s)}\$${out.substring(s + 2, e - 1)}'
-        '${out.substring(e)}';
+    out = e == s + 1
+        ? '${out.substring(0, s)}${out.substring(e)}'
+        : '${out.substring(0, s)}\$${out.substring(s + 2, e - 1)}'
+              '${out.substring(e)}';
   }
   // `///` en tête, suivi d'une ligne vide ou d'un import : il ne documente
   // rien (« dangling library doc comment »). Il devient un commentaire simple.
@@ -5878,9 +5887,12 @@ String _dartLints(String text, String? before) {
 }
 
 /// Les positions des `${` dans les textes Dart non bruts (pas dans le code,
-/// les commentaires ni les chaînes `r'…'`), interpolations imbriquées comprises.
-List<int> _plainInterpolations(String s) {
+/// les commentaires ni les chaînes `r'…'`), interpolations imbriquées comprises,
+/// et celles des « \ » inutiles devant un guillemet de l'autre sorte (`\"`
+/// entre `'…'` ou `'''…'''`, `\'` entre `"…"` ou `"""…"""`).
+(List<int>, List<int>) _scanDartStrings(String s) {
   final found = <int>[];
+  final escapes = <int>[];
   // La pile : un texte ouvert (son délimiteur, brut ou non) ou du code
   // d'interpolation (null, avec sa profondeur d'accolades).
   final stack = <(String?, bool, int)>[];
@@ -5893,6 +5905,8 @@ List<int> _plainInterpolations(String s) {
       final q = top.$1!;
       final raw = top.$2;
       if (!raw && s[i] == r'\') {
+        final next = i + 1 < s.length ? s[i + 1] : '';
+        if (next == (q[0] == "'" ? '"' : "'")) escapes.add(i);
         i += 2;
         continue;
       }
@@ -5946,7 +5960,7 @@ List<int> _plainInterpolations(String s) {
     }
     i++;
   }
-  return found;
+  return (found, escapes);
 }
 
 /// Un texte entre guillemets simples ou doubles, sur une ligne.
