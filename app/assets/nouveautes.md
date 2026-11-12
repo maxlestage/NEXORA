@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.101 — 12 novembre 2026 — La recherche de code de l'agent ne rend plus de faux résultats
+- Corrigé : en essai réel, pour « le chat doit refuser un message composé uniquement d'espaces », le modèle cherchait « send("   " ». La recherche élargie retirait toute la ponctuation et les accents, cherchait donc « send », et rendait 89 lignes sans rapport (« chargés en dollars ») présentées comme des résultats.
+- La recherche élargie n'ignore plus que ce qu'elle annonce : les espaces, « _ » et « - ». « compare versions » retrouve toujours compareVersions et compare_versions.
+- La ponctuation et les accents de la recherche comptent : un texte introuvable est signalé comme tel, et l'agent change d'approche au lieu de lire du bruit.
+
 ## 2.2.100 — 12 novembre 2026 — Un fichier réécrit à l'identique n'est plus compté comme un changement
 - Corrigé : en essai réel, pour « ajoute countChangedLines() dans diff.dart, avec des tests unitaires », le modèle réécrivait deux fois app/test/diff_test.dart avec exactement le même contenu. NEXORA répondait « OK, enregistré » à chaque fois : le modèle croyait avoir encore du travail et perdait ses étapes au lieu de terminer.
 - Un fichier réécrit sans aucun changement reçoit maintenant « Déjà fait », avec le conseil de terminer si la demande est remplie. Les avertissements (syntaxe, format) restent affichés.
