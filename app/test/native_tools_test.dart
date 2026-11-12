@@ -310,6 +310,31 @@ void main() {
     },
   );
 
+  test('squashForSearch n\'ignore que les espaces, « _ » et « - »', () {
+    expect(squashForSearch('compare_versions-x y'), 'compareversionsxy');
+    expect(squashForSearch('send("   "'), 'send(""');
+    // Essai réel : « send("   " » ne doit plus trouver « chargés en dollars ».
+    expect(
+      squashForSearch('chargés en dollars').contains(squashForSearch('send("')),
+      isFalse,
+    );
+  });
+
+  test('search_code : la ponctuation de la recherche compte, plus de faux '
+      'résultats', () async {
+    // Essai réel : « send("   " » trouvait 89 lignes sans rapport.
+    final run = build([
+      () => text(act('search_code', {'query': 'projet("   "'})),
+      () => text(act('finish', {'summary': 'ok'})),
+    ]);
+    await run.run();
+    final result = run.history
+        .firstWhere((m) => m.content.startsWith('Résultat de search_code'))
+        .content;
+    expect(result, isNot(contains('Un projet.')));
+    expect(result, isNot(contains('ignorant espaces')));
+  });
+
   test(
     'conversation trop longue : historique allégé, l\'agent continue',
     () async {

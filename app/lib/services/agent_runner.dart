@@ -12,6 +12,11 @@ import 'github_api.dart';
 import 'llm_client.dart';
 import 'rust_check.dart';
 
+/// Un texte sans espaces, « _ » ni « - », pour retrouver « compare versions »
+/// dans compareVersions ou compare_versions. La ponctuation et les accents
+/// restent : ils comptent dans ce que l'agent cherche.
+String squashForSearch(String s) => s.replaceAll(RegExp(r'[\s_\-]'), '');
+
 /// Deux contenus de fichier identiques, aux fins de ligne près (CRLF et
 /// sauts de ligne de la fin ignorés).
 bool sameText(String a, String? b) {
@@ -3493,11 +3498,13 @@ class AgentRun extends ChangeNotifier {
     }
     if (hits.isEmpty && inOther.isEmpty) {
       // « compare versions » retrouve compareVersions, compare_versions…
-      final squashed = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (squashed.length > 2) {
-        hits = find(
-          (l) => l.replaceAll(RegExp(r'[^a-z0-9]'), '').contains(squashed),
-        );
+      // Seuls les espaces, « _ » et « - » sont ignorés, comme annoncé. Essai
+      // réel : tout ce qui n'était pas a-z0-9 disparaissait, ponctuation et
+      // accents compris, et « send("   " » devenait « send » : 89 lignes sans
+      // rapport (« chargés en dollars ») présentées comme des résultats.
+      final squashed = squashForSearch(q);
+      if (RegExp(r'[a-z0-9]').allMatches(squashed).length > 2) {
+        hits = find((l) => squashForSearch(l).contains(squashed));
         if (hits.isNotEmpty) {
           note = ' (en ignorant espaces, « _ » et majuscules)';
         }
