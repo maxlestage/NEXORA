@@ -592,3 +592,37 @@ struct OptimizationParityTests {
         #expect(ChatLibrary.suggestions(for: "@", library: UserLibrary(), agents: Catalog.builtinAgents)?.count == Catalog.builtinAgents.count)
     }
 }
+
+@Suite("Liste des fichiers")
+struct FileTreeBench {
+    /// Un dépôt type : une app Flutter (fonctionnalités en dossiers), ses tests,
+    /// un serveur et quelques fichiers à la racine.
+    static let repo: [String] = {
+        var out = ["README.md", "pubspec.yaml", ".github/workflows/ci.yml"]
+        for feature in ["chat", "agents", "settings", "models", "github", "voice"] {
+            for part in ["widgets", "state", "data"] {
+                for i in 1...5 { out.append("app/lib/src/features/\(feature)/\(part)/\(feature)_\(part)_\(i).dart") }
+            }
+            for i in 1...3 { out.append("app/test/features/\(feature)/\(feature)_test_\(i).dart") }
+        }
+        for i in 1...20 { out.append("server/src/routes/route_\(i).rs") }
+        return out
+    }()
+
+    @Test("regroupée par dossier : chaque chemin reste lisible")
+    func readable() {
+        let tree = AgentRun.fileTree(["README.md", "app/lib/a.dart", "app/lib/b.dart", "app/test/a_test.dart", "x/{y}.txt", "app/lib/c.dart"])
+        #expect(tree == "README.md\napp/lib/{a.dart, b.dart, c.dart}\napp/test/a_test.dart\nx/{y}.txt")
+        #expect(AgentRun.fileTree([]) == "")
+    }
+
+    @Test("banc : près de la moitié des caractères en moins")
+    func bench() {
+        let before = Self.repo.joined(separator: "\n").count
+        let after = AgentRun.fileTree(Self.repo).count
+        print("Liste des fichiers (\(Self.repo.count) fichiers) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 6)
+        // Aucun nom de fichier perdu.
+        for f in Self.repo { #expect(AgentRun.fileTree(Self.repo).contains(f.split(separator: "/").last!)) }
+    }
+}

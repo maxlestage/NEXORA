@@ -96,8 +96,15 @@ mémoire 32k tokens, consigne 3 000 car.
   « Chargement impossible » (Réessayer) ; erreur en bandeau si la liste est déjà là.
   Tests : 363 → 365.
 
-## Prochain passage : TOKENS
-Puis interface : Modèles, Réglages, éditeur de fichier (FileEditorView). Tokens : résumé des vieux
+- 3.0.18 (tokens) : `AgentRun.fileTree` — la liste des fichiers envoyée au modèle est
+  regroupée par dossier (« app/lib/{a.dart, b.dart} », ordre gardé, noms avec « , { } »
+  en chemin complet) : premier message de la session, outil list_files, traduction en
+  langage NEXORA. Banc `FileTreeBench.bench` (dépôt type de 131 fichiers) : 1 578 → 841
+  tokens (−47 %). `spec` vérifie désormais les chemins sur la vraie liste (pas le texte).
+  Tests : 365 → 367.
+
+## Prochain passage : INTERFACE
+Interface : Modèles, Réglages, éditeur de fichier (FileEditorView). Tokens : résumé des vieux
 messages du chat au moment d'une coupure par paquets ; modèle moins cher pour les
 sous-agents / traductions internes (`askOnce`) si réglage.
 

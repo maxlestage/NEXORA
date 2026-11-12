@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.18 — 12 novembre 2026 — Agent : liste des fichiers plus courte
+
+- Amélioré : la liste des fichiers du dépôt envoyée au modèle regroupe les fichiers par dossier (« app/lib/{a.dart, b.dart} ») : environ 47 % de tokens en moins pour cette liste.
+- Gagné à chaque session de l'agent (premier message, outil « lister les fichiers ») et à chaque traduction de demande en langage NEXORA.
+- Aucun chemin perdu : chaque fichier reste nommé.
+
 ## 3.0.17 — 12 novembre 2026 — Fiche d'un dépôt plus claire
 
 - Amélioré : en haut d'un dépôt, plus que deux boutons — l'agent autonome, et un menu « … » qui regroupe la branche (affichée), les agents cloud et « Ouvrir sur GitHub ».

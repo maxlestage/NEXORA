@@ -39,8 +39,8 @@ extension AgentRun {
             // Les fichiers sont donnés tout de suite : un aller-retour de moins.
             let tree = await files()
             let files = tree.count > 400
-                ? tree.prefix(400).joined(separator: "\n") + "\n… (\(tree.count - 400) de plus)"
-                : tree.joined(separator: "\n")
+                ? Self.fileTree(Array(tree.prefix(400))) + "\n… (\(tree.count - 400) de plus)"
+                : Self.fileTree(tree)
             let tests = Self.testLayout(tree)
             // Aucun dépôt lisible : l'agent travaillerait à l'aveugle et tournerait en
             // rond. La session s'arrête tout de suite en disant pourquoi ; « continue »

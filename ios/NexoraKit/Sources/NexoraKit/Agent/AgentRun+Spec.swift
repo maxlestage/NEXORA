@@ -21,8 +21,8 @@ extension AgentRun {
         // (« lib/… » au lieu de « app/lib/… ») que l'agent suivrait ensuite.
         let tree = await files()
         let files = tree.count > 300
-            ? tree.prefix(300).joined(separator: "\n") + "\n… (\(tree.count - 300) de plus)"
-            : tree.joined(separator: "\n")
+            ? Self.fileTree(Array(tree.prefix(300))) + "\n… (\(tree.count - 300) de plus)"
+            : Self.fileTree(tree)
         let tests = Self.testLayout(tree)
         let system = "Tu traduis la demande d'un utilisateur en LANGAGE NEXORA, un format "
             + "précis que les agents de code comprennent sans ambiguïté. Reste "
@@ -67,7 +67,7 @@ extension AgentRun {
             // Pas au format, sans être coupée : le modèle ne sait pas traduire.
             if !spec.contains("OBJECTIF") && !cut { return "" }
             if !Self.specComplete(spec, cut: cut) { continue }
-            let listed = files.dsplit("\n")
+            let listed = Array(tree.prefix(300))
             return Self.withTestLayout(
                 Self.keepUserPaths(
                     Self.markGuesses(
