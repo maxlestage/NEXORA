@@ -774,6 +774,26 @@ public final class AgentRun {
         }
     }
 
+    /// Taille à partir de laquelle un résultat relu à l'identique n'est pas renvoyé.
+    public nonisolated static let dedupMin = 600
+
+    /// Un fichier (ou une recherche) relu sans changement alors que le résultat complet
+    /// est encore plus haut dans l'historique : on ne renvoie pas tout le contenu une
+    /// seconde fois, un renvoi court suffit. Dès que l'ancien résultat a été raccourci
+    /// (`compactHistory`), le contenu repart en entier.
+    public nonisolated static func dedupResults(_ results: [String], history: [LLMMessage]) -> [String] {
+        let earlier = history.filter { $0.role == "user" && $0.content.hasPrefix("Résultat de ") }.map(\.content)
+        if earlier.isEmpty { return results }
+        return results.map { r in
+            guard let cut = r.range(of: " :\n") else { return r }
+            let body = String(r[cut.upperBound...])
+            if body.count <= dedupMin || !earlier.contains(where: { $0.contains(body) }) { return r }
+            return String(r[..<cut.upperBound])
+                + "(identique au résultat déjà donné plus haut, rien n'a changé depuis : "
+                + "sers-toi de celui-là)"
+        }
+    }
+
     // MARK: - Instructions
 
     /// Ajoute une instruction pendant le travail (sans l'interrompre).

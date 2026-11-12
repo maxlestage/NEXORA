@@ -241,7 +241,9 @@ struct PerformanceTests {
 /// ce qui suit le premier message différent de la requête précédente).
 /// `reminders` : le rappel de la demande est laissé en place par paquets (3.0.10) ;
 /// sinon il est retiré du message précédent à chaque étape (avant).
-private func agentSessionChars(batch: Int, reminders: Bool = true) -> (sent: Int, uncached: Int) {
+/// `dedup` : un fichier relu sans changement n'est pas renvoyé en entier (3.0.12) ;
+/// toutes les 5 étapes, l'agent relit le fichier lu deux étapes plus tôt.
+private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
         + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
@@ -251,9 +253,12 @@ private func agentSessionChars(batch: Int, reminders: Bool = true) -> (sent: Int
     var sent = 0, uncached = 0
     for step in 0..<40 {
         let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
-        history.append(LLMMessage("assistant", "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(step)\"}}\n```" + code))
+        let file = step % 5 == 4 ? step - 2 : step
+        history.append(LLMMessage("assistant", "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
         if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
-        history.append(LLMMessage("user", "Résultat de read_file f\(step) :\n" + String(repeating: "r", count: 4000) + reminder))
+        var result = ["Résultat de read_file :\n// f\(file)\n" + String(repeating: "r", count: 4000)]
+        if dedup { result = AgentRun.dedupResults(result, history: history) }
+        history.append(LLMMessage("user", result[0] + reminder))
         AgentRun.compactHistory(&history, batch: batch)
         let total = history.reduce(system.count) { $0 + $1.content.count }
         var same = 0
@@ -273,6 +278,7 @@ struct TokenBench {
         let each = agentSessionChars(batch: 0)
         let before = agentSessionChars(batch: AgentRun.compactBatch, reminders: false)
         let grouped = agentSessionChars(batch: AgentRun.compactBatch)
+        let resent = agentSessionChars(batch: AgentRun.compactBatch, dedup: false)
         // Prix relatif d'un caractère : écrit dans le cache ×1,25 et relu ×0,1
         // (Anthropic) ; sans cache ×1 et relu ×0,5 (OpenAI).
         func anthropic(_ r: (sent: Int, uncached: Int)) -> Double {
@@ -281,7 +287,7 @@ struct TokenBench {
         func openai(_ r: (sent: Int, uncached: Int)) -> Double {
             Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
         }
-        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets", grouped)] {
+        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets, relectures renvoyées", resent), ("par paquets", grouped)] {
             print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
                 + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
         }
@@ -290,6 +296,23 @@ struct TokenBench {
         // Rappel laissé en place par paquets : moins cher avec cache.
         #expect(anthropic(grouped) < anthropic(before))
         #expect(openai(grouped) < openai(before))
+        // Fichier relu sans changement : pas renvoyé en entier.
+        #expect(grouped.sent < resent.sent)
+        #expect(anthropic(grouped) < anthropic(resent))
+        let body = "// a.swift\n" + String(repeating: "x", count: 1000)
+        let past = [LLMMessage("user", "Résultat de read_file (a.swift) :\n" + body)]
+        let again = AgentRun.dedupResults(["Résultat de read_file (a.swift) :\n" + body], history: past)[0]
+        #expect(again.hasPrefix("Résultat de read_file (a.swift) :\n(identique"))
+        #expect(again.count < 200)
+        // Contenu changé, résultat court, ou ancien résultat déjà raccourci : renvoyé en entier.
+        let changed = "Résultat de read_file (a.swift) :\n" + body + "y"
+        #expect(AgentRun.dedupResults([changed], history: past) == [changed])
+        let small = "Résultat de read_file :\nok"
+        #expect(AgentRun.dedupResults([small], history: [LLMMessage("user", small)]) == [small])
+        var cut = past
+        AgentRun.compactHistory(&cut, keep: 0)
+        let full = "Résultat de read_file (a.swift) :\n" + body
+        #expect(AgentRun.dedupResults([full], history: cut) == [full])
         // Rappels : gardés par paquets, retirés dès que la demande change.
         let r1 = AgentRun.reminderMark + "A", r2 = AgentRun.reminderMark + "B"
         var h = [LLMMessage("user", "Tâche")]

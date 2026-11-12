@@ -18,6 +18,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.8 (par paquets de 4) | 487 790 | 137 687 | 207 119 (−47 %) | 312 739 (−18 %) |
 | 3.0.9 (banc avec rappel, retiré à chaque étape) | 490 670 | 168 761 | 243 142 | 329 715 |
 | 3.0.10 (rappels retirés par paquets) | 493 694 (+0,6 %) | 149 714 (−11 %) | 221 540 (−9 %) | 321 704 (−2 %) |
+| 3.0.12 (banc : fichiers distincts + relecture toutes les 5 étapes, sans dédoublonnage) | 493 936 | 149 807 | 221 672 | 321 872 |
+| 3.0.12 (relectures identiques non renvoyées) | 439 311 (−11 %) | 112 311 (−25 %) | 173 089 (−22 %) | 275 811 (−14 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -43,13 +45,18 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   outils résumés « 5 outils », bouton Bibliothèque en double retiré de la barre (reste
   dans +). Barre du haut : 2 boutons → 1. Tests : 351 → 353.
 
-## Prochain passage : TOKENS
-Piste : `cache_control` des petites requêtes internes, ou mémoire du chat résumée.
-Interface ensuite : Code/GitHub, Modèles, Réglages.
+- 3.0.12 (tokens) : `AgentRun.dedupResults` — un résultat d'outil (> 600 caractères)
+  identique à un résultat encore complet plus haut dans l'historique est remplacé par un
+  renvoi court ; dès que l'ancien est raccourci, le contenu repart en entier. Le banc lit
+  désormais des fichiers au contenu distinct et relit un fichier toutes les 5 étapes.
+  `cache_control` vérifié : automatique (niveau requête) pour Anthropic, retiré seulement
+  si le serveur refuse ; rien à gagner. Tests : 353 (banc enrichi).
+
+## Prochain passage : INTERFACE
+Écran suivant : Code/GitHub, puis Modèles, Réglages.
+Tokens ensuite : mémoire du chat résumée, ou modèle moins cher pour titres/résumés.
 
 ## Pistes tokens à faire
-- `cache_control` Anthropic seulement quand `reasoning` est vrai (LLMClient.body) : vérifier
-  les petites requêtes internes.
 - Mémoire du chat : résumé des vieux messages au lieu de les couper.
 - Modèle moins cher pour titres/résumés (réglage).
 
