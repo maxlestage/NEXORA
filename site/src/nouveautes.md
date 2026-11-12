@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.111 — 12 novembre 2026 — Une définition cherchée au mauvais endroit est retrouvée sans contradiction
+- Corrigé : en essai réel, pour « un message vide ne doit rien envoyer… avec un test », l'agent cherchait « class Conversation » dans chat_state.dart. La réponse affirmait d'abord « elle vient d'une bibliothèque externe, ne la cherche plus », puis montrait la vraie définition dans models/chat.dart : perdu, l'agent tournait en rond jusqu'à l'arrêt.
+- Quand rien n'est trouvé dans le fichier ou le dossier visé mais ailleurs dans le dépôt, l'agent reçoit maintenant seulement « Rien dans ce fichier » suivi de ce qui a été trouvé, avec le code autour.
+- Rien d'autre ne change : une recherche qui trouve déjà quelque chose dans le dossier visé garde sa réponse habituelle.
+
 ## 2.2.110 — 12 novembre 2026 — La recherche ne fait plus croire à un nom qui n'existe pas
 - Corrigé : en essai réel, pour « quand GitHub répond 401, le message doit être… Ajoute un test », l'agent cherchait « getUser ». La recherche répondait « 1 ligne contient getUser » à cause de « String get user » : l'agent appelait api.getUser() dans son test (qui ne compilait pas), puis refaisait la même recherche jusqu'à l'arrêt.
 - Un nom de code retrouvé seulement en mots séparés est maintenant annoncé comme absent, avec la consigne de prendre un nom qui existe vraiment. Les lignes approchantes restent montrées, et « getToken » trouve toujours « get_token ».
