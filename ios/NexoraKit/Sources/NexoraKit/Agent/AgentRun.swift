@@ -747,16 +747,19 @@ public final class AgentRun {
         // anciens rappels (seul celui du dernier message sert).
         stripReminders(&history, upTo: history.count - 1)
         // Les anciennes réponses de l'agent : les contenus de fichiers écrits (ils sont
-        // dans les brouillons) ne repartent pas à chaque étape.
+        // dans les brouillons) ne repartent pas à chaque étape, ni la demande qu'il se
+        // répétait (le rappel et les 4 dernières réponses la gardent).
         var turns = 0
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = history[i]
             if m.role != "assistant" { continue }
             turns += 1
-            if turns <= 4 || m.content.len <= 1500 { continue }
+            if turns <= 4 { continue }
+            let long = m.content.len > 1500
             let short = block.replaceAllMapped(m.content) { b in
                 let body = b[2] ?? ""
-                if body.len <= 400 || b[1] == "json" { return b.text }
+                if b[1] == "json" { return dropGoal(b.text) }
+                if body.len <= 400 || !long { return b.text }
                 return "```\n(contenu retiré de l'historique : \(body.len) caractères, il est dans les brouillons)\n```"
             }
             if short != m.content { history[i] = LLMMessage("assistant", short) }
@@ -773,6 +776,16 @@ public final class AgentRun {
             )
         }
     }
+
+    /// Le champ « demande » d'un bloc JSON d'action (la demande que l'agent se
+    /// répète à chaque tour) : retiré des anciennes réponses, où il ne fait que
+    /// redire la même chose. Seulement s'il reste autre chose dans le bloc.
+    nonisolated static func dropGoal(_ json: String) -> String {
+        let out = goalField.replaceAll(json, "")
+        return out.contains("\"tool\"") || out.contains("\"actions\"") ? out : json
+    }
+
+    private nonisolated static let goalField = DRegex(#""demande"\s*:\s*"(?:[^"\\]|\\.)*"\s*,\s*"#)
 
     /// Taille à partir de laquelle un résultat relu à l'identique n'est pas renvoyé.
     public nonisolated static let dedupMin = 600
