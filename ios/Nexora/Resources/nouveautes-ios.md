@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.16 — 12 novembre 2026 — L'agent lit les erreurs de CI pour moins cher
+
+- Amélioré : quand les tests GitHub échouent, l'agent lit un journal nettoyé (sans préparation, lignes de progression ni nettoyage de fin) : environ 80 % de tokens en moins sur une compilation ratée.
+- Corrigé : l'erreur qui a cassé la compilation n'est plus perdue quand elle est loin de la fin du journal ; l'agent la voit et la corrige plus vite.
+
 ## 3.0.15 — 12 novembre 2026 — Des dépôts plus faciles à trouver
 
 - Nouveau : un bouton « + » en haut de la liste des dépôts pour en créer un (avant caché dans le menu du compte).
