@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nexora/data/providers_catalog.dart';
 import 'package:nexora/services/agent_runner.dart';
+import 'package:nexora/services/dart_check.dart';
 import 'package:nexora/services/github_api.dart';
 import 'package:nexora/services/llm_client.dart';
 
@@ -190,6 +191,106 @@ void main() {
         fake(ci: _ci, options: 'formatter:\n  page_width: 100\n'),
       ).run();
       expect(seen[1], isNot(contains('caractères au plus par ligne')));
+    });
+  });
+
+  group('indentation refusée par dart format', () {
+    // Le texte réellement écrit par Pollinations pour « renvoie le titre
+    // d'une page d'erreur HTML dans errorFromBody » (essai réel).
+    const bad =
+        'String errorFromBody(String body) {\n'
+        '  final t = body.trim();\n'
+        "  if (t.startsWith('<html')) {\n"
+        '    final titleMatch = RegExp(\n'
+        "    r'<title>(.*?)</title>',\n"
+        '    caseSensitive: false,\n'
+        '    dotAll: true,\n'
+        '  ).firstMatch(t);\n'
+        '    if (titleMatch != null) return titleMatch.group(1)!;\n'
+        '  }\n'
+        '  return t;\n'
+        '}\n';
+    const good =
+        'String errorFromBody(String body) {\n'
+        '  final t = body.trim();\n'
+        "  if (t.startsWith('<html')) {\n"
+        '    final titleMatch = RegExp(\n'
+        "      r'<title>(.*?)</title>',\n"
+        '      caseSensitive: false,\n'
+        '      dotAll: true,\n'
+        '    ).firstMatch(t);\n'
+        '    if (titleMatch != null) return titleMatch.group(1)!;\n'
+        '  }\n'
+        '  return t;\n'
+        '}\n';
+
+    test('essai réel : arguments et fermeture mal indentés', () {
+      final found = dartIndentProblems(bad);
+      expect(found, hasLength(2));
+      expect(found[0], startsWith('ligne 5 : 4 espaces'));
+      expect(found[0], contains('il en faut 6'));
+      expect(found[1], startsWith('ligne 8 : « ) »'));
+      expect(found[1], contains('4 espaces (et non 2)'));
+      expect(dartIndentProblems(good), isEmpty);
+    });
+
+    test('ce que dart format écrit ainsi n\'est pas signalé', () {
+      const code =
+          'void f(\n'
+          '  String q, {\n'
+          '  required int n,\n'
+          '}) {\n'
+          '  final a = ok\n'
+          '      ? g(\n'
+          '          1,\n'
+          '        )\n'
+          '      : 2;\n'
+          '  final b = list\n'
+          '      .where(\n'
+          '        (x) => x > 1,\n'
+          '      )\n'
+          '      .toList();\n'
+          "  test('un long titre '\n"
+          "      'sur deux lignes', (\n"
+          '    WidgetTester tester,\n'
+          '  ) async {});\n'
+          '  if ( // commentaire\n'
+          '  a) {}\n'
+          '  final c = h(\n'
+          "    '''\n"
+          'texte\n'
+          "''',\n"
+          '  );\n'
+          '  final d = [\n'
+          '    1,\n'
+          '  ];\n'
+          '}\n';
+      expect(dartIndentProblems(code), isEmpty);
+    });
+
+    test('les lignes du fichier d\'origine ne sont pas visées', () {
+      final old = bad.split('\n').toSet();
+      expect(dartIndentProblems(bad, old: old), isEmpty);
+      expect(
+        AgentRun.dartIndentHint('app/lib/a.dart', bad, before: bad),
+        isNull,
+      );
+      expect(AgentRun.dartIndentHint('src/main.rs', bad), isNull);
+    });
+
+    test('CI avec dart format : prévenu dès l\'écriture', () async {
+      final (llm, seen) = scripted([write(bad)]);
+      await runWith(llm, fake(ci: _ci)).run();
+      expect(seen[1], contains('enregistré en brouillon'));
+      expect(seen[1], contains('mal indenté'));
+      expect(seen[1], contains('ligne 8 : « ) »'));
+    });
+
+    test('pas de vérification du format en CI : rien n\'est dit', () async {
+      final (llm, seen) = scripted([write(bad)]);
+      await runWith(llm, fake()).run();
+      expect(seen[1], contains('enregistré en brouillon'));
+      expect(seen[1], isNot(contains('mal indenté')));
     });
   });
 }

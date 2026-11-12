@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.99 — 12 novembre 2026 — L'agent est prévenu d'une indentation que dart format refusera
+- Corrigé : en essai réel, pour « fais renvoyer le titre d'une page d'erreur HTML par errorFromBody », le modèle coupait un « RegExp( » sur plusieurs lignes en laissant ses arguments au niveau de la ligne d'ouverture et la fermeture « ).firstMatch(t); » deux espaces trop à gauche. NEXORA ne disait rien : « dart format » en CI aurait refusé le fichier sans expliquer pourquoi.
+- Quand la CI du dépôt vérifie le format Dart, l'agent est maintenant prévenu dès l'écriture, avec chaque ligne mal indentée et le nombre d'espaces attendu.
+- Prudent : seules les lignes écrites par l'agent sont vérifiées, et les tournures que le formateur aligne autrement (« ? : », chaînes d'appels « .x( », paramètres nommés, textes sur plusieurs lignes) ne sont jamais visées (4 alertes sur 17 157 vrais fichiers Dart, tous anciens et non passés au formateur actuel).
+
 ## 2.2.98 — 12 novembre 2026 — Le Dart de l'agent n'échappe plus les guillemets pour rien
 - Corrigé : en essai réel, pour « fais renvoyer le titre d'une page d'erreur HTML par errorFromBody… Ajoute des tests unitaires », le modèle écrivait dans son test '''{\"message\": \"Invalid API key\"}'''. Ces barres obliques ne servent à rien et « flutter analyze » les refuse (unnecessary_string_escapes) : la CI aurait échoué pour un détail d'écriture.
 - Dans le Dart écrit par l'agent, la barre oblique inutile devant un guillemet de l'autre sorte (\" entre apostrophes, \' entre guillemets) est maintenant retirée dès le brouillon. Le texte reste exactement le même.
