@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.109 — 12 novembre 2026 — L'agent est prévenu d'un texte collé que flutter analyze refusera
+- Corrigé : en essai réel, pour « coupe les titres rapides à 40 caractères, sans couper un mot… Ajoute des tests unitaires », le modèle écrivait dans son test « String.fromCharCodes(…) + ' b' ». « flutter analyze » le refuse (prefer_interpolation_to_compose_strings) : la CI aurait échoué pour un détail d'écriture.
+- Quand la CI du dépôt passe « flutter analyze » avec les règles recommandées, l'agent est maintenant prévenu dès l'écriture, avec chaque ligne fautive et la correction (« x + ' b' » devient « '$x b' »).
+- Prudent : seules les lignes écrites par l'agent sont vérifiées, et ce que l'analyseur accepte n'est jamais visé (deux textes collés, texte brut r'…', calcul comme « 'a' * 30 + ' b' »). Aucune alerte sur 4 615 vrais fichiers Dart (ceux de l'app et du SDK Flutter).
+
 ## 2.2.108 — 12 novembre 2026 — Le test demandé n'est plus écrit à la place du code
 - Corrigé : en essai réel, pour « ajoute formatCount() dans app/lib/services/number_format.dart, avec des tests unitaires », le modèle envoyait deux actions à la suite. Le bloc JSON de la seconde (celle du test) devenait le contenu du premier fichier : number_format.dart contenait du JSON, et le test n'était jamais écrit.
 - Un bloc qui est lui-même une action n'est plus jamais pris pour le contenu d'un fichier : l'action est faite, et le contenu manquant est redemandé au lieu d'être inventé.

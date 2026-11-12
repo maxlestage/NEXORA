@@ -4158,7 +4158,9 @@ class AgentRun extends ChangeNotifier {
     final text = changes[p];
     if (text == null) return '';
     if (p.endsWith('.dart')) {
-      return await _syntaxPitfalls(p, text) + await _formatPitfalls(p, text);
+      return await _syntaxPitfalls(p, text) +
+          await _formatPitfalls(p, text) +
+          await _lintPitfalls(p, text);
     }
     if (!p.endsWith('.rs')) return '';
     return await _rustPitfalls(p, text) +
@@ -4345,6 +4347,104 @@ class AgentRun extends ChangeNotifier {
       return '';
     }
   }
+
+  /// Les fichiers Dart déjà prévenus d'un « + » qui colle un texte (une fois
+  /// chacun, comme les lignes trop longues).
+  final Set<String> _concatWarned = {};
+
+  /// Par dossier d'analyse : `flutter analyze` refusera-t-il les « + » qui
+  /// collent un texte (prefer_interpolation_to_compose_strings) ?
+  final Map<String, bool> _lintChecked = {};
+
+  /// En essai réel, pour « coupe les titres rapides à 40 caractères… Ajoute
+  /// des tests unitaires », le modèle écrivait dans son test
+  /// « String.fromCharCodes(…) + ' b' » : `flutter analyze` le refuse
+  /// (prefer_interpolation_to_compose_strings) et la CI aurait échoué. Le
+  /// modèle est prévenu dès l'écriture, avec les lignes et la correction.
+  Future<String> _lintPitfalls(String p, String text) async {
+    if (!p.endsWith('.dart') || _concatWarned.contains(p)) return '';
+    try {
+      if (!await _checksDartLints(p)) return '';
+      final hint = dartConcatHint(p, text, before: await original(p));
+      if (hint == null) return '';
+      _concatWarned.add(p);
+      return hint;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// L'avertissement pour les « + » qui collent un texte littéral, dans les
+  /// lignes écrites par l'agent (celles du fichier d'origine ne comptent
+  /// pas), ou null.
+  static String? dartConcatHint(String path, String text, {String? before}) {
+    if (!path.endsWith('.dart')) return null;
+    final old = before == null ? const <String>{} : before.split('\n').toSet();
+    final found = dartConcatProblems(text, old: old);
+    if (found.isEmpty) return null;
+    return '\n\nATTENTION : la CI de ce dépôt passe « flutter analyze », qui '
+        'refusera $path (prefer_interpolation_to_compose_strings : un texte '
+        'collé avec « + ») :\n${found.join('\n')}\n'
+        'Corrige maintenant avec edit_file : une interpolation à la place du '
+        '« + » (« x + \' b\' » devient « \'\$x b\' », « f(x) + \'…\' » devient '
+        '« \'\${f(x)}…\' »). Le texte obtenu reste exactement le même.';
+  }
+
+  /// Le dossier de [p] analysé par la CI refuse-t-il ces « + » ? Oui quand
+  /// un workflow lance `flutter analyze` (ou `dart analyze --fatal-infos`) et
+  /// que le analysis_options.yaml le plus proche suit les règles recommandées
+  /// (flutter_lints, lints) sans couper celle-ci.
+  Future<bool> _checksDartLints(String p) async {
+    final where = resolve(p);
+    if (where == null) return false;
+    final prefix = multi ? '${mountOf(where.$1)}/' : '';
+    final files = await _files();
+    String? options;
+    var dir = p;
+    while (options == null) {
+      final i = dir.lastIndexOf('/');
+      dir = i < 0 ? '' : dir.substring(0, i);
+      final f = '${dir.isEmpty ? '' : '$dir/'}analysis_options.yaml';
+      if (files.contains(f)) options = f;
+      if (dir.isEmpty) break;
+    }
+    if (options == null) return false;
+    final known = _lintChecked[options];
+    if (known != null) return known;
+    final (t, _) = await _current(options);
+    final rules = t ?? '';
+    const rule = 'prefer_interpolation_to_compose_strings';
+    final on =
+        !RegExp('$rule\\s*:\\s*(false|ignore)').hasMatch(rules) &&
+        (rules.contains('flutter_lints') ||
+            rules.contains('package:lints/recommended') ||
+            RegExp(
+              '$rule\\s*(:\\s*(true|error|warning|info))?\\s*\$',
+              multiLine: true,
+            ).hasMatch(rules));
+    var analyzed = false;
+    if (on) {
+      for (final f in files) {
+        if (!f.startsWith('$prefix.github/workflows/') ||
+            !(f.endsWith('.yml') || f.endsWith('.yaml'))) {
+          continue;
+        }
+        final (w, _) = await _current(f);
+        if (w != null && dartAnalyzeRefusesInfos(w)) {
+          analyzed = true;
+          break;
+        }
+      }
+    }
+    return _lintChecked[options] = on && analyzed;
+  }
+
+  /// Un workflow dont l'analyse Dart échoue aussi sur les simples remarques
+  /// (« info ») : `flutter analyze`, ou `dart analyze --fatal-infos`.
+  static bool dartAnalyzeRefusesInfos(String workflow) =>
+      RegExp(r'flutter\s+analyze(?![^\n]*--no-fatal-infos)')
+          .hasMatch(workflow) ||
+      RegExp(r'dart\s+analyze[^\n]*--fatal-infos').hasMatch(workflow);
 
   /// Les fichiers déjà prévenus d'une indentation que `dart format` refusera
   /// (une fois chacun, comme les lignes trop longues).

@@ -520,3 +520,225 @@ bool _topLevelDeclaration(String line) {
   final t = line.trimRight();
   return t.endsWith('{') || t.contains(') =>') || t.contains(')=>');
 }
+
+/// Les « + » qui collent un texte littéral à autre chose (`x + ' b'`,
+/// `'a' * 30 + ' mot'`) : `flutter analyze` les refuse
+/// (prefer_interpolation_to_compose_strings, dans les règles recommandées) et
+/// demande une interpolation (`'$x b'`). En essai réel, les tests écrits par
+/// l'agent en étaient pleins, et la CI échouait pour ça.
+///
+/// Seules les lignes absentes de [old] (celles du fichier d'origine) sont
+/// visées. Prudent : rien n'est signalé quand les deux côtés sont des textes
+/// (`'a' + 'b'`), quand le texte est suivi d'un appel ou d'un opérateur plus
+/// fort (`'a'.trim()`, `'a' * 3`), ni dans les commentaires, les textes et les
+/// interpolations. Rend au plus [max] remarques (« ligne 12 : … »).
+List<String> dartConcatProblems(
+  String code, {
+  Set<String> old = const {},
+  int max = 5,
+}) {
+  final n = code.length;
+  // Les jetons du code hors textes : [_text] (un texte, ou des textes accolés),
+  // '+' (un plus seul), sinon le caractère lui-même ; avec leur position.
+  final tokens = <(String, int)>[];
+  bool isIdent(int i) => i >= 0 && i < n && RegExp(r'[\w$]').hasMatch(code[i]);
+  late int Function(int) skipCode;
+  int skipString(int i, bool raw) {
+    final c = code[i];
+    final q = code.startsWith(c * 3, i) ? c * 3 : c;
+    var j = i + q.length;
+    while (j < n) {
+      if (!raw && code[j] == r'\') {
+        j += 2;
+        continue;
+      }
+      if (code.startsWith(q, j)) return j + q.length;
+      if (q.length == 1 && code[j] == '\n') return j;
+      if (!raw && code.startsWith(r'${', j)) {
+        j = skipCode(j + 2);
+        continue;
+      }
+      j++;
+    }
+    return n;
+  }
+
+  int skipComment(int i) {
+    if (code.startsWith('//', i)) {
+      final e = code.indexOf('\n', i);
+      return e < 0 ? n : e;
+    }
+    final e = code.indexOf('*/', i + 2);
+    return e < 0 ? n : e + 2;
+  }
+
+  bool rawAt(int i) =>
+      i > 0 && (code[i - 1] == 'r' || code[i - 1] == 'R') && !isIdent(i - 2);
+
+  // Le code d'une interpolation, jusqu'à son « } » (rien n'y est signalé).
+  skipCode = (int j) {
+    var depth = 0;
+    while (j < n) {
+      final ch = code[j];
+      if (ch == "'" || ch == '"') {
+        j = skipString(j, rawAt(j));
+        continue;
+      }
+      if (code.startsWith('//', j) || code.startsWith('/*', j)) {
+        j = skipComment(j);
+        continue;
+      }
+      if (ch == '{') depth++;
+      if (ch == '}') {
+        if (depth == 0) return j + 1;
+        depth--;
+      }
+      j++;
+    }
+    return n;
+  };
+
+  var i = 0;
+  while (i < n) {
+    final ch = code[i];
+    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+      i++;
+      continue;
+    }
+    if (code.startsWith('//', i) || code.startsWith('/*', i)) {
+      i = skipComment(i);
+      continue;
+    }
+    if (ch == "'" || ch == '"') {
+      final raw = rawAt(i);
+      if (raw && tokens.isNotEmpty && tokens.last.$2 == i - 1) {
+        tokens.removeLast();
+      }
+      final end = skipString(i, raw);
+      // Des textes accolés ('a' 'b') ne font qu'un.
+      // Un texte brut (r'…') : la règle de l'analyseur le traite à part
+      // selon les versions, rien n'est signalé à côté de lui.
+      if (raw) {
+        tokens.add((_rawText, i));
+      } else if (tokens.isEmpty || tokens.last.$1 != _text) {
+        tokens.add((_text, i));
+      }
+      i = end;
+      continue;
+    }
+    if (ch == '+') {
+      final next = i + 1 < n ? code[i + 1] : '';
+      if (next == '+' || next == '=') {
+        tokens.add((next == '+' ? '++' : '+=', i));
+        i += 2;
+        continue;
+      }
+      tokens.add(('+', i));
+      i++;
+      continue;
+    }
+    tokens.add((ch, i));
+    i++;
+  }
+
+  // Un texte seul comme opérande : rien de plus fort ne s'y accroche.
+  const binds = {'.', '[', '*', '/', '%', '~', '!', '?'};
+  bool literalRight(int k) =>
+      tokens[k].$1 == _text &&
+      (k + 1 >= tokens.length || !binds.contains(tokens[k + 1].$1));
+  bool literalLeft(int k) =>
+      tokens[k].$1 == _text &&
+      !(k + 1 < tokens.length && binds.contains(tokens[k + 1].$1)) &&
+      (k == 0 ||
+          !{'*', '/', '%', '~', '+', '-', '!'}.contains(tokens[k - 1].$1));
+  bool operand(String kind) =>
+      !{'(', '[', '{', ',', ';', '=', ':', '+'}.contains(kind);
+
+  // L'opérande qui commence en [k] (vers la gauche si [dir] vaut -1) est-il
+  // collé à un « * », « / », « % » ou « ~/ » ?
+  bool multiplied(int k, int dir) {
+    const opens = {'(': ')', '[': ']', '{': '}'};
+    const closes = {')': '(', ']': '[', '}': '{'};
+    var j = k;
+    while (j >= 0 && j < tokens.length) {
+      final t = tokens[j].$1;
+      final into = dir < 0 ? closes[t] : opens[t];
+      if (into != null) {
+        // Saute la paire de parenthèses ou de crochets.
+        final back = dir < 0 ? opens[into]! : closes[into]!;
+        var depth = 0;
+        for (; j >= 0 && j < tokens.length; j += dir) {
+          final u = tokens[j].$1;
+          if (u == t) depth++;
+          if (u == back) depth--;
+          if (depth == 0) break;
+        }
+        j += dir;
+        continue;
+      }
+      if (t == _text ||
+          t == _rawText ||
+          t == '.' ||
+          t == '!' ||
+          t == '?' ||
+          t == '++' ||
+          t == '-' ||
+          RegExp(r'^[\w$]$').hasMatch(t)) {
+        j += dir;
+        continue;
+      }
+      return {'*', '/', '%', '~'}.contains(t);
+    }
+    return false;
+  }
+
+  final lines = code.split('\n');
+  final starts = <int>[0];
+  for (var p = 0; p < n; p++) {
+    if (code[p] == '\n') starts.add(p + 1);
+  }
+  int lineOf(int offset) {
+    var lo = 0, hi = starts.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) ~/ 2;
+      if (starts[mid] <= offset) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
+  }
+
+  final out = <String>[];
+  final seen = <int>{};
+  for (var k = 1; k + 1 < tokens.length; k++) {
+    if (tokens[k].$1 != '+') continue;
+    final left = tokens[k - 1].$1, right = tokens[k + 1].$1;
+    if (!operand(left) || right == '+') continue;
+    if (left == _rawText || right == _rawText) continue;
+    final l = left == _text && literalLeft(k - 1);
+    final r = right == _text && literalRight(k + 1);
+    // Un seul des deux côtés est un texte littéral ; l'autre n'en est pas un.
+    if (l == r) continue;
+    if (l && right == _text) continue;
+    if (r && left == _text) continue;
+    // L'autre côté est lui-même un calcul (« 'a' * 30 + ' b' ») : l'analyseur
+    // ne le signale pas.
+    if (r && multiplied(k - 1, -1) || l && multiplied(k + 1, 1)) continue;
+    final line = lineOf(tokens[k].$2);
+    if (seen.contains(line) || old.contains(lines[line])) continue;
+    seen.add(line);
+    var t = lines[line].trim();
+    if (t.length > 120) t = '${t.substring(0, 120)}…';
+    out.add('ligne ${line + 1} : $t');
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/// Le jeton d'un texte littéral (jamais un caractère du code).
+const _text = '\u0000';
+
+/// Le jeton d'un texte brut (r'…').
+const _rawText = '\u0001';
