@@ -175,6 +175,7 @@ struct FileEditorView: View {
     var isNew = false
 
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var file: FileContent?
     @State private var text = ""
@@ -183,8 +184,12 @@ struct FileEditorView: View {
     @State private var error: String?
     @State private var saving = false
     @State private var info: String?
+    @State private var saved = 0
+    @State private var confirmLeave = false
 
     private var changed: Bool { isNew ? !text.isEmpty : text != file?.text }
+    /// Ce qui empêche d'enregistrer un nouveau fichier (nil si rien).
+    private var pathProblem: String? { isNew ? FileEditorDisplay.pathProblem(path) : nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -194,8 +199,16 @@ struct FileEditorView: View {
                     .autocorrectionDisabled()
                     .padding()
                     .background(.fill.quaternary)
+                if let pathProblem, !text.isEmpty {
+                    Text(pathProblem)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.top, 6)
+                }
             }
-            if let error { Text(error).foregroundStyle(Theme.red).padding() }
+            if let error, file != nil || isNew { Text(error).foregroundStyle(Theme.red).padding() }
             if let info { Text(info).foregroundStyle(Theme.green).font(.footnote).padding(.top, 6) }
             if file?.binary == true {
                 ContentUnavailableView("Fichier binaire", systemImage: "doc.questionmark", description: Text("Ce fichier ne peut pas être affiché."))
@@ -213,20 +226,41 @@ struct FileEditorView: View {
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                Text(FileEditorDisplay.summary(text))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 6)
+            } else if let error {
+                ContentUnavailableView {
+                    Label("Lecture impossible", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Réessayer") { Task { await load() } }
+                }
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
             if changed {
                 HStack {
-                    TextField("Message du commit", text: $message)
+                    if !isNew {
+                        Button("Annuler les modifications", systemImage: "arrow.uturn.backward") {
+                            text = file?.text ?? ""
+                        }
+                        .labelStyle(.iconOnly)
+                        .frame(minWidth: 44, minHeight: 44)
+                    }
+                    TextField(FileEditorDisplay.defaultMessage(path: path, isNew: isNew), text: $message)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Message du commit (facultatif)")
                     Button {
                         Task { await save() }
                     } label: {
-                        if saving { ProgressView() } else { Text("Commit") }
+                        if saving { ProgressView() } else { Text("Enregistrer") }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(saving || (isNew && path.hasSuffix("/")))
+                    .frame(minHeight: 44)
+                    .disabled(saving || pathProblem != nil)
                 }
                 .padding()
                 .background(.bar)
@@ -234,35 +268,58 @@ struct FileEditorView: View {
         }
         .navigationTitle(isNew ? "Nouveau fichier" : (path.split(separator: "/").last.map(String.init) ?? path))
         .navigationBarTitleDisplayMode(.inline)
+        // Modifications non enregistrées : on demande avant de les perdre.
+        .navigationBarBackButtonHidden(changed && !isNew)
+        .interactiveDismissDisabled(changed)
         .toolbar {
-            if isNew {
-                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
-            } else if file?.binary == false {
+            if isNew || changed {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(isNew ? "Fermer" : "Retour") {
+                        if changed { confirmLeave = true } else { dismiss() }
+                    }
+                }
+            }
+            if !isNew, file?.binary == false {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(editing ? "Aperçu" : "Modifier") { editing.toggle() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: text) { Image(systemName: "square.and.arrow.up") }
+                    ShareLink(item: text) {
+                        Image(systemName: "square.and.arrow.up")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Partager")
                 }
             }
         }
+        .confirmationDialog("Abandonner les modifications ?", isPresented: $confirmLeave, titleVisibility: .visible) {
+            Button("Abandonner", role: .destructive) { dismiss() }
+            Button("Continuer à modifier", role: .cancel) {}
+        }
+        .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
         .task {
             guard !isNew else { return }
-            do {
-                let f = try await github.api.readFile(repo.owner.login, repo.name, path: path, ref: branch)
-                file = f
-                text = f.text
-            } catch {
-                self.error = error.localizedDescription
-            }
+            await load()
+        }
+    }
+
+    private func load() async {
+        error = nil
+        do {
+            let f = try await github.api.readFile(repo.owner.login, repo.name, path: path, ref: branch)
+            file = f
+            text = f.text
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 
     private func save() async {
         saving = true
         defer { saving = false }
+        if isNew { path = path.trimmingCharacters(in: .whitespaces) }
         let msg = message.trimmingCharacters(in: .whitespaces).isEmpty
-            ? (isNew ? "Ajoute \(path)" : "Met à jour \(path)")
+            ? FileEditorDisplay.defaultMessage(path: path, isNew: isNew)
             : message
         do {
             let sha = try await github.api.writeFile(repo.owner.login, repo.name, path: path, content: text, message: msg, sha: file?.sha, branch: branch)
@@ -271,6 +328,7 @@ struct FileEditorView: View {
             editing = false
             error = nil
             info = "Enregistré sur \(branch)."
+            saved += 1
             if isNew { dismiss() }
         } catch {
             self.error = error.localizedDescription

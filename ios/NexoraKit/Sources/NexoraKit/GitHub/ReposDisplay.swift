@@ -52,3 +52,52 @@ public enum FilesDisplay {
         return parts.joined(separator: " · ")
     }
 }
+
+/// Logique d'affichage de l'éditeur de fichier (fiche d'un dépôt), testable sous Linux.
+public enum FileEditorDisplay {
+    /// Le message de commit proposé (et utilisé si le champ reste vide) :
+    /// « Ajoute docs/a.md » ou « Met à jour a.md ».
+    public static func defaultMessage(path: String, isNew: Bool) -> String {
+        let p = path.trimmingCharacters(in: .whitespaces)
+        if isNew { return "Ajoute \(p)" }
+        let name = p.split(separator: "/").last.map(String.init) ?? p
+        return "Met à jour \(name)"
+    }
+
+    /// Ce qui empêche d'enregistrer un nouveau fichier à ce chemin, en mots simples ;
+    /// nil si le chemin convient.
+    public static func pathProblem(_ path: String) -> String? {
+        let p = path.trimmingCharacters(in: .whitespaces)
+        if p.isEmpty { return "Indique le nom du fichier." }
+        if p.hasPrefix("/") { return "Le chemin ne doit pas commencer par « / »." }
+        if p.hasSuffix("/") { return "Ajoute le nom du fichier après « / »." }
+        let parts = p.split(separator: "/", omittingEmptySubsequences: false)
+        if parts.contains(where: { $0.isEmpty }) { return "Le chemin contient « // »." }
+        if parts.contains(where: { $0 == "." || $0 == ".." }) { return "Le chemin ne peut pas contenir « . » ou « .. »." }
+        return nil
+    }
+
+    /// La taille d'un texte, lue aussi par VoiceOver : « 42 lignes · 1,2 Ko ».
+    public static func summary(_ text: String) -> String {
+        guard !text.isEmpty else { return "Fichier vide" }
+        var lines = text.reduce(into: 1) { n, c in if c.isNewline { n += 1 } }
+        if text.last?.isNewline == true { lines -= 1 }
+        let bytes = text.utf8.count
+        let size: String
+        if bytes < 1_000 {
+            size = "\(bytes) o"
+        } else if bytes < 1_000_000 {
+            size = decimal(Double(bytes) / 1_000) + " Ko"
+        } else {
+            size = decimal(Double(bytes) / 1_000_000) + " Mo"
+        }
+        return (lines == 1 ? "1 ligne" : "\(lines) lignes") + " · " + size
+    }
+
+    /// Une décimale à la française, sans « ,0 » : 1,2 ; 12.
+    private static func decimal(_ x: Double) -> String {
+        let r = (x * 10).rounded() / 10
+        if r == r.rounded() { return String(Int(r)) }
+        return String(format: "%.1f", r).replacingOccurrences(of: ".", with: ",")
+    }
+}
