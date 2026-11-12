@@ -564,9 +564,31 @@ public final class AgentRun {
             + "une action déjà réussie)."
     }
 
-    /// Retire les anciens rappels (le dernier suffit).
-    public nonisolated static func dropReminders(_ history: inout [LLMMessage]) {
-        for i in history.indices {
+    /// Les anciens rappels identiques au rappel courant restent en place jusqu'à
+    /// ce nombre : les retirer à chaque étape changerait le message précédent et
+    /// ferait sortir la suite de l'historique du cache de prompt.
+    public nonisolated static let reminderBatch = 4
+
+    /// Retire les anciens rappels (le dernier suffit). Avec `keeping` (le rappel qui
+    /// va être ajouté), ils ne sont retirés que par paquets (`reminderBatch`), ou dès
+    /// que l'un d'eux diffère (demande complétée entre-temps).
+    public nonisolated static func dropReminders(_ history: inout [LLMMessage], keeping current: String? = nil) {
+        if let current {
+            var count = 0, stale = false
+            for m in history {
+                let at = m.content.indexOf(reminderMark)
+                if at < 0 { continue }
+                count += 1
+                if m.content.sub(at) != current { stale = true }
+            }
+            if !stale && count < reminderBatch { return }
+        }
+        stripReminders(&history, upTo: history.count)
+    }
+
+    /// Retire les rappels des messages `0..<end`.
+    nonisolated static func stripReminders(_ history: inout [LLMMessage], upTo end: Int) {
+        for i in 0..<max(0, min(end, history.count)) {
             let m = history[i]
             let at = m.content.indexOf(reminderMark)
             if at >= 0 { history[i] = LLMMessage(m.role, m.content.sub(0, at)) }
@@ -721,6 +743,9 @@ public final class AgentRun {
             }
             if due < batch { return }
         }
+        // L'historique change de toute façon : on en profite pour retirer les
+        // anciens rappels (seul celui du dernier message sert).
+        stripReminders(&history, upTo: history.count - 1)
         // Les anciennes réponses de l'agent : les contenus de fichiers écrits (ils sont
         // dans les brouillons) ne repartent pas à chaque étape.
         var turns = 0

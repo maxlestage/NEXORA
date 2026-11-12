@@ -16,6 +16,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 |---|---|---|---|---|
 | 3.0.7 (raccourci à chaque étape) | 458 819 | 303 170 | 394 528 | 380 995 |
 | 3.0.8 (par paquets de 4) | 487 790 | 137 687 | 207 119 (−47 %) | 312 739 (−18 %) |
+| 3.0.9 (banc avec rappel, retiré à chaque étape) | 490 670 | 168 761 | 243 142 | 329 715 |
+| 3.0.10 (rappels retirés par paquets) | 493 694 (+0,6 %) | 149 714 (−11 %) | 221 540 (−9 %) | 321 704 (−2 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -30,17 +32,20 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   (`WorkspaceText.composerButton`), Arrêter retiré de la barre du haut, cibles 44 pt.
   Tests : 350 → 351.
 
-## Prochain passage : TOKENS (piste : rappel `dropReminders` hors du dernier message)
-Écran d'interface suivant : Agents, puis Code/GitHub, Modèles, Réglages.
+- 3.0.10 (tokens) : `dropReminders(_:keeping:)` — les anciens rappels identiques restent
+  jusqu'à `reminderBatch` = 4 (retirés tous d'un coup, ou dès que la demande change) ;
+  `compactHistory` en profite pour les retirer quand il raccourcit. Le banc simule
+  désormais le rappel (≈ 290 caractères). Tests : 351 (1 test adapté : ≤ 4 rappels).
+
+## Prochain passage : INTERFACE (écran Agents)
+Puis Code/GitHub, Modèles, Réglages.
 
 ## Pistes tokens à faire
-- `dropReminders` retire le rappel du dernier message à chaque étape : ce message change
-  donc au tour suivant et sort du cache (≈ un résultat d'outil par étape). Mettre le
-  rappel dans un message à part, ou le laisser en place.
 - `cache_control` Anthropic seulement quand `reasoning` est vrai (LLMClient.body) : vérifier
   les petites requêtes internes.
 - Mémoire du chat : résumé des vieux messages au lieu de les couper.
 - Modèle moins cher pour titres/résumés (réglage).
 
 ## Idées écartées
-- (aucune pour l'instant)
+- Rappel dans un message utilisateur à part : deux messages « user » de suite sont
+  refusés par certains fournisseurs ; remplacé par le retrait par paquets (3.0.10).

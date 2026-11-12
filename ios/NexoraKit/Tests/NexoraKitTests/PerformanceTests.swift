@@ -239,7 +239,12 @@ struct PerformanceTests {
 /// Une session d'agent type (40 étapes sur un petit dépôt simulé) : les caractères
 /// envoyés au modèle, et la part qui n'est pas relue depuis le cache de prompt (tout
 /// ce qui suit le premier message différent de la requête précédente).
-private func agentSessionChars(batch: Int) -> (sent: Int, uncached: Int) {
+/// `reminders` : le rappel de la demande est laissé en place par paquets (3.0.10) ;
+/// sinon il est retiré du message précédent à chaque étape (avant).
+private func agentSessionChars(batch: Int, reminders: Bool = true) -> (sent: Int, uncached: Int) {
+    let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
+        + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
+        + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
     let system = String(repeating: "s", count: 6000)
     var history = [LLMMessage("user", "Ajoute une page contact avec un formulaire")]
     var previous: [LLMMessage] = []
@@ -247,7 +252,8 @@ private func agentSessionChars(batch: Int) -> (sent: Int, uncached: Int) {
     for step in 0..<40 {
         let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
         history.append(LLMMessage("assistant", "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(step)\"}}\n```" + code))
-        history.append(LLMMessage("user", "Résultat de read_file f\(step) :\n" + String(repeating: "r", count: 4000)))
+        if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
+        history.append(LLMMessage("user", "Résultat de read_file f\(step) :\n" + String(repeating: "r", count: 4000) + reminder))
         AgentRun.compactHistory(&history, batch: batch)
         let total = history.reduce(system.count) { $0 + $1.content.count }
         var same = 0
@@ -265,6 +271,7 @@ struct TokenBench {
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)
+        let before = agentSessionChars(batch: AgentRun.compactBatch, reminders: false)
         let grouped = agentSessionChars(batch: AgentRun.compactBatch)
         // Prix relatif d'un caractère : écrit dans le cache ×1,25 et relu ×0,1
         // (Anthropic) ; sans cache ×1 et relu ×0,5 (OpenAI).
@@ -274,12 +281,29 @@ struct TokenBench {
         func openai(_ r: (sent: Int, uncached: Int)) -> Double {
             Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
         }
-        for (name, r) in [("à chaque étape", each), ("par paquets", grouped)] {
+        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets", grouped)] {
             print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
                 + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
         }
         #expect(anthropic(grouped) < anthropic(each) * 0.8)
         #expect(openai(grouped) < openai(each))
+        // Rappel laissé en place par paquets : moins cher avec cache.
+        #expect(anthropic(grouped) < anthropic(before))
+        #expect(openai(grouped) < openai(before))
+        // Rappels : gardés par paquets, retirés dès que la demande change.
+        let r1 = AgentRun.reminderMark + "A", r2 = AgentRun.reminderMark + "B"
+        var h = [LLMMessage("user", "Tâche")]
+        func reminders() -> Int { h.filter { $0.content.contains(AgentRun.reminderMark) }.count }
+        for i in 0..<AgentRun.reminderBatch {
+            AgentRun.dropReminders(&h, keeping: r1)
+            h.append(LLMMessage("user", "Résultat \(i)" + r1))
+            #expect(reminders() == i + 1)
+        }
+        AgentRun.dropReminders(&h, keeping: r1)
+        #expect(reminders() == 0)
+        h.append(LLMMessage("user", "Résultat" + r1))
+        AgentRun.dropReminders(&h, keeping: r2)
+        #expect(reminders() == 0)
         // Le modèle garde toujours au moins les derniers résultats en entier.
         var history = [LLMMessage("user", "Tâche")]
         for i in 0..<20 {
