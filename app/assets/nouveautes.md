@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.97 — 12 novembre 2026 — Une fonction Rust écrite deux fois est repérée
+- Corrigé : en essai réel, pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test unitaire », le modèle insérait deux fois le même test « fn test_compter_mots ». NEXORA l'acceptait, alors que le fichier ne peut plus compiler (« defined multiple times ») : la CI l'aurait découvert bien plus tard.
+- Une fonction définie deux fois dans le même bloc (même module, même impl) est maintenant signalée dès l'écriture, avec les deux numéros de ligne, et l'agent ne peut pas terminer sans corriger.
+- Prudent : un même nom dans deux impl ou deux modules, les variantes sous #[cfg(…)], les fonctions écrites dans une macro, les chaînes et les commentaires ne sont jamais visés (aucune fausse alerte sur 8 620 vrais fichiers Rust).
+
 ## 2.2.96 — 12 novembre 2026 — Un exemple de documentation Rust qui ne compile pas est repéré
 - Corrigé : en essai réel, pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test », le modèle écrivait un exemple « /// assert_eq!(compter_mots(…), 4); » sans aucun import. cargo test compile ces exemples à part : la fonction n'y est pas trouvée, et la CI aurait échoué bien plus tard.
 - Un nouvel exemple de documentation qui appelle une fonction du fichier sans importer la bibliothèque est maintenant signalé dès son écriture, avec l'import exact à ajouter (« use nom_du_crate::module::fonction; »).

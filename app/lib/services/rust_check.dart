@@ -188,3 +188,145 @@ String _closer(String open) => switch (open) {
   '[' => ']',
   _ => '}',
 };
+
+/// Le code Rust sans ses commentaires, chaînes et caractères (remplacés par
+/// des espaces, les retours à la ligne gardés) : les accolades et les mots
+/// qui restent sont du vrai code.
+String _rustBareCode(String code) {
+  final out = StringBuffer();
+  final n = code.length;
+  var i = 0;
+  void blank(int end) {
+    for (var j = i; j < end && j < n; j++) {
+      out.write(code[j] == '\n' ? '\n' : ' ');
+    }
+    i = end > n ? n : end;
+  }
+
+  while (i < n) {
+    final c = code[i];
+    if (c == '/' && i + 1 < n && code[i + 1] == '/') {
+      final end = code.indexOf('\n', i);
+      blank(end < 0 ? n : end);
+      continue;
+    }
+    if (c == '/' && i + 1 < n && code[i + 1] == '*') {
+      var j = i + 2;
+      var depth = 1;
+      while (j < n && depth > 0) {
+        if (code.startsWith('/*', j)) {
+          depth++;
+          j += 2;
+        } else if (code.startsWith('*/', j)) {
+          depth--;
+          j += 2;
+        } else {
+          j++;
+        }
+      }
+      blank(j);
+      continue;
+    }
+    final ident = i > 0 && RegExp(r'\w').hasMatch(code[i - 1]);
+    if (!ident && (c == 'r' || (c == 'b' && code.startsWith('br', i)))) {
+      var j = i + (c == 'b' ? 2 : 1);
+      var hashes = 0;
+      while (j < n && code[j] == '#') {
+        hashes++;
+        j++;
+      }
+      if (j < n && code[j] == '"' && (hashes > 0 || j == i + 1 || c == 'b')) {
+        final close = '"${'#' * hashes}';
+        final end = code.indexOf(close, j + 1);
+        blank(end < 0 ? n : end + close.length);
+        continue;
+      }
+    }
+    if (c == '"') {
+      var j = i + 1;
+      while (j < n && code[j] != '"') {
+        if (code[j] == '\\') j++;
+        j++;
+      }
+      blank(j + 1);
+      continue;
+    }
+    if (c == "'") {
+      final m = RegExp(
+        r"'(?:\\(?:u\{[0-9a-fA-F]{1,6}\}|x[0-9a-fA-F]{2}|.)|[^\\'\n])'",
+      ).matchAsPrefix(code, i);
+      if (m != null) {
+        blank(m.end);
+        continue;
+      }
+    }
+    out.write(c);
+    i++;
+  }
+  return out.toString();
+}
+
+/// Une fonction définie deux fois dans le même bloc (le même module, le même
+/// `impl`) : « the name `f` is defined multiple times », le crate ne compile
+/// pas. Essai réel : pour « ajoute compter_mots() avec un test », le modèle
+/// insérait deux fois le même `#[test] fn test_compter_mots()` à la suite.
+///
+/// Rien n'est signalé pour une définition sous `#[cfg(…)]` (variantes selon
+/// la plateforme ou une feature), ni dans une macro. Rend « ligne N : … », ou
+/// null.
+String? rustDuplicateFnError(String code) {
+  final bare = _rustBareCode(code);
+  final fnDef = RegExp(r'\bfn\s+(?:r#)?(\w+)\s*[<(]');
+  final defs = {for (final m in fnDef.allMatches(bare)) m.start: m[1]!};
+  if (defs.length < 2) return null;
+  // Juste avant un bloc : « nom! » (appel de macro) ou « macro_rules! nom ».
+  final macroCall = RegExp(r'(?:\w!|macro_rules!\s*\w+)\s*$');
+  // Pour chaque bloc ouvert : son numéro, et s'il est dans une macro.
+  final stack = <(int, bool)>[(0, false)];
+  var next = 1;
+  final seen = <int, Map<String, (int, bool)>>{};
+  var line = 1;
+  var lineStart = 0;
+  var cfg = false;
+  for (var i = 0; i < bare.length; i++) {
+    final c = bare[i];
+    if (c == '\n') {
+      final t = bare.substring(lineStart, i).trim();
+      if (t.startsWith('#[cfg') || t.startsWith('#![cfg')) {
+        cfg = true;
+      } else if (!t.startsWith('#') &&
+          (t.endsWith(';') || t.endsWith('{') || t.endsWith('}'))) {
+        // Une autre déclaration (struct, use…) a consommé l'attribut.
+        cfg = false;
+      }
+      line++;
+      lineStart = i + 1;
+      continue;
+    }
+    final def = defs[i];
+    if (def != null) {
+      final head = bare.substring(lineStart, i);
+      final onLine = head.contains('#[cfg');
+      final (scope, inMacro) = stack.last;
+      if (!inMacro) {
+        final names = seen.putIfAbsent(scope, () => {});
+        final prev = names[def];
+        if (prev != null && !prev.$2 && !cfg && !onLine) {
+          return 'ligne $line : « fn $def » est déjà définie ligne '
+              '${prev.$1}, dans le même bloc (« the name `$def` is defined '
+              'multiple times ») : garde une seule de ces deux fonctions et '
+              'supprime l\'autre (ou renomme-la)';
+        }
+        names[def] ??= (line, cfg || onLine);
+      }
+      cfg = false;
+    }
+    if (c == '{' || c == '(' || c == '[') {
+      final before = bare.substring(i > 80 ? i - 80 : 0, i);
+      stack.add((next++, stack.last.$2 || macroCall.hasMatch(before)));
+    } else if ((c == '}' || c == ')' || c == ']') && stack.length > 1) {
+      stack.removeLast();
+    }
+  }
+  return null;
+}
