@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.17 — 12 novembre 2026 — Fiche d'un dépôt plus claire
+
+- Amélioré : en haut d'un dépôt, plus que deux boutons — l'agent autonome, et un menu « … » qui regroupe la branche (affichée), les agents cloud et « Ouvrir sur GitHub ».
+- Amélioré : les dossiers s'affichent avant les fichiers, dans l'ordre naturel (fichier2 avant fichier10), avec le compte en bas de la liste.
+- Nouveau : un dossier vide propose « Nouveau fichier », et une erreur de chargement propose « Réessayer ».
+
 ## 3.0.16 — 12 novembre 2026 — L'agent lit les erreurs de CI pour moins cher
 
 - Amélioré : quand les tests GitHub échouent, l'agent lit un journal nettoyé (sans préparation, lignes de progression ni nettoyage de fin) : environ 80 % de tokens en moins sur une compilation ratée.
