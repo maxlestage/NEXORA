@@ -330,3 +330,141 @@ String? rustDuplicateFnError(String code) {
   }
   return null;
 }
+
+/// Un nombre entier non signé écrit dans le code (`199`, `1_000`, `8usize`).
+const _uintLit = r'(\d[\d_]*)(?:u(?:8|16|32|64|128|size))?(?![\w.])';
+
+/// Une valeur : `mots`, `self.total`, `v.len()`, `t.split_whitespace().count()`.
+const _operand = r'([A-Za-z_]\w*(?:\.\w+(?:\(\))?)*)';
+
+/// Un nombre (entier ou décimal, négatif ou non) écrit dans le code.
+const _numLit =
+    r'(-?\d[\d_]*(?:\.\d[\d_]*)?(?:[uif](?:8|16|32|64|128|size))?)(?![\w.])';
+
+/// Les tournures que `cargo clippy -- -D warnings` refuse et que le modèle
+/// écrit souvent, dans les lignes de [code] absentes de [old] (le fichier
+/// d'origine n'est jamais visé). Essai réel : pour « ajoute
+/// temps_de_lecture() (200 mots par minute, arrondi au supérieur) », le modèle
+/// écrivait « (mots + 199) / 200 », que clippy refuse (manual_div_ceil) : la
+/// CI du site aurait échoué.
+///
+/// Prudent, d'après le vrai clippy : l'arrondi au supérieur seulement quand
+/// la valeur n'est pas déclarée signée (clippy ne vise que les entiers non
+/// signés) ; l'intervalle seulement avec une variable simple et deux bornes
+/// écrites en chiffres, jamais dans une `const fn`, ni quand `&&` ou `||`
+/// autour changent le sens. Rend « ligne N : … » pour chaque ligne visée.
+List<String> rustClippyProblems(String code, {Set<String> old = const {}}) {
+  final bare = _rustBareCode(code);
+  final lines = code.split('\n');
+  final bareLines = bare.split('\n');
+  final out = <String>[];
+  final fnHead = RegExp(r'\bfn\s+\w+');
+  final constFn = RegExp(r'\bconst\s+(?:unsafe\s+)?fn\b');
+  var inConstFn = false;
+  // Avant la parenthèse ouvrante : ni un appel (« f( »), ni une macro
+  // (« m!( »), ni « * » ou « / » qui changeraient l'ordre des calculs.
+  const open = r'(?<![\w!\])>])(?<![*/%]\s*)\(\s*';
+  const after = r'(?![\w.(])';
+  final ceilLit = [
+    RegExp('$open$_operand\\s*\\+\\s*$_uintLit\\s*\\)\\s*/\\s*$_uintLit'),
+    RegExp('$open$_uintLit\\s*\\+\\s*$_operand\\s*\\)\\s*/\\s*$_uintLit'),
+  ];
+  final ceilVar = [
+    RegExp(
+      '$open$_operand\\s*\\+\\s*$_operand\\s*-\\s*1\\s*\\)\\s*/\\s*'
+      '$_operand$after',
+    ),
+    RegExp(
+      '$open$_operand\\s*\\+\\s*\\(\\s*$_operand\\s*-\\s*1\\s*\\)\\s*\\)\\s*/'
+      '\\s*$_operand$after',
+    ),
+  ];
+  const v = r'(?<![\w.])([A-Za-z_]\w*)(?![\w.(])';
+  final within = [
+    // x >= 1 && x <= 10
+    (RegExp('$v\\s*>=\\s*$_numLit\\s*&&\\s*$v\\s*(<=?)\\s*$_numLit'), 0),
+    // 1 <= x && x <= 10
+    (RegExp('$_numLit\\s*<=\\s*$v\\s*&&\\s*$v\\s*(<=?)\\s*$_numLit'), 1),
+    // x <= 10 && x >= 1
+    (RegExp('$v\\s*(<=?)\\s*$_numLit\\s*&&\\s*$v\\s*>=\\s*$_numLit'), 2),
+  ];
+  final outside = RegExp(
+    '$v\\s*<\\s*$_numLit\\s*\\|\\|\\s*$v\\s*(>=?)\\s*$_numLit',
+  );
+  bool signed(String operand) {
+    final name = RegExp.escape(operand.split('.').first);
+    return RegExp(
+      '\\b$name\\s*:\\s*&?\\s*(?:mut\\s+)?[if](?:8|16|32|64|128|size)\\b|'
+      '\\b$name\\s*=[^;\\n]*\\bas\\s+[if](?:8|16|32|64|128|size)\\b|'
+      '\\b$name\\s*=\\s*-?\\d[\\d_.]*[if](?:8|16|32|64|128|size)?\\s*;',
+    ).hasMatch(bare);
+  }
+
+  for (var i = 0; i < bareLines.length && i < lines.length; i++) {
+    final b = bareLines[i];
+    if (fnHead.hasMatch(b)) inConstFn = constFn.hasMatch(b);
+    if (old.contains(lines[i])) continue;
+    final found = <String>[];
+    for (final (k, re) in ceilLit.indexed) {
+      for (final m in re.allMatches(b)) {
+        final x = k == 0 ? m[1]! : m[2]!;
+        final add = int.parse((k == 0 ? m[2]! : m[1]!).replaceAll('_', ''));
+        final div = int.parse(m[3]!.replaceAll('_', ''));
+        if (div < 2 || add != div - 1 || signed(x)) continue;
+        found.add(
+          '« ${m[0]!.trim()} » arrondit au supérieur à la main '
+          '(clippy::manual_div_ceil) : écris « $x.div_ceil($div) »',
+        );
+      }
+    }
+    for (final re in ceilVar) {
+      for (final m in re.allMatches(b)) {
+        if (m[2] != m[3] || signed(m[1]!)) continue;
+        found.add(
+          '« ${m[0]!.trim()} » arrondit au supérieur à la main '
+          '(clippy::manual_div_ceil) : écris « ${m[1]}.div_ceil(${m[2]}) »',
+        );
+      }
+    }
+    // contains n'est pas utilisable dans une constante ni une const fn.
+    final constItem = RegExp(
+      r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+\w+\s*:',
+    ).hasMatch(b);
+    if (!inConstFn && !constItem) {
+      for (final (re, form) in within) {
+        for (final m in re.allMatches(b)) {
+          final (x, x2, lo, op, hi) = switch (form) {
+            0 => (m[1]!, m[3]!, m[2]!, m[4]!, m[5]!),
+            1 => (m[2]!, m[3]!, m[1]!, m[4]!, m[5]!),
+            _ => (m[1]!, m[4]!, m[5]!, m[2]!, m[3]!),
+          };
+          if (x != x2) continue;
+          final range = op == '<=' ? '$lo..=$hi' : '$lo..$hi';
+          found.add(
+            '« ${m[0]!.trim()} » vérifie un intervalle à la main '
+            '(clippy::manual_range_contains) : écris « ($range).contains(&$x) »',
+          );
+        }
+      }
+      for (final m in outside.allMatches(b)) {
+        if (m[1] != m[3]) continue;
+        // « a && x < 1 || x > 9 » ou « x < 1 || x > 9 && a » : clippy ne
+        // voit pas d'intervalle (les && sont calculés d'abord).
+        if (b.substring(0, m.start).trimRight().endsWith('&&') ||
+            b.substring(m.end).trimLeft().startsWith('&&')) {
+          continue;
+        }
+        final range = m[4] == '>' ? '${m[2]}..=${m[5]}' : '${m[2]}..${m[5]}';
+        found.add(
+          '« ${m[0]!.trim()} » vérifie un intervalle à la main '
+          '(clippy::manual_range_contains) : écris '
+          '« !($range).contains(&${m[1]}) »',
+        );
+      }
+    }
+    for (final f in found) {
+      out.add('ligne ${i + 1} : $f');
+    }
+  }
+  return out;
+}

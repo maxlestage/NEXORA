@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.102 — 12 novembre 2026 — L'agent écrit du Rust que clippy accepte
+- Corrigé : en essai réel, pour « ajoute temps_de_lecture() dans site/src/contenu.rs (200 mots par minute, arrondi au supérieur) », le modèle écrivait « (mots + 199) / 200 ». Le calcul est juste, mais « cargo clippy -- -D warnings » le refuse (manual_div_ceil) : la CI du site aurait échoué.
+- Quand la CI d'un dépôt passe clippy en refusant ses avertissements, l'agent est maintenant prévenu dès l'écriture, avec la ligne et la correction exacte : « mots.div_ceil(200) », ou « (1..=10).contains(&x) » pour « x >= 1 && x <= 10 ».
+- Prudent : seules les lignes écrites par l'agent sont vérifiées, et les règles suivent le vrai clippy (valeurs signées, bornes variables, const fn et && ou || qui changent le sens ne sont jamais visés). Chaque alerte n'est donnée qu'une fois.
+
 ## 2.2.101 — 12 novembre 2026 — La recherche de code de l'agent ne rend plus de faux résultats
 - Corrigé : en essai réel, pour « le chat doit refuser un message composé uniquement d'espaces », le modèle cherchait « send("   " ». La recherche élargie retirait toute la ponctuation et les accents, cherchait donc « send », et rendait 89 lignes sans rapport (« chargés en dollars ») présentées comme des résultats.
 - La recherche élargie n'ignore plus que ce qu'elle annonce : les espaces, « _ » et « - ». « compare versions » retrouve toujours compareVersions et compare_versions.
