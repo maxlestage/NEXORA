@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.108 — 12 novembre 2026 — Le test demandé n'est plus écrit à la place du code
+- Corrigé : en essai réel, pour « ajoute formatCount() dans app/lib/services/number_format.dart, avec des tests unitaires », le modèle envoyait deux actions à la suite. Le bloc JSON de la seconde (celle du test) devenait le contenu du premier fichier : number_format.dart contenait du JSON, et le test n'était jamais écrit.
+- Un bloc qui est lui-même une action n'est plus jamais pris pour le contenu d'un fichier : l'action est faite, et le contenu manquant est redemandé au lieu d'être inventé.
+- Corrigé : les arguments écrits à côté de « tool » plutôt que dans « args » ({"tool": "read_file", "path": "…"}, ou un « content » placé à côté) étaient perdus ; le fichier partait sans chemin ou sans contenu. Ils sont maintenant repris.
+- Prudent : ce qui est dans « args » prime toujours, et un fichier .json peut toujours contenir n'importe quel objet.
+
 ## 2.2.107 — 12 novembre 2026 — Une accolade de trop est montrée là où elle casse le code
 - Corrigé : en essai réel, pour « ajoute une route /version et un test », le modèle fermait un test existant trop tôt pour coller le sien. La fin de l'ancien test restait hors de toute fonction, mais l'alerte de NEXORA montrait la toute dernière ligne du fichier, loin de l'endroit cassé.
 - L'alerte désigne maintenant la première ligne laissée dehors et la « } » qui a fermé le bloc trop tôt, en Rust comme en Dart, avec la correction à faire.
