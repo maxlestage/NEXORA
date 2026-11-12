@@ -4189,7 +4189,9 @@ class AgentRun extends ChangeNotifier {
   @visibleForTesting
   static String? syntaxError(String path, String content) {
     if (path.endsWith('.dart')) return dartSyntaxError(content);
-    if (path.endsWith('.rs')) return rustSyntaxError(content);
+    if (path.endsWith('.rs')) {
+      return rustSyntaxError(content) ?? rustDuplicateFnError(content);
+    }
     return null;
   }
 
