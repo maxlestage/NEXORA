@@ -345,7 +345,7 @@ extension AgentRun {
                     }
                 }
                 actsSince += work.count
-                let results = await execAll(work)
+                let results = Self.dedupResults(await execAll(work), history: history)
                 if !results.isEmpty {
                     Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage("user", results.joined(separator: "\n\n") + lost + circling + reminder))

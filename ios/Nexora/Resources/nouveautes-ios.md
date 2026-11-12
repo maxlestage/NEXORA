@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.12 — 12 novembre 2026 — Fichiers relus sans les renvoyer
+- Amélioré : quand l'agent relit un fichier qui n'a pas changé, son contenu n'est plus renvoyé au modèle une seconde fois.
+- Amélioré : les sessions de l'agent coûtent environ 20 % de tokens en moins quand il relit des fichiers.
+
 ## 3.0.11 — 12 novembre 2026 — Un écran Agents plus simple
 - Nouveau : balayez un agent vers la droite pour discuter avec lui tout de suite.
 - Amélioré : la recherche trouve « écrire » en tapant « ecrire » (accents et majuscules ignorés), et dit clairement quand rien ne correspond.
