@@ -379,6 +379,16 @@ List<ToolCall> parseToolCalls(String reply) {
           : given is String && given.trim().startsWith('{')
           ? (_tryJson(given) ?? decodeToolArgs(given) ?? {'raw': given})
           : <String, dynamic>{};
+      // Les arguments écrits à côté de « tool » au lieu de dans « args »
+      // (essai réel : {"tool":"write_file","args":{"path":…},"content":"…"},
+      // ou {"tool":"read_file","path":"a.dart"}) : ils étaient perdus, le
+      // fichier partait sans contenu ou sans chemin.
+      for (final e in a.entries) {
+        if (_actionMeta.contains(e.key)) continue;
+        // « name » peut être le nom de l'outil ({"name": "read_file", …}).
+        if (e.key == 'name' && canonicalTool('${e.value}') == tool) continue;
+        args.putIfAbsent(e.key, () => e.value);
+      }
       // Le contenu sous un autre nom (« contents », « code », « text »…).
       if (tool == 'write_file' && args['content'] == null) {
         for (final k in const [
@@ -417,6 +427,14 @@ List<ToolCall> parseToolCalls(String reply) {
   String block(String b) => b.endsWith('\n') ? b.substring(0, b.length - 1) : b;
   for (final b in blocks) {
     if (b.start < afterIndex) continue;
+    // Un bloc qui est lui-même une action n'est pas le contenu attendu (essai
+    // réel : le JSON d'un second write_file, celui du test, devenait le
+    // contenu du premier fichier, et le test n'était jamais écrit). Sauf pour
+    // un fichier JSON, qui peut contenir n'importe quel objet.
+    if (needs.isNotEmpty && !_jsonTarget(needs.first) && _isAction(b)) {
+      if (fromBlock) take(_tryLooseJson(b.body)!, first: false);
+      continue;
+    }
     if (needs.isNotEmpty) {
       final (args, key) = needs.removeAt(0);
       args[key] = key == 'content' ? b.body : block(b.body);
@@ -447,6 +465,31 @@ List<ToolCall> parseToolCalls(String reply) {
     }
   }
   return calls;
+}
+
+/// Les clés d'une action qui ne sont pas des arguments de l'outil.
+const _actionMeta = {
+  'tool',
+  'args',
+  'arguments',
+  'parameters',
+  'input',
+  'thought',
+  'demande',
+  'goal',
+  'actions',
+  'action',
+  'function',
+  'tool_name',
+  'type',
+  'id',
+};
+
+/// Le contenu attendu va dans un fichier JSON (où un objet « tool » est un
+/// contenu possible).
+bool _jsonTarget((Map<String, dynamic>, String) need) {
+  final path = need.$1['path']?.toString().toLowerCase() ?? '';
+  return path.endsWith('.json') || path.endsWith('.jsonl');
 }
 
 /// Un bloc de code qui est une action (JSON avec "tool" ou "actions").
