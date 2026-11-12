@@ -3839,6 +3839,136 @@ class AgentRun extends ChangeNotifier {
         'bibliothèque avec $use$fix';
   }
 
+  /// Les exemples de documentation (```) d'un fichier Rust : (corps,
+  /// première ligne) de chaque bloc que `cargo test` compile comme un
+  /// doctest. Les blocs ```ignore, ```text, ```compile_fail ou d'un autre
+  /// langage ne sont pas compilés : ils sont laissés de côté.
+  static List<(String, int)> _rustDocExamples(String content) {
+    final doc = RegExp(r'^\s*//[/!](?![/!])\s?(.*)$');
+    const compiled = {'', 'rust', 'no_run', 'should_panic', 'test_harness'};
+    final out = <(String, int)>[];
+    final lines = content.split('\n');
+    StringBuffer? body;
+    var keep = false;
+    var start = 0;
+    for (var i = 0; i < lines.length; i++) {
+      final m = doc.firstMatch(lines[i]);
+      if (m == null) {
+        body = null;
+        continue;
+      }
+      final t = m[1]!;
+      final fence = RegExp(r'^\s*(```+|~~~+)\s*(.*)$').firstMatch(t);
+      if (fence != null) {
+        if (body == null) {
+          body = StringBuffer();
+          start = i + 1;
+          keep = fence[2]!
+              .split(RegExp(r'[,\s]+'))
+              .map((w) => w.trim().toLowerCase())
+              .every((w) => compiled.contains(w) || w.startsWith('edition'));
+        } else {
+          if (keep) out.add((body.toString(), start));
+          body = null;
+        }
+        continue;
+      }
+      if (body != null) {
+        // « # ligne » : cachée dans la documentation, mais compilée.
+        body.writeln(t.startsWith('# ') ? t.substring(2) : (t == '#' ? '' : t));
+      }
+    }
+    return out;
+  }
+
+  /// Un exemple de documentation ajouté dans un fichier src/ d'une
+  /// bibliothèque Rust : `cargo test` le compile à part comme un doctest, où
+  /// rien du crate n'est importé. Essai réel : pour « ajoute compter_mots()
+  /// dans site/src/contenu.rs, avec un test », le modèle écrivait
+  /// « /// assert_eq!(compter_mots("…"), 4); » sans aucun import. Accepté
+  /// sans un mot, le doctest ne compilait pas (« cannot find function ») et
+  /// la CI l'aurait découvert bien plus tard.
+  ///
+  /// Signalé : un nouvel exemple qui appelle une fonction du fichier sans
+  /// jamais nommer la bibliothèque (ni la définir lui-même). Rend
+  /// l'avertissement à donner au modèle, ou null.
+  static String? rustDocTestHint(
+    String path,
+    String content, {
+    String? before,
+    String? cargo,
+    String? libRs,
+  }) {
+    if (!path.endsWith('.rs')) return null;
+    final src = path.lastIndexOf('src/');
+    if (src < 0 || (src > 0 && path[src - 1] != '/')) return null;
+    final examples = _rustDocExamples(content);
+    if (examples.isEmpty) return null;
+    final old = before == null
+        ? const <String>{}
+        : {for (final (b, _) in _rustDocExamples(before)) b.trim()};
+    final name = cargo == null ? null : rustCrateName(cargo);
+    final defined = {
+      for (final l in content.split('\n'))
+        if (!l.trimLeft().startsWith('//'))
+          for (final m in RegExp(
+            r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?'
+            r'(?:unsafe\s+)?fn\s+(\w+)',
+          ).allMatches(l))
+            m[1]!,
+    };
+    for (final (body, line) in examples) {
+      if (old.contains(body.trim())) continue;
+      if (body.contains('extern crate')) continue;
+      if (name != null && RegExp('\\b$name\\b').hasMatch(body)) continue;
+      // Un import d'un autre crate que la bibliothèque standard (une façade
+      // qui la réexporte, une variante du crate…) : on ne juge pas.
+      if (RegExp(
+        r'^\s*(?:pub\s+)?use\s+(?:::)?(?!(?:std|core|alloc)\b)\w+\s*::',
+        multiLine: true,
+      ).hasMatch(body)) {
+        continue;
+      }
+      final own = {for (final m in _fnDef.allMatches(body)) m[1]!};
+      final missing = <String>{
+        for (final m in _call.allMatches(body))
+          if (defined.contains(m[1]) && !own.contains(m[1])) m[1]!,
+      }.toList();
+      if (missing.isEmpty) continue;
+      // Le chemin du module : src/a/b.rs → a::b, src/a/mod.rs → a.
+      var mod = path.substring(src + 4, path.length - 3);
+      // Les programmes (main.rs, src/bin/) n'ont pas de doctests.
+      if (mod == 'main' || mod.startsWith('bin/')) return null;
+      if (mod.endsWith('/mod')) mod = mod.substring(0, mod.length - 4);
+      final root = mod == 'lib';
+      final modPath = root ? '' : '${mod.replaceAll('/', '::')}::';
+      final top = root ? '' : mod.split('/').first;
+      final public =
+          root ||
+          libRs == null ||
+          RegExp('\\bpub\\s+mod\\s+$top\\b').hasMatch(libRs) ||
+          RegExp('\\bpub\\s+use\\s+$top\\b').hasMatch(libRs);
+      final fn = missing.first;
+      final crate = name ?? 'nom_du_crate';
+      final import = public
+          ? 'Ajoute en tête du bloc « use $crate::$modPath$fn; »'
+                '${name == null ? ' (le nom de la bibliothèque : celui de '
+                          '[lib] ou [package] dans Cargo.toml, tirets '
+                          'remplacés par « _ »)' : ''}'
+                ' (la fonction doit être pub), ou bien retire'
+          : 'Le module « $top » n\'est pas public (pas de « pub mod $top » '
+                'dans src/lib.rs) : un doctest ne peut pas l\'importer. Retire';
+      return '\n\nATTENTION : l\'exemple de documentation (bloc ``` vers la '
+          'ligne $line de $path) est compilé et lancé par cargo test comme un '
+          'doctest, à part de la bibliothèque : rien n\'y est importé, et '
+          '« ${missing.join('(), ')}() » n\'y sera pas trouvé (« cannot find '
+          'function ») : la CI échouera. $import l\'exemple (ou marque-le '
+          '```ignore) et écris le test dans le module « #[cfg(test)] mod '
+          'tests » du fichier (avec « use super::*; »). Corrige maintenant.';
+    }
+    return null;
+  }
+
   static String? _rustCrateHint(String path, String content, String? name) {
     // crate::common… reste juste quand le test déclare lui-même « mod common ».
     bool own(String name) =>
@@ -3876,7 +4006,23 @@ class AgentRun extends ChangeNotifier {
     }
     if (!p.endsWith('.rs')) return '';
     final syntax = await _syntaxPitfalls(p, text);
-    if (!_rustTest.hasMatch(p)) return syntax;
+    if (!_rustTest.hasMatch(p)) {
+      final src = p.lastIndexOf('src/');
+      if (src < 0 || (src > 0 && p[src - 1] != '/')) return syntax;
+      final root = p.substring(0, src);
+      final (libRs, _) = await _current('${root}src/lib.rs');
+      if (libRs == null) return syntax;
+      final (cargo, _) = await _current('${root}Cargo.toml');
+      return syntax +
+          (rustDocTestHint(
+                p,
+                text,
+                before: await original(p),
+                cargo: cargo,
+                libRs: libRs,
+              ) ??
+              '');
+    }
     final i = p.lastIndexOf('tests/');
     final (cargo, _) = await _current('${p.substring(0, i)}Cargo.toml');
     final (mainRs, _) = await _current('${p.substring(0, i)}src/main.rs');
