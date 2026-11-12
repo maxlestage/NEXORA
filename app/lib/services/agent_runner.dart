@@ -12,6 +12,15 @@ import 'github_api.dart';
 import 'llm_client.dart';
 import 'rust_check.dart';
 
+/// Deux contenus de fichier identiques, aux fins de ligne près (CRLF et
+/// sauts de ligne de la fin ignorés).
+bool sameText(String a, String? b) {
+  if (b == null) return false;
+  String norm(String s) =>
+      s.replaceAll('\r\n', '\n').replaceFirst(RegExp(r'\n+$'), '');
+  return norm(a) == norm(b);
+}
+
 /// Les outils que l'agent autonome peut utiliser sur un dépôt.
 const Map<String, String> agentTools = {
   'list_files': 'Liste les fichiers. args: {"path": "dossier/optionnel"}',
@@ -4912,11 +4921,27 @@ class AgentRun extends ChangeNotifier {
               'contenu COMPLET (le code existant gardé). Seulement si la demande '
               'est de supprimer ce code : "force": true.';
         }
-        changes[p] = tidyCode(
+        final tidied = tidyCode(
           p,
           content.endsWith('\n') ? content : '$content\n',
           before: before,
         );
+        // Le même contenu, réécrit à l'identique : rien ne change. Essai réel :
+        // le modèle réécrivait deux fois de suite le même fichier de test, lu
+        // « OK, enregistré » à chaque fois, et perdait ses étapes au lieu de
+        // terminer. Il apprend que c'est déjà fait (les avertissements restent).
+        final same = sameText(tidied, before);
+        if (same && changes.containsKey(p)) {
+          return 'Déjà fait : $p a déjà exactement ce contenu en brouillon '
+              '(rien n\'a changé). Si la demande est remplie, appelle finish ; '
+              'sinon passe à la suite.${await _pitfalls(p)}';
+        }
+        if (same) {
+          return 'Rien n\'a changé : ce contenu est identique à $p dans le '
+              'dépôt. Si une modification était voulue, écris-la ; sinon passe '
+              'à la suite.';
+        }
+        changes[p] = tidied;
         notifyListeners();
         return 'OK, $p enregistré en brouillon (${content.length} caractères).'
             '${await _pitfalls(p)}';
