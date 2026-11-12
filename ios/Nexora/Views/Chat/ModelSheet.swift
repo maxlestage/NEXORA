@@ -248,7 +248,7 @@ struct LevelBars: View {
     }
 }
 
-/// Le bouton de la barre de saisie : « Opus 5.5 · Élevé ⌄ ».
+/// Le bouton du haut de la conversation : « Opus 5.5 · Élevé ⌄ ».
 struct ModelEffortButton: View {
     let current: ModelRef
     let level: ThinkLevel
@@ -274,7 +274,9 @@ struct ModelEffortButton: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
+            // Une pastille, comme le choix de l'agent à côté.
+            .background(.fill.tertiary, in: .capsule)
             // Zone touchable d'au moins 44 pt de haut, sans changer la mise en page.
             .contentShape(Rectangle().inset(by: -8))
         }

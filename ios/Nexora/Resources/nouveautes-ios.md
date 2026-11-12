@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.7 — 12 novembre 2026 — Une interface plus simple
+- Amélioré : en haut d'une conversation, une seule ligne réunit l'agent, le modèle et l'effort, et le crédit restant ; la barre au-dessus de la saisie disparaît, il y a plus de place pour les messages.
+- Amélioré : ce que coûte la conversation s'affiche sous son titre. « Clé manquante » se touche pour aller ajouter la clé.
+- Amélioré : les conversations sont rangées par date (épinglées, aujourd'hui, hier, 7 et 30 derniers jours), chacune avec son heure ou son jour, et « Réponse en cours… » quand une réponse s'écrit.
+- Amélioré : la recherche n'affiche que les résultats, le logo se fait plus petit quand vous avez des conversations, la dernière n'est plus cachée par « Nouveau chat », et le bouton Envoyer s'estompe tant qu'il n'y a rien à envoyer.
+
 ## 3.0.6 — 11 novembre 2026 — Plus rapide, plus fluide, plus économe
 - Amélioré : pendant une réponse, seule la bulle en cours se redessine, et le Markdown n'est plus réanalysé en entier à chaque morceau : les longues réponses défilent sans à-coups, même dans de longues conversations.
 - Amélioré : la recherche dans les conversations est environ 10 fois plus rapide, et ouvrir une conversation est presque instantané.
