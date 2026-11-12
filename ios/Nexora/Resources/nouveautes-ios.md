@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.10 — 12 novembre 2026 — Agent : encore moins de tokens hors cache
+- Amélioré : le rappel de la demande n'est plus retiré du message précédent à chaque étape, mais par paquets ; le début des requêtes reste identique et le cache de prompt sert davantage.
+- Amélioré : les sessions de l'agent consomment environ 11 % de tokens hors cache en moins (coût Anthropic −9 %, OpenAI −2 %).
+
 ## 3.0.9 — 12 novembre 2026 — Une session d'agent plus claire
 - Simplifié : en tête de session, l'état en clair (« En cours », « Terminé »…) et « 1 action · +12 −3 », sans répéter la mission ni le crédit.
 - Simplifié : un seul bouton rond en bas — Arrêter tant que l'agent travaille et que rien n'est écrit, Envoyer dès que vous écrivez (estompé s'il n'y a rien à envoyer).

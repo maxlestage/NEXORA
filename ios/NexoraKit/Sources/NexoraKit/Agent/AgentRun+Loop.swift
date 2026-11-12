@@ -233,7 +233,7 @@ extension AgentRun {
                         ended = true
                         break steps
                     }
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         bare != nil
@@ -264,7 +264,7 @@ extension AgentRun {
                 let sig = jsonText(work.map { [$0.tool, $0.args] as [Any] })
                 if !work.isEmpty && sig == lastSig {
                     repeats += 1
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         repeats == 1
@@ -347,7 +347,7 @@ extension AgentRun {
                 actsSince += work.count
                 let results = await execAll(work)
                 if !results.isEmpty {
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage("user", results.joined(separator: "\n\n") + lost + circling + reminder))
                     Self.compactHistory(&history, batch: Self.compactBatch)
                 }
@@ -368,7 +368,7 @@ extension AgentRun {
                 let noCi = finish == nil || ciAsked || !checks ? [] : await withoutWorkflow()
                 if finish != nil && !noCi.isEmpty {
                     ciAsked = true
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         "Aucun workflow GitHub dans \(noCi.joined(separator: ", ")). Écris maintenant "
@@ -386,7 +386,7 @@ extension AgentRun {
                 let untested = finish == nil || testsAsked || !checks ? [] : untestedFiles()
                 if finish != nil && !untested.isEmpty {
                     testsAsked = true
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         "Tu as modifié du code sans écrire de test : "
@@ -406,7 +406,7 @@ extension AgentRun {
                 let broken = finish == nil || brokenAsked >= 2 ? [] : await brokenDart()
                 if finish != nil && !broken.isEmpty {
                     brokenAsked += 1
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         "Tu ne peux pas terminer : ce code ne compilera pas."
@@ -422,7 +422,7 @@ extension AgentRun {
                 // relecteur (une fois par demande).
                 if finish != nil && checks && !reviewed && !changes.isEmpty {
                     reviewed = true
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         "Avant de terminer, relis TOUTES tes modifications comme un "
@@ -442,7 +442,7 @@ extension AgentRun {
                 let said = dstrOr(finish?.args["summary"])
                 if finish != nil, let excuse = unfinishedWork.firstMatch(said), !excused {
                     excused = true
-                    Self.dropReminders(&history)
+                    Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
                         "Ton résumé annonce du travail non fait (« \(excuse.text) »). C'est "
@@ -466,7 +466,7 @@ extension AgentRun {
             if !ended && !stopFlag && inbox.isEmpty && extraRounds < Self.maxExtraRounds {
                 extraRounds += 1
                 add(AgentStep(.thought, "\(maxSteps) étapes utilisées : je fais le point et je continue (\(extraRounds)/\(Self.maxExtraRounds))."))
-                Self.dropReminders(&history)
+                Self.dropReminders(&history, keeping: reminder)
                 history.append(LLMMessage(
                     "user",
                     "Tu as utilisé \(maxSteps) étapes sans terminer. Fais le point : ce qui "

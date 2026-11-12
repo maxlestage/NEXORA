@@ -133,7 +133,7 @@ struct AgentLoopTests {
         #expect(ql.count == 2)
     }
 
-    @Test("à chaque étape, l'agent se répète la demande ; un seul rappel gardé")
+    @Test("à chaque étape, l'agent se répète la demande ; anciens rappels retirés par paquets")
     func reminder() async throws {
         let first = "```json\n" + LooseJSON.string([
             "demande": "Mettre le titre en rouge", "thought": "Je lis le style",
@@ -143,7 +143,9 @@ struct AgentLoopTests {
         await run.run()
         #expect(llm.prompt(1).contains("RAPPEL DE LA DEMANDE"))
         #expect(llm.prompt(2).contains("RAPPEL DE LA DEMANDE"))
-        #expect(run.history.filter { $0.content.contains("RAPPEL DE LA DEMANDE") }.count == 1)
+        let kept = run.history.filter { $0.content.contains("RAPPEL DE LA DEMANDE") }.count
+        #expect(kept >= 1 && kept <= AgentRun.reminderBatch)
+        #expect(run.history.last { $0.role == "user" }?.content.contains("RAPPEL DE LA DEMANDE") == true)
         #expect(run.history.last { $0.role == "user" }?.content.contains("« Mets le titre en rouge »") == true)
         #expect(run.steps.first?.kind == .goal)
         #expect(run.steps.first?.text == "Mettre le titre en rouge")
