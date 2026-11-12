@@ -45,6 +45,7 @@ fn generateur_d_agents() {
         "revision-securite"
     );
     assert_eq!(nexora_site::slug("!!"), "mon-agent");
+    assert_eq!(nexora_site::slug("Équipe À Côté"), "equipe-a-cote");
     let md = nexora_site::agent_md(
         "Testeur",
         "Écrit des tests.",
