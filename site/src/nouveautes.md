@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.100 — 12 novembre 2026 — Un fichier réécrit à l'identique n'est plus compté comme un changement
+- Corrigé : en essai réel, pour « ajoute countChangedLines() dans diff.dart, avec des tests unitaires », le modèle réécrivait deux fois app/test/diff_test.dart avec exactement le même contenu. NEXORA répondait « OK, enregistré » à chaque fois : le modèle croyait avoir encore du travail et perdait ses étapes au lieu de terminer.
+- Un fichier réécrit sans aucun changement reçoit maintenant « Déjà fait », avec le conseil de terminer si la demande est remplie. Les avertissements (syntaxe, format) restent affichés.
+- Un contenu identique au fichier du dépôt ne crée plus de brouillon vide : l'agent apprend que rien n'a changé.
+- Prudent : le moindre vrai changement est toujours écrit comme avant ; seules les fins de ligne (CRLF, sauts de ligne finaux) sont ignorées dans la comparaison.
+
 ## 2.2.99 — 12 novembre 2026 — L'agent est prévenu d'une indentation que dart format refusera
 - Corrigé : en essai réel, pour « fais renvoyer le titre d'une page d'erreur HTML par errorFromBody », le modèle coupait un « RegExp( » sur plusieurs lignes en laissant ses arguments au niveau de la ligne d'ouverture et la fermeture « ).firstMatch(t); » deux espaces trop à gauche. NEXORA ne disait rien : « dart format » en CI aurait refusé le fichier sans expliquer pourquoi.
 - Quand la CI du dépôt vérifie le format Dart, l'agent est maintenant prévenu dès l'écriture, avec chaque ligne mal indentée et le nombre d'espaces attendu.
