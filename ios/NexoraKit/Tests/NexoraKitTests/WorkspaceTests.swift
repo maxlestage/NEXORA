@@ -835,4 +835,16 @@ struct DraftsTests {
         let note = WorkspaceText.strandedNote(run)
         #expect(run.stranded.isEmpty ? note.isEmpty : note.contains("r (nexora/1)"))
     }
+
+    @Test("en-tête de session et bouton unique Envoyer / Arrêter")
+    func sessionHeaderAndComposer() {
+        #expect(WorkspaceText.headerDetail(actions: 0, added: 0, removed: 0) == "Aucune action")
+        #expect(WorkspaceText.headerDetail(actions: 1, added: 0, removed: 0) == "1 action")
+        #expect(WorkspaceText.headerDetail(actions: 4, added: 12, removed: 3) == "4 actions · +12 −3")
+        #expect(WorkspaceText.composerButton(busy: false, text: "  ", photos: 0) == .idle)
+        #expect(WorkspaceText.composerButton(busy: true, text: "", photos: 0) == .stop)
+        #expect(WorkspaceText.composerButton(busy: true, text: "précise", photos: 0) == .send)
+        #expect(WorkspaceText.composerButton(busy: true, text: "", photos: 1) == .send)
+        #expect(WorkspaceText.composerButton(busy: false, text: "suite", photos: 0) == .send)
+    }
 }

@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.9 — 12 novembre 2026 — Une session d'agent plus claire
+- Simplifié : en tête de session, l'état en clair (« En cours », « Terminé »…) et « 1 action · +12 −3 », sans répéter la mission ni le crédit.
+- Simplifié : un seul bouton rond en bas — Arrêter tant que l'agent travaille et que rien n'est écrit, Envoyer dès que vous écrivez (estompé s'il n'y a rien à envoyer).
+- Amélioré : boutons du bas plus faciles à toucher (44 pt) ; message de session interrompue plus court.
+
 ## 3.0.8 — 12 novembre 2026 — Des sessions d'agent moins chères
 - Amélioré : l'agent raccourcit son historique par paquets et non plus à chaque étape ; le début de chaque requête reste identique, et le cache des fournisseurs le relit pour bien moins cher.
 - Amélioré : une longue session coûte environ 47 % de moins avec Claude (Anthropic) et 18 % de moins avec OpenAI, à résultat égal.

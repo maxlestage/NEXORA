@@ -86,7 +86,7 @@ struct SessionView: View {
                         GlassCard(glow: Theme.amber, action: { sessions.continueSession(run.id, "") }) {
                             HStack(spacing: 10) {
                                 Image(systemName: "play.circle").foregroundStyle(Theme.amber)
-                                Text("Session interrompue (app fermée). Touchez pour reprendre là où l'agent s'était arrêté.")
+                                Text("Session interrompue. Touchez pour reprendre.")
                             }
                         }
                     }
@@ -156,14 +156,8 @@ struct SessionView: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if busy {
-                    Button(role: .destructive) {
-                        confirmStop = true
-                    } label: {
-                        Label("Arrêter", systemImage: "stop.circle")
-                    }
-                    .tint(Theme.red)
-                } else {
+                // Pendant le travail, Arrêter est en bas, à portée du pouce.
+                if !busy {
                     Menu {
                         Button("Supprimer la session", systemImage: "trash", role: .destructive) {
                             sessions.delete(run.id)
@@ -208,12 +202,12 @@ struct SessionView: View {
                 NexusOrb(size: 56, satellites: 6, interactive: false, pulse: run.running)
                     .frame(width: 56, height: 56)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(run.task)
+                    // La mission est déjà en titre et en entier juste en dessous :
+                    // ici, l'état, en clair.
+                    Text(run.status.label)
                         .fontWeight(.bold)
-                        .lineLimit(3)
-                    Text(WorkspaceText.header(
-                        run.status, actions: actions,
-                        added: stats.added, removed: stats.removed
+                    Text(WorkspaceText.headerDetail(
+                        actions: actions, added: stats.added, removed: stats.removed
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -228,7 +222,6 @@ struct SessionView: View {
                         .contentTransition(.numericText())
                         .animation(.default, value: run.spentCost)
                     }
-                    QuotaBadge(providerId: run.provider.id, dense: true)
                     if run.running { BackgroundStatusView() }
                 }
             }
@@ -386,22 +379,33 @@ struct SessionView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(.fill.tertiary, in: .rect(cornerRadius: 18))
-                Button {
-                    followUp(run)
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill").font(.title)
-                }
-                .accessibilityLabel(busy ? "Envoyer (lu au tour suivant)" : "Envoyer")
-                if busy {
+                // Un seul bouton : Arrêter tant que l'agent travaille et que rien
+                // n'est écrit, sinon Envoyer (estompé s'il n'y a rien à envoyer).
+                let action = WorkspaceText.composerButton(busy: busy, text: input, photos: photos.count)
+                if action == .stop {
                     Button {
                         confirmStop = true
                     } label: {
                         Image(systemName: "stop.circle.fill").font(.title)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                     .tint(Theme.red)
-                    .accessibilityLabel("Arrêter")
+                    .accessibilityLabel("Arrêter l'agent")
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Button {
+                        followUp(run)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill").font(.title)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .opacity(action == .send ? 1 : 0.35)
+                    }
+                    .disabled(action != .send)
+                    .accessibilityLabel(busy ? "Envoyer (lu au tour suivant)" : "Envoyer")
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
+            .animation(.easeOut(duration: 0.2), value: busy)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
