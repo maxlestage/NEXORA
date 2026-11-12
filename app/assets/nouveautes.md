@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.107 — 12 novembre 2026 — Une accolade de trop est montrée là où elle casse le code
+- Corrigé : en essai réel, pour « ajoute une route /version et un test », le modèle fermait un test existant trop tôt pour coller le sien. La fin de l'ancien test restait hors de toute fonction, mais l'alerte de NEXORA montrait la toute dernière ligne du fichier, loin de l'endroit cassé.
+- L'alerte désigne maintenant la première ligne laissée dehors et la « } » qui a fermé le bloc trop tôt, en Rust comme en Dart, avec la correction à faire.
+- Prudent : seule l'explication change, quand l'erreur est déjà certaine ; une seule fausse piste possible sur 7 883 vrais fichiers Rust (un fichier mal indenté), aucune en Dart.
+
 ## 2.2.106 — 12 novembre 2026 — Un brouillon cassé n'est plus oublié en route
 - Corrigé : en essai réel, pour « ajoute une route /version et un test », le modèle collait son test au milieu d'un autre et laissait une « } » de trop. NEXORA le prévenait une fois, mais l'avertissement disparaissait au point d'étape : le modèle cherchait ailleurs jusqu'à l'arrêt, et la session finissait avec un fichier qui ne compile pas.
 - Le rappel revient maintenant à chaque point d'étape et dès que l'agent tourne en rond, avec la ligne fautive, en tête des priorités.

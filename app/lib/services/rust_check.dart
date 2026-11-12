@@ -10,6 +10,8 @@
 /// commentaires (`//`, `/* */` imbriqués) sont reconnus.
 library;
 
+import 'brace_hint.dart';
+
 /// Ce qui ne va pas dans [code] (« ligne 12 : … »), ou null si rien de certain.
 String? rustSyntaxError(String code) {
   final stack = <(String, int)>[];
@@ -51,6 +53,9 @@ String? rustSyntaxError(String code) {
     }
     return end;
   }
+
+  // Les lignes où une vraie accolade de code se ferme.
+  final closers = <int>[];
 
   for (var i = 0; i < n; i++) {
     final c = code[i];
@@ -148,13 +153,17 @@ String? rustSyntaxError(String code) {
     }
     if (c == ')' || c == ']' || c == '}') {
       if (stack.isEmpty) {
-        return withSuspect(
-          at(
-            line,
-            '« $c » ferme quelque chose qui n\'a jamais été ouvert '
-            '(accolade ou parenthèse en trop, ou code recopié en double)',
-          ),
+        final error = at(
+          line,
+          '« $c » ferme quelque chose qui n\'a jamais été ouvert '
+          '(accolade ou parenthèse en trop, ou code recopié en double)',
         );
+        // Du code laissé hors de sa fonction, avant le premier décalage
+        // d'alignement : c'est le meilleur indice.
+        final note = c == '}'
+            ? orphanNote(lines, closers, suspect ?? line)
+            : null;
+        return note == null ? withSuspect(error) : '$error ; $note';
       }
       final (open, openLine) = stack.last;
       final want = _closer(open);
@@ -166,6 +175,7 @@ String? rustSyntaxError(String code) {
         );
       }
       stack.removeLast();
+      if (c == '}') closers.add(line);
       final first = lines[line - 1].trimLeft();
       if (suspect == null &&
           openLine != line &&
