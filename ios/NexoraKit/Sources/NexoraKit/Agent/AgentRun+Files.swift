@@ -159,6 +159,34 @@ extension AgentRun {
             + ")"
     )
 
+    /// Une liste de fichiers pour le modèle, regroupée par dossier : les fichiers
+    /// d'un même dossier (au moins 2) tiennent sur une ligne, « app/lib/{a.dart,
+    /// b.dart} », au lieu de répéter le dossier à chaque chemin. Les dossiers
+    /// gardent l'ordre de leur premier fichier. Un nom avec « , { } » garde son
+    /// chemin complet (la notation serait ambiguë).
+    public nonisolated static func fileTree(_ files: [String]) -> String {
+        var order: [String] = []
+        var groups: [String: [String]] = [:]
+        var lines: [Int: String] = [:]
+        for (i, f) in files.enumerated() {
+            let cut = f.lastIndex(of: "/")
+            let name = cut.map { String(f[f.index(after: $0)...]) } ?? f
+            guard let cut, !name.isEmpty, !name.contains(where: { ",{}".contains($0) }) else {
+                lines[i] = f
+                order.append("\u{0}\(i)")
+                continue
+            }
+            let dir = String(f[...cut])
+            if groups[dir] == nil { order.append(dir) }
+            groups[dir, default: []].append(name)
+        }
+        return order.map { key in
+            if key.hasPrefix("\u{0}") { return lines[Int(key.dropFirst())!]! }
+            let names = groups[key]!
+            return names.count == 1 ? key + names[0] : "\(key){\(names.joined(separator: ", "))}"
+        }.joined(separator: "\n")
+    }
+
     /// Le plan d'un fichier : ses définitions peu indentées, avec leur numéro de
     /// ligne (hors des lignes `skipFrom`–`skipTo`, déjà montrées). Au plus `max`
     /// entrées : les définitions de premier niveau d'abord.
@@ -606,7 +634,7 @@ extension AgentRun {
                 lines.append(notes)
                 return lines.filter { !$0.trim().isEmpty }.joined(separator: "\n")
             }
-            let shown = files.prefix(300).joined(separator: "\n")
+            let shown = Self.fileTree(Array(files.prefix(300)))
             return [files.count > 300 ? "\(shown)\n… (\(files.count - 300) de plus, précise un dossier)" : shown, notes]
                 .filter { !$0.trim().isEmpty }.joined(separator: "\n")
         case "read_file":
