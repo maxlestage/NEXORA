@@ -129,4 +129,22 @@ void main() {
     expect(r, contains('site/src/contenu.rs :'));
     expect(r, contains('>2: pub const FAQ'));
   });
+
+  test('cherché dans chat_state.dart, défini dans models/chat.dart : pas de '
+      '« dépendance externe » contredite ensuite', () async {
+    // Essai réel : « class Conversation » cherché dans chat_state.dart
+    // répondait « vient d'une dépendance, ne la cherche plus », puis la vraie
+    // définition ; l'agent tournait en rond jusqu'à l'arrêt.
+    final r = await search('class Conversation', {
+      'app/lib/state/chat_state.dart':
+          "import '../models/chat.dart';\n\nclass ChatState {\n"
+          '  final List<Conversation> _conversations = [];\n}\n',
+      'app/lib/models/chat.dart': '/// Une conversation.\nclass Conversation {\n  String title = \'\';\n}\n',
+    }, path: 'app/lib/state/chat_state.dart');
+    expect(r, isNot(contains('dépendance')));
+    expect(r, isNot(contains('Ne la cherche plus')));
+    expect(r, contains('Rien dans app/lib/state/chat_state.dart'));
+    expect(r, contains('app/lib/models/chat.dart :'));
+    expect(r, contains('>2: class Conversation {'));
+  });
 }

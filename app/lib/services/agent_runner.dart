@@ -3549,6 +3549,14 @@ class AgentRun extends ChangeNotifier {
                   !here.$1.startsWith('Aucune définition')))) {
         return all.$1;
       }
+      // Rien ici, mais trouvé ailleurs : seule la réponse du dépôt compte.
+      // Essai réel : « class Conversation » cherché dans chat_state.dart
+      // répondait d'abord « vient d'une dépendance, ne la cherche plus », puis
+      // la vraie définition (models/chat.dart) ; l'agent, perdu, tournait en
+      // rond jusqu'à l'arrêt.
+      if (here.$2 == 0 && all.$2 > 0) {
+        return 'Rien dans $prefix. Dans tout le dépôt :\n${all.$1}';
+      }
       if (all.$2 > here.$2) {
         return '${here.$1}\n\nDans tout le dépôt (pas seulement $prefix) :\n${all.$1}';
       }
