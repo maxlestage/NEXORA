@@ -589,6 +589,99 @@ final unfinishedWork = RegExp(
   caseSensitive: false,
 );
 
+/// Une affirmation de résultat que l'agent ne peut pas avoir constaté : il n'a
+/// aucun moyen de lancer les tests ni la CI (NEXORA la suit après l'envoi).
+final unverifiedClaim = RegExp(
+  r"\b(tous les |toutes les |les |mes |ces |nos )?tests?( unitaires)? "
+  r"(passent|réussissent|sont (tous )?(au )?verts?|ont (tous )?réussi|"
+  r"(sont|restent) (tous )?ok)\b|"
+  r"\b(la )?ci (reste|est|sera|restera|demeure|passe) (toujours |bien )?"
+  r"(verte|au vert|ok)\b|\bci (verte|au vert)\b|"
+  r"\b(le code|tout|ça|cela) compile( (sans erreur|correctement|bien))?\b|"
+  r"\ball (the )?tests? (pass|passed|are passing)\b|"
+  r"\btests? (are )?(passing|green)\b|\bci (is |stays |remains )?green\b",
+  caseSensitive: false,
+);
+
+/// Ce qui, devant l'affirmation, en fait un but et non un constat (« pour que
+/// la CI reste verte », « vérifie que les tests passent »).
+final _claimPurpose = RegExp(
+  r"\b(pour|afin)\s+(que|qu'|qu’|de)|s'assurer|s’assurer|vérifi|garanti|"
+  r"\bsi\b|\bdevrai|\bdoivent\b|\bdoit\b|\bso that\b|\bensure|\bshould\b|"
+  r"\bmake sure\b|\bto\s+(keep|make)\b",
+  caseSensitive: false,
+);
+
+/// Le résumé de fin sans les phrases qui affirment un résultat invérifiable
+/// (« Tous les tests passent et la CI reste verte. ») : l'agent n'a rien
+/// exécuté, et ce résumé part dans la pull request. Le vrai résultat de la CI
+/// est donné par NEXORA après l'envoi. Le reste du résumé est gardé tel quel.
+String stripUnverifiedClaims(String summary) {
+  final out = <String>[];
+  for (final line in summary.split('\n')) {
+    final sentences = line.split(RegExp(r'(?<=[.!?])\s+'));
+    final kept = <String>[];
+    var changed = false;
+    for (final s in sentences) {
+      final cut = _withoutClaims(s);
+      if (cut != s) changed = true;
+      if (cut.trim().isNotEmpty) kept.add(cut);
+    }
+    if (!changed) {
+      out.add(line);
+      continue;
+    }
+    final text = kept.join(' ');
+    // Une puce ou un numéro restés seuls disparaissent avec leur phrase.
+    if (text.trim().isEmpty ||
+        RegExp(r'^\s*([-*•]|\d+[.)])\s*$').hasMatch(text)) {
+      continue;
+    }
+    out.add(text);
+  }
+  return out.join('\n').trim();
+}
+
+/// Une phrase sans ses propositions qui affirment un résultat invérifiable
+/// (« Label modifié ; tous les tests passent. » → « Label modifié. »). Une
+/// affirmation qui est un but (« pour que la CI reste verte ») est gardée.
+String _withoutClaims(String sentence) {
+  final first = unverifiedClaim.firstMatch(sentence);
+  if (first == null ||
+      _claimPurpose.hasMatch(sentence.substring(0, first.start))) {
+    return sentence;
+  }
+  final end = RegExp(r'[.!?]+$').firstMatch(sentence.trimRight())?[0] ?? '';
+  final body = sentence.trimRight().substring(
+    0,
+    sentence.trimRight().length - end.length,
+  );
+  // Propositions séparées par « ; », « , », « — », « et », « and », « puis ».
+  final sep = RegExp(r'\s*[;,]\s*|\s+[—–-]\s+|\s+(et|and|puis)\s+');
+  final parts = <String>[];
+  var last = 0;
+  for (final m in sep.allMatches(body)) {
+    parts.add(body.substring(last, m.start));
+    last = m.end;
+  }
+  parts.add(body.substring(last));
+  final seps = [for (final m in sep.allMatches(body)) m[0]!];
+  final buf = StringBuffer();
+  var keptAny = false;
+  for (var i = 0; i < parts.length; i++) {
+    final p = parts[i];
+    final m = unverifiedClaim.firstMatch(p);
+    final claim = m != null && !_claimPurpose.hasMatch(p.substring(0, m.start));
+    if (claim || p.trim().isEmpty) continue;
+    if (keptAny) buf.write(seps[i - 1]);
+    buf.write(p);
+    keptAny = true;
+  }
+  if (!keptAny) return '';
+  final rest = buf.toString().trim();
+  return '$rest${end.isEmpty ? '.' : end}';
+}
+
 /// Le nom d'outil tel que NEXORA le connaît : sans préfixe inventé par le modèle
 /// (« repo_browser.search_code », « functions.read_file »), et avec les noms
 /// courants des autres agents (Claude Code, Cursor…).
@@ -2750,7 +2843,9 @@ class AgentRun extends ChangeNotifier {
             continue;
           }
           if (finish != null) {
-            summary = (finish.args['summary'] ?? '').toString();
+            summary = stripUnverifiedClaims(
+              (finish.args['summary'] ?? '').toString(),
+            );
             commitMessage = (finish.args['commit_message'] ?? task)
                 .toString()
                 .trim();
