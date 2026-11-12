@@ -4044,21 +4044,56 @@ class AgentRun extends ChangeNotifier {
   /// alors sans dire quoi changer (« Changed lib/x.dart »). Le modèle est
   /// prévenu dès l'écriture, avec les lignes à couper.
   Future<String> _formatPitfalls(String p, String text) async {
-    if (_longWarned.contains(p)) return '';
+    if (!p.endsWith('.dart')) return '';
+    if (_longWarned.contains(p) && _indentWarned.contains(p)) return '';
     try {
       if (!await _checksDartFormat(p)) return '';
-      final hint = dartFormatHint(
-        p,
-        text,
-        before: await original(p),
-        width: await _pageWidth(p),
-      );
-      if (hint == null) return '';
-      _longWarned.add(p);
-      return hint;
+      final before = await original(p);
+      var out = '';
+      if (!_longWarned.contains(p)) {
+        final hint = dartFormatHint(
+          p,
+          text,
+          before: before,
+          width: await _pageWidth(p),
+        );
+        if (hint != null) {
+          _longWarned.add(p);
+          out += hint;
+        }
+      }
+      if (!_indentWarned.contains(p)) {
+        final hint = dartIndentHint(p, text, before: before);
+        if (hint != null) {
+          _indentWarned.add(p);
+          out += hint;
+        }
+      }
+      return out;
     } catch (_) {
       return '';
     }
+  }
+
+  /// Les fichiers déjà prévenus d'une indentation que `dart format` refusera
+  /// (une fois chacun, comme les lignes trop longues).
+  final Set<String> _indentWarned = {};
+
+  /// En essai réel, un « RegExp( » coupé par l'agent gardait ses arguments au
+  /// niveau de la ligne d'ouverture et sa fermeture « ).firstMatch(t); » deux
+  /// espaces trop à gauche : `dart format --set-exit-if-changed` refusait le
+  /// fichier sans dire pourquoi. L'avertissement donne chaque ligne et
+  /// l'indentation attendue, ou null (lignes d'origine jamais visées).
+  static String? dartIndentHint(String path, String text, {String? before}) {
+    if (!path.endsWith('.dart')) return null;
+    final old = before == null ? const <String>{} : before.split('\n').toSet();
+    final found = dartIndentProblems(text, old: old);
+    if (found.isEmpty) return null;
+    return '\n\nATTENTION : la CI de ce dépôt vérifie « dart format » et '
+        'refusera $path, mal indenté :\n${found.join('\n')}\n'
+        'Corrige maintenant avec edit_file : à l\'intérieur d\'un « ( » qui '
+        'finit une ligne, 2 espaces de plus que cette ligne ; la ligne qui '
+        'commence par « ) » revient au niveau de la ligne d\'ouverture.';
   }
 
   /// La largeur de ligne de `dart format` pour [p] : `formatter: page_width`

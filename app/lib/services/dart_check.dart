@@ -163,3 +163,205 @@ class _Frame {
   final bool triple;
   final bool raw;
 }
+
+/// Les lignes Dart dont l'indentation sera refusée par `dart format`, à coup
+/// sûr : après une ligne qui finit par « ( », « [ » ou « { », la ligne
+/// suivante doit être plus indentée, et la ligne qui commence par la
+/// fermeture doit l'être autant que la ligne d'ouverture (en essai réel, un
+/// « RegExp( » coupé en plusieurs lignes gardait ses arguments au même niveau
+/// et sa fermeture « ).firstMatch(t); » deux espaces trop à gauche).
+///
+/// Seules les paires dont une ligne est absente de [old] (les lignes du
+/// fichier d'origine) sont vérifiées. Rien n'est signalé en cas de doute :
+/// textes sur plusieurs lignes, interpolations, lignes de commentaire ou
+/// branche d'un « ? : » (que le formateur aligne autrement). Rend au plus
+/// [max] remarques (« ligne 12 : … »).
+List<String> dartIndentProblems(
+  String code, {
+  Set<String> old = const {},
+  int max = 5,
+}) {
+  final lines = code.split('\n');
+  int indentOf(String l) => l.length - l.trimLeft().length;
+  // Pour chaque ligne : commence-t-elle dans du code (pas dans un texte ni un
+  // commentaire /* */) ?
+  final startsInCode = List<bool>.filled(lines.length, true);
+  // Les ouvertures en fin de ligne : (ligne d'ouverture, ou -1 si non suivie).
+  final stack = <(String, int)>[];
+  final problems = <String>[];
+  final checkedInner = <int>{};
+  var line = 0;
+  var i = 0;
+  // La ligne courante a-t-elle déjà du code (texte compris) ?
+  var sawCode = false;
+  final n = code.length;
+  // Pile des contextes texte/interpolation : (guillemet, triple, brut) ou
+  // null pour une interpolation (avec sa profondeur d'accolades).
+  final strings = <(String?, bool, bool, int)>[];
+
+  bool mine(int a, int b) => !old.contains(lines[a]) || !old.contains(lines[b]);
+
+  // La dernière ouverture vue sur la ligne courante, si rien ne la suit.
+  int? lastOpenAt;
+  int? lastOpenLine;
+
+  void endOfLine() {
+    // Une ouverture suivie seulement d'espaces ou d'un commentaire.
+    if (lastOpenAt != null && lastOpenLine == line && stack.isNotEmpty) {
+      final top = stack.last;
+      if (top.$2 == -2) {
+        final t = lines[line].trimLeft();
+        // Une ligne qui en continue une autre (suite d'un texte, d'une
+        // chaîne d'appels « .x( ») est alignée autrement par le formateur :
+        // seules comptent celles qui suivent une fin d'instruction, de
+        // bloc, d'argument ou une ouverture.
+        var prev = line - 1;
+        while (prev >= 0 && lines[prev].trim().isEmpty) {
+          prev--;
+        }
+        final after =
+            prev < 0 ||
+            RegExp(r'[;{},(\[]$').hasMatch(lines[prev].trimRight()) &&
+                !lines[prev].contains('//') &&
+                startsInCode[prev];
+        final skip =
+            !after ||
+            top.$1 != '(' ||
+            !lines[line].trimRight().endsWith('(') ||
+            t.startsWith('?') ||
+            t.startsWith(':') ||
+            t.startsWith('.');
+        stack[stack.length - 1] = (top.$1, skip ? -1 : line);
+      }
+    }
+    lastOpenAt = null;
+  }
+
+  while (i < n) {
+    final c = code[i];
+    if (c == '\n') {
+      if (strings.isEmpty || strings.last.$1 == null) endOfLine();
+      line++;
+      sawCode = false;
+      if (line < lines.length) {
+        startsInCode[line] = strings.isEmpty || strings.last.$1 == null;
+      }
+      i++;
+      continue;
+    }
+    final top = strings.isEmpty ? null : strings.last;
+    if (top != null && top.$1 != null) {
+      final q = top.$1!;
+      if (!top.$3 && c == r'\') {
+        i += 2;
+        continue;
+      }
+      if (code.startsWith(q, i)) {
+        strings.removeLast();
+        i += q.length;
+        continue;
+      }
+      if (!top.$3 && code.startsWith(r'${', i)) {
+        strings.add((null, false, false, 0));
+        i += 2;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (code.startsWith('//', i)) {
+      final e = code.indexOf('\n', i);
+      i = e < 0 ? n : e;
+      continue;
+    }
+    if (code.startsWith('/*', i)) {
+      final e = code.indexOf('*/', i + 2);
+      final end = e < 0 ? n : e + 2;
+      // Les lignes entièrement dans le commentaire ne sont pas du code.
+      for (var k = i; k < end; k++) {
+        if (code[k] == '\n') {
+          line++;
+          sawCode = true;
+          if (line < lines.length) startsInCode[line] = false;
+        }
+      }
+      i = end;
+      continue;
+    }
+    if (c == "'" || c == '"') {
+      final raw =
+          i > 0 &&
+          (code[i - 1] == 'r' || code[i - 1] == 'R') &&
+          (i < 2 || !RegExp(r'[\w$]').hasMatch(code[i - 2]));
+      final q = code.startsWith(c * 3, i) ? c * 3 : c;
+      strings.add((q, q.length == 3, raw, 0));
+      lastOpenAt = null;
+      sawCode = true;
+      i += q.length;
+      continue;
+    }
+    if (top != null) {
+      // Dans une interpolation : on suit seulement ses accolades.
+      if (c == '{') {
+        strings[strings.length - 1] = (null, false, false, top.$4 + 1);
+      } else if (c == '}') {
+        if (top.$4 == 0) {
+          strings.removeLast();
+        } else {
+          strings[strings.length - 1] = (null, false, false, top.$4 - 1);
+        }
+      }
+      i++;
+      continue;
+    }
+    if (c != ' ' && c != '\t' && c != '\r') {
+      // Premier caractère de code d'une ligne qui suit une ouverture.
+      final first = !sawCode;
+      sawCode = true;
+      if (first && stack.isNotEmpty) {
+        final open = stack.last.$2;
+        final closes = c == ')' || c == ']' || c == '}';
+        if (open >= 0 &&
+            !closes &&
+            startsInCode[line] &&
+            checkedInner.add(open) &&
+            indentOf(lines[line]) <= indentOf(lines[open]) &&
+            mine(open, line) &&
+            problems.length < max) {
+          problems.add(
+            'ligne ${line + 1} : ${indentOf(lines[line])} espaces, alors '
+            'qu\'elle est à l\'intérieur du « ${stack.last.$1} » de la ligne '
+            '${open + 1} (${indentOf(lines[open])} espaces) : il en faut '
+            '${indentOf(lines[open]) + 2}',
+          );
+        }
+      }
+      if (c == '(' || c == '[' || c == '{') {
+        stack.add((c, -2));
+        lastOpenAt = i;
+        lastOpenLine = line;
+      } else if (c == ')' || c == ']' || c == '}') {
+        if (stack.isEmpty) return problems; // Fichier cassé : on ne juge pas.
+        final (_, open) = stack.removeLast();
+        if (open >= 0 &&
+            first &&
+            open != line &&
+            indentOf(lines[line]) < indentOf(lines[open]) &&
+            mine(open, line) &&
+            problems.length < max) {
+          problems.add(
+            'ligne ${line + 1} : « $c » ferme le bloc ouvert ligne '
+            '${open + 1} et doit être indenté comme elle : '
+            '${indentOf(lines[open])} espaces (et non '
+            '${indentOf(lines[line])})',
+          );
+        }
+        lastOpenAt = null;
+      } else {
+        lastOpenAt = null;
+      }
+    }
+    i++;
+  }
+  return problems;
+}
