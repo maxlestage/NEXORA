@@ -3,6 +3,11 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.103 — 12 novembre 2026 — Le résumé de l'agent n'affirme plus des tests qu'il n'a pas lancés
+- Corrigé : en essai réel, pour « la méthode label de RateWindow doit afficher le temps avant remise à zéro… Ajoute des tests unitaires », le modèle terminait par « Tous les tests passent et la CI reste verte ». Il n'avait rien lancé, et cette phrase partait telle quelle dans le résumé et la pull request.
+- Ces affirmations (tests qui passent, CI verte, code qui compile) sont maintenant retirées du résumé de fin : le vrai résultat est celui de la CI, que NEXORA suit après l'envoi.
+- Prudent : seule la partie de phrase qui affirme est retirée (« Label modifié ; tous les tests passent. » devient « Label modifié. »), et un but (« pour que la CI reste verte ») est toujours gardé.
+
 ## 2.2.102 — 12 novembre 2026 — L'agent écrit du Rust que clippy accepte
 - Corrigé : en essai réel, pour « ajoute temps_de_lecture() dans site/src/contenu.rs (200 mots par minute, arrondi au supérieur) », le modèle écrivait « (mots + 199) / 200 ». Le calcul est juste, mais « cargo clippy -- -D warnings » le refuse (manual_div_ceil) : la CI du site aurait échoué.
 - Quand la CI d'un dépôt passe clippy en refusant ses avertissements, l'agent est maintenant prévenu dès l'écriture, avec la ligne et la correction exacte : « mots.div_ceil(200) », ou « (1..=10).contains(&x) » pour « x >= 1 && x <= 10 ».
