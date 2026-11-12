@@ -2699,6 +2699,7 @@ class AgentRun extends ChangeNotifier {
                         '(crée ce qui manque si la demande l\'implique), ou appelle '
                         'finish en expliquant précisément ce qui n\'existe '
                         'pas.${progressNote()}';
+              circling += await _brokenNote();
             }
           }
           actsSince += work.length;
@@ -2876,7 +2877,8 @@ class AgentRun extends ChangeNotifier {
               'Tu as utilisé $maxSteps étapes sans terminer. Fais le point : ce qui '
                   'est fait, ce qui reste, et le chemin le plus direct pour finir. Si tu '
                   'tournes en rond, change d\'approche (autre fichier, autre méthode, '
-                  'solution plus simple). Puis continue jusqu\'au bout.$reminder',
+                  'solution plus simple). Puis continue jusqu\'au '
+                  'bout.${await _brokenNote()}$reminder',
             ),
           );
           compactHistory(history);
@@ -4444,6 +4446,19 @@ class AgentRun extends ChangeNotifier {
       if (hint.isNotEmpty) out.add(hint);
     }
     return out;
+  }
+
+  /// Le rappel d'un brouillon Dart ou Rust qui ne compilera pas, à remettre
+  /// dans les relances (point d'étape, recherches en rond) : l'avertissement
+  /// donné une seule fois, juste après l'écriture, disparaît quand l'historique
+  /// est résumé. Essai réel : une modification coupait un test en deux (une
+  /// « } » de trop), l'avertissement était donné puis oublié au point d'étape,
+  /// et le modèle cherchait ailleurs jusqu'à l'arrêt, brouillon cassé.
+  Future<String> _brokenNote() async {
+    final broken = await _brokenCode();
+    if (broken.isEmpty) return '';
+    return '\n\nAVANT TOUT : tes brouillons ne compilent plus, corrige-les '
+        'd\'abord (c\'est le plus urgent).${broken.join()}';
   }
 
   /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou null.
