@@ -58,12 +58,26 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
   sessions avec état vide, texte d'accueil raccourci (2 phrases au lieu de 3).
   Tests : 353 → 357.
 
-## Prochain passage : TOKENS
-Mémoire du chat résumée, ou modèle moins cher pour titres/résumés (réglage).
-Interface ensuite : dépôts (ReposView/RepoView), puis Modèles, Réglages.
+Banc « chat » (`TokenBench.chatMemory`) : 60 tours (question 600 car., réponse 4 000),
+mémoire 32k tokens, consigne 3 000 car.
+
+| Version | Envoyés | Hors cache | Coût Anthropic | Coût OpenAI |
+|---|---|---|---|---|
+| 3.0.13 (coupé à chaque tour au plus juste) | 1 489 484 | 1 059 544 | 1 367 424 | 1 274 514 |
+| 3.0.14 (coupé par paquets jusqu'aux 3/4) | 1 360 054 (−9 %) | 160 535 (−85 %) | 320 620 (−77 %) | 760 294 (−40 %) |
+
+- 3.0.14 (tokens) : `ChatLogic.recentHistory` coupe par paquets (`keepAfterTrim` = 3/4),
+  point de coupure recalculé depuis le début (sans état). Diffère de l'app Flutter
+  (qui coupe à chaque tour) : à porter côté Flutter si voulu. Tests : 357 → 358.
+
+## Prochain passage : INTERFACE
+Dépôts (ReposView/RepoView), puis Modèles, Réglages.
+Tokens ensuite : modèle moins cher pour titres/résumés (réglage), ou résumé des vieux
+messages du chat (attention : un résumé change le début de la requête, à faire au
+moment d'une coupure seulement).
 
 ## Pistes tokens à faire
-- Mémoire du chat : résumé des vieux messages au lieu de les couper.
+- Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
 - Modèle moins cher pour titres/résumés (réglage).
 
 ## Idées écartées

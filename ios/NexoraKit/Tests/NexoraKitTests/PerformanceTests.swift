@@ -271,8 +271,73 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
     return (sent, uncached)
 }
 
+/// Un chat de 60 tours (question de 600 caractères, réponse de 4 000) avec la mémoire
+/// par défaut (32k tokens) : caractères envoyés et part hors cache. `everyTurn` :
+/// l'ancienne coupure (avant 3.0.14), refaite à chaque tour au plus juste.
+private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int]) {
+    let budget = 32000
+    let system = String(repeating: "s", count: 3000)
+    var messages: [ChatMessage] = []
+    var previous: [LLMMessage] = []
+    var sent = 0, uncached = 0
+    var kept: [Int] = []
+    for turn in 0..<60 {
+        messages.append(ChatMessage(role: .user, content: "Question \(turn) " + String(repeating: "q", count: 600)))
+        var history: [LLMMessage]
+        if everyTurn {
+            let usable = messages.map { LLMMessage($0.role.rawValue, $0.content) }
+            var used = 0, start = usable.count
+            while start > 0 {
+                let cost = usable[start - 1].content.count / 4 + 4
+                if start < usable.count && used + cost > budget { break }
+                used += cost
+                start -= 1
+            }
+            history = Array(usable[start...])
+        } else {
+            history = ChatLogic.recentHistory(messages, budgetTokens: budget).0
+        }
+        kept.append(history.reduce(0) { $0 + $1.content.count / 4 + 4 })
+        var same = 0
+        while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
+        sent += history.reduce(system.count) { $0 + $1.content.count }
+        uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count } + (same == 0 ? system.count : 0)
+        previous = history
+        messages.append(ChatMessage(role: .assistant, content: "Réponse \(turn) " + String(repeating: "a", count: 4000)))
+    }
+    return (sent, uncached, kept)
+}
+
 @Suite("Tokens envoyés")
 struct TokenBench {
+    @Test("chat : mémoire coupée par paquets, le cache de prompt sert")
+    func chatMemory() {
+        let before = chatChars(everyTurn: true)
+        let after = chatChars(everyTurn: false)
+        func anthropic(_ r: (sent: Int, uncached: Int, kept: [Int])) -> Double {
+            Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1
+        }
+        func openai(_ r: (sent: Int, uncached: Int, kept: [Int])) -> Double {
+            Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
+        }
+        for (name, r) in [("coupé à chaque tour", before), ("coupé par paquets", after)] {
+            print("🪙 chat \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        #expect(anthropic(after) < anthropic(before) * 0.6)
+        #expect(openai(after) < openai(before))
+        // La mémoire réglée n'est jamais dépassée, et au moins les 3/4 en restent.
+        #expect(after.kept.allSatisfy { $0 <= 32000 })
+        #expect(after.kept.suffix(30).allSatisfy { $0 >= 32000 * 3 / 4 - 1300 })
+        // Entre deux coupures, le début de la requête ne bouge pas.
+        let msgs = (0..<40).map { ChatMessage(role: $0 % 2 == 0 ? .user : .assistant, content: String(repeating: "x", count: 400)) }
+        var starts: [Int] = []
+        for n in 1...40 { starts.append(ChatLogic.recentHistory(Array(msgs.prefix(n)), budgetTokens: 1000).1) }
+        #expect(starts == starts.sorted())
+        // Coupé à chaque tour, le début changeait 31 fois sur 40 ; par paquets, 11 fois.
+        #expect(Set(starts).count == 12)
+    }
+
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)

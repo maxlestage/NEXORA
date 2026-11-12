@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.14 — 12 novembre 2026 — Les longues conversations coûtent moins cher
+
+- Amélioré : quand une conversation dépasse la mémoire réglée, les vieux messages sont mis de côté par paquets et non plus un par un à chaque message.
+- Le début de chaque requête reste le même pendant plusieurs tours : le cache des fournisseurs le relit pour bien moins cher. Sur une longue conversation, environ 75 % de coût en moins avec Claude et 40 % avec OpenAI.
+- Le modèle garde toujours au moins les trois quarts de la mémoire réglée.
+
 ## 3.0.13 — 12 novembre 2026 — Des sessions plus faciles à suivre
 - Amélioré : dans l'onglet Code, les sessions qui attendent votre relecture passent en tête, puis celles en cours, puis les récentes.
 - Amélioré : le sélecteur indique « Sessions · 2 à relire » quand des brouillons vous attendent.

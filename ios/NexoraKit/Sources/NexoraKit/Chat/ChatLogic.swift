@@ -15,23 +15,39 @@ public enum ChatLogic {
         !m.error && (!m.content.isEmpty || !m.images.isEmpty)
     }
 
+    /// Après une coupure, ce qui reste de la mémoire réglée (en quarts) : la coupure
+    /// suivante n'a lieu qu'une fois ce quart rempli.
+    public static let keepAfterTrim = 3
+
     /// Les messages envoyés au modèle : les plus récents, dans la limite de la mémoire
     /// réglée (en tokens, ~4 caractères par token ; 0 = tout). Rend aussi le nombre
     /// de messages laissés de côté.
+    /// Coupure par paquets : quand la mémoire déborde, la conversation est coupée
+    /// jusqu'aux 3/4 de la mémoire, puis le début reste le même pendant plusieurs
+    /// tours. La requête commence ainsi par les mêmes messages d'un tour à l'autre, et
+    /// le cache de prompt des fournisseurs les relit pour bien moins cher (couper à
+    /// chaque tour changeait le début de chaque requête). Le point de coupure est
+    /// recalculé depuis le début de la conversation : il ne dépend que des messages.
     public static func recentHistory(_ messages: [ChatMessage], budgetTokens: Int) -> ([LLMMessage], Int) {
         let usable = messages.filter(isUsable).map { LLMMessage($0.role.rawValue, $0.content) }
         if budgetTokens <= 0 || usable.isEmpty { return (usable, 0) }
+        let target = budgetTokens * keepAfterTrim / 4
+        var start = 0
         var used = 0
-        var start = usable.count
-        while start > 0 {
-            let cost = usable[start - 1].content.count / 4 + 4
+        for (end, m) in usable.enumerated() {
+            used += cost(m)
+            if used <= budgetTokens { continue }
             // Le dernier message part toujours, même s'il dépasse à lui seul.
-            if start < usable.count && used + cost > budgetTokens { break }
-            used += cost
-            start -= 1
+            while start < end && used > target {
+                used -= cost(usable[start])
+                start += 1
+            }
         }
         return (Array(usable[start...]), start)
     }
+
+    /// Le poids d'un message dans la mémoire (≈ 4 caractères par token).
+    static func cost(_ m: LLMMessage) -> Int { m.content.count / 4 + 4 }
 
     /// La consigne personnelle (sans agent) : nom de l'assistant, à propos de vous,
     /// style de réponse.
