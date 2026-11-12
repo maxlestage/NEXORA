@@ -690,14 +690,40 @@ public final class AgentRun {
     /// Résultats d'outils gardés en entier (les plus récents).
     public nonisolated static let keepFullResults = 8
 
+    /// Raccourcissements regroupés : l'historique n'est raccourci que lorsque ce
+    /// nombre de messages au moins peut l'être. Entre deux paquets, le début de la
+    /// requête reste identique d'une étape à l'autre, et le cache de prompt des
+    /// fournisseurs (Anthropic, OpenAI, DeepSeek) le relit pour bien moins cher.
+    public nonisolated static let compactBatch = 4
+
     /// Raccourcit les anciens résultats d'outils (fichiers lus, recherches) pour que
     /// les longues tâches restent rapides et peu coûteuses : le modèle garde la trace
     /// de ce qu'il a fait sans renvoyer tous les fichiers à chaque étape.
-    public nonisolated static func compactHistory(_ history: inout [LLMMessage], keep: Int = keepFullResults) {
+    /// `batch` > 0 : rien n'est touché tant que moins de `batch` messages sont à
+    /// raccourcir (voir `compactBatch`) ; 0 : raccourcit tout de suite.
+    public nonisolated static func compactHistory(
+        _ history: inout [LLMMessage], keep: Int = keepFullResults, batch: Int = 0
+    ) {
+        let block = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
+        if batch > 0 {
+            // Combien de messages seraient raccourcis maintenant ?
+            var turns = 0, seen = 0, due = 0
+            for m in history.reversed() {
+                if m.role == "assistant" {
+                    turns += 1
+                    if turns > 4 && m.content.len > 1500 && block.allMatches(m.content).contains(where: {
+                        ($0[2] ?? "").len > 400 && $0[1] != "json"
+                    }) { due += 1 }
+                } else if m.role == "user" && m.content.hasPrefix("Résultat de ") {
+                    seen += 1
+                    if seen > keep && m.content.len > 600 { due += 1 }
+                }
+            }
+            if due < batch { return }
+        }
         // Les anciennes réponses de l'agent : les contenus de fichiers écrits (ils sont
         // dans les brouillons) ne repartent pas à chaque étape.
         var turns = 0
-        let block = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = history[i]
             if m.role != "assistant" { continue }
