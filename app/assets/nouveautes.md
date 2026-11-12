@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.96 — 12 novembre 2026 — Un exemple de documentation Rust qui ne compile pas est repéré
+- Corrigé : en essai réel, pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test », le modèle écrivait un exemple « /// assert_eq!(compter_mots(…), 4); » sans aucun import. cargo test compile ces exemples à part : la fonction n'y est pas trouvée, et la CI aurait échoué bien plus tard.
+- Un nouvel exemple de documentation qui appelle une fonction du fichier sans importer la bibliothèque est maintenant signalé dès son écriture, avec l'import exact à ajouter (« use nom_du_crate::module::fonction; »).
+- Si le module n'est pas public, l'agent apprend qu'il faut plutôt écrire le test dans le module « #[cfg(test)] mod tests » du fichier, comme demandé.
+- Prudent : les exemples déjà présents, les blocs ignore, text ou compile_fail, les programmes (main.rs, src/bin/) et les exemples qui importent un crate ne sont jamais visés (aucune fausse alerte sur 928 vrais fichiers Rust documentés).
+
 ## 2.2.95 — 12 novembre 2026 — Le test va avec les autres tests du fichier
 - Corrigé : en essai réel, pour « fais reconnaître « Retiré » dans nature() (site/src/contenu.rs)… Ajoute un test », la traduction inventait un nouveau fichier site/tests/retrait_test.rs. L'agent y écrivait un test qui ne pouvait pas compiler, et perdait ses étapes sur les imports.
 - Quand le fichier modifié a déjà son module de tests (#[cfg(test)]), la demande traduite y place maintenant le nouveau test, avec les autres : il passe du premier coup (vérifié en essai réel).
