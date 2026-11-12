@@ -254,7 +254,9 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
     for step in 0..<40 {
         let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
         let file = step % 5 == 4 ? step - 2 : step
-        history.append(LLMMessage("assistant", "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
+        history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
+            + "(nom, e-mail, message) reliée au menu principal\", \"thought\": \"Je lis f\(file) pour voir "
+            + "comment les pages sont déclarées\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
         if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
         var result = ["Résultat de read_file :\n// f\(file)\n" + String(repeating: "r", count: 4000)]
         if dedup { result = AgentRun.dedupResults(result, history: history) }
@@ -378,6 +380,15 @@ struct TokenBench {
         AgentRun.compactHistory(&cut, keep: 0)
         let full = "Résultat de read_file (a.swift) :\n" + body
         #expect(AgentRun.dedupResults([full], history: cut) == [full])
+        // Anciennes réponses : la demande répétée est retirée, l'action reste.
+        let turn = "```json\n{\"demande\": \"Ajoute \\\"x\\\"\", \"thought\": \"t\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}\n```"
+        var old = (0..<6).map { _ in LLMMessage("assistant", turn) }
+        AgentRun.compactHistory(&old)
+        #expect(old.prefix(2).allSatisfy { $0.content == "```json\n{\"thought\": \"t\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}\n```" })
+        #expect(old.suffix(4).allSatisfy { $0.content == turn })
+        // Sans action dans le bloc : rien n'est retiré.
+        let only = "```json\n{\"demande\": \"d\", \"thought\": \"t\"}\n```"
+        #expect(AgentRun.dropGoal(only) == only)
         // Rappels : gardés par paquets, retirés dès que la demande change.
         let r1 = AgentRun.reminderMark + "A", r2 = AgentRun.reminderMark + "B"
         var h = [LLMMessage("user", "Tâche")]

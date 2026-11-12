@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.20 — 12 novembre 2026 — Agent un peu plus économe
+
+- Amélioré : les longues sessions de l'agent envoient environ 3 % de tokens en moins (la demande qu'il se répète n'est plus renvoyée dans ses anciennes réponses).
+- Le cache de prompt continue de servir : ce nettoyage se fait en même temps que les raccourcissements déjà groupés.
+
 ## 3.0.19 — 12 novembre 2026 — Éditeur de fichier plus sûr
 - Nouveau : quitter un fichier modifié demande confirmation, et un bouton annule les modifications en un geste.
 - Amélioré : le bouton « Enregistrer » remplace « Commit » ; le message proposé s'affiche dans le champ.

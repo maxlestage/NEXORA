@@ -20,6 +20,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.10 (rappels retirés par paquets) | 493 694 (+0,6 %) | 149 714 (−11 %) | 221 540 (−9 %) | 321 704 (−2 %) |
 | 3.0.12 (banc : fichiers distincts + relecture toutes les 5 étapes, sans dédoublonnage) | 493 936 | 149 807 | 221 672 | 321 872 |
 | 3.0.12 (relectures identiques non renvoyées) | 439 311 (−11 %) | 112 311 (−25 %) | 173 089 (−22 %) | 275 811 (−14 %) |
+| 3.0.20 (banc : réponses avec « demande » et « thought », demande gardée) | 474 892 | 117 957 | 183 140 | 296 425 |
+| 3.0.20 (demande retirée des réponses de plus de 4 tours) | 458 754 (−3,4 %) | 116 478 (−1,3 %) | 179 825 (−1,8 %) | 287 616 (−3,0 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -111,10 +113,18 @@ mémoire 32k tokens, consigne 3 000 car.
   Réessayer (avant : chargement sans fin) ; vibration de réussite ; cibles 44 pt.
   Tests : 367 → 370.
 
-## Prochain passage : TOKENS
-Interface ensuite : Modèles, Réglages. Tokens : résumé des vieux
-messages du chat au moment d'une coupure par paquets ; modèle moins cher pour les
-sous-agents / traductions internes (`askOnce`) si réglage.
+- 3.0.20 (tokens) : `AgentRun.dropGoal` — dans `compactHistory`, le champ « demande »
+  des blocs JSON des réponses de plus de 4 tours est retiré (seulement s'il reste une
+  action ; le rappel et les 4 dernières réponses la gardent). Fait uniquement quand le
+  paquet de raccourcissement part déjà : pas de rupture de cache en plus. Banc enrichi
+  (réponses réalistes). Tests : 370 (assertions ajoutées au banc agent).
+  Vérifié au passage : images du chat déjà limitées (3 derniers messages) ; suite
+  d'une réponse coupée garde le préfixe (cache) ; `cache_control` déjà automatique.
+
+## Prochain passage : INTERFACE
+Écrans : Modèles, puis Réglages. Tokens ensuite : retirer aussi le « thought » des
+très vieilles réponses (mesurer, risque de perte de contexte) ; résumé des vieux
+messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
