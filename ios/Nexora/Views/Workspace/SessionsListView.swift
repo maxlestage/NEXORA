@@ -22,9 +22,12 @@ struct CodeHomeView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             Picker("Partie", selection: $part) {
-                let running = sessions.runningCount
-                Text(running > 0 ? "Sessions (\(running) en cours)" : "Sessions (\(sessions.sessions.count))")
-                    .tag(Part.sessions)
+                Text(SessionsDisplay.pickerLabel(
+                    total: sessions.sessions.count,
+                    running: sessions.runningCount,
+                    toReview: sessions.sessions.filter { $0.status == .review }.count
+                ))
+                .tag(Part.sessions)
                 Text("Dépôts (\(github.repos.count))").tag(Part.repos)
             }
             .pickerStyle(.segmented)
@@ -51,6 +54,7 @@ struct SessionsListView: View {
     @Environment(SessionStore.self) private var sessions
     @State private var removing: AgentRun?
     @State private var toast: Toast?
+    @State private var query = ""
 
     var body: some View {
         Group {
@@ -59,28 +63,7 @@ struct SessionsListView: View {
             } else if sessions.sessions.isEmpty {
                 empty
             } else {
-                List {
-                    RoutinesBanner()
-                    ForEach(sessions.sessions, id: \.id) { run in
-                        NavigationLink {
-                            SessionView(sessionId: run.id)
-                        } label: {
-                            SessionTile(run: run)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                if run.changes.isEmpty {
-                                    delete(run)
-                                } else {
-                                    removing = run
-                                }
-                            } label: {
-                                Label("Supprimer", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
+                list
             }
         }
         .confirmationDialog(
@@ -95,6 +78,53 @@ struct SessionsListView: View {
             Text("\(run.changes.count) brouillon(s) non envoyé(s) seront perdus.")
         }
         .toast($toast)
+    }
+
+    /// Les sessions groupées : à relire, en cours, puis récentes ; avec une
+    /// recherche dès qu'il y en a beaucoup.
+    @ViewBuilder private var list: some View {
+        let all = sessions.sessions
+        let shown = all.filter { AgentsDisplay.matches(query, $0.task, $0.reposLabel) }
+        let content = List {
+            if query.isEmpty { RoutinesBanner() }
+            ForEach(SessionsDisplay.sections(shown) { $0.status }, id: \.kind) { section in
+                Section {
+                    ForEach(section.items, id: \.id) { run in row(run) }
+                } header: {
+                    if let title = section.title { Text(title) }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .overlay {
+            if shown.isEmpty && !query.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
+        }
+        if all.count >= SessionsDisplay.searchThreshold {
+            content.searchable(text: $query, prompt: "Rechercher une session")
+        } else {
+            content
+        }
+    }
+
+    private func row(_ run: AgentRun) -> some View {
+        NavigationLink {
+            SessionView(sessionId: run.id)
+        } label: {
+            SessionTile(run: run)
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                if run.changes.isEmpty {
+                    delete(run)
+                } else {
+                    removing = run
+                }
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        }
     }
 
     private func delete(_ run: AgentRun) {
@@ -112,7 +142,7 @@ struct SessionsListView: View {
                     .foregroundStyle(.secondary)
                 Text("Aucune session")
                     .font(.title2.weight(.heavy))
-                Text("Une session = une mission pour l'agent, sur un ou plusieurs dépôts. Elle travaille même quand vous quittez l'écran, et vous pouvez la reprendre avec de nouvelles instructions.")
+                Text("Donnez une mission à l'agent sur vos dépôts. Il continue même si vous quittez l'écran.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 if let onNew {
