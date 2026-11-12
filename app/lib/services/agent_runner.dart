@@ -4116,7 +4116,38 @@ class AgentRun extends ChangeNotifier {
       return await _syntaxPitfalls(p, text) + await _formatPitfalls(p, text);
     }
     if (!p.endsWith('.rs')) return '';
-    return await _rustPitfalls(p, text) + await _clippyPitfalls(p, text);
+    return await _rustPitfalls(p, text) +
+        await _clippyPitfalls(p, text) +
+        await _asciiCasePitfalls(p, text);
+  }
+
+  /// Les fichiers Rust déjà prévenus d'un `to_ascii_lowercase` qui laisse les
+  /// majuscules accentuées de côté (une fois chacun).
+  final Set<String> _caseWarned = {};
+
+  Future<String> _asciiCasePitfalls(String p, String text) async {
+    if (_caseWarned.contains(p)) return '';
+    try {
+      final hint = rustAsciiCaseHint(p, text, before: await original(p));
+      if (hint == null) return '';
+      _caseWarned.add(p);
+      return hint;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// En essai réel, pour « slug() : minuscules, accents retirés », le modèle
+  /// passait chaque caractère par `to_ascii_lowercase` puis cherchait 'à',
+  /// 'é'… : « À » n'était jamais reconnu (`slug("Àlà")` rendait "la"). Le
+  /// modèle est prévenu dès l'écriture, ou null.
+  static String? rustAsciiCaseHint(String path, String text, {String? before}) {
+    if (!path.endsWith('.rs')) return null;
+    final old = before == null ? const <String>{} : before.split('\n').toSet();
+    final problem = rustAsciiCaseProblem(text, old: old);
+    if (problem == null) return null;
+    return '\n\nATTENTION : erreur de logique dans $path, $problem. Corrige '
+        'maintenant avec edit_file.';
   }
 
   /// Les erreurs certaines d'un brouillon Rust (syntaxe, doctests, tests

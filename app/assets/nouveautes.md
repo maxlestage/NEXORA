@@ -3,6 +3,12 @@
      lisent ce fichier. Une version = un titre « ## version — date — résumé », puis ses points.
      La copie app/assets/nouveautes.md doit rester identique (vérifié par les tests). -->
 
+## 2.2.105 — 12 novembre 2026 — Les majuscules accentuées ne sont plus oubliées
+- Corrigé : en essai réel, pour « ajoute slug() : minuscules, accents retirés (é→e, à→a…), avec des tests », le modèle passait chaque lettre par to_ascii_lowercase puis cherchait 'à', 'é'… Or to_ascii_lowercase ne change que A à Z : « À » n'était jamais reconnu, slug("Àlà") rendait "la" et le test de l'agent échouait.
+- L'agent est maintenant prévenu dès l'écriture, avec la ligne fautive et la correction (to_lowercase, qui connaît les accents, ou les majuscules ajoutées au match).
+- Corrigé sur le site : le générateur d'agents (page Agents) avait le même défaut, « Équipe » donnait le fichier « quipe.md ». Il donne maintenant « equipe.md ».
+- Prudent : rien n'est signalé quand le code passe déjà par to_lowercase ou écrit les majuscules ; textes et commentaires sont ignorés. Une seule alerte sur 7 897 vrais fichiers Rust : celle du site, corrigée.
+
 ## 2.2.104 — 12 novembre 2026 — Une fonction collée dans le corps d'une autre est repérée
 - Corrigé : en essai réel, pour « ajoute une fonction publique summarizeDiff(before, after) dans app/lib/services/diff.dart, avec des tests », le modèle collait la nouvelle fonction juste avant la « } » qui fermait lineDiff. Les accolades restaient équilibrées et NEXORA ne disait rien, mais summarizeDiff devenait invisible du reste du code : tests qui ne compilent pas, CI en échec.
 - L'agent est maintenant prévenu dès l'écriture, avec la ligne de la déclaration mal placée et celle du bloc qui la contient, et il ne peut pas terminer sans l'avoir déplacée.

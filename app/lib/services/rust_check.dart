@@ -468,3 +468,66 @@ List<String> rustClippyProblems(String code, {Set<String> old = const {}}) {
   }
   return out;
 }
+
+/// Une mise en minuscules ASCII suivie de lettres accentuées en minuscules :
+/// les majuscules accentuées ne seront jamais reconnues, ou null.
+///
+/// Essai réel : pour « ajoute slug() : minuscules, accents retirés (é→e,
+/// à→a…) », le modèle écrivait `let ch = ch.to_ascii_lowercase();` puis un
+/// `match` sur 'à' | 'é'… Or `to_ascii_lowercase` ne change que A à Z : « À »
+/// restait « À », n'était pas reconnu et devenait un tiret. `slug("Àlà")`
+/// rendait "la" au lieu de "ala", et son propre test échouait.
+///
+/// Ne vise que les lignes absentes de [old] et rien quand le fichier passe
+/// aussi par `to_lowercase` / `to_uppercase` (Unicode) ou écrit déjà la
+/// majuscule de chaque lettre accentuée. Rend « ligne N : … ».
+String? rustAsciiCaseProblem(String code, {Set<String> old = const {}}) {
+  final bare = _rustBareCode(code);
+  if (RegExp(r'(?:\.|::)to_(?:lowercase|uppercase)\b').hasMatch(bare)) {
+    return null;
+  }
+  final lines = code.split('\n');
+  final bareLines = bare.split('\n');
+  final ascii = RegExp(r'\.(?:to|make)_ascii_lowercase\s*\(\s*\)');
+  int? callLine;
+  for (var i = 0; i < bareLines.length && i < lines.length; i++) {
+    if (old.contains(lines[i])) continue;
+    if (ascii.hasMatch(bareLines[i])) {
+      callLine = i;
+      break;
+    }
+  }
+  if (callLine == null) return null;
+  // Les lettres accentuées en minuscules écrites en caractères ('é'), dans
+  // les lignes nouvelles, dont la majuscule n'apparaît nulle part. Chaque
+  // caractère est marqué avant d'effacer chaînes et commentaires : seuls ceux
+  // du vrai code restent.
+  final lit = RegExp("'([^\\x00-\\x7F])'");
+  final marked = _rustBareCode(
+    code.replaceAllMapped(lit, (m) => '\x01${m[1]}\x01'),
+  );
+  final missing = <String>[];
+  int? litLine;
+  for (final m in RegExp('\x01([^\\x00-\\x7F])\x01').allMatches(marked)) {
+    final i = '\n'.allMatches(marked.substring(0, m.start)).length;
+    if (i < lines.length && old.contains(lines[i])) continue;
+    final c = m[1]!;
+    final up = c.toUpperCase();
+    if (up == c || up.length != 1 || up.codeUnits.first < 0x80) continue;
+    if (code.contains("'$up'")) continue;
+    if (!missing.contains(c)) missing.add(c);
+    litLine ??= i;
+  }
+  if (missing.isEmpty) return null;
+  final shown = missing.take(3).toList();
+  final example = shown.first;
+  final lower = lines[callLine].trim();
+  final cut = lower.length > 80 ? '${lower.substring(0, 80)}…' : lower;
+  return 'ligne ${callLine + 1} (« $cut ») : to_ascii_lowercase ne change '
+      'que les lettres A à Z, « ${example.toUpperCase()} » reste « '
+      '${example.toUpperCase()} » et ne sera jamais reconnu comme '
+      '\'$example\' (ligne ${litLine! + 1}). Les majuscules accentuées '
+      '(${shown.map((c) => c.toUpperCase()).join(', ')}…) seraient mal '
+      'traitées. Utilise to_lowercase() (Unicode : « for ch in '
+      'titre.to_lowercase().chars() »), ou ajoute aussi ces majuscules au match';
+}

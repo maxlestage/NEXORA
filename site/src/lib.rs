@@ -401,10 +401,11 @@ pub const MODELES_AGENT: [&str; 5] = [
 /// Les outils qu'un agent peut recevoir.
 pub const OUTILS: [&str; 5] = ["read", "write", "search", "commit", "pull_request"];
 
-/// Le nom de fichier d'un agent : minuscules, tirets.
+/// Le nom de fichier d'un agent : minuscules, tirets. Les majuscules
+/// accentuées passent d'abord en minuscules (« Équipe » → « equipe »).
 pub fn slug(nom: &str) -> String {
     let mut out = String::new();
-    for c in nom.trim().chars() {
+    for c in nom.trim().chars().flat_map(char::to_lowercase) {
         let c = match c {
             'à' | 'â' | 'ä' => 'a',
             'é' | 'è' | 'ê' | 'ë' => 'e',
