@@ -7,6 +7,8 @@
 /// un crochet ou une accolade fermés de travers ou jamais fermés.
 library;
 
+import 'brace_hint.dart';
+
 /// Ce qui ne va pas dans [code] (« ligne 12 : … »), ou null si rien de certain.
 String? dartSyntaxError(String code) {
   // Les contextes ouverts : « ( [ { » et « ${ » (une interpolation, du code
@@ -22,6 +24,9 @@ String? dartSyntaxError(String code) {
   }
 
   bool isIdent(int i) => i >= 0 && RegExp(r'[A-Za-z0-9_$]').hasMatch(code[i]);
+
+  // Les lignes où une vraie accolade de code (pas un « ${…} ») se ferme.
+  final closers = <int>[];
 
   for (var i = 0; i < n; i++) {
     final c = code[i];
@@ -100,10 +105,14 @@ String? dartSyntaxError(String code) {
     }
     if (c == ')' || c == ']' || c == '}') {
       if (top == null) {
-        return at(
+        final error = at(
           line,
           '« $c » ferme quelque chose qui n\'a jamais été ouvert',
         );
+        final note = c == '}'
+            ? orphanNote(code.split('\n'), closers, line)
+            : null;
+        return note == null ? error : '$error ; $note';
       }
       final want = switch (top.open) {
         '(' => ')',
@@ -117,6 +126,7 @@ String? dartSyntaxError(String code) {
           '(attendu : « $want »)',
         );
       }
+      if (top.open == '{') closers.add(line);
       stack.removeLast();
       continue;
     }

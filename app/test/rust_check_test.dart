@@ -157,7 +157,9 @@ void main() {
     final e = rustSyntaxError(broken)!;
     expect(e, contains('ferme quelque chose qui n\'a jamais été ouvert'));
     expect(e, startsWith('ligne 22 '));
-    expect(e, contains('le décalage commence sans doute ligne 14 (« }; »)'));
+    // La première branche restée derrière la « } » ajoutée trop tôt.
+    expect(e, contains('le décalage commence sans doute ligne 11 (« \'é\''));
+    expect(e, contains('la « } » de la ligne 10 juste avant'));
     expect(rustSyntaxError('fn f() {\n    g(1];\n}\n'), contains('« ] »'));
     expect(rustSyntaxError('fn f() {\n    g(1);\n'), contains('jamais fermé'));
     expect(rustSyntaxError('let s = "sans fin;\n'), contains('chaîne'));
