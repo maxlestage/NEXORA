@@ -13,6 +13,7 @@ struct RepoView: View {
     @State private var section: Part = .files
     @State private var branch: String?
     @State private var branches: [String] = []
+    @State private var showCloud = false
     @Environment(GitHubSession.self) private var github
 
     var body: some View {
@@ -34,34 +35,37 @@ struct RepoView: View {
         .navigationTitle(repo.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // L'agent autonome sur ce dépôt (une session de l'atelier).
+            // L'action principale : l'agent autonome sur ce dépôt (une session de l'atelier).
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     NewSessionView(repo: repo, branch: branch ?? repo.branch)
                 } label: {
                     Image(systemName: "sparkles")
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .accessibilityLabel("Agent autonome")
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CloudAgentsView(repo: repo)
-                } label: {
-                    Image(systemName: "cloud")
-                }
-                .accessibilityLabel("Agents cloud")
-            }
+            // Le reste, plus rare, dans un seul menu : branche, agents cloud, GitHub.
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Picker("Branche", selection: Binding(get: { branch ?? repo.branch }, set: { branch = $0 })) {
+                    // Menu imbriqué : la branche choisie s'affiche sous « Branche ».
+                    Picker("Branche", systemImage: "arrow.triangle.branch",
+                           selection: Binding(get: { branch ?? repo.branch }, set: { branch = $0 })) {
                         ForEach(branches.isEmpty ? [repo.branch] : branches, id: \.self) { Text($0).tag($0) }
                     }
-                    Link(destination: URL(string: repo.htmlUrl)!) { Label("Ouvrir sur GitHub", systemImage: "safari") }
+                    .pickerStyle(.menu)
+                    Button("Agents cloud", systemImage: "cloud") { showCloud = true }
+                    if let url = URL(string: repo.htmlUrl) {
+                        Link(destination: url) { Label("Ouvrir sur GitHub", systemImage: "safari") }
+                    }
                 } label: {
-                    Label(branch ?? repo.branch, systemImage: "arrow.triangle.branch")
+                    Image(systemName: "ellipsis.circle")
+                        .frame(minWidth: 44, minHeight: 44)
                 }
+                .accessibilityLabel("Plus d'options, branche \(branch ?? repo.branch)")
             }
         }
+        .navigationDestination(isPresented: $showCloud) { CloudAgentsView(repo: repo) }
         .task { branches = (try? await github.api.branches(repo.owner.login, repo.name)) ?? [] }
     }
 }
@@ -80,7 +84,6 @@ struct FileBrowserView: View {
 
     var body: some View {
         List {
-            if let error { Text(error).foregroundStyle(Theme.red) }
             ForEach(items) { item in
                 NavigationLink {
                     if item.isDir {
@@ -101,9 +104,42 @@ struct FileBrowserView: View {
                     }
                 }
             }
+            if !items.isEmpty {
+                Text(FilesDisplay.summary(items))
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .listRowSeparator(.hidden)
+            }
         }
         .listStyle(.plain)
-        .overlay { if loading { ProgressView() } }
+        .overlay {
+            if loading && items.isEmpty {
+                ProgressView()
+            } else if let error, items.isEmpty {
+                ContentUnavailableView {
+                    Label("Chargement impossible", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Réessayer") { Task { await load() } }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if !loading && items.isEmpty {
+                ContentUnavailableView {
+                    Label("Dossier vide", systemImage: "folder")
+                } actions: {
+                    Button("Nouveau fichier", systemImage: "doc.badge.plus") { newFile = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let error, !items.isEmpty {
+                Text(error).font(.footnote).foregroundStyle(Theme.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal).padding(.vertical, 6)
+            }
+        }
         .refreshable { await load() }
         .task(id: branch) { await load() }
         .toolbar {
@@ -122,7 +158,8 @@ struct FileBrowserView: View {
         loading = true
         defer { loading = false }
         do {
-            items = try await github.api.list(repo.owner.login, repo.name, path: path, ref: branch)
+            let list = try await github.api.list(repo.owner.login, repo.name, path: path, ref: branch)
+            items = FilesDisplay.sorted(list)
             error = nil
         } catch {
             self.error = error.localizedDescription

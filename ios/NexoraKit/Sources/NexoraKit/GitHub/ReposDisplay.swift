@@ -28,3 +28,27 @@ public enum ReposDisplay {
         return f.date(from: s)
     }
 }
+
+/// Logique d'affichage des fichiers d'un dépôt (fiche d'un dépôt), testable sous Linux.
+public enum FilesDisplay {
+    /// Dossiers d'abord, puis fichiers ; dans chaque groupe, ordre naturel sans casse
+    /// (« fichier2 » avant « fichier10 »).
+    public static func sorted(_ items: [ContentItem]) -> [ContentItem] {
+        items.sorted { a, b in
+            if a.isDir != b.isDir { return a.isDir }
+            let r = a.name.compare(b.name, options: [.caseInsensitive, .numeric])
+            return r == .orderedSame ? a.name < b.name : r == .orderedAscending
+        }
+    }
+
+    /// Le résumé d'un dossier, lu aussi par VoiceOver : « 2 dossiers · 1 fichier ».
+    /// Vide si le dossier est vide.
+    public static func summary(_ items: [ContentItem]) -> String {
+        let dirs = items.filter(\.isDir).count
+        let files = items.count - dirs
+        var parts: [String] = []
+        if dirs > 0 { parts.append(dirs == 1 ? "1 dossier" : "\(dirs) dossiers") }
+        if files > 0 { parts.append(files == 1 ? "1 fichier" : "\(files) fichiers") }
+        return parts.joined(separator: " · ")
+    }
+}

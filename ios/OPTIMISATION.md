@@ -88,8 +88,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Remarque : les chats n'appellent pas de modèle pour les titres (`quickTitle` local) ;
   piste « modèle moins cher pour titres » sans objet côté chat.
 
-## Prochain passage : INTERFACE
-Fiche d'un dépôt (RepoView), puis Modèles, Réglages. Tokens ensuite : résumé des vieux
+- 3.0.17 (interface) : fiche d'un dépôt (RepoView) — barre du haut 3 boutons → 2
+  (Agent autonome bien visible ; menu « … » : branche en sous-menu qui affiche la branche
+  choisie, Agents cloud, Ouvrir sur GitHub ; cibles 44 pt) ; `FilesDisplay.sorted`
+  (dossiers d'abord, ordre naturel sans casse) et `FilesDisplay.summary` (« 2 dossiers ·
+  1 fichier » en bas de liste) ; états vides « Dossier vide » (bouton Nouveau fichier) et
+  « Chargement impossible » (Réessayer) ; erreur en bandeau si la liste est déjà là.
+  Tests : 363 → 365.
+
+## Prochain passage : TOKENS
+Puis interface : Modèles, Réglages, éditeur de fichier (FileEditorView). Tokens : résumé des vieux
 messages du chat au moment d'une coupure par paquets ; modèle moins cher pour les
 sous-agents / traductions internes (`askOnce`) si réglage.
 
