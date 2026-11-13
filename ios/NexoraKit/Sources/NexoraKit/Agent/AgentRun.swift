@@ -906,17 +906,83 @@ public final class AgentRun {
     /// est encore plus haut dans l'historique : on ne renvoie pas tout le contenu une
     /// seconde fois, un renvoi court suffit. Dès que l'ancien résultat a été raccourci
     /// (`compactHistory`), le contenu repart en entier.
-    public nonisolated static func dedupResults(_ results: [String], history: [LLMMessage]) -> [String] {
+    /// `diffs` : un fichier relu après une petite modification (moins de 30 % de ses
+    /// lignes) ne renvoie que les passages changés, en diff unifié (3.0.41).
+    public nonisolated static func dedupResults(_ results: [String], history: [LLMMessage], diffs: Bool = true) -> [String] {
         let earlier = history.filter { $0.role == "user" && $0.content.hasPrefix("Résultat de ") }.map(\.content)
         if earlier.isEmpty { return results }
         return results.map { r in
             guard let cut = r.range(of: " :\n") else { return r }
+            let head = String(r[..<cut.upperBound])
             let body = String(r[cut.upperBound...])
-            if body.count <= dedupMin || !earlier.contains(where: { $0.contains(body) }) { return r }
-            return String(r[..<cut.upperBound])
-                + "(identique au résultat déjà donné plus haut, rien n'a changé depuis : "
-                + "sers-toi de celui-là)"
+            if body.count <= dedupMin { return r }
+            if earlier.contains(where: { $0.contains(body) }) {
+                return head + "(identique au résultat déjà donné plus haut, rien n'a changé depuis : "
+                    + "sers-toi de celui-là)"
+            }
+            guard diffs, head.hasPrefix("Résultat de read_file"),
+                  let changed = changedOnly(body, earlier: earlier) else { return r }
+            return head + changed
         }
+    }
+
+    /// Le début d'un fichier relu donné seulement par ses changements.
+    nonisolated static let changedMark = "(déjà lu plus haut ; depuis, seuls ces passages ont changé — "
+        + "diff unifié : « - » ancienne ligne, « + » nouvelle, numéros de ligne après @@ ; "
+        + "tout le reste est identique à la lecture d'avant)\n"
+
+    /// Les contenus de résultats encore complets d'un message de l'historique (sans
+    /// le rappel ni les renvois courts ou raccourcis).
+    nonisolated static func resultBodies(_ message: String) -> [String] {
+        var text = message
+        if let at = text.range(of: reminderMark) { text = String(text[..<at.lowerBound]) }
+        return ("\n\n" + text).components(separatedBy: "\n\nRésultat de ").compactMap { part in
+            guard let c = part.range(of: " :\n") else { return nil }
+            let b = String(part[c.upperBound...])
+            if b.count <= dedupMin || b.hasPrefix("(identique") || b.hasPrefix(changedMark)
+                || b.contains("\n… (ancien résultat raccourci") { return nil }
+            return b
+        }
+    }
+
+    /// Un fichier relu qui ne diffère que de peu d'une lecture encore complète plus
+    /// haut (les plus récentes d'abord, 8 au plus) : seulement ses passages changés,
+    /// avec 2 lignes autour. `nil` si le diff n'est pas au moins 2 fois plus court.
+    nonisolated static func changedOnly(_ body: String, earlier: [String]) -> String? {
+        let lines = body.dsplit("\n")
+        if lines.count < 20 { return nil }
+        var tried = 0
+        for m in earlier.reversed() {
+            for old in resultBodies(m).reversed() {
+                tried += 1
+                if tried > 8 { return nil }
+                // Tri rapide : la plupart des lignes doivent déjà être là.
+                let known = Set(old.dsplit("\n"))
+                if lines.filter({ known.contains($0) }).count * 10 < lines.count * 7 { continue }
+                let d = lineDiff(old, body)
+                let changed = d.added + d.removed
+                if d.truncated || changed == 0 || changed * 10 > lines.count * 3 { continue }
+                let text = unifiedDiff(d.lines)
+                if text.count * 2 > body.count { continue }
+                return changedMark + text
+            }
+        }
+        return nil
+    }
+
+    /// Un diff unifié (« @@ -a,n +b,m @@ » puis les lignes « », « - », « + »).
+    nonisolated static func unifiedDiff(_ lines: [DiffLine], context: Int = 2) -> String {
+        var hunks: [[DiffLine]] = [[]]
+        for l in withContext(lines, context: context) {
+            if let l { hunks[hunks.count - 1].append(l) } else if !hunks[hunks.count - 1].isEmpty { hunks.append([]) }
+        }
+        return hunks.filter { $0.contains { $0.kind != .same } }.map { h in
+            let olds = h.compactMap(\.oldNo), news = h.compactMap(\.newNo)
+            let head = "@@ -\(olds.first ?? 0),\(olds.count) +\(news.first ?? 0),\(news.count) @@"
+            return ([head] + h.map { l in
+                (l.kind == .same ? " " : l.kind == .removed ? "-" : "+") + l.text
+            }).joined(separator: "\n")
+        }.joined(separator: "\n")
     }
 
     // MARK: - Instructions
