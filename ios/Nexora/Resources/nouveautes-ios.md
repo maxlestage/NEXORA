@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.21 — 13 novembre 2026 — Onglet Modèles plus clair
+
+- Nouveau : recherche des fournisseurs par nom ou description.
+- Amélioré : les fournisseurs prêts s'affichent en premier, les filtres indiquent leur nombre (« Prêts · 3 »).
+- Amélioré : étiquettes plus courtes, aide « Où trouver une clé ? » en bas de la liste, message clair quand un filtre est vide.
+
 ## 3.0.20 — 12 novembre 2026 — Agent un peu plus économe
 
 - Amélioré : les longues sessions de l'agent envoient environ 3 % de tokens en moins (la demande qu'il se répète n'est plus renvoyée dans ses anciennes réponses).

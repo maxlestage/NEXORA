@@ -7,29 +7,23 @@ struct ProvidersView: View {
     @Environment(SettingsStore.self) private var settings
     @State private var path: [String] = []
     @State private var filter = "all"
+    @State private var query = ""
     @State private var adding = false
 
-    private static let filters = [("all", "Tous"), ("free", "🆓 Gratuits"), ("ready", "✅ Configurés"), ("local", "🏠 Locaux")]
-
     private var list: [ProviderDef] {
-        settings.providers.filter { p in
-            switch filter {
-            case "free": p.free
-            case "local": p.local || p.custom
-            case "ready": settings.isReady(p)
-            default: true
-            }
-        }
+        ProvidersDisplay.filter(settings.providers, filter: filter, query: query, isReady: { settings.isReady($0) })
     }
 
     var body: some View {
         let def = settings.resolve(settings.defaultModel)
+        let shown = list
+        let byId = Dictionary(shown.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         NavigationStack(path: $path) {
             List {
                 Section {
                     GlassCard(glow: Theme.violet) {
                         HStack(spacing: 12) {
-                            Text("⭐").font(.system(size: 26))
+                            Text("⭐").font(.system(size: 26)).accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Modèle par défaut").font(.caption)
                                 Text(def.model).font(.callout.monospaced().weight(.bold)).lineLimit(1)
@@ -43,41 +37,67 @@ struct ProvidersView: View {
                                 Text("prêts").font(.caption2)
                             }
                         }
+                        .accessibilityElement(children: .combine)
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .listRowBackground(Color.clear)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(Self.filters, id: \.0) { key, label in
-                                Button(label) { filter = key }
-                                    .buttonStyle(.bordered)
-                                    .buttonBorderShape(.capsule)
-                                    .tint(filter == key ? Theme.accent(settings.accent) : .secondary)
-                                    .accessibilityAddTraits(filter == key ? .isSelected : [])
+                            ForEach(ProvidersDisplay.filters, id: \.key) { f in
+                                Button(ProvidersDisplay.filterLabel(f.key, label: f.label, providers: settings.providers, isReady: { settings.isReady($0) })) {
+                                    filter = f.key
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.capsule)
+                                .frame(minHeight: 44)
+                                .tint(filter == f.key ? Theme.accent(settings.accent) : .secondary)
+                                .accessibilityAddTraits(filter == f.key ? .isSelected : [])
                             }
                         }
                     }
                     .listRowBackground(Color.clear)
                 }
+                ForEach(ProvidersDisplay.sections(shown, isReady: { settings.isReady($0) }), id: \.title) { section in
+                    Section {
+                        ForEach(Array(section.ids.enumerated()), id: \.element) { i, id in
+                            if let p = byId[id] {
+                                NavigationLink(value: p.id) { row(p) }
+                                    .reveal(i)
+                            }
+                        }
+                    } header: {
+                        if !section.title.isEmpty { Text(section.title) }
+                    }
+                }
                 Section {
-                    ForEach(Array(list.enumerated()), id: \.element.id) { i, p in
-                        NavigationLink(value: p.id) { row(p) }
-                            .reveal(i)
+                    NavigationLink {
+                        HelpView(initialSection: "Clés et modèles")
+                    } label: {
+                        Label("Où trouver une clé ?", systemImage: "questionmark.circle")
+                    }
+                }
+            }
+            .overlay {
+                if shown.isEmpty {
+                    if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        ContentUnavailableView {
+                            Label("Aucun fournisseur", systemImage: "cpu")
+                        } description: {
+                            Text("Aucun fournisseur dans ce filtre.")
+                        } actions: {
+                            Button("Voir tous") { filter = "all" }
+                                .buttonStyle(.borderedProminent)
+                        }
+                    } else {
+                        ContentUnavailableView.search(text: query)
                     }
                 }
             }
             .navigationTitle("Modèles & fournisseurs")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, prompt: "Nom ou description")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        HelpView(initialSection: "Clés et modèles")
-                    } label: {
-                        Image(systemName: "questionmark.circle")
-                    }
-                    .accessibilityLabel("Aide")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button("Serveur perso", systemImage: "link.badge.plus") { adding = true }
                 }
             }
@@ -91,25 +111,28 @@ struct ProvidersView: View {
     }
 
     private func row(_ p: ProviderDef) -> some View {
-        HStack(spacing: 12) {
+        let ready = settings.isReady(p)
+        let tags = ProvidersDisplay.tags(p)
+        return HStack(spacing: 12) {
             EmojiAvatar(p.emoji, color: Theme.color(p))
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.name).font(.subheadline.weight(.heavy)).lineLimit(1)
-                Text(p.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                HStack(spacing: 6) {
-                    if p.free { Pill(text: "gratuit", color: Theme.green) }
-                    if !p.needsKey { Pill(text: "sans clé", color: Theme.accent(settings.accent)) }
-                    if p.local { Pill(text: "local", color: Theme.amber) }
-                    if settings.isReady(p) {
-                        Pill(text: "prêt", color: Theme.violet, systemImage: "checkmark")
-                    } else {
-                        Pill(text: "clé requise", color: .gray)
+                if !p.description.isEmpty {
+                    Text(p.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+                if !tags.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(tags, id: \.self) { t in
+                            Pill(text: t, color: t == "gratuit" ? Theme.green : t == "local" ? Theme.amber : Theme.accent(settings.accent))
+                        }
                     }
                 }
-                if settings.isReady(p) { QuotaBadge(providerId: p.id, dense: true) }
+                if ready { QuotaBadge(providerId: p.id, dense: true) }
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ProvidersDisplay.accessibility(p, ready: ready))
     }
 }
 
