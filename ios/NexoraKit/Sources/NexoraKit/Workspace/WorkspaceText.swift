@@ -171,9 +171,10 @@ public enum WorkspaceText {
         }
     }
 
-    /// « 3 fichier(s) · +12 −3 · 1 refusé(s) » (la carte des brouillons).
+    /// « 3 fichiers · +12 −3 · 1 refusé » (la carte des brouillons).
     public static func draftsSummary(files: Int, added: Int, removed: Int, rejected: Int) -> String {
-        "\(files) fichier(s) · +\(added) −\(removed)" + (rejected == 0 ? "" : " · \(rejected) refusé(s)")
+        "\(files) fichier\(files > 1 ? "s" : "") · +\(added) −\(removed)"
+            + (rejected == 0 ? "" : " · \(rejected) refusé\(rejected > 1 ? "s" : "")")
     }
 
     /// Le bouton de la revue des brouillons.

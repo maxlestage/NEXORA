@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.40 — 13 novembre 2026 — Valider les brouillons plus simplement
+
+- Nouveau : un bouton « Tout cocher / Tout décocher » directement dans la barre (avant caché dans un menu).
+- Nouveau : balayez un fichier vers la droite pour le cocher ou le décocher ; la case est plus facile à toucher.
+- Amélioré : explication plus courte, phrase claire quand rien n'est coché, vibration après l'envoi.
+- Corrigé : pluriels justes (« 1 fichier », « 3 brouillons ») et lecture VoiceOver de chaque fichier d'un trait.
+
 ## 3.0.39 — 13 novembre 2026 — Journaux de CI plus légers pour l'agent
 
 - Amélioré : quand l'agent lit un journal de CI en échec, une suite de messages identiques (même avertissement dans 49 fichiers) tient en une ligne avec la liste des fichiers : environ 65 % de tokens en moins sur un vrai journal.

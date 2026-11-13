@@ -808,7 +808,8 @@ struct DraftsTests {
         #expect(WorkspaceText.header(.done, actions: 0, added: 0, removed: 0) == "Terminé · 0 actions")
         #expect(WorkspaceText.tileSubtitle(.running, reposLabel: "site") == "site · En cours")
         #expect(WorkspaceText.tileSubtitle(.review, reposLabel: "site") == "En attente de votre validation")
-        #expect(WorkspaceText.draftsSummary(files: 3, added: 1, removed: 2, rejected: 1) == "3 fichier(s) · +1 −2 · 1 refusé(s)")
+        #expect(WorkspaceText.draftsSummary(files: 3, added: 1, removed: 2, rejected: 1) == "3 fichiers · +1 −2 · 1 refusé")
+        #expect(WorkspaceText.draftsSummary(files: 1, added: 0, removed: 4, rejected: 2) == "1 fichier · +0 −4 · 2 refusés")
         #expect(WorkspaceText.routinesBanner(active: 2, total: 3) == "2 actives sur 3")
         #expect(WorkspaceText.routinesBanner(active: 0, total: 0) == "Relancer une mission toute seule, à intervalle régulier")
     }
