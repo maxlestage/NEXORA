@@ -6,6 +6,7 @@ import SwiftUI
 struct UsageView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(UsageStore.self) private var usage
+    @Environment(AppNavigation.self) private var navigation: AppNavigation?
     @State private var sheet: QuotaSheetID?
 
     var body: some View {
@@ -18,36 +19,48 @@ struct UsageView: View {
             t.tokens += u.tokensToday
         }
         List {
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Dépense estimée").font(.subheadline.weight(.semibold))
-                    Text("≈ \(UsageFormat.costLabel(totals.month)) ce mois-ci")
-                        .font(.title2.weight(.heavy))
-                    Text("Aujourd'hui : ≈ \(UsageFormat.costLabel(totals.today)) · \(totals.requests) requête(s) · \(UsageFormat.compact(totals.tokens)) tokens")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section("Par fournisseur") {
-                if list.isEmpty {
-                    Text("Aucun fournisseur payant configuré. Ajoutez une clé dans l'onglet Modèles : son crédit apparaîtra ici.")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(list) { p in
-                    Button {
-                        sheet = QuotaSheetID(id: p.id)
-                    } label: {
-                        ProviderUsageRow(provider: p, usage: usage.of(p.id))
+            if list.isEmpty {
+                // État vide : une seule action, ajouter une clé dans Modèles.
+                ContentUnavailableView {
+                    Label("Aucun fournisseur payant", systemImage: "creditcard")
+                } description: {
+                    Text("Ajoutez une clé dans Modèles : son crédit et sa dépense s'afficheront ici.")
+                } actions: {
+                    Button("Ouvrir Modèles") {
+                        navigation?.tab = .models
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderedProminent)
+                    .frame(minHeight: 44)
                 }
-            }
+                .listRowBackground(Color.clear)
+            } else {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Dépense estimée").font(.subheadline.weight(.semibold))
+                        Text("≈ \(UsageFormat.costLabel(totals.month)) ce mois-ci")
+                            .font(.title2.weight(.heavy))
+                        Text(UsageDisplay.todayLine(cost: totals.today, requests: totals.requests, tokens: totals.tokens))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
+                }
 
-            Section {
-            } footer: {
-                Text("Touchez un fournisseur pour le détail : solde, limites, dépense, et « Indiquer mon solde » pour ceux qui ne le donnent pas par l'API (Anthropic, OpenAI, Mistral…). Le coût de chaque réponse s'affiche aussi sous le message, et le total en haut de chaque conversation.")
+                Section {
+                    ForEach(list) { p in
+                        Button {
+                            sheet = QuotaSheetID(id: p.id)
+                        } label: {
+                            ProviderUsageRow(provider: p, usage: usage.of(p.id))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text("Par fournisseur")
+                } footer: {
+                    Text("Touchez un fournisseur pour son solde, ses limites et « Indiquer mon solde ». Le coût de chaque réponse s'affiche aussi sous le message.")
+                }
             }
         }
         .navigationTitle("Crédits et consommation")
@@ -98,7 +111,13 @@ struct ProviderUsageRow: View {
             }
         }
         .padding(.vertical, 4)
+        .frame(minHeight: 44)
         .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(UsageDisplay.rowAccessibility(
+            name: p.name, summary: UsageText.summary(p, u, now: now), month: u.costMonth))
+        .accessibilityHint("Ouvrir le détail")
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -111,10 +130,9 @@ struct UsageSettingsRow: View {
     var body: some View {
         let list = usage.tracked(settings)
         let month = list.reduce(0.0) { $0 + usage.of($1.id).costMonth }
-        let names: [String] = list.prefix(2).map { "\($0.name) : \(UsageText.summary($0, usage.of($0.id)))" }
-        let detail: String = list.isEmpty
-            ? "Le crédit de vos fournisseurs apparaîtra ici"
-            : "≈ \(UsageFormat.costLabel(month)) ce mois · " + names.joined(separator: " · ")
+        let detail = UsageDisplay.settingsDetail(
+            month: month,
+            summaries: list.prefix(2).map { (name: $0.name, summary: UsageText.summary($0, usage.of($0.id))) })
         NavigationLink {
             UsageView()
         } label: {
