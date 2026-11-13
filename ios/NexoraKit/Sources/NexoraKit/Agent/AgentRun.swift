@@ -709,8 +709,9 @@ public final class AgentRun {
         return parts.joined(separator: "\n\n")
     }
 
-    /// Résultats d'outils gardés en entier (les plus récents).
-    public nonisolated static let keepFullResults = 8
+    /// Longs résultats d'outils gardés en entier (les plus récents ; les courtes
+    /// confirmations ne comptent pas). Avec les paquets, 6 à 9 restent complets.
+    public nonisolated static let keepFullResults = 6
 
     /// Raccourcissements regroupés : l'historique n'est raccourci que lorsque ce
     /// nombre de messages au moins peut l'être. Entre deux paquets, le début de la
@@ -736,9 +737,9 @@ public final class AgentRun {
                     if turns > 4 && m.content.len > 1500 && block.allMatches(m.content).contains(where: {
                         ($0[2] ?? "").len > 400 && $0[1] != "json"
                     }) { due += 1 }
-                } else if m.role == "user" && m.content.hasPrefix("Résultat de ") {
+                } else if m.role == "user" && m.content.hasPrefix("Résultat de ") && m.content.len > 600 {
                     seen += 1
-                    if seen > keep && m.content.len > 600 { due += 1 }
+                    if seen > keep { due += 1 }
                 }
             }
             if due < batch { return }
@@ -774,6 +775,7 @@ public final class AgentRun {
         }
         let dropOld = batch == 0 ? deepDue > 0 : deepDue >= deepBatch
         seen = 0
+        var full = 0
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = history[i]
             if m.role != "user" || !m.content.hasPrefix("Résultat de ") { continue }
@@ -782,7 +784,11 @@ public final class AgentRun {
                 history[i] = LLMMessage("user", String(m.content[..<cut.upperBound]) + droppedNote)
                 continue
             }
-            if seen <= keep || m.content.len <= 600 { continue }
+            // Seuls les longs résultats (fichiers lus, recherches) comptent : une courte
+            // confirmation (« fichier écrit ») ne prend pas la place d'un fichier lu.
+            if m.content.len <= 600 { continue }
+            full += 1
+            if full <= keep { continue }
             history[i] = LLMMessage(
                 "user",
                 m.content.sub(0, 400) + "\n… (ancien résultat raccourci : \(m.content.len) caractères, relis le fichier si besoin)"
@@ -790,10 +796,11 @@ public final class AgentRun {
         }
     }
 
-    /// Résultats raccourcis (400 caractères) gardés après les `keepFullResults` complets ;
-    /// au-delà, seul le titre du résultat reste (l'action qui l'a produit est dans la
+    /// Avec `keepFullResults`, le nombre de derniers résultats (longs ou courts) jamais
+    /// réduits à leur titre (6 + 10 = 16) ; les plus vieux longs résultats parmi eux
+    /// sont raccourcis à 400 caractères. Au-delà, seul le titre du résultat reste (l'action qui l'a produit est dans la
     /// réponse juste au-dessus).
-    public nonisolated static let keepBriefResults = 8
+    public nonisolated static let keepBriefResults = 10
 
     /// Les très vieux résultats ne sont réduits à leur titre que par paquets de cette taille.
     public nonisolated static let deepBatch = 24
