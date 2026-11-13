@@ -26,6 +26,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.22 (réflexions des réponses de plus de 4 tours raccourcies à 120 car.) | 479 757 (−4,1 %) | 121 144 (−1,6 %) | 187 291 (−2,2 %) | 300 450 (−3,6 %) |
 | 3.0.23, 80 étapes (`steps: 80`, nouvelle ligne du banc) | 1 238 154 | 238 863 | 398 508 | 738 509 |
 | 3.0.24, 80 étapes (résultats de plus de 16 étapes réduits à leur titre, paquets de 24) | 1 145 446 (−7,5 %) | 245 195 (+2,7 %) | 396 518 (−0,5 %) | 695 320 (−5,8 %) |
+| 3.0.26, 40 étapes (6 longs résultats complets, les courts ne comptent pas) | 468 828 (−2,3 %) | 116 876 (−3,5 %) | 181 290 (−3,2 %) | 292 852 (−2,5 %) |
+| 3.0.26, 80 étapes | 1 122 896 (−2,0 %) | 235 603 (−3,9 %) | 383 233 (−3,4 %) | 679 249 (−2,3 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -161,10 +163,19 @@ mémoire 32k tokens, consigne 3 000 car.
   toutes les conversations (avant : rien) ; bouton Recalculer et Déconnexion 44 pt.
   Tests : 375 → 378.
 
-## Prochain passage : TOKENS
-Résumé des vieux messages du chat à la coupure ; modèle moins cher pour `askOnce` si
-réglage ; `keepFullResults` = 6 (mesurer avec relecture, risque de qualité).
-Interface ensuite : Personnaliser, puis accueil.
+- 3.0.26 (tokens) : `compactHistory` — seuls les longs résultats (> 600 car. : fichiers
+  lus, recherches) comptent pour `keepFullResults`, ramené de 8 à 6 (6 à 9 complets avec
+  les paquets) ; une confirmation courte ou un renvoi « identique » ne prend plus la place
+  d'un fichier lu. `keepBriefResults` 8 → 10 : la limite des titres seuls reste à 16
+  résultats. Essai `keepFullResults` = 6 en comptant tout : −10 % envoyés, mais perte de
+  contexte (les confirmations prennent des places) ; écarté. Consigne réelle de l'agent
+  mesurée : 7 234 caractères (banc : 6 000, représentatif). Tests : 378 (test ajouté au
+  banc, AgentAuditTests lit la constante).
+
+## Prochain passage : INTERFACE
+Personnaliser, puis accueil. Tokens ensuite : résumé des vieux messages du chat à la
+coupure ; modèle moins cher pour `askOnce` (traduction NEXORA) si réglage ; retirer les
+relances « réponse vide » de l'historique après la réponse (gain faible, sans risque).
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.

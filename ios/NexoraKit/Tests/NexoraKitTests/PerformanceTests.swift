@@ -426,6 +426,18 @@ struct TokenBench {
             #expect(full.count >= min(i + 1, AgentRun.keepFullResults))
             #expect(full.count < AgentRun.keepFullResults + AgentRun.compactBatch)
         }
+        // Une courte confirmation (fichier écrit) ne prend pas la place d'un fichier lu.
+        var mixed = [LLMMessage("user", "Tâche")]
+        for i in 0..<12 {
+            mixed.append(LLMMessage("assistant", "{\"tool\":\"read_file\"}"))
+            mixed.append(LLMMessage("user", "Résultat de read_file \(i) :\n" + String(repeating: "z", count: 5000)))
+            mixed.append(LLMMessage("assistant", "{\"tool\":\"edit_file\"}"))
+            mixed.append(LLMMessage("user", "Résultat de edit_file :\nok"))
+            AgentRun.compactHistory(&mixed, batch: AgentRun.compactBatch)
+            let full = mixed.filter { $0.content.hasPrefix("Résultat de read_file") && $0.content.count > 5000 }
+            #expect(full.count >= min(i + 1, AgentRun.keepFullResults))
+        }
+        #expect(mixed.filter { $0.content == "Résultat de edit_file :\nok" }.count == 12)
         // Très vieux résultats : seul le titre reste, par paquets de `deepBatch`.
         var aged = [LLMMessage("user", "Tâche")]
         var drops: [Int] = []

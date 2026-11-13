@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.26 — 13 novembre 2026 — Agent un peu plus économe
+
+- Amélioré : les sessions de l'agent coûtent environ 3 % de tokens en moins.
+- Les petites confirmations (« fichier écrit ») ne chassent plus de l'historique un fichier que l'agent vient de lire : il garde les fichiers utiles en entier.
+
 ## 3.0.25 — 13 novembre 2026 — Réglages plus simples
 - Amélioré : les actions irréversibles (tout effacer, tout réinitialiser) sont rangées tout en bas.
 - Amélioré : le Client ID GitHub, réglage rare, passe dans « Avancé ».

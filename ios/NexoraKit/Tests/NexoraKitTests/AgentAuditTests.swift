@@ -168,8 +168,9 @@ struct AgentAuditTests {
         }
         AgentRun.compactHistory(&history)
         let results = history.filter { $0.content.hasPrefix("Résultat de") }
-        #expect(results.prefix(4).allSatisfy { $0.content.len < 600 })
-        #expect(results.dropFirst(4).allSatisfy { $0.content.len > 5000 })
+        let old = 12 - AgentRun.keepFullResults
+        #expect(results.prefix(old).allSatisfy { $0.content.len < 600 })
+        #expect(results.dropFirst(old).allSatisfy { $0.content.len > 5000 })
     }
 
     @Test("après la bascule, les dépenses vont au modèle qui a répondu, l'erreur à celui qui a échoué")
