@@ -32,6 +32,9 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.28, 80 étapes avec relances (anciennes relances retirées) | 1 237 011 (−1,2 %) | 254 564 (−0,4 %) | 416 450 (−0,6 %) | 745 787 (−1,1 %) |
 | 3.0.30, 80 étapes (réflexion retirée quand le résultat l'est) | 1 090 900 (−2,8 %) | 234 044 (−0,7 %) | 378 240 (−1,3 %) | 662 472 (−2,5 %) |
 | 3.0.30, 80 étapes avec relances | 1 200 483 (−3,0 %) | 253 039 (−0,6 %) | 411 043 (−1,3 %) | 726 761 (−2,6 %) |
+| 3.0.36, 40 étapes (rappels retirés par paquets de 12 au lieu de 4) | 470 556 (+0,4 %) | 108 140 (−7,5 %) | 171 416 (−5,4 %) | 289 348 (−1,2 %) |
+| 3.0.36, 80 étapes | 1 092 628 (+0,2 %) | 225 308 (−3,7 %) | 368 367 (−2,6 %) | 658 968 (−0,5 %) |
+| 3.0.36, 80 étapes avec relances | 1 203 363 (+0,2 %) | 231 820 (−8,4 %) | 386 929 (−5,9 %) | 717 591 (−1,3 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -259,8 +262,15 @@ mémoire 32k tokens, consigne 3 000 car.
   « brouillon(s) non envoyé(s) » de la liste passe aussi par `deleteWarning`.
   Tests : 392 → 394.
 
-## Prochain passage : TOKENS
-Interface ensuite : écran Agents ou Code/GitHub (session de l'agent revue en 3.0.35).
+- 3.0.36 (tokens) : `AgentRun.reminderBatch` 4 → 12 — les anciens rappels de la
+  demande partent presque toujours avec `compactHistory` (qui change déjà le début de
+  la requête) au lieu de casser le cache à part. Balayage (40 étapes, coût Anthropic) :
+  2 → 198 665, 4 → 181 290, 6 → 178 892, 8 → 181 529, 12 → 171 416. Essais écartés :
+  `compactBatch` 5 (+4 % Anthropic) et 8 (Anthropic −6 % mais OpenAI +7 %, envoyés
+  +12 %). Tests : 394 (inchangés).
+
+## Prochain passage : INTERFACE
+Écran Agents ou Code/GitHub (session de l'agent revue en 3.0.35).
 Tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
 couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
 toute la session) — seulement si un réglage le demande.
