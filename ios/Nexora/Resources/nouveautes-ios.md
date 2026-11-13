@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.41 — 13 novembre 2026 — Relectures de fichiers plus légères pour l'agent
+- Amélioré : quand l'agent relit un fichier qu'il vient de modifier, seuls les passages changés lui sont renvoyés, et non tout le fichier.
+- Amélioré : une session où l'agent relit ses modifications consomme environ 8 % de tokens en moins (11 % de coût en moins avec le cache de prompt).
+- Sans changement : un fichier très modifié, ou différent, repart en entier.
+
 ## 3.0.40 — 13 novembre 2026 — Valider les brouillons plus simplement
 
 - Nouveau : un bouton « Tout cocher / Tout décocher » directement dans la barre (avant caché dans un menu).

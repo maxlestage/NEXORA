@@ -35,6 +35,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.36, 40 étapes (rappels retirés par paquets de 12 au lieu de 4) | 470 556 (+0,4 %) | 108 140 (−7,5 %) | 171 416 (−5,4 %) | 289 348 (−1,2 %) |
 | 3.0.36, 80 étapes | 1 092 628 (+0,2 %) | 225 308 (−3,7 %) | 368 367 (−2,6 %) | 658 968 (−0,5 %) |
 | 3.0.36, 80 étapes avec relances | 1 203 363 (+0,2 %) | 231 820 (−8,4 %) | 386 929 (−5,9 %) | 717 591 (−1,3 %) |
+| 3.0.41, 40 étapes, fichier relu modifié (`edited: true`, nouvelle ligne : relu en entier) | 497 489 | 130 312 | 199 607 | 313 900 |
+| 3.0.41, 40 étapes, fichier relu modifié (relu en diff) | 455 560 (−8,4 %) | 114 043 (−12 %) | 176 706 (−11,5 %) | 284 802 (−9,3 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -306,10 +308,23 @@ mémoire 32k tokens, consigne 3 000 car.
   et `draftsSummary` avec de vrais pluriels (avant « brouillon(s) », « fichier(s) »).
   Tests : 400 → 402.
 
-## Prochain passage : TOKENS
-Interface ensuite : InstallAgentsView (pas encore revu).
+- 3.0.41 (tokens) : `AgentRun.changedOnly` (dans `dedupResults`, `diffs: true`) — un
+  read_file dont le contenu diffère peu (≥ 70 % des lignes connues, changements ≤ 30 %
+  des lignes, fichier ≥ 20 lignes) d'une lecture encore complète plus haut (8 dernières
+  au plus, `resultBodies` : sans rappel, renvois ni résultats raccourcis) ne renvoie que
+  `changedMark` + un diff unifié (`unifiedDiff`, 2 lignes autour, « @@ -a,n +b,m @@ »),
+  seulement s'il est au moins 2× plus court. Recherches et autres outils : inchangés.
+  Lignes du banc sans modification : identiques. Limite connue (comme le renvoi
+  « identique ») : si la lecture de base est raccourcie plus tard, le diff reste seul.
+  Tests : 402 → 403.
+
+## Prochain passage : INTERFACE
+InstallAgentsView (pas encore revu).
 
 ## Pistes tokens à faire
+- Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
+  un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
+  le diff reste sans base ; rare : la base est la plus récente lecture complète).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
   vérifier `foldSimilar` sur des avertissements Swift répétés le jour où il y en a un.
 

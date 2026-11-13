@@ -244,7 +244,10 @@ struct PerformanceTests {
 /// `dedup` : un fichier relu sans changement n'est pas renvoyé en entier (3.0.12) ;
 /// toutes les 5 étapes, l'agent relit le fichier lu deux étapes plus tôt.
 /// `stalls` : toutes les 10 étapes, une réponse sans action et la relance de l'app.
-private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false) -> (sent: Int, uncached: Int) {
+/// `edited` : le fichier relu a été modifié entre-temps (2 lignes sur 100 changées) ;
+/// `diffs` : il n'est renvoyé que par ses changements (3.0.41).
+private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
+                               edited: Bool = false, diffs: Bool = true) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
         + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
@@ -277,8 +280,16 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             + "et la façon dont le menu principal liste ses entrées, pour ajouter la page contact au même endroit "
             + "sans casser la navigation existante.\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
         if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
-        var result = ["Résultat de read_file :\n// f\(file)\n" + String(repeating: "r", count: 4000)]
-        if dedup { result = AgentRun.dedupResults(result, history: history) }
+        var content = String(repeating: "r", count: 4000)
+        if edited {
+            // 100 lignes de 40 caractères ; relu après une petite modification.
+            content = (0..<100).map { i -> String in
+                let line = "    let valeur\(i) = calcule(\(i), dans: f\(file))"
+                return step % 5 == 4 && (i == 10 || i == 50) ? line + " // modifié" : line
+            }.joined(separator: "\n")
+        }
+        var result = ["Résultat de read_file :\n// f\(file)\n" + content]
+        if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs) }
         history.append(LLMMessage("user", result[0] + reminder))
         AgentRun.compactHistory(&history, batch: batch)
         let total = history.reduce(system.count) { $0 + $1.content.count }
@@ -410,6 +421,39 @@ struct TokenBench {
         #expect(Set(starts).count == 12)
     }
 
+    @Test("fichier relu après modification : seulement les passages changés")
+    func rereadDiff() {
+        let base = (1...60).map { "ligne \($0) : let x\($0) = f(\($0))" }
+        var changed = base
+        changed[29] = "ligne 30 : let x30 = g(30)"
+        changed.insert("ligne ajoutée", at: 45)
+        let old = base.joined(separator: "\n")
+        let past = [LLMMessage("user", "Résultat de read_file (a.swift) :\n" + old + AgentRun.reminderMark + "rappel"),
+                    LLMMessage("assistant", "```json\n{\"tool\": \"edit_file\"}\n```")]
+        let r = AgentRun.dedupResults(["Résultat de read_file (a.swift) :\n" + changed.joined(separator: "\n")], history: past)[0]
+        #expect(r.hasPrefix("Résultat de read_file (a.swift) :\n" + AgentRun.changedMark))
+        #expect(r.contains("@@ -28,5 +28,5 @@\n ligne 28 : let x28 = f(28)\n ligne 29 : let x29 = f(29)\n-ligne 30 : let x30 = f(30)\n+ligne 30 : let x30 = g(30)\n"))
+        #expect(r.contains("@@ -44,4 +44,5 @@\n ligne 44 : let x44 = f(44)\n ligne 45 : let x45 = f(45)\n+ligne ajoutée\n ligne 46"))
+        #expect(!r.contains("ligne 10 :"))
+        #expect(r.count * 2 < old.count)
+        // Un autre fichier, trop de changements, ou une recherche : renvoyé en entier.
+        let other = (1...60).map { "autre \($0)" }.joined(separator: "\n")
+        let otherR = "Résultat de read_file (b.swift) :\n" + other
+        #expect(AgentRun.dedupResults([otherR], history: past) == [otherR])
+        var many = base
+        for i in stride(from: 0, to: 60, by: 3) { many[i] += " // changé" }
+        let manyR = "Résultat de read_file (a.swift) :\n" + many.joined(separator: "\n")
+        #expect(AgentRun.dedupResults([manyR], history: past) == [manyR])
+        let search = "Résultat de search_code :\n" + changed.joined(separator: "\n")
+        #expect(AgentRun.dedupResults([search], history: past) == [search])
+        // Une lecture déjà donnée en diff ne sert pas de base.
+        let diffOnly = [LLMMessage("user", r)]
+        let again = "Résultat de read_file (a.swift) :\n" + changed.joined(separator: "\n")
+        #expect(AgentRun.dedupResults([again], history: diffOnly) == [again])
+        // Désactivé : renvoyé en entier.
+        #expect(AgentRun.dedupResults([again], history: past, diffs: false) == [again])
+    }
+
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)
@@ -435,6 +479,16 @@ struct TokenBench {
         // Rappel laissé en place par paquets : moins cher avec cache.
         #expect(anthropic(grouped) < anthropic(before))
         #expect(openai(grouped) < openai(before))
+        // Fichier relu après une petite modification : seulement ses changements (3.0.41).
+        let editedFull = agentSessionChars(batch: AgentRun.compactBatch, edited: true, diffs: false)
+        let editedDiff = agentSessionChars(batch: AgentRun.compactBatch, edited: true)
+        for (name, r) in [("fichiers modifiés relus en entier", editedFull), ("fichiers modifiés relus en diff", editedDiff)] {
+            print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        #expect(editedDiff.sent < editedFull.sent)
+        #expect(anthropic(editedDiff) < anthropic(editedFull))
+        #expect(openai(editedDiff) < openai(editedFull))
         // Fichier relu sans changement : pas renvoyé en entier.
         #expect(grouped.sent < resent.sent)
         #expect(anthropic(grouped) < anthropic(resent))
