@@ -192,8 +192,18 @@ mémoire 32k tokens, consigne 3 000 car.
   gardées : elles portent une consigne. Lignes du banc sans relance inchangées. Tests :
   380 → 381.
 
-## Prochain passage : INTERFACE (accueil)
-Puis tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
+- 3.0.29 (interface) : accueil (onglet Chat) — `ChatDisplay.homeSubtitle` (singulier
+  « 1 fournisseur prêt », invitation « ajoutez un fournisseur dans Modèles » quand aucun
+  n'est prêt ; avant : « 1 fournisseurs prêts ») ; ligne du modèle touchable (44 pt) →
+  onglet Modèles ; `showStarters` : départs rapides rangés dès `startersUntil` = 5
+  conversations (la liste remonte d'environ une rangée de cartes), et `ideas(nil)` reprend
+  4 de ces départs dans un chat vide (rien de perdu) ; logo du chat vide 200 → 150 pt.
+  Tests : 381 → 382.
+
+## Prochain passage : TOKENS
+Résumé des vieux messages du chat à la coupure, puis interface : session de l'agent
+(revoir depuis 3.0.9) ou Routines / Nouvelle session.
+Ensuite tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
 paquets, `keepAfterTrim`) ; modèle moins cher pour `askOnce` jugé risqué (la traduction
 NEXORA guide toute la session) — seulement si un réglage explicite le demande.
 

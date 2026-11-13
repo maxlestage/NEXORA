@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.29 — 13 novembre 2026 — Accueil plus clair
+- Amélioré : avec 5 conversations ou plus, l'accueil range les idées de départ et vos conversations remontent ; un nouveau chat vide les propose toujours.
+- Nouveau : touchez la ligne du modèle sous le titre pour ouvrir l'onglet Modèles.
+- Corrigé : « 1 fournisseur prêt » au singulier, et une invitation claire quand aucun fournisseur n'est prêt.
+- Amélioré : logo plus petit dans un chat vide, les idées restent visibles au-dessus du clavier.
+
 ## 3.0.28 — 13 novembre 2026 — Relances de l'agent allégées
 
 - Amélioré : quand l'agent a répondu sans agir puis est reparti, l'ancienne relance n'est plus renvoyée au modèle à chaque étape.
