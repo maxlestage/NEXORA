@@ -212,6 +212,8 @@ struct ProviderDetailView: View {
     @State private var progress: Double = -1
     @State private var pullStatus = ""
     @State private var toast: Toast?
+    @State private var modelQuery = ""
+    @State private var showAddress = false
 
     private static let ollamaSuggestions = ["llama3.2", "qwen2.5-coder:7b", "qwen3:8b", "gemma3:4b", "deepseek-r1:8b", "mistral", "phi4-mini", "gpt-oss:20b"]
 
@@ -255,6 +257,7 @@ struct ProviderDetailView: View {
                                 showKey.toggle()
                             } label: {
                                 Image(systemName: showKey ? "eye.slash" : "eye")
+                                    .frame(minWidth: 44, minHeight: 44)
                             }
                             .buttonStyle(.borderless)
                             .accessibilityLabel(showKey ? "Masquer la clé" : "Afficher la clé")
@@ -266,12 +269,6 @@ struct ProviderDetailView: View {
                     }
                 }
                 Section {
-                    TextField("Adresse", text: $url)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                        .font(.callout.monospaced())
-                        .onSubmit { save(p) }
                     Button {
                         Task { await test(p) }
                     } label: {
@@ -279,6 +276,7 @@ struct ProviderDetailView: View {
                             Label("Enregistrer et tester", systemImage: "bolt.fill")
                             if testing { Spacer(); ProgressView() }
                         }
+                        .frame(minHeight: 44)
                     }
                     .disabled(testing)
                     if let result {
@@ -287,6 +285,17 @@ struct ProviderDetailView: View {
                             .foregroundStyle(ok ? Theme.green : Theme.red)
                             .textSelection(.enabled)
                     }
+                } footer: {
+                    Text("Pose une petite question au premier modèle de la liste.")
+                }
+                Section {
+                    if ProviderDetailDisplay.addressInline(p, modified: settings.isModified(p.id)) {
+                        addressField(p)
+                    } else {
+                        DisclosureGroup("Adresse avancée", isExpanded: $showAddress) {
+                            addressField(p)
+                        }
+                    }
                 } header: {
                     Text("Adresse")
                 } footer: {
@@ -294,6 +303,8 @@ struct ProviderDetailView: View {
                         Text(isOllama
                             ? "Sur l'ordinateur : OLLAMA_HOST=0.0.0.0 ollama serve, puis l'adresse IP locale (ex. http://192.168.1.20:11434)."
                             : "Activez l'écoute sur le réseau local dans le serveur.")
+                    } else if !p.custom {
+                        Text("À changer seulement pour passer par un autre serveur.")
                     }
                 }
                 if isOllama && p.local {
@@ -333,7 +344,22 @@ struct ProviderDetailView: View {
                         .disabled(manual.trimmingCharacters(in: .whitespaces).isEmpty)
                         .accessibilityLabel("Ajouter le modèle")
                     }
-                    ForEach(models.prefix(300)) { m in
+                    if ProviderDetailDisplay.showsSearch(count: models.count) {
+                        Label {
+                            TextField("Rechercher un modèle", text: $modelQuery)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        } icon: {
+                            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        }
+                    }
+                    let shown = ProviderDetailDisplay.models(models, query: modelQuery, defaultId: def.providerId == p.id ? def.model : nil)
+                    if shown.isEmpty && !models.isEmpty {
+                        Text("Aucun modèle ne correspond à « \(modelQuery) ».")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(shown.prefix(300)) { m in
                         let isDefault = def == ModelRef(p.id, m.id)
                         Button {
                             settings.defaultModel = ModelRef(p.id, m.id).key
@@ -401,6 +427,15 @@ struct ProviderDetailView: View {
         }
     }
 
+    private func addressField(_ p: ProviderDef) -> some View {
+        TextField("Adresse", text: $url)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
+            .font(.callout.monospaced())
+            .onSubmit { save(p) }
+    }
+
     private func keyPrompt(_ p: ProviderDef) -> String {
         p.usesGitHubToken ? "Facultatif : le jeton de votre connexion GitHub est utilisé" : "Collez votre clé"
     }
@@ -443,9 +478,8 @@ struct ProviderDetailView: View {
             )
             let ms = (ContinuousClock.now - start).components
             let elapsed = ms.seconds * 1000 + ms.attoseconds / 1_000_000_000_000_000
-            let short = answer.count > 80 ? String(answer.prefix(80)) + "…" : answer
             ok = true
-            result = "✅ \(first.id) a répondu en \(elapsed) ms : « \(short) »"
+            result = "✅ " + ProviderDetailDisplay.testSuccess(model: first.id, ms: Int(elapsed), answer: answer)
         } catch {
             ok = false
             let message = error.localizedDescription

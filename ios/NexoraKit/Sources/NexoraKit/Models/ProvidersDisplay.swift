@@ -65,3 +65,43 @@ public enum ProvidersDisplay {
         ([p.name, ready ? "prêt" : "clé requise"] + tags(p)).joined(separator: ", ")
     }
 }
+
+/// Logique d'affichage de la fiche d'un fournisseur (ProviderDetailView), testable sous Linux.
+public enum ProviderDetailDisplay {
+    /// Au-delà de ce nombre de modèles, un champ de recherche est proposé.
+    public static let searchThreshold = 12
+
+    /// Le champ de recherche des modèles est-il utile ?
+    public static func showsSearch(count: Int) -> Bool { count > searchThreshold }
+
+    /// Les modèles qui correspondent à la recherche (id ou détail, sans majuscules ni
+    /// accents), le modèle par défaut en tête ; l'ordre reçu est gardé pour les autres.
+    public static func models(_ list: [ModelInfo], query: String, defaultId: String?) -> [ModelInfo] {
+        let found = list.filter { AgentsDisplay.matches(query, $0.id, $0.detail ?? "") }
+        guard let d = defaultId, let i = found.firstIndex(where: { $0.id == d }), i > 0 else { return found }
+        var out = found
+        out.insert(out.remove(at: i), at: 0)
+        return out
+    }
+
+    /// L'adresse du serveur est-elle affichée d'emblée ? Oui pour un serveur local ou
+    /// perso, ou si elle a été modifiée ; sinon elle est rangée dans « Adresse avancée ».
+    public static func addressInline(_ p: ProviderDef, modified: Bool) -> Bool {
+        p.local || p.custom || modified
+    }
+
+    /// Durée lisible : « 850 ms », « 1,2 s ».
+    public static func duration(ms: Int) -> String {
+        guard ms >= 1000 else { return "\(max(ms, 0)) ms" }
+        let tenths = (ms + 50) / 100
+        return "\(tenths / 10),\(tenths % 10) s"
+    }
+
+    /// Résultat d'un test réussi, en mots simples : « Ça marche : gpt-4o a répondu en 1,2 s (« OK »). »
+    public static func testSuccess(model: String, ms: Int, answer: String) -> String {
+        let a = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let short = a.count > 80 ? String(a.prefix(80)) + "…" : a
+        let said = short.isEmpty ? "" : " (« \(short) »)"
+        return "Ça marche : \(model) a répondu en \(duration(ms: ms))\(said)."
+    }
+}

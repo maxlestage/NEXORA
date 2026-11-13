@@ -44,3 +44,38 @@ struct ProvidersDisplayTests {
         #expect(ProvidersDisplay.accessibility(list[0], ready: true) == "Groq, prêt, gratuit")
     }
 }
+
+@Suite("Fiche d'un fournisseur")
+struct ProviderDetailDisplayTests {
+    private let models = [
+        ModelInfo("gpt-4o", detail: "Polyvalent"), ModelInfo("gpt-4o-mini", free: true),
+        ModelInfo("o3", detail: "Raisonnement poussé"), ModelInfo("llama-3.3-70b"),
+    ]
+
+    @Test func rechercheEtDefautEnTete() {
+        #expect(ProviderDetailDisplay.models(models, query: "", defaultId: "o3").map(\.id)
+                == ["o3", "gpt-4o", "gpt-4o-mini", "llama-3.3-70b"])
+        #expect(ProviderDetailDisplay.models(models, query: "MINI", defaultId: nil).map(\.id) == ["gpt-4o-mini"])
+        #expect(ProviderDetailDisplay.models(models, query: "pousse", defaultId: "gpt-4o").map(\.id) == ["o3"])
+        #expect(ProviderDetailDisplay.models(models, query: "zzz", defaultId: "o3").isEmpty)
+        #expect(ProviderDetailDisplay.models(models, query: "gpt", defaultId: "absent").map(\.id) == ["gpt-4o", "gpt-4o-mini"])
+        #expect(!ProviderDetailDisplay.showsSearch(count: 12))
+        #expect(ProviderDetailDisplay.showsSearch(count: 13))
+    }
+
+    @Test func adresseEtTest() {
+        let cloud = ProviderDef(id: "openai", name: "OpenAI", baseUrl: "https://a", kind: .openai)
+        let local = ProviderDef(id: "ollama", name: "Ollama", baseUrl: "http://o", kind: .ollama, needsKey: false, local: true)
+        let perso = ProviderDef(id: "c1", name: "Mon serveur", baseUrl: "http://s", kind: .openai, custom: true)
+        #expect(!ProviderDetailDisplay.addressInline(cloud, modified: false))
+        #expect(ProviderDetailDisplay.addressInline(cloud, modified: true))
+        #expect(ProviderDetailDisplay.addressInline(local, modified: false))
+        #expect(ProviderDetailDisplay.addressInline(perso, modified: false))
+        #expect(ProviderDetailDisplay.duration(ms: 850) == "850 ms")
+        #expect(ProviderDetailDisplay.duration(ms: 1234) == "1,2 s")
+        #expect(ProviderDetailDisplay.duration(ms: 1960) == "2,0 s")
+        #expect(ProviderDetailDisplay.testSuccess(model: "o3", ms: 420, answer: " OK NEXORA \n")
+                == "Ça marche : o3 a répondu en 420 ms (« OK NEXORA »).")
+        #expect(ProviderDetailDisplay.testSuccess(model: "o3", ms: 3000, answer: "") == "Ça marche : o3 a répondu en 3,0 s.")
+    }
+}
