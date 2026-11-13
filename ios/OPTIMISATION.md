@@ -280,15 +280,23 @@ mémoire 32k tokens, consigne 3 000 car.
   ParityTests « catalogue livré » et UsageTests « prix en direct » échouent (ressources
   du paquet non trouvées), aussi sans changement : la CI fait foi.
 
-## Prochain passage : TOKENS
-Piste : mémoire du chat — rappel en une ligne des questions laissées de côté.
-Interface ensuite : CloudAgentsView, DraftReviewView ou InstallAgentsView (pas encore revus).
+## Prochain passage : INTERFACE
+Écran : CloudAgentsView, DraftReviewView ou InstallAgentsView (pas encore revus).
+(Passage tokens du 13 novembre 2026 sans commit de code : pistes restantes jugées
+marginales ou risquées, voir « Idées écartées ».)
+Tokens ensuite : mesurer `CILog.condense` sur un vrai journal de job iOS en échec.
 
 ## Pistes tokens à faire
-- Mémoire du chat : rappel en une ligne des questions laissées de côté (3.0.32 raccourcit déjà les vieilles réponses).
-- Modèle moins cher pour les tâches internes `askOnce` (traduction, rapport) via réglage.
 - Journal CI réel : vérifier le gain sur un vrai journal (banc simulé seulement).
 
 ## Idées écartées
+- Modèle moins cher pour `askOnce` (traduction de la demande, sous-agents) : un seul
+  appel par demande (≈ 2 à 3 k tokens, ≈ 1 à 2 % d'une session de 40 étapes) contre un
+  risque réel de demande mal traduite par un petit modèle. À reconsidérer seulement si
+  l'utilisateur le demande.
+- Rappel en une ligne des questions du chat laissées de côté : ajoute des tokens (gain
+  de qualité, pas d'économie) ; hors du but « moins de tokens à résultat égal ».
+- Suite d'une réponse coupée : déjà économe (historique identique en tête, donc relu
+  depuis le cache ; seule la partie écrite et la consigne de 160 car. s'ajoutent).
 - Rappel dans un message utilisateur à part : deux messages « user » de suite sont
   refusés par certains fournisseurs ; remplacé par le retrait par paquets (3.0.10).
