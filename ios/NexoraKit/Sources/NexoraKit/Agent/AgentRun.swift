@@ -764,6 +764,16 @@ public final class AgentRun {
                 return "```\n(contenu retiré de l'historique : \(body.len) caractères, il est dans les brouillons)\n```"
             }
             if short != m.content { history[i] = LLMMessage("assistant", short) }
+            // Une vieille réponse sans action, suivie d'une relance de l'app (« aucune
+            // action », « même action répétée ») : l'agent est reparti depuis, la
+            // relance ne sert plus et la réponse ne garde que son début.
+            if i + 1 < history.count, history[i + 1].role == "user", isRelance(history[i + 1].content) {
+                history[i + 1] = LLMMessage("user", relanceNote)
+                let r = history[i].content
+                if !r.contains("\"tool\"") && !r.contains("\"actions\"") && r.len > thoughtKeep + 40 {
+                    history[i] = LLMMessage("assistant", r.sub(0, thoughtKeep) + "…")
+                }
+            }
         }
         // Les très vieux résultats (déjà raccourcis) ne gardent que leur titre, mais
         // seulement par gros paquets : le début de la requête bouge rarement.
@@ -804,6 +814,23 @@ public final class AgentRun {
 
     /// Les très vieux résultats ne sont réduits à leur titre que par paquets de cette taille.
     public nonisolated static let deepBatch = 24
+
+    /// Le début des relances de l'app qui ne portent aucune information durable
+    /// (réponse sans action, même action refaite) : retirées de l'historique ancien.
+    nonisolated static let relancePrefixes = [
+        "Je n'ai pas trouvé d'action.",
+        "Ton bloc JSON n'a pas de champ \"tool\"",
+        "Tu viens de refaire exactement la même action",
+        "STOP : c'est la ",
+    ]
+
+    /// Ce qui reste d'une ancienne relance (le tour garde sa place : les rôles
+    /// alternent toujours).
+    nonisolated static let relanceNote = "(relance de l'app retirée de l'historique)"
+
+    nonisolated static func isRelance(_ content: String) -> Bool {
+        relancePrefixes.contains { content.hasPrefix($0) }
+    }
 
     nonisolated static let droppedNote = "(ancien résultat retiré de l'historique, relis-le si besoin)"
 

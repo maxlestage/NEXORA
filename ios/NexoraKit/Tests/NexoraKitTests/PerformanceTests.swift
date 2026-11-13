@@ -243,7 +243,8 @@ struct PerformanceTests {
 /// sinon il est retiré du message précédent à chaque étape (avant).
 /// `dedup` : un fichier relu sans changement n'est pas renvoyé en entier (3.0.12) ;
 /// toutes les 5 étapes, l'agent relit le fichier lu deux étapes plus tôt.
-private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40) -> (sent: Int, uncached: Int) {
+/// `stalls` : toutes les 10 étapes, une réponse sans action et la relance de l'app.
+private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
         + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
@@ -252,6 +253,22 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
     var previous: [LLMMessage] = []
     var sent = 0, uncached = 0
     for step in 0..<steps {
+        if stalls && step % 10 == 6 {
+            history.append(LLMMessage("assistant", "Je réfléchis à la meilleure façon de relier la page contact au "
+                + "menu principal : le routeur déclare les pages dans un tableau, et le menu reprend ce tableau. "
+                + "Il faut donc ajouter une entrée, puis vérifier que le formulaire valide l'e-mail avant l'envoi, "
+                + "et enfin écrire un test qui ouvre la page."))
+            AgentRun.dropReminders(&history, keeping: reminder)
+            history.append(LLMMessage("user", "Je n'ai pas trouvé d'action. Réponds avec un bloc "
+                + "```json {\"demande\": …, \"thought\": …, \"tool\": …, \"args\": {…}}```." + reminder))
+            AgentRun.compactHistory(&history, batch: batch)
+            let total = history.reduce(system.count) { $0 + $1.content.count }
+            var same = 0
+            while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
+            sent += total
+            uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
+            previous = history
+        }
         let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
         let file = step % 5 == 4 ? step - 2 : step
         history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
@@ -357,7 +374,8 @@ struct TokenBench {
             Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
         }
         let longRun = agentSessionChars(batch: AgentRun.compactBatch, steps: 80)
-        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets, relectures renvoyées", resent), ("par paquets", grouped), ("par paquets, 80 étapes", longRun)] {
+        let stalled = agentSessionChars(batch: AgentRun.compactBatch, steps: 80, stalls: true)
+        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets, relectures renvoyées", resent), ("par paquets", grouped), ("par paquets, 80 étapes", longRun), ("par paquets, 80 étapes avec relances", stalled)] {
             print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
                 + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
         }
@@ -462,6 +480,27 @@ struct TokenBench {
         var twice = now
         AgentRun.compactHistory(&twice)
         #expect(twice == now)
+    }
+
+    @Test("anciennes relances (réponse sans action) retirées, les récentes gardées")
+    func oldRelances() {
+        let idle = "Je réfléchis " + String(repeating: "longuement ", count: 40)
+        let nudge = "Je n'ai pas trouvé d'action. Réponds avec un bloc ```json {…}```."
+        let act = "```json\n{\"thought\": \"Je lis a\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}\n```"
+        var h = [LLMMessage("user", "Demande"), LLMMessage("assistant", idle), LLMMessage("user", nudge),
+                 LLMMessage("assistant", act), LLMMessage("user", "Tu viens de refaire exactement la même action qu'au tour précédent.")]
+        for _ in 0..<5 { h += [LLMMessage("assistant", act), LLMMessage("user", "Résultat de read_file :\nok")] }
+        h += [LLMMessage("assistant", idle), LLMMessage("user", nudge)]
+        AgentRun.compactHistory(&h)
+        #expect(h.count == 17)
+        #expect(h[2].content == AgentRun.relanceNote)
+        #expect(h[4].content == AgentRun.relanceNote)
+        #expect(h[1].content.count == AgentRun.thoughtKeep + 1)
+        // Une réponse avec action garde son action.
+        #expect(h[3].content.contains("\"tool\": \"read_file\""))
+        // La dernière relance (récente) reste entière.
+        #expect(h[15].content == idle && h[16].content == nudge)
+        #expect(!AgentRun.isRelance("Résultat de read_file :\nok"))
     }
 }
 
