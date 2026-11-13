@@ -20,9 +20,10 @@ struct InstallAgentsView: View {
 
     @Environment(AgentLibrary.self) private var agents
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
     @State private var repoText = ""
-    @State private var urlText = ""
     @State private var pasteText = ""
+    @State private var showPaste = false
     /// Les dépôts parcourus (pour revenir d'un plugin au catalogue).
     @State private var stack: [RepoScan] = []
     @State private var selected: Set<String> = []
@@ -31,6 +32,9 @@ struct InstallAgentsView: View {
     @State private var busy = false
     @State private var progress: (done: Int, total: Int)?
     @State private var message: String?
+    @State private var toast: Toast?
+    /// Augmente à chaque installation réussie (vibration).
+    @State private var installs = 0
     @State private var started = false
 
     private var scan: RepoScan? { stack.last }
@@ -76,6 +80,8 @@ struct InstallAgentsView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if let scan, !selected.isEmpty { installBar(scan) }
         }
+        .toast($toast)
+        .sensoryFeedback(.success, trigger: installs) { _, _ in settings.haptics }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("OK", role: .cancel) {}
         }
@@ -92,7 +98,7 @@ struct InstallAgentsView: View {
     private var home: some View {
         List {
             Section {
-                Text("Ajoutez des sous-agents (spécialistes qui travaillent à part et rendent un rapport), des skills (savoir-faire chargés seulement quand ils servent), des commandes (/…) et des plugins (des paquets de tout ça), au format de Claude Code.")
+                Text(LibraryDisplay.intro)
                     .font(.subheadline)
             }
             Section("Sources recommandées") {
@@ -105,65 +111,66 @@ struct InstallAgentsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(src.title).font(.headline).foregroundStyle(.primary)
                                 Text(src.description).font(.caption).foregroundStyle(.secondary)
-                                Text(src.spec).font(.caption2.monospaced()).foregroundStyle(.tertiary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                         }
                     }
                     .disabled(busy)
+                    .accessibilityHint(src.spec)
                 }
             }
-            Section("N'importe quel dépôt GitHub") {
+            Section {
                 HStack {
-                    TextField("propriétaire/dépôt[/dossier] ou lien github.com", text: $repoText)
+                    TextField("propriétaire/dépôt ou lien github.com", text: $repoText)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
-                        .onSubmit { Task { await browse(repoText) } }
-                    Button {
-                        Task { await browse(repoText) }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
+                        .submitLabel(.go)
+                        .onSubmit(openField)
+                    Button(action: openField) {
+                        Image(systemName: fileLink ? "arrow.down.circle" : "magnifyingglass")
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.borderless)
-                    .disabled(busy)
-                    .accessibilityLabel("Parcourir")
+                    .disabled(busy || repoText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .accessibilityLabel(fileLink ? "Installer depuis le lien" : "Parcourir")
                 }
+            } header: {
+                Text("Un dépôt ou un lien GitHub")
+            } footer: {
+                Text("Un lien vers un fichier .md installe cet agent directement.")
             }
-            Section("Un agent depuis une URL") {
-                HStack {
-                    TextField("https://github.com/…/agents/mon-agent.md", text: $urlText)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                    Button {
-                        Task { await fromURL() }
-                    } label: {
-                        Image(systemName: "arrow.down.circle")
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(busy)
-                    .accessibilityLabel("Installer depuis l'URL")
-                }
-            }
-            Section("Coller un agent (.md)") {
-                TextEditor(text: $pasteText)
-                    .font(.footnote.monospaced())
-                    .frame(minHeight: 110)
-                    .overlay(alignment: .topLeading) {
-                        if pasteText.isEmpty {
-                            Text("---\nname: mon-agent\ndescription: …\n---\nTu es…")
-                                .font(.footnote.monospaced())
-                                .foregroundStyle(.tertiary)
-                                .padding(.top, 8)
-                                .padding(.leading, 5)
-                                .allowsHitTesting(false)
+            Section {
+                DisclosureGroup("Coller un agent (.md)", isExpanded: $showPaste) {
+                    TextEditor(text: $pasteText)
+                        .font(.footnote.monospaced())
+                        .frame(minHeight: 110)
+                        .overlay(alignment: .topLeading) {
+                            if pasteText.isEmpty {
+                                Text("---\nname: mon-agent\ndescription: …\n---\nTu es…")
+                                    .font(.footnote.monospaced())
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 5)
+                                    .allowsHitTesting(false)
+                            }
                         }
-                    }
-                Button("Installer", systemImage: "plus", action: fromPaste)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    Button("Installer", systemImage: "plus", action: fromPaste)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+                        .disabled(pasteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
+        }
+    }
+
+    /// Vrai si le champ contient le lien d'un seul fichier d'agent.
+    private var fileLink: Bool { LibraryDisplay.isFileLink(repoText) }
+
+    /// Le champ : un lien de fichier s'installe, un dépôt se parcourt.
+    private func openField() {
+        Task {
+            if fileLink { await fromURL() } else { await browse(repoText) }
         }
     }
 
@@ -171,13 +178,8 @@ struct InstallAgentsView: View {
 
     /// Ce qu'un dépôt contient, rangé par type.
     private func results(_ scan: RepoScan) -> some View {
-        let q = filter.lowercased()
-        let shown = scan.items
-            .filter { kind == nil || $0.kind == kind }
-            .filter { q.isEmpty || $0.path.lowercased().contains(q) || ($0.plugin ?? "").lowercased().contains(q) }
-        let plugins = scan.plugins.filter {
-            q.isEmpty || $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q)
-        }
+        let shown = LibraryDisplay.items(scan, kind: kind, query: filter)
+        let plugins = LibraryDisplay.plugins(scan, query: filter)
         let allSelected = !shown.isEmpty && shown.allSatisfy { selected.contains($0.key) }
         return List {
             Section {
@@ -195,6 +197,21 @@ struct InstallAgentsView: View {
                 TextField("Filtrer (python, react, sécurité, pdf…)", text: $filter)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .frame(minHeight: 44)
+            }
+            if shown.isEmpty && plugins.isEmpty && !scan.isEmpty {
+                Section {
+                    VStack(spacing: 10) {
+                        Text(LibraryDisplay.noMatch).foregroundStyle(.secondary)
+                        Button("Tout afficher") {
+                            filter = ""
+                            kind = nil
+                        }
+                        .frame(minHeight: 44)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
             }
             if !plugins.isEmpty {
                 Section {
@@ -229,7 +246,7 @@ struct InstallAgentsView: View {
                     }
                 } header: {
                     HStack {
-                        Text("\(shown.count) élément\(shown.count > 1 ? "s" : "")")
+                        Text(LibraryDisplay.itemsCount(shown.count))
                         Spacer()
                         Button(allSelected ? "Tout décocher" : "Tout sélectionner") {
                             if allSelected {
@@ -240,6 +257,7 @@ struct InstallAgentsView: View {
                         }
                         .font(.caption)
                         .textCase(nil)
+                        .frame(minHeight: 44)
                     }
                 }
             }
@@ -257,15 +275,15 @@ struct InstallAgentsView: View {
             .padding(.vertical, 6)
             .foregroundStyle(on ? Color.white : Color.primary)
             .background(on ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.secondary.opacity(0.15)), in: .capsule)
+            .frame(minHeight: 44)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func itemRow(_ item: NexoraKit.LibraryItem) -> some View {
         let on = selected.contains(item.key)
-        var details = [item.kind.label()]
-        if let plugin = item.plugin { details.append("plugin \(plugin)") }
-        if item.kind == .skill && !item.files.isEmpty { details.append("\(item.files.count) fichier(s)") }
         return Button {
             if on { selected.remove(item.key) } else { selected.insert(item.key) }
         } label: {
@@ -275,7 +293,7 @@ struct InstallAgentsView: View {
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                    Text(details.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary)
+                    Text(LibraryDisplay.itemDetail(item)).font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if agents.isInstalled(item) {
@@ -294,7 +312,7 @@ struct InstallAgentsView: View {
         } label: {
             Label(
                 progress.map { "Installation \($0.done)/\($0.total)…" }
-                    ?? "Installer \(selected.count) élément\(selected.count > 1 ? "s" : "")",
+                    ?? LibraryDisplay.installLabel(selected.count),
                 systemImage: "square.and.arrow.down"
             )
             .frame(maxWidth: .infinity)
@@ -350,17 +368,22 @@ struct InstallAgentsView: View {
         busy = false
         progress = nil
         selected.removeAll()
-        message = ok == todo.count
-            ? "\(ok) élément\(ok > 1 ? "s" : "") installé\(ok > 1 ? "s" : "") 🎉"
-            : "\(ok) sur \(todo.count) installés (les autres sont illisibles)"
+        if ok == todo.count {
+            toast = Toast(text: LibraryDisplay.installed(ok, of: todo.count))
+            installs += 1
+        } else {
+            message = LibraryDisplay.installed(ok, of: todo.count)
+        }
     }
 
     private func fromURL() async {
         busy = true
         defer { busy = false }
         do {
-            let a = try await agents.importURL(urlText)
-            message = "\(a.emoji) \(a.name) installé"
+            let a = try await agents.importURL(repoText)
+            repoText = ""
+            toast = Toast(text: "\(a.emoji) \(a.name) installé")
+            installs += 1
         } catch {
             message = error.localizedDescription
         }
@@ -369,7 +392,9 @@ struct InstallAgentsView: View {
     private func fromPaste() {
         if let a = agents.importMarkdown(pasteText) {
             pasteText = ""
-            message = "\(a.emoji) \(a.name) installé"
+            showPaste = false
+            toast = Toast(text: "\(a.emoji) \(a.name) installé")
+            installs += 1
         } else {
             message = "Texte vide."
         }

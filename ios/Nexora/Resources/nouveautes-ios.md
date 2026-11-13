@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.42 — 13 novembre 2026 — Bibliothèque plus simple
+
+- Amélioré : un seul champ pour un dépôt ou un lien GitHub ; un lien vers un fichier .md installe l'agent directement (avant : deux champs séparés).
+- Amélioré : « Coller un agent » est rangé dans une section repliable, et l'explication du haut tient en une phrase.
+- Amélioré : le filtre ignore accents et majuscules, cherche aussi dans les noms et descriptions, et dit quand rien ne correspond (bouton « Tout afficher »).
+- Amélioré : installation confirmée par un message bref et une vibration (plus de fenêtre à fermer), vrais pluriels (« 1 fichier », « 3 éléments ») et boutons de 44 pt.
+
 ## 3.0.41 — 13 novembre 2026 — Relectures de fichiers plus légères pour l'agent
 - Amélioré : quand l'agent relit un fichier qu'il vient de modifier, seuls les passages changés lui sont renvoyés, et non tout le fichier.
 - Amélioré : une session où l'agent relit ses modifications consomme environ 8 % de tokens en moins (11 % de coût en moins avec le cache de prompt).
