@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.25 — 13 novembre 2026 — Réglages plus simples
+- Amélioré : les actions irréversibles (tout effacer, tout réinitialiser) sont rangées tout en bas.
+- Amélioré : le Client ID GitHub, réglage rare, passe dans « Avancé ».
+- Amélioré : la place prise tient en une ligne (« 12 conversations · 3.4 Mo »), avec de vrais pluriels.
+- Nouveau : un message et une vibration confirment le ménage, l'export et l'effacement.
+
 ## 3.0.24 — 13 novembre 2026 — Longues sessions de l'agent plus économes
 - Amélioré : dans les longues sessions de l'agent, les très vieux résultats (fichiers lus il y a plus de 16 étapes) ne repartent plus vers le modèle ; l'agent les relit s'il en a besoin.
 - Amélioré : une session de 80 étapes envoie environ 7 % de tokens en moins (6 % moins cher chez OpenAI), sans rien changer aux sessions courtes.

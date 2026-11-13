@@ -17,6 +17,8 @@ struct SettingsView: View {
     @State private var clientId = ""
     @State private var size: Int?
     @State private var toast: Toast?
+    /// Incrémenté après une action réussie (ménage, export, effacement) : vibration.
+    @State private var done = 0
 
     /// L'auteur de NEXORA.
     static let author = "Maxime Nathan Lestage"
@@ -63,22 +65,20 @@ struct SettingsView: View {
 
                 Section("GitHub") {
                     HStack {
-                        Label(github.connected ? "Connecté : @\(github.user?.login ?? "…")" : "Non connecté", systemImage: "person.crop.circle")
+                        Label(SettingsDisplay.github(login: github.user?.login, connected: github.connected), systemImage: "person.crop.circle")
                         Spacer()
                         if github.connected {
-                            Button("Déconnexion") { github.signOut() }.buttonStyle(.borderless)
+                            Button("Déconnexion") { github.signOut() }
+                                .buttonStyle(.borderless)
+                                .frame(minHeight: 44)
                         }
                     }
-                    Button {
-                        clientId = settings.githubClientId
-                        editingClientId = true
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label("Client ID de l'OAuth App", systemImage: "app.connected.to.app.below.fill")
-                                .foregroundStyle(.primary)
-                            Text(settings.githubClientId.isEmpty ? "Pour « Se connecter avec GitHub » (flux device)" : settings.githubClientId)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
+                    DisclosureGroup("Avancé") {
+                        Button {
+                            clientId = settings.githubClientId
+                            editingClientId = true
+                        } label: {
+                            LabeledContent("Client ID OAuth", value: SettingsDisplay.clientIdDetail(settings.githubClientId))
                         }
                     }
                 }
@@ -87,8 +87,8 @@ struct SettingsView: View {
                     HStack {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(chats.index.count) conversation\(chats.index.count > 1 ? "s" : "")")
-                                Text(size.map { "\(storageLabel($0)) sur l'appareil · messages chargés seulement à l'ouverture" } ?? "Calcul de la place…")
+                                Text(SettingsDisplay.storage(conversations: chats.index.count, bytes: size))
+                                Text(size == nil ? "Calcul de la place…" : "Sur cet appareil")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         } icon: {
@@ -99,28 +99,21 @@ struct SettingsView: View {
                             Task { size = await chats.sizeOnDisk() }
                         } label: {
                             Image(systemName: "arrow.clockwise")
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel("Recalculer")
+                        .accessibilityLabel("Recalculer la place")
                     }
                     Button {
                         cleaning = true
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Label("Supprimer les anciennes conversations", systemImage: "sparkles.rectangle.stack")
-                            Text("Les conversations épinglées sont gardées").font(.caption).foregroundStyle(.secondary)
+                            Text("Les épinglées sont gardées").font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    Button("Exporter mes agents (.md)", systemImage: "square.and.arrow.up") { exportAgents() }
-                    Button("Effacer toutes les conversations", systemImage: "trash", role: .destructive) { confirmDelete = true }
-                    Button(role: .destructive) {
-                        confirmReset = true
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label("Tout réinitialiser", systemImage: "exclamationmark.triangle")
-                            Text("Clés, jeton GitHub, agents, conversations").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
+                    Button("Exporter mes agents", systemImage: "square.and.arrow.up") { exportAgents() }
                 }
 
                 Section("À propos") {
@@ -157,6 +150,21 @@ struct SettingsView: View {
                     }
                     Button("Revoir la présentation", systemImage: "play.rectangle") { settings.onboarded = false }
                 }
+
+                // Actions irréversibles, rangées tout en bas (chacune demande confirmation).
+                Section {
+                    Button("Effacer toutes les conversations", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    Button(role: .destructive) {
+                        confirmReset = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Tout réinitialiser", systemImage: "exclamationmark.triangle")
+                            Text("Clés, jeton GitHub, agents, conversations").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Effacer")
+                }
             }
             .navigationTitle("Réglages")
             .task { size = await chats.sizeOnDisk() }
@@ -170,7 +178,7 @@ struct SettingsView: View {
             }
             .alert("Effacer toutes les conversations ?", isPresented: $confirmDelete) {
                 Button("Annuler", role: .cancel) {}
-                Button("Confirmer", role: .destructive) { chats.deleteAll() }
+                Button("Confirmer", role: .destructive) { deleteAll() }
             }
             .alert("Tout effacer de cet appareil ?", isPresented: $confirmReset) {
                 Button("Annuler", role: .cancel) {}
@@ -188,6 +196,7 @@ struct SettingsView: View {
                 Text("GitHub → Settings → Developer settings → OAuth Apps → New. Cochez « Enable Device Flow », puis collez le Client ID (pas de secret nécessaire). L'app se crée sur github.com/settings/applications/new.")
             }
             .toast($toast)
+            .sensoryFeedback(.success, trigger: done) { _, _ in settings.haptics }
         }
     }
 
@@ -203,7 +212,21 @@ struct SettingsView: View {
 
     private func clean(_ days: Int) {
         let n = chats.deleteOlderThan(days)
-        toast = Toast(text: n == 0 ? "Rien à supprimer (les épinglées sont gardées)." : "\(n) conversation(s) supprimée(s)")
+        toast = Toast(text: SettingsDisplay.cleaned(n))
+        if n > 0 { done += 1 }
+        refreshSize()
+    }
+
+    private func deleteAll() {
+        let n = chats.index.count
+        chats.deleteAll()
+        toast = Toast(text: SettingsDisplay.deletedAll(n))
+        if n > 0 { done += 1 }
+        refreshSize()
+    }
+
+    /// Recalcule la place un peu après une suppression (les fichiers partent en tâche de fond).
+    private func refreshSize() {
         Task {
             try? await Task.sleep(for: .milliseconds(300))
             size = await chats.sizeOnDisk()
@@ -213,11 +236,12 @@ struct SettingsView: View {
     private func exportAgents() {
         let mine = agents.custom
         guard !mine.isEmpty else {
-            toast = Toast(text: "Aucun agent perso à exporter.")
+            toast = Toast(text: SettingsDisplay.exported(0))
             return
         }
         UIPasteboard.general.string = mine.map { $0.toMarkdown() }.joined(separator: "\n\n<!-- --- -->\n\n")
-        toast = Toast(text: "\(mine.count) agent(s) copiés")
+        toast = Toast(text: SettingsDisplay.exported(mine.count))
+        done += 1
     }
 
     private func resetAll() {
