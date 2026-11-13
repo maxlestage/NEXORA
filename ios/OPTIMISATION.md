@@ -318,8 +318,20 @@ mémoire 32k tokens, consigne 3 000 car.
   « identique ») : si la lecture de base est raccourcie plus tard, le diff reste seul.
   Tests : 402 → 403.
 
-## Prochain passage : INTERFACE
-InstallAgentsView (pas encore revu).
+- 3.0.42 (interface) : écran Bibliothèque (InstallAgentsView) — `LibraryDisplay` (`intro`
+  en une phrase, ≈ 2× plus courte ; `isFileLink` : un seul champ « dépôt ou lien » au lieu
+  de deux, un lien `https://….md` installe l'agent ; `items`/`plugins` : filtre sans
+  accents ni casse sur nom, chemin, plugin, description, catégorie ; `itemDetail`,
+  `itemsCount`, `installLabel`, `installed` : vrais pluriels, avant « fichier(s) »).
+  Accueil : 4 sections → 3 (« Coller un agent » dans un DisclosureGroup, Installer grisé
+  si vide), chemin technique des sources recommandées passé en indice VoiceOver ; filtre
+  sans résultat → message + « Tout afficher » ; succès → toast + vibration au lieu d'une
+  alerte à fermer ; puces, bouton du champ et « Tout sélectionner » 44 pt.
+  Tests : 403 → 406.
+
+## Prochain passage : TOKENS
+Piste : diff des relectures sans base (voir ci-dessous), ou mesurer la consigne système
+(7 234 car.) pour des doublons.
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
