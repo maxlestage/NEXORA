@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.36 — 13 novembre 2026 — Agent moins cher
+
+- Amélioré : les sessions de l'agent coûtent environ 5 % de moins chez Anthropic (et 1 % chez OpenAI) : les rappels de la demande quittent l'historique en même temps que les anciens résultats, ce qui laisse le cache de prompt servir plus longtemps.
+- Inchangé : l'agent relit toujours sa demande à chaque étape.
+
 ## 3.0.35 — 13 novembre 2026 — Session de l'agent plus sûre
 
 - Amélioré : supprimer une session qui a des brouillons non envoyés demande d'abord confirmation (avant, un seul toucher suffisait).

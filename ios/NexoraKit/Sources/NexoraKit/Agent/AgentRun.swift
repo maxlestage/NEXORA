@@ -566,8 +566,11 @@ public final class AgentRun {
 
     /// Les anciens rappels identiques au rappel courant restent en place jusqu'à
     /// ce nombre : les retirer à chaque étape changerait le message précédent et
-    /// ferait sortir la suite de l'historique du cache de prompt.
-    public nonisolated static let reminderBatch = 4
+    /// ferait sortir la suite de l'historique du cache de prompt. Assez grand pour
+    /// qu'ils partent presque toujours avec le raccourcissement des résultats
+    /// (`compactHistory`, qui change déjà l'historique) : 4 → 12 en 3.0.36, coût
+    /// Anthropic −5 % sur le banc (rappels de ≈ 300 car., 12 au plus).
+    public nonisolated static let reminderBatch = 12
 
     /// Retire les anciens rappels (le dernier suffit). Avec `keeping` (le rappel qui
     /// va être ajouté), ils ne sont retirés que par paquets (`reminderBatch`), ou dès
