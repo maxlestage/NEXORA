@@ -7,20 +7,10 @@ struct RoutinesView: View {
     @Environment(RoutineBook.self) private var routines
     @State private var toast: Toast?
     @State private var creating = false
+    @State private var started: String?
 
     var body: some View {
         List {
-            Section {
-                Text("Une routine relance une mission toute seule, à intervalle régulier : par exemple « optimise l'app et corrige les bugs », toutes les heures. Sur le téléphone, elle lance une session de l'agent quand l'app tourne (un passage manqué est rattrapé au retour). Sur GitHub, elle tourne 24 h/24, même téléphone éteint.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if routines.routines.isEmpty {
-                Text("Aucune routine pour l'instant.")
-                    .frame(maxWidth: .infinity)
-                    .padding(32)
-                    .listRowBackground(Color.clear)
-            }
             ForEach(routines.routines) { r in
                 NavigationLink {
                     RoutineEditorView(routine: r)
@@ -35,16 +25,44 @@ struct RoutinesView: View {
                         }
                     }
                 }
+                // Action fréquente, avant seulement dans la fiche de la routine.
+                .swipeActions(edge: .leading) {
+                    Button("Lancer", systemImage: "play.fill") {
+                        Task { await runNow(r) }
+                    }
+                    .tint(Color.accentColor)
+                }
+            }
+        }
+        .overlay {
+            if routines.routines.isEmpty {
+                ContentUnavailableView {
+                    Label("Aucune routine", systemImage: "alarm")
+                } description: {
+                    Text(RoutinesDisplay.emptyHint)
+                } actions: {
+                    Button("Créer une routine") { creating = true }
+                        .buttonStyle(.borderedProminent)
+                }
             }
         }
         .navigationTitle("Routines")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Nouvelle routine", systemImage: "alarm") { creating = true }
+                Button("Nouvelle routine", systemImage: "plus") { creating = true }
             }
         }
         .navigationDestination(isPresented: $creating) { RoutineEditorView(routine: nil) }
+        .navigationDestination(item: $started) { id in SessionView(sessionId: id) }
         .toast($toast)
+    }
+
+    private func runNow(_ r: Routine) async {
+        if let run = await routines.runNow(r.id) {
+            started = run.id
+        } else {
+            toast = Toast(text: r.runner == .github ? "Routine lancée sur GitHub" : "Le passage précédent travaille encore")
+        }
     }
 }
 
@@ -61,10 +79,10 @@ struct RoutineRow: View {
                 .foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(r.name).fontWeight(.bold)
-                Text(r.scheduleLabel).font(.caption).foregroundStyle(.secondary)
-                Text(r.enabled ? "Prochain passage : \(WorkspaceText.when(r.nextRun()))" : "Désactivée")
+                Text(RoutinesDisplay.rowDetail(r))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(3)
                 if let error {
                     Text(error).font(.caption).foregroundStyle(Theme.red).lineLimit(2)
                 }
@@ -141,7 +159,7 @@ struct RoutineEditorView: View {
                 Text("Mission à chaque passage")
             }
 
-            Section("Dépôts") {
+            Section {
                 ForEach(r.repos, id: \.self) { spec in
                     HStack {
                         Text(spec).font(.body.monospaced())
@@ -157,6 +175,10 @@ struct RoutineEditorView: View {
                 }
                 Button("Ajouter un dépôt", systemImage: "plus") { pickingRepo = true }
                     .disabled(!github.connected)
+            } header: {
+                Text("Dépôts")
+            } footer: {
+                if let hint = RoutinesDisplay.reposFooter(connected: github.connected) { Text(hint) }
             }
 
             Section {
@@ -289,17 +311,13 @@ struct RoutineEditorView: View {
     }
 
     private func save() async {
+        if let problem = RoutinesDisplay.saveProblem(task: r.task, repos: r.repos) {
+            toast = Toast(text: problem, error: true)
+            return
+        }
         let task = r.task.trimmingCharacters(in: .whitespacesAndNewlines)
-        if task.isEmpty {
-            toast = Toast(text: "Décrivez la mission de la routine.", error: true)
-            return
-        }
-        if r.repos.isEmpty {
-            toast = Toast(text: "Ajoutez au moins un dépôt.", error: true)
-            return
-        }
         let name = r.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        r.name = name.isEmpty ? (task.components(separatedBy: "\n").first ?? task) : name
+        r.name = name.isEmpty ? RoutinesDisplay.defaultName(task) : name
         r.task = task
         r.endMinute = window ? (r.endMinute ?? 23 * 60) : nil
         // Une nouvelle routine part du prochain créneau (pas de rattrapage).
