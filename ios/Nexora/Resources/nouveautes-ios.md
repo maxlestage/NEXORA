@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.24 — 13 novembre 2026 — Longues sessions de l'agent plus économes
+- Amélioré : dans les longues sessions de l'agent, les très vieux résultats (fichiers lus il y a plus de 16 étapes) ne repartent plus vers le modèle ; l'agent les relit s'il en a besoin.
+- Amélioré : une session de 80 étapes envoie environ 7 % de tokens en moins (6 % moins cher chez OpenAI), sans rien changer aux sessions courtes.
+
 ## 3.0.23 — 13 novembre 2026 — Fiche d'un fournisseur plus simple
 - Nouveau : recherche dans la liste des modèles d'un fournisseur (dès 13 modèles), et le modèle par défaut toujours en tête.
 - Amélioré : « Enregistrer et tester » juste sous la clé, avec un résultat en mots simples (« Ça marche : … a répondu en 1,2 s »).

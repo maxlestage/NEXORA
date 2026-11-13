@@ -764,17 +764,45 @@ public final class AgentRun {
             }
             if short != m.content { history[i] = LLMMessage("assistant", short) }
         }
-        var seen = 0
+        // Les très vieux résultats (déjà raccourcis) ne gardent que leur titre, mais
+        // seulement par gros paquets : le début de la requête bouge rarement.
+        let deep = keep + keepBriefResults
+        var seen = 0, deepDue = 0
+        for m in history.reversed() where m.role == "user" && m.content.hasPrefix("Résultat de ") {
+            seen += 1
+            if seen > deep && canDrop(m.content) { deepDue += 1 }
+        }
+        let dropOld = batch == 0 ? deepDue > 0 : deepDue >= deepBatch
+        seen = 0
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = history[i]
             if m.role != "user" || !m.content.hasPrefix("Résultat de ") { continue }
             seen += 1
+            if seen > deep && dropOld && canDrop(m.content), let cut = m.content.range(of: " :\n") {
+                history[i] = LLMMessage("user", String(m.content[..<cut.upperBound]) + droppedNote)
+                continue
+            }
             if seen <= keep || m.content.len <= 600 { continue }
             history[i] = LLMMessage(
                 "user",
                 m.content.sub(0, 400) + "\n… (ancien résultat raccourci : \(m.content.len) caractères, relis le fichier si besoin)"
             )
         }
+    }
+
+    /// Résultats raccourcis (400 caractères) gardés après les `keepFullResults` complets ;
+    /// au-delà, seul le titre du résultat reste (l'action qui l'a produit est dans la
+    /// réponse juste au-dessus).
+    public nonisolated static let keepBriefResults = 8
+
+    /// Les très vieux résultats ne sont réduits à leur titre que par paquets de cette taille.
+    public nonisolated static let deepBatch = 24
+
+    nonisolated static let droppedNote = "(ancien résultat retiré de l'historique, relis-le si besoin)"
+
+    /// Un vieux résultat assez long pour valoir d'être réduit à son titre.
+    nonisolated static func canDrop(_ content: String) -> Bool {
+        !content.hasSuffix(droppedNote) && (content.len > 600 || content.contains("\n… (ancien résultat raccourci : "))
     }
 
     /// Le champ « demande » d'un bloc JSON d'action (la demande que l'agent se

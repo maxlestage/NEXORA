@@ -24,6 +24,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.20 (demande retirée des réponses de plus de 4 tours) | 458 754 (−3,4 %) | 116 478 (−1,3 %) | 179 825 (−1,8 %) | 287 616 (−3,0 %) |
 | 3.0.22 (banc : réflexions réalistes de ≈ 300 caractères, gardées) | 500 164 | 123 093 | 191 574 | 311 628 |
 | 3.0.22 (réflexions des réponses de plus de 4 tours raccourcies à 120 car.) | 479 757 (−4,1 %) | 121 144 (−1,6 %) | 187 291 (−2,2 %) | 300 450 (−3,6 %) |
+| 3.0.23, 80 étapes (`steps: 80`, nouvelle ligne du banc) | 1 238 154 | 238 863 | 398 508 | 738 509 |
+| 3.0.24, 80 étapes (résultats de plus de 16 étapes réduits à leur titre, paquets de 24) | 1 145 446 (−7,5 %) | 245 195 (+2,7 %) | 396 518 (−0,5 %) | 695 320 (−5,8 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -143,12 +145,19 @@ mémoire 32k tokens, consigne 3 000 car.
   « Enregistrer et tester » dans sa propre section juste sous la clé (avant : sous l'adresse) ;
   état vide de recherche ; œil de la clé et bouton de test 44 pt. Tests : 373 → 375.
 
-## Prochain passage : TOKENS
-Résumé des vieux messages du chat à la coupure ; ou modèle moins cher pour `askOnce` si
-réglage ; ou `keepFullResults` = 8 (mesurer 6 avec relecture, risque de qualité).
-Interface ensuite : Réglages, puis Personnaliser. Rappel tokens : résumé des
-vieux messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage ;
-`keepFullResults` = 8 (gros poste : mesurer 6 avec relecture, risque de qualité).
+- 3.0.24 (tokens) : `compactHistory` — les résultats d'outils plus vieux que
+  `keepFullResults` + `keepBriefResults` (8 + 8) ne gardent que leur titre (« Résultat de
+  read_file : (ancien résultat retiré de l'historique, relis-le si besoin) »), seulement
+  pendant un raccourcissement déjà prévu et par paquets de `deepBatch` = 24 (sans paquet
+  si le contexte est trop long). Session de 40 étapes inchangée ; 80 étapes : voir tableau.
+  Essais : brief 16/paquet 8 → Anthropic +0,7 % (ruptures de cache) ; 12/16 → 40 étapes
+  +1,7 % Anthropic ; 8/24 retenu (aucune mesure en hausse sauf hors cache). Tests : 375
+  (assertions ajoutées).
+
+## Prochain passage : INTERFACE
+Réglages, puis Personnaliser. Tokens ensuite : résumé des vieux messages du chat à la
+coupure ; modèle moins cher pour `askOnce` si réglage ; `keepFullResults` = 6 (mesurer
+avec relecture, risque de qualité).
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
