@@ -136,8 +136,17 @@ mémoire 32k tokens, consigne 3 000 car.
   échappement JSON ; seulement s'il reste une action). Banc enrichi (réflexions réalistes).
   Tests : 373 (assertions ajoutées).
 
-## Prochain passage : INTERFACE
-Réglages, ou fiche d'un fournisseur (ProviderDetailView). Ensuite tokens : résumé des
+- 3.0.23 (interface) : fiche d'un fournisseur (ProviderDetailView) — `ProviderDetailDisplay`
+  (`models` : recherche id/détail sans accents ni casse dès 13 modèles, modèle par défaut en
+  tête ; `addressInline` : adresse rangée dans « Adresse avancée » pour les fournisseurs en
+  ligne non modifiés ; `testSuccess` / `duration` : « Ça marche : o3 a répondu en 1,2 s »).
+  « Enregistrer et tester » dans sa propre section juste sous la clé (avant : sous l'adresse) ;
+  état vide de recherche ; œil de la clé et bouton de test 44 pt. Tests : 373 → 375.
+
+## Prochain passage : TOKENS
+Résumé des vieux messages du chat à la coupure ; ou modèle moins cher pour `askOnce` si
+réglage ; ou `keepFullResults` = 8 (mesurer 6 avec relecture, risque de qualité).
+Interface ensuite : Réglages, puis Personnaliser. Rappel tokens : résumé des
 vieux messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage ;
 `keepFullResults` = 8 (gros poste : mesurer 6 avec relecture, risque de qualité).
 
