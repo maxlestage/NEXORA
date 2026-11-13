@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.28 — 13 novembre 2026 — Relances de l'agent allégées
+
+- Amélioré : quand l'agent a répondu sans agir puis est reparti, l'ancienne relance n'est plus renvoyée au modèle à chaque étape.
+- Amélioré : une longue session avec quelques hésitations envoie environ 1 % de tokens en moins, sans rien perdre du travail fait.
+
 ## 3.0.27 — 13 novembre 2026 — Personnaliser plus simple
 - Amélioré : le nom et les instructions de l'assistant sont gardés même si vous quittez l'écran sans toucher « Enregistrer » (le bouton n'apparaît que s'il y a une modification).
 - « Tout remettre par défaut » demande d'abord une confirmation ; exporter, importer et remettre à zéro ne sont plus en double dans la barre du haut.

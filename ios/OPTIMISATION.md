@@ -28,6 +28,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.24, 80 étapes (résultats de plus de 16 étapes réduits à leur titre, paquets de 24) | 1 145 446 (−7,5 %) | 245 195 (+2,7 %) | 396 518 (−0,5 %) | 695 320 (−5,8 %) |
 | 3.0.26, 40 étapes (6 longs résultats complets, les courts ne comptent pas) | 468 828 (−2,3 %) | 116 876 (−3,5 %) | 181 290 (−3,2 %) | 292 852 (−2,5 %) |
 | 3.0.26, 80 étapes | 1 122 896 (−2,0 %) | 235 603 (−3,9 %) | 383 233 (−3,4 %) | 679 249 (−2,3 %) |
+| 3.0.28, 80 étapes avec relances (`stalls: true`, nouvelle ligne : relance gardée) | 1 252 564 | 255 491 | 419 071 | 754 027 |
+| 3.0.28, 80 étapes avec relances (anciennes relances retirées) | 1 237 011 (−1,2 %) | 254 564 (−0,4 %) | 416 450 (−0,6 %) | 745 787 (−1,1 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -181,10 +183,19 @@ mémoire 32k tokens, consigne 3 000 car.
   température et Entrée pour envoyer rangées dans « Avancé » ; libellés VoiceOver des curseurs ;
   boutons 44 pt. Tests : 378 → 380.
 
-## Prochain passage : TOKENS
-Puis interface : accueil. Tokens : résumé des vieux messages du chat à la
-coupure ; modèle moins cher pour `askOnce` (traduction NEXORA) si réglage ; retirer les
-relances « réponse vide » de l'historique après la réponse (gain faible, sans risque).
+- 3.0.28 (tokens) : `compactHistory` — une relance de l'app sans information durable
+  (`relancePrefixes` : « Je n'ai pas trouvé d'action », « Ton bloc JSON n'a pas de champ
+  tool », « Tu viens de refaire… », « STOP : c'est la… ») plus vieille que 4 réponses devient
+  `relanceNote` (le tour reste : rôles alternés) ; la réponse sans action qui la précède
+  garde ses `thoughtKeep` premiers caractères. Seulement pendant un raccourcissement déjà
+  prévu (cache intact). Les relances de fin (tests manquants, compilation, relecture) sont
+  gardées : elles portent une consigne. Lignes du banc sans relance inchangées. Tests :
+  380 → 381.
+
+## Prochain passage : INTERFACE (accueil)
+Puis tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
+paquets, `keepAfterTrim`) ; modèle moins cher pour `askOnce` jugé risqué (la traduction
+NEXORA guide toute la session) — seulement si un réglage explicite le demande.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
