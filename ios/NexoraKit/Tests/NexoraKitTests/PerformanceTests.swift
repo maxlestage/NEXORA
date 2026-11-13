@@ -256,7 +256,9 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         let file = step % 5 == 4 ? step - 2 : step
         history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
             + "(nom, e-mail, message) reliée au menu principal\", \"thought\": \"Je lis f\(file) pour voir "
-            + "comment les pages sont déclarées\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
+            + "comment les pages sont déclarées : il faut repérer le routeur, le composant de mise en page commun "
+            + "et la façon dont le menu principal liste ses entrées, pour ajouter la page contact au même endroit "
+            + "sans casser la navigation existante.\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
         if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
         var result = ["Résultat de read_file :\n// f\(file)\n" + String(repeating: "r", count: 4000)]
         if dedup { result = AgentRun.dedupResults(result, history: history) }
@@ -386,6 +388,16 @@ struct TokenBench {
         AgentRun.compactHistory(&old)
         #expect(old.prefix(2).allSatisfy { $0.content == "```json\n{\"thought\": \"t\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}\n```" })
         #expect(old.suffix(4).allSatisfy { $0.content == turn })
+        // Longue réflexion d'une ancienne réponse : raccourcie à son début, l'action reste.
+        let long = String(repeating: "mot ", count: 80) + "\\\"fin\\\""
+        let wordy = "```json\n{\"thought\": \"\(long)\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}\n```"
+        let brief = AgentRun.shortThought(wordy)
+        #expect(brief.count < wordy.count - 150)
+        #expect(brief.contains("…\", \"tool\": \"read_file\", \"args\": {\"path\": \"a\"}}"))
+        #expect(AgentRun.shortThought(turn) == turn)
+        let odd = "{\"thought\": \"" + String(repeating: "a", count: 119) + "\\\"" + String(repeating: "b", count: 100) + "\", \"tool\": \"x\"}"
+        #expect(!AgentRun.shortThought(odd).contains("\\…"))
+        #expect(AgentRun.shortThought("{\"thought\": \"\(long)\"}") == "{\"thought\": \"\(long)\"}")
         // Sans action dans le bloc : rien n'est retiré.
         let only = "```json\n{\"demande\": \"d\", \"thought\": \"t\"}\n```"
         #expect(AgentRun.dropGoal(only) == only)

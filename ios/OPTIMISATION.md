@@ -22,6 +22,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.12 (relectures identiques non renvoyées) | 439 311 (−11 %) | 112 311 (−25 %) | 173 089 (−22 %) | 275 811 (−14 %) |
 | 3.0.20 (banc : réponses avec « demande » et « thought », demande gardée) | 474 892 | 117 957 | 183 140 | 296 425 |
 | 3.0.20 (demande retirée des réponses de plus de 4 tours) | 458 754 (−3,4 %) | 116 478 (−1,3 %) | 179 825 (−1,8 %) | 287 616 (−3,0 %) |
+| 3.0.22 (banc : réflexions réalistes de ≈ 300 caractères, gardées) | 500 164 | 123 093 | 191 574 | 311 628 |
+| 3.0.22 (réflexions des réponses de plus de 4 tours raccourcies à 120 car.) | 479 757 (−4,1 %) | 121 144 (−1,6 %) | 187 291 (−2,2 %) | 300 450 (−3,6 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -128,10 +130,16 @@ mémoire 32k tokens, consigne 3 000 car.
   « Où trouver une clé ? ») ; états vides (filtre vide → « Voir tous », recherche) ; puces
   44 pt. Tests : 370 → 373.
 
-## Prochain passage : TOKENS
-Puis interface : Réglages, fiche d'un fournisseur (ProviderDetailView). Tokens : retirer aussi le « thought » des
-très vieilles réponses (mesurer, risque de perte de contexte) ; résumé des vieux
-messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage.
+- 3.0.22 (tokens) : `AgentRun.shortThought` — dans `compactHistory` (même paquet que
+  `dropGoal`, pas de rupture de cache en plus), un « thought » de plus de `thoughtKeep` =
+  160 caractères des réponses de plus de 4 tours est coupé à 120 + « … » (sans couper un
+  échappement JSON ; seulement s'il reste une action). Banc enrichi (réflexions réalistes).
+  Tests : 373 (assertions ajoutées).
+
+## Prochain passage : INTERFACE
+Réglages, ou fiche d'un fournisseur (ProviderDetailView). Ensuite tokens : résumé des
+vieux messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage ;
+`keepFullResults` = 8 (gros poste : mesurer 6 avec relecture, risque de qualité).
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
