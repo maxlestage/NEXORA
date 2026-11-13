@@ -30,6 +30,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.26, 80 étapes | 1 122 896 (−2,0 %) | 235 603 (−3,9 %) | 383 233 (−3,4 %) | 679 249 (−2,3 %) |
 | 3.0.28, 80 étapes avec relances (`stalls: true`, nouvelle ligne : relance gardée) | 1 252 564 | 255 491 | 419 071 | 754 027 |
 | 3.0.28, 80 étapes avec relances (anciennes relances retirées) | 1 237 011 (−1,2 %) | 254 564 (−0,4 %) | 416 450 (−0,6 %) | 745 787 (−1,1 %) |
+| 3.0.30, 80 étapes (réflexion retirée quand le résultat l'est) | 1 090 900 (−2,8 %) | 234 044 (−0,7 %) | 378 240 (−1,3 %) | 662 472 (−2,5 %) |
+| 3.0.30, 80 étapes avec relances | 1 200 483 (−3,0 %) | 253 039 (−0,6 %) | 411 043 (−1,3 %) | 726 761 (−2,6 %) |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -200,12 +202,20 @@ mémoire 32k tokens, consigne 3 000 car.
   4 de ces départs dans un chat vide (rien de perdu) ; logo du chat vide 200 → 150 pt.
   Tests : 381 → 382.
 
-## Prochain passage : TOKENS
-Résumé des vieux messages du chat à la coupure, puis interface : session de l'agent
-(revoir depuis 3.0.9) ou Routines / Nouvelle session.
+- 3.0.30 (tokens) : `AgentRun.dropThought` — quand l'étage profond réduit un vieux
+  résultat à son titre (`droppedNote`), le champ « thought » du bloc JSON de la réponse
+  qui a lancé cette action est retiré en entier (l'action, `tool` + `args`, reste ; rien
+  si c'est le seul champ). Même paquet que l'étage profond (`deepBatch` = 24) : aucune
+  rupture de cache en plus. 80 étapes : envoyés −2,8 %, OpenAI −2,5 % ; avec relances
+  −3,0 % / −2,6 %. 40 étapes inchangées (l'étage profond ne part pas avant ≈ 40
+  résultats). Tests : 382 → 383.
+
+## Prochain passage : INTERFACE
+Interface : session de l'agent (revoir depuis 3.0.9), ou Routines / Nouvelle session.
 Ensuite tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
-paquets, `keepAfterTrim`) ; modèle moins cher pour `askOnce` jugé risqué (la traduction
-NEXORA guide toute la session) — seulement si un réglage explicite le demande.
+paquets, `keepAfterTrim` ; un résumé coûte quelques tokens mais permettrait de couper
+plus profond, à mesurer sur le banc chat) ; modèle moins cher pour `askOnce` jugé risqué
+(la traduction NEXORA guide toute la session) — seulement si un réglage le demande.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.

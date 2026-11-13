@@ -482,6 +482,37 @@ struct TokenBench {
         #expect(twice == now)
     }
 
+    @Test("réflexion retirée quand le résultat de l'action n'est plus là")
+    func thoughtOfDroppedResult() {
+        func turn(_ i: Int) -> String {
+            "```json\n{\"thought\": \"Je lis f\(i)\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(i)\"}}\n```"
+        }
+        var h = [LLMMessage("user", "Demande")]
+        for i in 0..<40 {
+            h.append(LLMMessage("assistant", turn(i)))
+            h.append(LLMMessage("user", "Résultat de read_file (f\(i)) :\n" + String(repeating: "z", count: 5000)))
+        }
+        AgentRun.compactHistory(&h)
+        let kept = AgentRun.keepFullResults + AgentRun.keepBriefResults
+        for i in 0..<40 {
+            let answer = h[1 + i * 2].content
+            let result = h[2 + i * 2].content
+            #expect(answer.contains("\"tool\": \"read_file\""))
+            if i < 40 - kept {
+                // Résultat réduit à son titre : la réflexion qui l'expliquait ne sert plus.
+                #expect(result.hasSuffix(AgentRun.droppedNote))
+                #expect(!answer.contains("\"thought\""))
+            } else {
+                #expect(answer.contains("\"thought\": \"Je lis f\(i)\""))
+            }
+        }
+        // Sans action dans le bloc, la réflexion reste (c'est tout ce qu'il y a).
+        let alone = "{\"thought\": \"t\"}"
+        #expect(AgentRun.dropThought(alone) == alone)
+        // Réflexion en dernier champ : retirée avec sa virgule.
+        #expect(AgentRun.dropThought("{\"tool\": \"x\", \"thought\": \"t\"}") == "{\"tool\": \"x\"}")
+    }
+
     @Test("anciennes relances (réponse sans action) retirées, les récentes gardées")
     func oldRelances() {
         let idle = "Je réfléchis " + String(repeating: "longuement ", count: 40)

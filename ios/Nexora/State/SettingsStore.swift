@@ -10,7 +10,7 @@ import SwiftUI
 @Observable
 final class SettingsStore {
     /// La version affichée dans Réglages (même numérotation que l'app Flutter).
-    static let appVersion = "3.0.29"
+    static let appVersion = "3.0.30"
 
     @ObservationIgnored let defaults: UserDefaults
 

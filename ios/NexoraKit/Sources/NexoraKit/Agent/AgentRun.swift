@@ -792,6 +792,16 @@ public final class AgentRun {
             seen += 1
             if seen > deep && dropOld && canDrop(m.content), let cut = m.content.range(of: " :\n") {
                 history[i] = LLMMessage("user", String(m.content[..<cut.upperBound]) + droppedNote)
+                // La réponse qui a lancé cette action : sa réflexion expliquait un
+                // résultat qui n'est plus là, elle ne sert plus (l'action reste).
+                var j = i - 1
+                while j >= 0, history[j].role == "user", history[j].content.hasSuffix(droppedNote) { j -= 1 }
+                if j >= 0, history[j].role == "assistant" {
+                    let lighter = block.replaceAllMapped(history[j].content) { b in
+                        b[1] == "json" ? dropThought(b.text) : b.text
+                    }
+                    if lighter != history[j].content { history[j] = LLMMessage("assistant", lighter) }
+                }
                 continue
             }
             // Seuls les longs résultats (fichiers lus, recherches) comptent : une courte
@@ -870,6 +880,21 @@ public final class AgentRun {
     private nonisolated static let thoughtField = DRegex(#""thought"\s*:\s*"((?:[^"\\]|\\.)*)""#)
 
     private nonisolated static let goalField = DRegex(#""demande"\s*:\s*"(?:[^"\\]|\\.)*"\s*,\s*"#)
+
+    /// La réflexion (« thought ») d'une réponse dont le résultat n'est plus dans
+    /// l'historique (réduit à son titre) : elle expliquait une action dont on ne voit
+    /// plus l'effet, elle ne sert plus à rien. La trace de l'action (tool, args) reste,
+    /// et seulement s'il en reste une.
+    nonisolated static func dropThought(_ json: String) -> String {
+        guard json.contains("\"tool\"") || json.contains("\"actions\"") else { return json }
+        var out = thoughtFieldBefore.replaceAll(json, "")
+        if out == json { out = thoughtFieldAfter.replaceAll(json, "") }
+        return out.contains("\"tool\"") || out.contains("\"actions\"") ? out : json
+    }
+
+    private nonisolated static let thoughtFieldBefore = DRegex(#""thought"\s*:\s*"(?:[^"\\]|\\.)*"\s*,\s*"#)
+
+    private nonisolated static let thoughtFieldAfter = DRegex(#",\s*"thought"\s*:\s*"(?:[^"\\]|\\.)*""#)
 
     /// Taille à partir de laquelle un résultat relu à l'identique n'est pas renvoyé.
     public nonisolated static let dedupMin = 600

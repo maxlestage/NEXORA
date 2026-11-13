@@ -5,6 +5,15 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.30 — 13 novembre 2026 — Longues sessions de l'agent moins chères
+
+- Amélioré : dans une longue session, quand un ancien résultat d'outil n'est plus
+  gardé dans l'historique, la réflexion qui l'expliquait ne repart plus non plus à
+  chaque étape. L'action elle-même reste : l'agent garde la trace de ce qu'il a fait.
+- Mesuré sur une session d'agent de 80 étapes : environ 3 % de tokens envoyés en
+  moins (jusqu'à −2,6 % de coût), sans rien perdre du travail en cours.
+- Les sessions courtes ne changent pas : rien n'est retiré avant 16 résultats.
+
 ## 3.0.29 — 13 novembre 2026 — Accueil plus clair
 - Amélioré : avec 5 conversations ou plus, l'accueil range les idées de départ et vos conversations remontent ; un nouveau chat vide les propose toujours.
 - Nouveau : touchez la ligne du modèle sous le titre pour ouvrir l'onglet Modèles.
