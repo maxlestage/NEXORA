@@ -289,12 +289,21 @@ mémoire 32k tokens, consigne 3 000 car.
   Obtenir la clé, Voir le YAML), 44 pt. Feuille de lancement : instruction vide refusée,
   « Lancer » aussi dans la barre (clavier ouvert), titre raccourci. Tests : 397 → 399.
 
-## Prochain passage : TOKENS
-Mesurer `CILog.condense` sur un vrai journal de job iOS en échec (banc simulé seulement).
-Interface ensuite : DraftReviewView ou InstallAgentsView (pas encore revus).
+- 3.0.39 (tokens) : `CILog` mesuré sur un vrai journal en échec (job « App » du run
+  43089990013, 351 lignes, 41 453 car. : flutter analyze, 49 « info • … deprecated » qui ne
+  diffèrent que par l'emplacement). `condense` 120 lignes : 18 276 → 6 284 car. (−66 %) ;
+  200 lignes : 20 468 → 6 284 (−69 %). `foldSimilar` : ≥ `foldRun` = 3 lignes de suite
+  identiques à l'emplacement près (`fichier:ligne[:col]` → §) → la première + « (+N
+  semblables : emplacements) », 30 au plus ; tous les emplacements de l'exemple gardés.
+  Marqueurs `##[start-action …]`/`##[end-action …]` retirés ; « Received X of Y (…) »
+  (téléchargement du cache) traité comme une progression. Tests : 399 → 400.
+
+## Prochain passage : INTERFACE
+DraftReviewView ou InstallAgentsView (pas encore revus).
 
 ## Pistes tokens à faire
-- Journal CI réel : vérifier le gain sur un vrai journal (banc simulé seulement).
+- Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
+  vérifier `foldSimilar` sur des avertissements Swift répétés le jour où il y en a un.
 
 ## Idées écartées
 - Modèle moins cher pour `askOnce` (traduction de la demande, sous-agents) : un seul

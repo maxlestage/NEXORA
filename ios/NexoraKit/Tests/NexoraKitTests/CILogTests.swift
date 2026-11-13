@@ -80,6 +80,32 @@ struct CILogTests {
         #expect(kept.count <= 22)
     }
 
+    @Test("messages semblables regroupés, marqueurs d'actions et téléchargements retirés")
+    func folding() {
+        let msg = "   info • 'material.dart' is deprecated • "
+        var raw = ["##[start-action display=Cache;id=x]", "Received 10 of 100 (10.0%), 5 MBs/sec",
+                   "Received 100 of 100 (100.0%), 5 MBs/sec", "##[end-action id=x;outcome=success]",
+                   "Analyzing app..."]
+        raw += (1...6).map { msg + "lib/f\($0).dart:\($0):1 • deprecated_member_use" }
+        raw += ["lib/a.swift:3:1: error: x", "lib/b.swift:4:1: error: x",
+                "   error • autre • lib/g.dart:2:1 • rule", "6 issues found."]
+        let out = CILog.clean(raw.joined(separator: "\n"))
+        #expect(out == [
+            "Received 100 of 100 (100.0%), 5 MBs/sec",
+            "Analyzing app...",
+            msg + "lib/f1.dart:1:1 • deprecated_member_use",
+            "  (+5 semblables : lib/f2.dart:2:1, lib/f3.dart:3:1, lib/f4.dart:4:1, lib/f5.dart:5:1, lib/f6.dart:6:1)",
+            "lib/a.swift:3:1: error: x", "lib/b.swift:4:1: error: x",
+            "   error • autre • lib/g.dart:2:1 • rule", "6 issues found.",
+        ])
+        // Au-delà de `foldPlaces` emplacements : la liste s'arrête sur « … ».
+        let many = (1...40).map { msg + "lib/f\($0).dart:1:1 • r" }.joined(separator: "\n")
+        let folded = CILog.clean(many)
+        #expect(folded.count == 2)
+        #expect(folded[1].hasPrefix("  (+39 semblables : lib/f2.dart:1:1,"))
+        #expect(folded[1].hasSuffix("lib/f31.dart:1:1, …)"))
+    }
+
     @Test("journal d'une compilation ratée : moins de tokens, et l'erreur reste")
     func bench() {
         let raw = sampleCILog()

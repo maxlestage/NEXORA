@@ -2,14 +2,18 @@ import Foundation
 
 private let logStamp = DRegex(#"^\d{4}-\d\d-\d\dT[\d:.]+Z ?"#)
 private let logColor = DRegex(#"\u001B\[[0-9;]*[A-Za-z]"#)
-private let logProgress = DRegex(#"^\[\d+/\d+\] "#)
+private let logProgress = DRegex(#"^\[\d+/\d+\] |^Received \d+ of \d+ \("#)
+private let logPlace = DRegex(#"(?:[\w.~-]*/)*[\w.-]+\.[A-Za-z]\w*:\d+(?::\d+)?"#)
 private let logError = DRegex(
     #"##\[error\]|\berror\b|\bfail(ed|ure|s)?\b|panic|traceback|exception|fatal|✘"#, caseSensitive: false)
 
 /// Le journal d'un job de CI, raccourci avant d'être lu par l'agent : sans
 /// horodatage, couleurs, lignes vides, lignes répétées, suites de lignes de
-/// progression (« [12/400] Compiling … »), contenu des groupes
+/// progression (« [12/400] Compiling … », téléchargement du cache), marqueurs
+/// d'actions (« ##[start-action …] »), contenu des groupes
 /// repliés (préparation, variables d'environnement) ni nettoyage de fin de job ;
+/// une suite de messages identiques à l'emplacement près (« info • … •
+/// lib/a.dart:1:1 ») tient en une ligne suivie des autres emplacements ;
 /// les erreurs plus haut que la fin gardée sont reprises avec un peu de contexte.
 /// Moins de tokens à chaque lecture, et l'erreur utile n'est plus perdue.
 public enum CILog {
@@ -33,6 +37,7 @@ public enum CILog {
             // Le nettoyage de fin de job (« Post job cleanup », étapes « Post … »).
             if line.hasPrefix("Post job cleanup.") || line.hasPrefix("##[group]Post ")
                 || line.hasPrefix("Cleaning up orphan processes") { break }
+            if line.hasPrefix("##[start-action") || line.hasPrefix("##[end-action") { continue }
             if line.hasPrefix("##[group]") {
                 inGroup = true
                 line = "▸ " + line.dropFirst(9)
@@ -51,6 +56,37 @@ public enum CILog {
             }
             progress = isProgress
             out.append(line)
+        }
+        return foldSimilar(out)
+    }
+
+    /// Au moins ce nombre de messages semblables à la suite pour être regroupés.
+    static let foldRun = 3
+    /// Emplacements listés au plus pour un groupe de messages semblables.
+    static let foldPlaces = 30
+
+    /// Les suites de `foldRun` lignes ou plus identiques à l'emplacement près
+    /// (« fichier:ligne:colonne ») : la première ligne, puis une ligne avec les
+    /// emplacements des autres. Le message n'est lu qu'une fois, aucun endroit perdu.
+    static func foldSimilar(_ lines: [String]) -> [String] {
+        let keys = lines.map { $0.contains(":") ? logPlace.replaceAll($0, "§") : $0 }
+        var out: [String] = []
+        var i = 0
+        while i < lines.count {
+            var j = i + 1
+            if keys[i] != lines[i] {
+                while j < lines.count && keys[j] == keys[i] { j += 1 }
+            }
+            out.append(lines[i])
+            if j - i >= foldRun {
+                let places = lines[(i + 1)..<j].compactMap { logPlace.firstMatch($0)?.text }
+                let shown = places.prefix(foldPlaces).joined(separator: ", ")
+                let more = places.count > foldPlaces ? ", …" : ""
+                out.append("  (+\(j - i - 1) semblables : \(shown)\(more))")
+            } else {
+                out += lines[(i + 1)..<j]
+            }
+            i = j
         }
         return out
     }
