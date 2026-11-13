@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.39 — 13 novembre 2026 — Journaux de CI plus légers pour l'agent
+
+- Amélioré : quand l'agent lit un journal de CI en échec, une suite de messages identiques (même avertissement dans 49 fichiers) tient en une ligne avec la liste des fichiers : environ 65 % de tokens en moins sur un vrai journal.
+- Amélioré : les marqueurs d'étapes et la progression des téléchargements du cache ne sont plus envoyés au modèle.
+- Aucun emplacement d'erreur n'est perdu.
+
 ## 3.0.38 — 13 novembre 2026 — Agents cloud plus simples
 - Amélioré : chaque agent cloud n'a plus qu'un bouton principal (« Installer », puis « Lancer ») et « Secret » ; les actions rares passent dans le menu « … ».
 - Amélioré : les missions affichent leur état en clair (« En cours », « Réussie », « Échouée ») et sont lues d'un trait par VoiceOver.
