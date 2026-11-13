@@ -332,8 +332,49 @@ private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int
     return (sent, uncached, kept, dropped)
 }
 
+/// Un chat de 30 tours avec une photo toutes les deux questions (≈ 1 500 tokens
+/// chacune, comptée 6 000 caractères comme dans l'app), mémoire illimitée : caractères
+/// envoyés et part hors cache, images comprises. `batch` : paquet de `ChatImages.attach`
+/// (1 = l'ancienne fenêtre, qui retirait une photo à chaque nouvelle).
+private func photoChatChars(batch: Int) -> (sent: Int, uncached: Int) {
+    let photo = 6000
+    var messages: [ChatMessage] = []
+    var previous: [LLMMessage] = []
+    var sent = 0, uncached = 0
+    func size(_ m: LLMMessage) -> Int { m.content.count + m.images.count * photo }
+    for turn in 0..<30 {
+        messages.append(ChatMessage(role: .user, content: "Question \(turn) " + String(repeating: "q", count: 300),
+                                    images: turn % 2 == 0 ? ["p\(turn).jpg"] : []))
+        let (plain, dropped) = ChatLogic.recentHistory(messages, budgetTokens: 0)
+        let history = ChatImages.attach(plain, from: messages, dropped: dropped, batch: batch) { LLMImage(base64: $0) }
+        var same = 0
+        while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
+        sent += history.reduce(3000) { $0 + size($1) }
+        uncached += history.dropFirst(same).reduce(0) { $0 + size($1) } + (same == 0 ? 3000 : 0)
+        previous = history
+        messages.append(ChatMessage(role: .assistant, content: "Réponse \(turn) " + String(repeating: "a", count: 1500)))
+    }
+    return (sent, uncached)
+}
+
 @Suite("Tokens envoyés")
 struct TokenBench {
+    @Test("chat avec photos : les vieilles images retirées par paquets")
+    func photoChat() {
+        func anthropic(_ r: (sent: Int, uncached: Int)) -> Double { Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1 }
+        func openai(_ r: (sent: Int, uncached: Int)) -> Double { Double(r.uncached) + Double(r.sent - r.uncached) * 0.5 }
+        var results: [Int: (sent: Int, uncached: Int)] = [:]
+        for batch in 1...3 {
+            let r = photoChatChars(batch: batch)
+            results[batch] = r
+            print("🪙 chat photos, paquet \(batch) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        let before = results[1]!, after = results[ChatImages.imageBatch]!
+        #expect(anthropic(after) < anthropic(before) * 0.85)
+        #expect(openai(after) < openai(before))
+    }
+
     @Test("chat : mémoire coupée par paquets, le cache de prompt sert")
     func chatMemory() {
         let before = chatChars(everyTurn: true)

@@ -213,6 +213,32 @@ struct ImageChatTests {
         #expect(missing[8].content.contains("non renvoyées"))
     }
 
+    @Test("les images des vieux messages partent par paquets de deux")
+    func batchedWindow() {
+        func counts(_ n: Int) -> [Int] {
+            var msgs: [ChatMessage] = []
+            for i in 0..<n {
+                msgs.append(ChatMessage(role: .user, content: "photo \(i)", images: ["\(i).jpg"]))
+                msgs.append(ChatMessage(role: .assistant, content: "vu \(i)"))
+            }
+            let (h, dropped) = ChatLogic.recentHistory(msgs, budgetTokens: 0)
+            return ChatImages.attach(h, from: msgs, dropped: dropped) { LLMImage(base64: $0) }
+                .filter { $0.role == "user" }.map(\.images.count)
+        }
+        #expect(counts(3) == [1, 1, 1])
+        // Une 4e photo : la 1re reste (le début de la requête ne change pas)…
+        #expect(counts(4) == [1, 1, 1, 1])
+        // …puis les deux plus vieilles partent ensemble.
+        #expect(counts(5) == [0, 0, 1, 1, 1])
+        #expect(counts(6) == [0, 0, 1, 1, 1, 1])
+        #expect(counts(7) == [0, 0, 0, 0, 1, 1, 1])
+        // Paquet de 1 : l'ancienne fenêtre des 3 derniers.
+        var msgs: [ChatMessage] = []
+        for i in 0..<4 { msgs.append(ChatMessage(role: .user, content: "\(i)", images: ["\(i).jpg"])) }
+        let one = ChatImages.attach(msgs.map { LLMMessage("user", $0.content) }, from: msgs, dropped: 0, batch: 1) { LLMImage(base64: $0) }
+        #expect(one.map(\.images.count) == [0, 1, 1, 1])
+    }
+
     @Test("historique coupé par la mémoire : les images suivent les bons messages")
     func trimmed() {
         let msgs = [

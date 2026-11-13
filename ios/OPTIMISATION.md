@@ -242,9 +242,18 @@ mémoire 32k tokens, consigne 3 000 car.
   ouvert) ; orbe 120 → 72 pt ; boutons Branche/Retirer 44 pt + balayage « Retirer » ;
   mission vide → le champ reprend le focus. Tests : 387 → 390.
 
-## Prochain passage : TOKENS
-Ensuite interface : session de l'agent (revoir depuis 3.0.9).
-Tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
+- 3.0.34 (tokens) : `ChatImages.attach(…, batch: imageBatch)` — les photos des vieux
+  messages sont retirées par paquets de 2 messages (fenêtre de 3 à 4 messages à photos,
+  départ calculé depuis l'historique envoyé) au lieu d'une à chaque nouvelle photo, qui
+  changeait le début de la requête. Banc `photoChat` (30 tours, photo une question sur
+  deux, 1 photo ≈ 1 500 tokens) : paquet 1 → 2 : envoyés 350 292 → 368 190 (+5,1 %), hors
+  cache 101 661 → 74 993 (−26 %), Anthropic 151 939 → 123 061 (−19 %), OpenAI 225 976 →
+  221 591 (−1,9 %). Paquet 3 écarté (Anthropic −25 % mais OpenAI +0,1 %, envoyés +10 %).
+  Tests : 390 → 392.
+
+## Prochain passage : INTERFACE
+Interface : session de l'agent (revoir depuis 3.0.9).
+Ensuite tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
 couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
 toute la session) — seulement si un réglage le demande.
 
