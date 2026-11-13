@@ -280,11 +280,18 @@ mémoire 32k tokens, consigne 3 000 car.
   ParityTests « catalogue livré » et UsageTests « prix en direct » échouent (ressources
   du paquet non trouvées), aussi sans changement : la CI fait foi.
 
-## Prochain passage : INTERFACE
-Écran : CloudAgentsView, DraftReviewView ou InstallAgentsView (pas encore revus).
-(Passage tokens du 13 novembre 2026 sans commit de code : pistes restantes jugées
-marginales ou risquées, voir « Idées écartées ».)
-Tokens ensuite : mesurer `CILog.condense` sur un vrai journal de job iOS en échec.
+- 3.0.38 (interface) : écran Agents cloud — `CloudAgentsDisplay` (`intro` en une phrase,
+  `runState`/`runDetail`/`runAccessibility` : « Réussie · NEXORA Claude » au lieu du seul nom
+  du workflow, état « Annulée » distinct ; `primaryAction` ; `loadProblem` : message quand
+  les workflows ne se lisent pas (avant : tous les agents « non installé » sans
+  explication) ; `installError` ; `canLaunch`). Carte : une rangée défilante de 5 boutons
+  → bouton principal (Installer puis Lancer) + « Secret » + menu « … » (Mettre à jour,
+  Obtenir la clé, Voir le YAML), 44 pt. Feuille de lancement : instruction vide refusée,
+  « Lancer » aussi dans la barre (clavier ouvert), titre raccourci. Tests : 397 → 399.
+
+## Prochain passage : TOKENS
+Mesurer `CILog.condense` sur un vrai journal de job iOS en échec (banc simulé seulement).
+Interface ensuite : DraftReviewView ou InstallAgentsView (pas encore revus).
 
 ## Pistes tokens à faire
 - Journal CI réel : vérifier le gain sur un vrai journal (banc simulé seulement).
