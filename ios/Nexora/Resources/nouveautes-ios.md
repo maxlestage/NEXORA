@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.37 — 13 novembre 2026 — Crédits plus clairs
+- Amélioré : « Crédits et consommation » sans fournisseur payant affiche un écran clair avec un bouton « Ouvrir Modèles ».
+- Corrigé : « 1 requête », « 12 requêtes » ou « Aucune requête aujourd'hui » au lieu de « requête(s) ».
+- Amélioré : texte d'aide deux fois plus court, lignes des fournisseurs lues d'un trait par VoiceOver.
+
 ## 3.0.36 — 13 novembre 2026 — Agent moins cher
 
 - Amélioré : les sessions de l'agent coûtent environ 5 % de moins chez Anthropic (et 1 % chez OpenAI) : les rappels de la demande quittent l'historique en même temps que les anciens résultats, ce qui laisse le cache de prompt servir plus longtemps.

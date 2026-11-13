@@ -269,11 +269,20 @@ mémoire 32k tokens, consigne 3 000 car.
   `compactBatch` 5 (+4 % Anthropic) et 8 (Anthropic −6 % mais OpenAI +7 %, envoyés
   +12 %). Tests : 394 (inchangés).
 
-## Prochain passage : INTERFACE
-Écran Agents ou Code/GitHub (session de l'agent revue en 3.0.35).
-Tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
-couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
-toute la session) — seulement si un réglage le demande.
+- 3.0.37 (interface) : écran Crédits et consommation (Réglages) — `UsageDisplay`
+  (`todayLine` : « 1 requête » / « 12 requêtes » / « Aucune requête aujourd'hui » au lieu
+  de « requête(s) » ; `settingsDetail` ; `rowAccessibility`). Sans fournisseur payant :
+  `ContentUnavailableView` avec bouton « Ouvrir Modèles » (avant : total à 0 $ et phrase
+  dans la liste) ; pied de section 2× plus court ; lignes 44 pt lues d'un trait par
+  VoiceOver. Tests : 394 → 397.
+  Note environnement : Swift 6.4.2 sous Linux plante avec le système de build par défaut
+  (bundle SwiftBuild_SWBAndroidPlatform) → `swift test --build-system native` ; alors
+  ParityTests « catalogue livré » et UsageTests « prix en direct » échouent (ressources
+  du paquet non trouvées), aussi sans changement : la CI fait foi.
+
+## Prochain passage : TOKENS
+Piste : mémoire du chat — rappel en une ligne des questions laissées de côté.
+Interface ensuite : CloudAgentsView, DraftReviewView ou InstallAgentsView (pas encore revus).
 
 ## Pistes tokens à faire
 - Mémoire du chat : rappel en une ligne des questions laissées de côté (3.0.32 raccourcit déjà les vieilles réponses).
