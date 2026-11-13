@@ -121,8 +121,15 @@ mémoire 32k tokens, consigne 3 000 car.
   Vérifié au passage : images du chat déjà limitées (3 derniers messages) ; suite
   d'une réponse coupée garde le préfixe (cache) ; `cache_control` déjà automatique.
 
-## Prochain passage : INTERFACE
-Écrans : Modèles, puis Réglages. Tokens ensuite : retirer aussi le « thought » des
+- 3.0.21 (interface) : onglet Modèles — `ProvidersDisplay` (filtre + recherche nom ou
+  description sans accents ni casse, filtres avec nombre « Prêts · 3 », sections « Prêts (n) »
+  puis « À configurer (n) », étiquettes courtes sans « prêt / clé requise » redondant avec la
+  section, libellé VoiceOver) ; barre du haut 2 boutons → 1 (Aide déplacée en bas de liste
+  « Où trouver une clé ? ») ; états vides (filtre vide → « Voir tous », recherche) ; puces
+  44 pt. Tests : 370 → 373.
+
+## Prochain passage : TOKENS
+Puis interface : Réglages, fiche d'un fournisseur (ProviderDetailView). Tokens : retirer aussi le « thought » des
 très vieilles réponses (mesurer, risque de perte de contexte) ; résumé des vieux
 messages du chat à la coupure ; modèle moins cher pour `askOnce` si réglage.
 
