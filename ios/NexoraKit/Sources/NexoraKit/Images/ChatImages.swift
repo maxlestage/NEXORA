@@ -130,8 +130,13 @@ public enum ChatImages {
     public static let maxPerMessage = 4
     /// Images envoyées au modèle à chaque réponse, au plus (les plus récentes).
     public static let maxSent = 6
-    /// Messages dont les images sont renvoyées, au plus (les plus récents).
+    /// Messages dont les images sont renvoyées, au moins les plus récents (jusqu'à
+    /// `maxSentMessages` + `imageBatch` − 1, voir `attach`).
     public static let maxSentMessages = 3
+    /// Les images des vieux messages sont retirées par paquets de ce nombre de
+    /// messages : le début de la requête reste le même plusieurs tours et le cache
+    /// de prompt le relit (avant 3.0.34 : une photo de plus en retirait une à chaque fois).
+    public static let imageBatch = 2
     /// Octets d'images envoyés à chaque réponse, au plus.
     public static let maxSentBytes = 15 * 1024 * 1024
     /// Côté le plus long d'une photo jointe (en pixels) et qualité JPEG.
@@ -156,21 +161,34 @@ public enum ChatImages {
     /// Ajoute à l'historique (rendu par `ChatLogic.recentHistory`) les images des
     /// derniers messages de l'utilisateur, dans la limite du budget. Les messages
     /// plus anciens gardent une note à la place de leurs images.
+    /// Fenêtre par paquets : les `batch` plus vieux messages à photos de la fenêtre
+    /// perdent leurs images ensemble (quand `maxSentMessages` + `batch` messages en
+    /// ont), et non un à chaque nouvelle photo. Le point de départ ne dépend que de
+    /// l'historique envoyé.
     public static func attach(
         _ history: [LLMMessage], from messages: [ChatMessage], dropped: Int,
+        batch: Int = imageBatch,
         load: (String) -> LLMImage?
     ) -> [LLMMessage] {
         let usable = messages.filter(ChatLogic.isUsable)
         guard usable.count == dropped + history.count else { return history }
         var out = history
         var sentImages = 0
-        var sentMessages = 0
         var bytes = 0
+        // Les messages à photos de l'historique envoyé, du plus vieux au plus récent :
+        // ceux d'avant `first` gardent seulement une note.
+        let withPhotos = history.indices.filter {
+            let m = usable[dropped + $0]
+            return m.role == .user && !m.images.isEmpty
+        }
+        let extra = max(0, withPhotos.count - maxSentMessages)
+        let step = max(1, batch)
+        let first = withPhotos.isEmpty ? 0 : withPhotos[extra / step * step]
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = usable[dropped + i]
             guard m.role == .user, !m.images.isEmpty else { continue }
             var images: [LLMImage] = []
-            if sentMessages < maxSentMessages {
+            if i >= first {
                 for name in m.images.prefix(maxPerMessage) where sentImages < maxSent {
                     guard let img = load(name) else { continue }
                     if bytes + img.byteCount > maxSentBytes { break }
@@ -182,7 +200,6 @@ public enum ChatImages {
             if images.isEmpty {
                 out[i] = LLMMessage(out[i].role, appending(out[i].content, notSentNote(m.images.count)))
             } else {
-                sentMessages += 1
                 out[i] = LLMMessage(out[i].role, out[i].content, images: images)
             }
         }

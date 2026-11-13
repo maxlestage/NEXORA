@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.34 — 13 novembre 2026 — Photos du chat moins chères
+
+- Amélioré : dans un chat avec des photos, les anciennes images sont retirées deux par deux : le cache des fournisseurs sert plus souvent (environ 19 % moins cher avec Claude).
+- Amélioré : les photos des 3 ou 4 derniers messages restent visibles pour le modèle.
+
 ## 3.0.33 — 13 novembre 2026 — Nouvelle session plus simple
 
 - Nouveau : le bouton « Lancer » est toujours en haut à droite, même clavier ouvert.
