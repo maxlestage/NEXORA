@@ -252,7 +252,8 @@ struct ChatView: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            NexusOrb(size: 200)
+            // Logo plus petit : les 4 idées restent visibles au-dessus du clavier.
+            NexusOrb(size: 150)
             Text(ChatDisplay.emptyTitle(agent: agent))
                 .font(.title2.weight(.heavy))
                 .multilineTextAlignment(.center)

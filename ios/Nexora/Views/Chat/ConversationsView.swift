@@ -14,6 +14,7 @@ struct ConversationsView: View {
     @Environment(ChatStore.self) private var chats
     @Environment(AgentLibrary.self) private var agents
     @Environment(SettingsStore.self) private var settings
+    @Environment(AppNavigation.self) private var navigation: AppNavigation?
     @State private var path: [ChatRoute] = []
     @State private var query = ""
     @State private var results: [ConversationStore.Meta]?
@@ -32,7 +33,11 @@ struct ConversationsView: View {
                 if !searching {
                     Group {
                         header
-                        starters
+                        // Avec plusieurs conversations, la liste passe avant les idées
+                        // (on les retrouve dans un nouveau chat vide).
+                        if ChatDisplay.showStarters(conversations: chats.index.count) {
+                            starters
+                        }
                         GettingStartedCard()
                     }
                     .listRowSeparator(.hidden)
@@ -174,10 +179,23 @@ struct ConversationsView: View {
             Text("Que voulez-vous créer aujourd'hui ?")
                 .font(.headline)
                 .multilineTextAlignment(.center)
-            Text("\(provider?.emoji ?? "") \(settings.displayName(current)) · \(settings.readyProviders.count) fournisseurs prêts")
+            // Un toucher mène aux modèles : changer de fournisseur ou ajouter une clé.
+            Button {
+                navigation?.tab = .models
+            } label: {
+                Text(ChatDisplay.homeSubtitle(
+                    emoji: provider?.emoji ?? "",
+                    model: settings.displayName(current),
+                    ready: settings.readyProviders.count
+                ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Ouvre l'onglet Modèles")
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 4)

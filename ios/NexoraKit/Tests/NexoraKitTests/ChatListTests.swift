@@ -55,4 +55,19 @@ struct ChatListTests {
         #expect(ChatDisplay.canSend("", photos: 1))
         #expect(ChatDisplay.canSend("salut", photos: 0))
     }
+
+    @Test func accueil() {
+        // Pluriels justes, et une invitation quand aucun fournisseur n'est prêt.
+        #expect(ChatDisplay.homeSubtitle(emoji: "🌸", model: "Pollinations", ready: 3) == "🌸 Pollinations · 3 fournisseurs prêts")
+        #expect(ChatDisplay.homeSubtitle(emoji: "🌸", model: "Pollinations", ready: 1) == "🌸 Pollinations · 1 fournisseur prêt")
+        #expect(ChatDisplay.homeSubtitle(emoji: "", model: "o3", ready: 0) == "o3 · ajoutez un fournisseur dans Modèles")
+        // Départs rapides : visibles au début, rangés ensuite (sans disparaître :
+        // un nouveau chat vide les propose).
+        #expect(ChatDisplay.showStarters(conversations: 0))
+        #expect(ChatDisplay.showStarters(conversations: ChatDisplay.startersUntil - 1))
+        #expect(!ChatDisplay.showStarters(conversations: ChatDisplay.startersUntil))
+        let ideas = ChatDisplay.ideas(agent: nil)
+        #expect(ideas.count == 4)
+        #expect(ideas.allSatisfy { i in ChatDisplay.starters.contains { $0.text == i } })
+    }
 }

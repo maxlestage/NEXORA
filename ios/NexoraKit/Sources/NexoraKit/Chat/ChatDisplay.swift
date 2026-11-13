@@ -71,11 +71,29 @@ public enum ChatDisplay {
                 "Explique cette erreur de compilation",
             ]
         }
-        return [
-            "Résume-moi les nouveautés de Flutter",
-            "Écris une fonction Dart qui valide un e-mail",
-            "Aide-moi à planifier une app mobile",
-        ]
+        // Les mêmes départs rapides que l'accueil : ils restent à portée quand
+        // l'accueil les range (voir `showStarters`).
+        return starters.prefix(4).map(\.text)
+    }
+
+    /// Au-delà de ce nombre de conversations, l'accueil range les départs rapides :
+    /// la liste remonte (on les retrouve dans un nouveau chat vide).
+    public static let startersUntil = 5
+
+    /// Faut-il montrer les départs rapides sur l'accueil ?
+    public static func showStarters(conversations: Int) -> Bool {
+        conversations < startersUntil
+    }
+
+    /// La ligne sous le titre de l'accueil : « 🌸 Pollinations · 3 fournisseurs prêts »,
+    /// au singulier pour un seul, et une invitation claire quand aucun n'est prêt.
+    public static func homeSubtitle(emoji: String, model: String, ready: Int) -> String {
+        let head = emoji.isEmpty ? model : "\(emoji) \(model)"
+        switch ready {
+        case ..<1: return "\(head) · ajoutez un fournisseur dans Modèles"
+        case 1: return "\(head) · 1 fournisseur prêt"
+        default: return "\(head) · \(ready) fournisseurs prêts"
+        }
     }
 
     /// Le titre et le texte d'une conversation vide.
