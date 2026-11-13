@@ -5,6 +5,15 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.32 — 13 novembre 2026 — Le chat se souvient de plus, pour moins cher
+
+- Amélioré : quand une longue conversation dépasse la mémoire, les vieilles réponses
+  très longues sont raccourcies à leur début au lieu d'effacer des messages entiers :
+  le chat garde vos anciennes questions (36 messages oubliés au lieu de 64 sur un chat
+  de 60 échanges).
+- Amélioré : environ 3 % de tokens en moins sur les longs chats, cache de prompt
+  préservé (le raccourcissement se fait seulement au moment de la coupure).
+
 ## 3.0.31 — 13 novembre 2026 — Routines plus simples
 
 - Amélioré : chaque routine tient sur une ligne claire (« Toutes les heures… ·

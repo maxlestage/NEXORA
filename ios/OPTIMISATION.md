@@ -33,6 +33,13 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.30, 80 étapes (réflexion retirée quand le résultat l'est) | 1 090 900 (−2,8 %) | 234 044 (−0,7 %) | 378 240 (−1,3 %) | 662 472 (−2,5 %) |
 | 3.0.30, 80 étapes avec relances | 1 200 483 (−3,0 %) | 253 039 (−0,6 %) | 411 043 (−1,3 %) | 726 761 (−2,6 %) |
 
+Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
+
+| Version | Envoyés | Hors cache | Coût Anthropic | Coût OpenAI | Messages oubliés (fin) |
+|---|---|---|---|---|---|
+| 3.0.31 (coupure par paquets seule) | 1 360 054 | 160 535 | 320 620 | 760 294 | 64 |
+| 3.0.32 (vieilles longues réponses raccourcies à la coupure) | 1 319 648 (−3,0 %) | 155 024 (−3,4 %) | 310 242 (−3,2 %) | 737 336 (−3,0 %) | 36 |
+
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
 - 3.0.8 (tokens) : `AgentRun.compactHistory(…, batch: compactBatch)` — l'historique de
@@ -218,15 +225,24 @@ mémoire 32k tokens, consigne 3 000 car.
   « Créer une routine » ; balayage à droite « Lancer » (avant seulement dans la fiche).
   Tests : 383 → 386.
 
-## Prochain passage : TOKENS
-Tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
-paquets, `keepAfterTrim` ; un résumé coûte quelques tokens mais permettrait de couper
-plus profond, à mesurer sur le banc chat) ;
-ensuite interface : session de l'agent (revoir depuis 3.0.9) ou Nouvelle session ; modèle moins cher pour `askOnce` jugé risqué
-(la traduction NEXORA guide toute la session) — seulement si un réglage le demande.
+- 3.0.32 (tokens) : mémoire du chat — `ChatLogic.recentHistory` : au moment d'une
+  coupure (seulement là : le début de la requête change de toute façon), toutes les
+  réponses de plus de `compactAbove` = 3 000 car. hors des `compactKeep` = 8 derniers
+  messages sont réduites par `compacted` à leurs 1 500 premiers car. (fin de ligne, bloc
+  de code refermé, repère « suite … omise »), puis les plus vieux messages partent si
+  besoin. Questions de l'utilisateur jamais touchées. Essais écartés : raccourcir sur une
+  grille fixe de 8 messages (envoyés −15 % mais Anthropic +19 % : cache cassé tous les
+  4 tours) ; raccourcir seulement jusqu'aux 3/4 (pire : +5 % Anthropic) ; garder 4 ou 6
+  au lieu de 8 (−0,7 % de plus seulement, moins sûr). Tests : 386 → 387.
+
+## Prochain passage : INTERFACE
+Interface : session de l'agent (revoir depuis 3.0.9) ou Nouvelle session ;
+ensuite tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
+couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
+toute la session) — seulement si un réglage le demande.
 
 ## Pistes tokens à faire
-- Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
+- Mémoire du chat : rappel en une ligne des questions laissées de côté (3.0.32 raccourcit déjà les vieilles réponses).
 - Modèle moins cher pour les tâches internes `askOnce` (traduction, rapport) via réglage.
 - Journal CI réel : vérifier le gain sur un vrai journal (banc simulé seulement).
 

@@ -295,13 +295,13 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
 /// Un chat de 60 tours (question de 600 caractères, réponse de 4 000) avec la mémoire
 /// par défaut (32k tokens) : caractères envoyés et part hors cache. `everyTurn` :
 /// l'ancienne coupure (avant 3.0.14), refaite à chaque tour au plus juste.
-private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int]) {
+private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int], dropped: [Int]) {
     let budget = 32000
     let system = String(repeating: "s", count: 3000)
     var messages: [ChatMessage] = []
     var previous: [LLMMessage] = []
     var sent = 0, uncached = 0
-    var kept: [Int] = []
+    var kept: [Int] = [], dropped: [Int] = []
     for turn in 0..<60 {
         messages.append(ChatMessage(role: .user, content: "Question \(turn) " + String(repeating: "q", count: 600)))
         var history: [LLMMessage]
@@ -315,8 +315,11 @@ private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int
                 start -= 1
             }
             history = Array(usable[start...])
+            dropped.append(start)
         } else {
-            history = ChatLogic.recentHistory(messages, budgetTokens: budget).0
+            let r = ChatLogic.recentHistory(messages, budgetTokens: budget)
+            history = r.0
+            dropped.append(r.1)
         }
         kept.append(history.reduce(0) { $0 + $1.content.count / 4 + 4 })
         var same = 0
@@ -326,7 +329,7 @@ private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int
         previous = history
         messages.append(ChatMessage(role: .assistant, content: "Réponse \(turn) " + String(repeating: "a", count: 4000)))
     }
-    return (sent, uncached, kept)
+    return (sent, uncached, kept, dropped)
 }
 
 @Suite("Tokens envoyés")
@@ -335,21 +338,28 @@ struct TokenBench {
     func chatMemory() {
         let before = chatChars(everyTurn: true)
         let after = chatChars(everyTurn: false)
-        func anthropic(_ r: (sent: Int, uncached: Int, kept: [Int])) -> Double {
+        func anthropic(_ r: (sent: Int, uncached: Int, kept: [Int], dropped: [Int])) -> Double {
             Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1
         }
-        func openai(_ r: (sent: Int, uncached: Int, kept: [Int])) -> Double {
+        func openai(_ r: (sent: Int, uncached: Int, kept: [Int], dropped: [Int])) -> Double {
             Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
         }
         for (name, r) in [("coupé à chaque tour", before), ("coupé par paquets", after)] {
-            print("🪙 chat \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+            print("🪙 chat \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, \(r.dropped.last!) messages laissés de côté, "
                 + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
         }
         #expect(anthropic(after) < anthropic(before) * 0.6)
         #expect(openai(after) < openai(before))
-        // La mémoire réglée n'est jamais dépassée, et au moins les 3/4 en restent.
+        // La mémoire réglée n'est jamais dépassée ; quand des messages sont laissés de
+        // côté, au moins les 3/4 en restent.
         #expect(after.kept.allSatisfy { $0 <= 32000 })
-        #expect(after.kept.suffix(30).allSatisfy { $0 >= 32000 * 3 / 4 - 1300 })
+        #expect(zip(after.kept, after.dropped).allSatisfy { $1 == 0 || $0 >= 32000 * 3 / 4 - 1300 })
+        // Les longues réponses anciennes raccourcies (3.0.32) : moins de messages
+        // perdus qu'avec la coupure seule (fin du chat : 64 → 36 laissés de côté).
+        #expect(after.dropped.last! < 40)
+        // 3.0.32 : coût Anthropic 320 620 → 310 242, OpenAI 760 294 → 737 336.
+        #expect(Int(anthropic(after)) / 4 < 320_620)
+        #expect(Int(openai(after)) / 4 < 760_294)
         // Entre deux coupures, le début de la requête ne bouge pas.
         let msgs = (0..<40).map { ChatMessage(role: $0 % 2 == 0 ? .user : .assistant, content: String(repeating: "x", count: 400)) }
         var starts: [Int] = []

@@ -32,6 +32,30 @@ struct ChatLogicTests {
         #expect(!ChatLogic.continuePrompt("Texte").contains("sans rouvrir le bloc"))
     }
 
+    @Test("mémoire : longues réponses anciennes raccourcies à la coupure, le reste intact")
+    func compactedHistory() {
+        // Réponse courte : intacte. Longue : début gardé, bloc de code refermé, repère.
+        #expect(ChatLogic.compacted("court") == "court")
+        let code = "Voici :\n```swift\n" + String(repeating: "let a = 1\n", count: 400) + "```\nFin."
+        let short = ChatLogic.compacted(code)
+        #expect(short.count < 1700)
+        #expect(short.hasPrefix("Voici :\n```swift\nlet a = 1\n"))
+        #expect(short.components(separatedBy: "```").count % 2 == 1)
+        #expect(short.contains("ancienne réponse omise"))
+        // Sans coupure (mémoire suffisante), rien n'est raccourci.
+        let long = String(repeating: "a", count: 4000)
+        let msgs = (0..<20).map { ChatMessage(role: $0 % 2 == 0 ? .user : .assistant, content: $0 % 2 == 0 ? "Q\($0)" : long) }
+        #expect(ChatLogic.recentHistory(msgs, budgetTokens: 100_000).0.map(\.content) == msgs.map(\.content))
+        // À la coupure : les vieilles réponses sont raccourcies, les questions et les
+        // 8 derniers messages restent entiers, et aucun message n'est perdu (sans
+        // raccourcir, les 6 premiers l'étaient).
+        let (h, dropped) = ChatLogic.recentHistory(msgs, budgetTokens: 8000)
+        #expect(dropped == 0)
+        #expect(h.suffix(8).map(\.content) == msgs.suffix(8).map(\.content))
+        #expect(h.prefix(8).filter { $0.role == "assistant" }.allSatisfy { $0.content.count < 1700 })
+        #expect(h.filter { $0.role == "user" }.map(\.content) == msgs.filter { $0.role == .user }.map(\.content))
+    }
+
     @Test("mémoire : seuls les messages récents partent, le dernier toujours")
     func history() {
         let msgs = (0..<10).map { ChatMessage(role: $0 % 2 == 0 ? .user : .assistant, content: String(repeating: "x", count: 400)) }
