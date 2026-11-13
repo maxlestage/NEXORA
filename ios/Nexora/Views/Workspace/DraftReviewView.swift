@@ -18,10 +18,13 @@ struct DraftReviewView: View {
     var onMessage: (Toast) -> Void = { _ in }
 
     @Environment(SessionStore.self) private var sessions
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var shipping = false
     @State private var toast: Toast?
+    /// Augmente à chaque envoi réussi (vibration).
+    @State private var shipped = 0
 
     var body: some View {
         let paths = run.changes.keys.sorted()
@@ -37,7 +40,7 @@ struct DraftReviewView: View {
             } else {
                 List {
                     Section {
-                        Text("Touchez un fichier pour voir ce qui change. Décochez ceux que vous ne voulez pas : seuls les brouillons acceptés partent sur GitHub. Vous pouvez aussi les modifier.")
+                        Text(DraftsDisplay.intro)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -52,29 +55,38 @@ struct DraftReviewView: View {
         .navigationTitle("Valider les brouillons")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button("Tout accepter", systemImage: "checkmark.circle") { run.setAllAccepted(true) }
-                    Button("Tout refuser", systemImage: "xmark.circle") { run.setAllAccepted(false) }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+            // Une action directe au lieu d'un menu à deux choix.
+            if !paths.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(DraftsDisplay.bulkLabel(accepted: accepted, total: paths.count)) {
+                        run.setAllAccepted(DraftsDisplay.bulkAccepts(accepted: accepted, total: paths.count))
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(run.running)
                 }
-                .accessibilityLabel("Tout accepter ou tout refuser")
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                shipping = true
-            } label: {
-                Label(WorkspaceText.validateLabel(accepted), systemImage: "checkmark.seal")
-                    .frame(maxWidth: .infinity)
+            VStack(spacing: 6) {
+                Button {
+                    shipping = true
+                } label: {
+                    Label(WorkspaceText.validateLabel(accepted), systemImage: "checkmark.seal")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(accepted == 0 || run.running)
+                if let hint = DraftsDisplay.emptyHint(accepted: accepted, total: paths.count) {
+                    Text(hint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(accepted == 0 || run.running)
             .padding(12)
             .background(.bar)
         }
+        .sensoryFeedback(.success, trigger: shipped) { _, _ in settings.haptics }
         .sheet(isPresented: $shipping) {
             ShipSheet(run: run) { message, branch, openPr, hasPull in
                 Task { await ship(message: message, branch: branch, openPr: openPr, hasPull: hasPull) }
@@ -98,6 +110,7 @@ struct DraftReviewView: View {
             let run = run
             Task { await sessions.verify(run) }
             let pulls = results.filter(\.isPull)
+            if !results.isEmpty { shipped += 1 }
             if let text = WorkspaceText.shipToast(results, hasPull: hasPull) {
                 onMessage(Toast(text: text))
                 toast = Toast(text: text)
@@ -176,7 +189,7 @@ struct ShipSheet: View {
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("Valider \(run.accepted.count) brouillon(s)")
+            .navigationTitle(WorkspaceText.validateLabel(run.accepted.count))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
@@ -203,16 +216,21 @@ struct DraftRow: View {
         let content = run.changes.get(path) ?? nil
         let deleted = content == nil
         let ok = !run.rejected.contains(path)
-        HStack(spacing: 10) {
+        let kind: DraftsDisplay.Kind = deleted
+            ? .deleted
+            : ((run.originals[path] ?? nil) == nil && diff != nil ? .added : .modified)
+        HStack(spacing: 6) {
             Button {
                 run.setAccepted(path, !ok)
             } label: {
                 Image(systemName: ok ? "checkmark.square.fill" : "square")
                     .font(.title3)
                     .foregroundStyle(ok ? Color.accentColor : .secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(ok ? "Refuser \(path)" : "Accepter \(path)")
+            .accessibilityLabel(ok ? "Décocher \(path)" : "Cocher \(path)")
             NavigationLink {
                 DraftDiffView(run: run, path: path)
             } label: {
@@ -221,12 +239,10 @@ struct DraftRow: View {
                         .font(.footnote.monospaced())
                         .strikethrough(!ok)
                     HStack(spacing: 6) {
-                        if deleted {
-                            Pill(text: "Supprimé", color: Theme.red)
-                        } else if (run.originals[path] ?? nil) == nil && diff != nil {
-                            Pill(text: "Nouveau", color: Theme.green)
-                        } else {
-                            Pill(text: "Modifié", color: Theme.amber)
+                        switch kind {
+                        case .deleted: Pill(text: kind.label, color: Theme.red)
+                        case .added: Pill(text: kind.label, color: Theme.green)
+                        case .modified: Pill(text: kind.label, color: Theme.amber)
                         }
                         if let diff {
                             Pill(text: "+\(diff.added)", color: Theme.green)
@@ -238,7 +254,18 @@ struct DraftRow: View {
                         }
                     }
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(DraftsDisplay.rowAccessibility(
+                    path: path, kind: kind, added: diff?.added, removed: diff?.removed, accepted: ok
+                ))
             }
+        }
+        // Balayage : cocher ou décocher sans viser la case.
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button(ok ? "Décocher" : "Cocher", systemImage: ok ? "xmark" : "checkmark") {
+                run.setAccepted(path, !ok)
+            }
+            .tint(ok ? Theme.red : Theme.green)
         }
         // Recalculée seulement si le brouillon a changé (modifié à la main).
         .task(id: content) {

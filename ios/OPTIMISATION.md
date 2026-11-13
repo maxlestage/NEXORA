@@ -298,8 +298,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Marqueurs `##[start-action …]`/`##[end-action …]` retirés ; « Received X of Y (…) »
   (téléchargement du cache) traité comme une progression. Tests : 399 → 400.
 
-## Prochain passage : INTERFACE
-DraftReviewView ou InstallAgentsView (pas encore revus).
+- 3.0.40 (interface) : écran Valider les brouillons (DraftReviewView) — `DraftsDisplay`
+  (`intro` 2× plus courte, `bulkLabel`/`bulkAccepts` : « Tout cocher / Tout décocher »
+  direct dans la barre au lieu d'un menu à 2 choix, `emptyHint` sous Valider quand rien
+  n'est coché, `Kind`, `rowAccessibility` : ligne lue d'un trait). Case à cocher 44 pt,
+  balayage à droite Cocher/Décocher, vibration après l'envoi, titre de la feuille d'envoi
+  et `draftsSummary` avec de vrais pluriels (avant « brouillon(s) », « fichier(s) »).
+  Tests : 400 → 402.
+
+## Prochain passage : TOKENS
+Interface ensuite : InstallAgentsView (pas encore revu).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
