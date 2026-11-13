@@ -56,7 +56,7 @@ struct NewSessionView: View {
         let effort = level ?? ThinkLevel.named(currentAgent?.level) ?? settings.defaultLevel
         return Form {
             Section {
-                NexusOrb(size: 120, satellites: 16, interactive: false, speed: 1.4)
+                NexusOrb(size: 72, satellites: 12, interactive: false, speed: 1.4)
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
                 TextField(
@@ -73,10 +73,6 @@ struct NewSessionView: View {
             }
 
             Section {
-                if !github.connected {
-                    Text("Connectez GitHub (onglet Code) pour choisir des dépôts.")
-                        .foregroundStyle(.secondary)
-                }
                 ForEach(Array(picks.enumerated()), id: \.element.id) { i, p in
                     HStack(spacing: 8) {
                         Image(systemName: p.repo.isPrivate ? "lock" : "globe")
@@ -85,7 +81,7 @@ struct NewSessionView: View {
                             Text(p.repo.fullName)
                                 .font(.body.monospaced().weight(.bold))
                                 .lineLimit(1)
-                            Text("\(i == 0 ? "Principal · " : "")branche \(p.branch)")
+                            Text(NewSessionDisplay.repoDetail(index: i, branch: p.branch))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -95,18 +91,23 @@ struct NewSessionView: View {
                             branchFor = p
                         } label: {
                             Image(systemName: "arrow.triangle.branch")
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Branche")
                         Button {
-                            var list = picks
-                            list.removeAll { $0.id == p.id }
-                            repos = list
+                            remove(p)
                         } label: {
                             Image(systemName: "xmark")
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Retirer")
+                    }
+                    .swipeActions {
+                        Button("Retirer", systemImage: "xmark", role: .destructive) { remove(p) }
                     }
                 }
                 Button(picks.isEmpty ? "Ajouter un dépôt" : "Ajouter un autre dépôt", systemImage: "plus") {
@@ -118,8 +119,8 @@ struct NewSessionView: View {
             } header: {
                 Text("Dépôts")
             } footer: {
-                if picks.count > 1 {
-                    Text("Chaque dépôt est un dossier pour l'agent : il peut lire l'un (un framework, une bibliothèque) et modifier l'autre. Un commit ou une pull request par dépôt modifié.")
+                if let hint = NewSessionDisplay.reposFooter(connected: github.connected, count: picks.count) {
+                    Text(hint)
                 }
             }
 
@@ -144,7 +145,7 @@ struct NewSessionView: View {
                 Toggle(isOn: $settings.agentAutoCi) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Faire passer la CI GitHub")
-                        Text("L'agent écrit les tests et le workflow, envoie son travail sur une branche avec une pull request, et corrige jusqu'à ce que la CI soit entièrement verte. Votre branche principale n'est jamais modifiée.")
+                        Text(NewSessionDisplay.autoCiCaption)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -153,7 +154,7 @@ struct NewSessionView: View {
                     Toggle(isOn: $settings.agentAutoMerge) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Fusionner quand la CI est verte")
-                            Text("Quand tout passe, l'agent fusionne la pull request dans la branche principale (master, main…) et supprime sa branche de travail.")
+                            Text(NewSessionDisplay.autoMergeCaption)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -162,9 +163,7 @@ struct NewSessionView: View {
             } header: {
                 Text("Agent")
             } footer: {
-                Text(settings.agentAutoCi
-                    ? "L'agent explore les dépôts et modifie les fichiers, puis envoie son travail sur une branche de travail avec une pull request : vous la relisez et la fusionnez quand la CI est verte. La session continue si vous quittez l'écran."
-                    : "L'agent explore les dépôts, lit et modifie des fichiers en brouillon. Rien n'est envoyé sur GitHub sans votre accord. La session continue si vous quittez l'écran, reste enregistrée, et vous pouvez lui donner de nouvelles instructions ensuite.")
+                Text(NewSessionDisplay.agentFooter(autoCi: settings.agentAutoCi))
             }
 
             Section {
@@ -181,6 +180,15 @@ struct NewSessionView: View {
         }
         .navigationTitle("Nouvelle session")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Toujours visible, même clavier ouvert ou formulaire long.
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Lancer") {
+                    Task { await start(ref: ref) }
+                }
+                .disabled(starting)
+            }
+        }
         .toast($toast)
         .sheet(isPresented: $pickingRepo) {
             RepoPickerSheet { add($0) }
@@ -214,6 +222,12 @@ struct NewSessionView: View {
         }
     }
 
+    private func remove(_ p: Pick) {
+        var list = picks
+        list.removeAll { $0.id == p.id }
+        repos = list
+    }
+
     private func add(_ r: Repo) {
         if picks.contains(where: { $0.repo.fullName == r.fullName }) {
             toast = Toast(text: "\(r.fullName) est déjà dans la session.")
@@ -238,12 +252,9 @@ struct NewSessionView: View {
 
     private func start(ref: ModelRef) async {
         let mission = task.trimmingCharacters(in: .whitespacesAndNewlines)
-        if mission.isEmpty {
-            toast = Toast(text: "Décrivez la mission.", error: true)
-            return
-        }
-        if picks.isEmpty {
-            toast = Toast(text: "Ajoutez au moins un dépôt.", error: true)
+        if let problem = NewSessionDisplay.startProblem(mission: mission, repoCount: picks.count) {
+            toast = Toast(text: problem, error: true)
+            if mission.isEmpty { missionFocused = true }
             return
         }
         starting = true

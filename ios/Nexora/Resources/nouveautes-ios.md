@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.33 — 13 novembre 2026 — Nouvelle session plus simple
+
+- Nouveau : le bouton « Lancer » est toujours en haut à droite, même clavier ouvert.
+- Amélioré : explications raccourcies de moitié et orbe plus petite : le formulaire tient sur l'écran.
+- Amélioré : boutons Branche et Retirer plus faciles à toucher ; balayez un dépôt pour le retirer.
+- Amélioré : sans mission, le champ Mission reprend la main pour la saisir tout de suite.
+
 ## 3.0.32 — 13 novembre 2026 — Le chat se souvient de plus, pour moins cher
 
 - Amélioré : quand une longue conversation dépasse la mémoire, les vieilles réponses
