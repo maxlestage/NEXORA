@@ -17,10 +17,12 @@ struct SessionView: View {
     @Environment(SessionStore.self) private var sessions
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(SettingsStore.self) private var settings
     @State private var input = ""
     /// Demande de confirmation avant d'arrêter la session (le bouton est tout près
     /// du menu : un toucher involontaire ne doit pas tout arrêter).
     @State private var confirmStop = false
+    @State private var confirmDelete = false
     @State private var toast: Toast?
     @State private var full: FullTextItem?
     @State private var reviewing = false
@@ -154,14 +156,22 @@ struct SessionView: View {
         } message: {
             Text("L'agent s'arrête là où il en est. Ses brouillons sont gardés : envoyez une instruction pour reprendre.")
         }
+        .confirmationDialog("Supprimer la session ?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Supprimer", role: .destructive) { deleteSession(run) }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text(SessionsDisplay.deleteWarning(drafts: run.changes.count) ?? "")
+        }
+        // Une petite vibration quand l'agent a fini (ou s'est arrêté).
+        .sensoryFeedback(.success, trigger: run.running) { old, new in old && !new && settings.haptics }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 // Pendant le travail, Arrêter est en bas, à portée du pouce.
                 if !busy {
                     Menu {
+                        // Des brouillons non envoyés : on demande avant de les perdre.
                         Button("Supprimer la session", systemImage: "trash", role: .destructive) {
-                            sessions.delete(run.id)
-                            dismiss()
+                            if run.changes.isEmpty { deleteSession(run) } else { confirmDelete = true }
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -242,13 +252,17 @@ struct SessionView: View {
                     Button {
                         if let s = run.pulls[key], let u = URL(string: s) { openURL(u) }
                     } label: {
-                        Label("PR \(key.components(separatedBy: "/").last ?? key)", systemImage: "arrow.triangle.merge")
+                        Label(SessionsDisplay.pullChip(key), systemImage: "arrow.triangle.merge")
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background(Theme.violet.opacity(0.18), in: .capsule)
+                            // Petite pastille, mais une zone touchable de 44 pt.
+                            .frame(minHeight: 44)
+                            .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(SessionsDisplay.pullAccessibility(key))
                 }
             }
         }
@@ -410,6 +424,11 @@ struct SessionView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.bar)
+    }
+
+    private func deleteSession(_ run: AgentRun) {
+        sessions.delete(run.id)
+        dismiss()
     }
 
     private func followUp(_ run: AgentRun) {

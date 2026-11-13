@@ -251,9 +251,17 @@ mémoire 32k tokens, consigne 3 000 car.
   221 591 (−1,9 %). Paquet 3 écarté (Anthropic −25 % mais OpenAI +0,1 %, envoyés +10 %).
   Tests : 390 → 392.
 
-## Prochain passage : INTERFACE
-Interface : session de l'agent (revoir depuis 3.0.9).
-Ensuite tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
+- 3.0.35 (interface) : écran Session de l'agent — `SessionsDisplay.deleteWarning`
+  (« Ses 3 brouillons non envoyés seront perdus. », `nil` sans brouillon : pas de
+  question), `pullChip`/`pullAccessibility`. « Supprimer la session » du menu demande
+  confirmation s'il y a des brouillons (avant : suppression immédiate) ; pastilles PR
+  avec zone touchable de 44 pt ; vibration de succès quand l'agent finit. Le texte
+  « brouillon(s) non envoyé(s) » de la liste passe aussi par `deleteWarning`.
+  Tests : 392 → 394.
+
+## Prochain passage : TOKENS
+Interface ensuite : écran Agents ou Code/GitHub (session de l'agent revue en 3.0.35).
+Tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
 couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
 toute la session) — seulement si un réglage le demande.
 
