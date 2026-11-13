@@ -16,6 +16,7 @@ struct CloudAgentsView: View {
     @State private var launching: CloudAgent?
     @State private var yaml: CloudAgent?
     @State private var toast: Toast?
+    @State private var loadError: String?
 
     private var api: GitHubAPI { github.api }
 
@@ -24,10 +25,16 @@ struct CloudAgentsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(repo.fullName).font(.headline.monospaced())
-                    Text("1. Installer le workflow · 2. Ajouter le secret · 3. Lancer une instruction. L'agent ouvre une pull request avec ses changements.")
+                    Text(CloudAgentsDisplay.intro)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if installed == nil { ProgressView().padding(.top, 4) }
+                    if let loadError {
+                        Label(loadError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(Theme.red)
+                            .padding(.top, 4)
+                    }
                 }
             }
             ForEach(Catalog.cloudAgents) { a in
@@ -45,10 +52,16 @@ struct CloudAgentsView: View {
                                 runIcon(r)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(r.title).foregroundStyle(.primary).lineLimit(1)
-                                    Text(r.name ?? "").font(.caption).foregroundStyle(.secondary)
+                                    Text(CloudAgentsDisplay.runDetail(name: r.name, status: r.status, conclusion: r.conclusion))
+                                        .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
+                            .frame(minHeight: 44)
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(CloudAgentsDisplay.runAccessibility(
+                            title: r.title, name: r.name, status: r.status, conclusion: r.conclusion))
+                        .accessibilityHint("Ouvrir sur GitHub")
                     }
                 }
             }
@@ -87,10 +100,16 @@ struct CloudAgentsView: View {
     }
 
     private func runIcon(_ r: WorkflowRun) -> some View {
-        let done = r.status == "completed"
-        let ok = r.conclusion == "success"
-        return Image(systemName: !done ? "hourglass" : ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-            .foregroundStyle(!done ? Theme.amber : ok ? Theme.green : Theme.red)
+        let state = CloudAgentsDisplay.runState(status: r.status, conclusion: r.conclusion)
+        let symbol: String
+        let color: Color
+        switch state {
+        case .running: symbol = "hourglass"; color = Theme.amber
+        case .success: symbol = "checkmark.circle.fill"; color = Theme.green
+        case .cancelled: symbol = "minus.circle.fill"; color = .secondary
+        case .failure: symbol = "xmark.circle.fill"; color = Theme.red
+        }
+        return Image(systemName: symbol).foregroundStyle(color)
     }
 
     private func card(_ a: CloudAgent, installed: Bool) -> some View {
@@ -113,35 +132,48 @@ struct CloudAgentsView: View {
             Text("Secrets : \(a.secrets.joined(separator: " · "))")
                 .font(.caption2.monospaced())
                 .foregroundStyle(Color.accentColor)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    if installed {
-                        Button("Lancer", systemImage: "play.fill") { launching = a }
-                            .buttonStyle(.borderedProminent)
+            // L'action principale en évidence (installer, puis lancer) ; « Secret » reste
+            // visible (étape 2) ; les actions rares passent dans le menu « … ».
+            HStack(spacing: 8) {
+                Button {
+                    if installed { launching = a } else { Task { await install(a) } }
+                } label: {
+                    if busy == a.id {
+                        ProgressView().frame(minWidth: 80)
+                    } else {
+                        Label(CloudAgentsDisplay.primaryAction(installed: installed),
+                              systemImage: installed ? "play.fill" : "arrow.down.circle")
                     }
-                    Button {
-                        Task { await install(a) }
-                    } label: {
-                        if busy == a.id {
-                            ProgressView()
-                        } else {
-                            Label(installed ? "Mettre à jour" : "Installer", systemImage: installed ? "arrow.triangle.2.circlepath" : "arrow.down.circle")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(busy == a.id)
-                    Button("Secret", systemImage: "key") {
-                        if let u = URL(string: "https://github.com/\(repo.fullName)/settings/secrets/actions/new") { openURL(u) }
-                    }
-                    .buttonStyle(.bordered)
-                    if let help = a.secretHelpUrl, let u = URL(string: help) {
-                        Button("Obtenir la clé") { openURL(u) }
-                            .buttonStyle(.borderless)
-                    }
-                    Button("Voir le YAML") { yaml = a }
-                        .buttonStyle(.borderless)
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(busy == a.id)
+                Button("Secret", systemImage: "key") {
+                    if let u = URL(string: "https://github.com/\(repo.fullName)/settings/secrets/actions/new") { openURL(u) }
+                }
+                .buttonStyle(.bordered)
+                Spacer(minLength: 0)
+                Menu {
+                    if installed {
+                        Button("Mettre à jour", systemImage: "arrow.triangle.2.circlepath") {
+                            Task { await install(a) }
+                        }
+                        .disabled(busy == a.id)
+                    }
+                    if let help = a.secretHelpUrl, let u = URL(string: help) {
+                        Button("Obtenir la clé", systemImage: "safari") { openURL(u) }
+                    }
+                    Button("Voir le YAML", systemImage: "doc.text") { yaml = a }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Plus d'actions pour \(a.name)")
             }
+            .controlSize(.regular)
+            .frame(minHeight: 44)
         }
         .padding(.vertical, 4)
     }
@@ -152,8 +184,10 @@ struct CloudAgentsView: View {
             let all = try await api.runs(repo.owner.login, repo.name)
             installed = Set(items.map(\.name))
             runs = Array(all.filter { ($0.name ?? "").hasPrefix("NEXORA") }.prefix(10))
+            loadError = nil
         } catch {
-            installed = []
+            if installed == nil { installed = [] }
+            loadError = CloudAgentsDisplay.loadProblem(error.localizedDescription)
         }
     }
 
@@ -169,14 +203,13 @@ struct CloudAgentsView: View {
             toast = Toast(text: "\(a.name) installé. Ajoutez maintenant le secret.")
             await load()
         } catch {
-            let e = error.localizedDescription
-            toast = Toast(text: e + (e.contains("workflow") ? " — le jeton doit avoir le droit « workflow »." : ""), error: true)
+            toast = Toast(text: CloudAgentsDisplay.installError(error.localizedDescription), error: true)
         }
     }
 
     private func launch(_ a: CloudAgent, instruction: String, model: String) async {
+        guard CloudAgentsDisplay.canLaunch(instruction) else { return }
         let text = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.isEmpty { return }
         do {
             var inputs = ["instruction": text]
             if a.id == "aider-free" { inputs["model"] = model.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -220,22 +253,30 @@ struct CloudLaunchSheet: View {
                     }
                 }
                 Section {
-                    Button {
-                        dismiss()
-                        onLaunch(instruction, model)
-                    } label: {
+                    Button(action: send) {
                         Label("Lancer l'agent", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(!CloudAgentsDisplay.canLaunch(instruction))
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("\(agent.emoji) Instruction pour \(agent.name)")
+            .navigationTitle("\(agent.emoji) \(agent.name)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+                // Toujours visible, même clavier ouvert.
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lancer", action: send).disabled(!CloudAgentsDisplay.canLaunch(instruction))
+                }
             }
             .onAppear { focused = true }
         }
+    }
+
+    private func send() {
+        guard CloudAgentsDisplay.canLaunch(instruction) else { return }
+        dismiss()
+        onLaunch(instruction, model)
     }
 }
