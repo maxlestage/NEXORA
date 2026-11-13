@@ -172,8 +172,17 @@ mémoire 32k tokens, consigne 3 000 car.
   mesurée : 7 234 caractères (banc : 6 000, représentatif). Tests : 378 (test ajouté au
   banc, AgentAuditTests lit la constante).
 
-## Prochain passage : INTERFACE
-Personnaliser, puis accueil. Tokens ensuite : résumé des vieux messages du chat à la
+- 3.0.27 (interface) : écran Personnaliser — `PersonalizeDisplay` (`percent`, `temperature`
+  « Équilibrée · 0.7 », `voiceRate`, `assistantChanged`) ; menu « … » de la barre retiré
+  (Exporter/Importer/Remettre par défaut étaient en double avec la section du bas, désormais
+  « Sauvegarde » avec explication) : barre 1 bouton → 0 ; « Tout remettre par défaut » demande
+  confirmation (avant : effacement immédiat du « à propos de moi ») ; champs de l'assistant
+  enregistrés en quittant l'écran, bouton Enregistrer seulement s'il y a une modification ;
+  température et Entrée pour envoyer rangées dans « Avancé » ; libellés VoiceOver des curseurs ;
+  boutons 44 pt. Tests : 378 → 380.
+
+## Prochain passage : TOKENS
+Puis interface : accueil. Tokens : résumé des vieux messages du chat à la
 coupure ; modèle moins cher pour `askOnce` (traduction NEXORA) si réglage ; retirer les
 relances « réponse vide » de l'historique après la réponse (gain faible, sans risque).
 
