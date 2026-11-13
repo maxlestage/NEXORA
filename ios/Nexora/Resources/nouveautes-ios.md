@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.27 — 13 novembre 2026 — Personnaliser plus simple
+- Amélioré : le nom et les instructions de l'assistant sont gardés même si vous quittez l'écran sans toucher « Enregistrer » (le bouton n'apparaît que s'il y a une modification).
+- « Tout remettre par défaut » demande d'abord une confirmation ; exporter, importer et remettre à zéro ne sont plus en double dans la barre du haut.
+- Réglages rares (créativité, Entrée pour envoyer) rangés dans « Avancé » ; la créativité s'affiche en mots (Précise, Équilibrée, Créative).
+
 ## 3.0.26 — 13 novembre 2026 — Agent un peu plus économe
 
 - Amélioré : les sessions de l'agent coûtent environ 3 % de tokens en moins.
