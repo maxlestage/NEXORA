@@ -154,10 +154,17 @@ mémoire 32k tokens, consigne 3 000 car.
   +1,7 % Anthropic ; 8/24 retenu (aucune mesure en hausse sauf hors cache). Tests : 375
   (assertions ajoutées).
 
-## Prochain passage : INTERFACE
-Réglages, puis Personnaliser. Tokens ensuite : résumé des vieux messages du chat à la
-coupure ; modèle moins cher pour `askOnce` si réglage ; `keepFullResults` = 6 (mesurer
-avec relecture, risque de qualité).
+- 3.0.25 (interface) : onglet Réglages — `SettingsDisplay` (vrais pluriels, ligne « Données »
+  « 12 conversations · 3.4 Mo », retours après ménage/export/effacement, état GitHub, résumé
+  du Client ID) ; section « Effacer » (tout effacer, tout réinitialiser) déplacée tout en bas ;
+  Client ID OAuth rangé dans « Avancé » ; toast + vibration de réussite après effacement de
+  toutes les conversations (avant : rien) ; bouton Recalculer et Déconnexion 44 pt.
+  Tests : 375 → 378.
+
+## Prochain passage : TOKENS
+Résumé des vieux messages du chat à la coupure ; modèle moins cher pour `askOnce` si
+réglage ; `keepFullResults` = 6 (mesurer avec relecture, risque de qualité).
+Interface ensuite : Personnaliser, puis accueil.
 
 ## Pistes tokens à faire
 - Mémoire du chat : résumé des vieux messages au moment de la coupure par paquets.
