@@ -75,7 +75,7 @@ struct SessionsListView: View {
             Button("Supprimer", role: .destructive) { delete(run) }
             Button("Annuler", role: .cancel) {}
         } message: { run in
-            Text("\(run.changes.count) brouillon(s) non envoyé(s) seront perdus.")
+            Text(SessionsDisplay.deleteWarning(drafts: run.changes.count) ?? "")
         }
         .toast($toast)
     }

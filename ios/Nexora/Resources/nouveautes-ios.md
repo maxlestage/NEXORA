@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.35 — 13 novembre 2026 — Session de l'agent plus sûre
+
+- Amélioré : supprimer une session qui a des brouillons non envoyés demande d'abord confirmation (avant, un seul toucher suffisait).
+- Amélioré : les pastilles des pull requests sont plus faciles à toucher et annoncées clairement par VoiceOver.
+- Nouveau : une petite vibration quand l'agent a fini son travail.
+
 ## 3.0.34 — 13 novembre 2026 — Photos du chat moins chères
 
 - Amélioré : dans un chat avec des photos, les anciennes images sont retirées deux par deux : le cache des fournisseurs sert plus souvent (environ 19 % moins cher avec Claude).

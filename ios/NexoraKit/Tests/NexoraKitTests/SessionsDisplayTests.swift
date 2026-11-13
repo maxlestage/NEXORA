@@ -44,4 +44,16 @@ struct SessionsDisplayTests {
         let sections = SessionsDisplay.sections(runs) { $0.status }
         #expect(sections.flatMap { $0.items.map(\.id) }.sorted() == ["s0", "s1"])
     }
+
+    @Test func avertissementAvantSuppression() {
+        #expect(SessionsDisplay.deleteWarning(drafts: 0) == nil)
+        #expect(SessionsDisplay.deleteWarning(drafts: 1) == "Son brouillon non envoyé sera perdu.")
+        #expect(SessionsDisplay.deleteWarning(drafts: 3) == "Ses 3 brouillons non envoyés seront perdus.")
+    }
+
+    @Test func pastilleDePullRequest() {
+        #expect(SessionsDisplay.pullChip("moi/site") == "PR site")
+        #expect(SessionsDisplay.pullChip("site") == "PR site")
+        #expect(SessionsDisplay.pullAccessibility("moi/site") == "Ouvrir la pull request de site sur GitHub")
+    }
 }

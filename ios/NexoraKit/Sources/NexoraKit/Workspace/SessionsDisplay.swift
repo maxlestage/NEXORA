@@ -61,4 +61,24 @@ public enum SessionsDisplay {
         if running > 0 { return "Sessions · \(running) en cours" }
         return "Sessions (\(total))"
     }
+
+    /// Ce qui sera perdu en supprimant une session, ou `nil` s'il n'y a rien à
+    /// perdre (pas besoin de demander confirmation).
+    public static func deleteWarning(drafts: Int) -> String? {
+        switch drafts {
+        case ..<1: nil
+        case 1: "Son brouillon non envoyé sera perdu."
+        default: "Ses \(drafts) brouillons non envoyés seront perdus."
+        }
+    }
+
+    /// La pastille d'une pull request ouverte : « PR site » pour « moi/site ».
+    public static func pullChip(_ fullName: String) -> String {
+        "PR " + (fullName.split(separator: "/").last.map(String.init) ?? fullName)
+    }
+
+    /// Ce que VoiceOver annonce pour la pastille d'une pull request.
+    public static func pullAccessibility(_ fullName: String) -> String {
+        "Ouvrir la pull request de " + (fullName.split(separator: "/").last.map(String.init) ?? fullName) + " sur GitHub"
+    }
 }
