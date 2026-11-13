@@ -235,9 +235,16 @@ mémoire 32k tokens, consigne 3 000 car.
   4 tours) ; raccourcir seulement jusqu'aux 3/4 (pire : +5 % Anthropic) ; garder 4 ou 6
   au lieu de 8 (−0,7 % de plus seulement, moins sûr). Tests : 386 → 387.
 
-## Prochain passage : INTERFACE
-Interface : session de l'agent (revoir depuis 3.0.9) ou Nouvelle session ;
-ensuite tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
+- 3.0.33 (interface) : écran Nouvelle session — `NewSessionDisplay` (`repoDetail`,
+  `reposFooter` : « Connectez GitHub » passe en pied de section, `agentFooter`,
+  `autoCiCaption`/`autoMergeCaption` : textes ≈ 2× plus courts, < 140 car. ;
+  `startProblem`). Bouton « Lancer » aussi dans la barre (toujours visible, clavier
+  ouvert) ; orbe 120 → 72 pt ; boutons Branche/Retirer 44 pt + balayage « Retirer » ;
+  mission vide → le champ reprend le focus. Tests : 387 → 390.
+
+## Prochain passage : TOKENS
+Ensuite interface : session de l'agent (revoir depuis 3.0.9).
+Tokens : liste des anciennes questions oubliées en une ligne (au lieu de les
 couper net) ; modèle moins cher pour `askOnce` jugé risqué (la traduction NEXORA guide
 toute la session) — seulement si un réglage le demande.
 
