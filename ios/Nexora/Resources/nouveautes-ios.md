@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.38 — 13 novembre 2026 — Agents cloud plus simples
+- Amélioré : chaque agent cloud n'a plus qu'un bouton principal (« Installer », puis « Lancer ») et « Secret » ; les actions rares passent dans le menu « … ».
+- Amélioré : les missions affichent leur état en clair (« En cours », « Réussie », « Échouée ») et sont lues d'un trait par VoiceOver.
+- Corrigé : si les workflows du dépôt ne peuvent pas être lus, un message l'explique au lieu de marquer tous les agents « non installé ».
+- Amélioré : une instruction vide ne peut plus être envoyée, et « Lancer » reste visible en haut quand le clavier est ouvert.
+
 ## 3.0.37 — 13 novembre 2026 — Crédits plus clairs
 - Amélioré : « Crédits et consommation » sans fournisseur payant affiche un écran clair avec un bouton « Ouvrir Modèles ».
 - Corrigé : « 1 requête », « 12 requêtes » ou « Aucune requête aujourd'hui » au lieu de « requête(s) ».
