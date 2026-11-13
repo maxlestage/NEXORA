@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.22 — 13 novembre 2026 — Agent encore plus économe
+
+- Amélioré : dans les longues sessions, l'agent ne renvoie plus en entier ses anciennes réflexions, seulement leur début : environ 4 % de tokens envoyés en moins.
+- Le raisonnement récent (4 dernières réponses) reste complet, et le cache de prompt continue de servir.
+
 ## 3.0.21 — 13 novembre 2026 — Onglet Modèles plus clair
 
 - Nouveau : recherche des fournisseurs par nom ou description.

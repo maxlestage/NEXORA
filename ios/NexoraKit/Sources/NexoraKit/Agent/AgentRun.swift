@@ -758,7 +758,7 @@ public final class AgentRun {
             let long = m.content.len > 1500
             let short = block.replaceAllMapped(m.content) { b in
                 let body = b[2] ?? ""
-                if b[1] == "json" { return dropGoal(b.text) }
+                if b[1] == "json" { return shortThought(dropGoal(b.text)) }
                 if body.len <= 400 || !long { return b.text }
                 return "```\n(contenu retiré de l'historique : \(body.len) caractères, il est dans les brouillons)\n```"
             }
@@ -784,6 +784,28 @@ public final class AgentRun {
         let out = goalField.replaceAll(json, "")
         return out.contains("\"tool\"") || out.contains("\"actions\"") ? out : json
     }
+
+    /// Longueur gardée d'une longue réflexion (« thought ») dans les anciennes réponses.
+    public nonisolated static let thoughtKeep = 160
+
+    /// Une longue réflexion d'une ancienne réponse est raccourcie à son début (l'idée
+    /// principale) : le modèle garde la trace de son raisonnement sans le renvoyer en
+    /// entier à chaque étape. Seulement s'il reste une action dans le bloc.
+    nonisolated static func shortThought(_ json: String) -> String {
+        guard json.contains("\"tool\"") || json.contains("\"actions\"") else { return json }
+        return thoughtField.replaceAllMapped(json) { m in
+            let body = m[1] ?? ""
+            if body.count <= thoughtKeep { return m.text }
+            var cut = String(body.prefix(thoughtKeep - 40))
+            // Ne pas couper une séquence d'échappement (« \" », « \n »…) en deux.
+            var slashes = 0
+            for c in cut.reversed() { if c == "\\" { slashes += 1 } else { break } }
+            if slashes % 2 == 1 { cut.removeLast() }
+            return "\"thought\": \"" + cut.trimmingCharacters(in: .whitespaces) + "…\""
+        }
+    }
+
+    private nonisolated static let thoughtField = DRegex(#""thought"\s*:\s*"((?:[^"\\]|\\.)*)""#)
 
     private nonisolated static let goalField = DRegex(#""demande"\s*:\s*"(?:[^"\\]|\\.)*"\s*,\s*"#)
 
