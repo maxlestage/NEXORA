@@ -14,6 +14,14 @@ struct PersonalizeView: View {
     @State private var about = ""
     @State private var style = ""
     @State private var loaded = false
+    @State private var confirmReset = false
+
+    /// Vrai si les champs « Votre assistant » ont des modifications non enregistrées.
+    private var assistantDirty: Bool {
+        PersonalizeDisplay.assistantChanged(
+            name: name, about: about, style: style,
+            savedName: settings.assistantName, savedAbout: settings.aboutMe, savedStyle: settings.responseStyle)
+    }
 
     var body: some View {
         @Bindable var settings = settings
@@ -46,10 +54,11 @@ struct PersonalizeView: View {
                     HStack {
                         Text("Taille du texte")
                         Spacer()
-                        Text("\(Int((settings.textScale * 100).rounded())) %").monospacedDigit().foregroundStyle(.secondary)
+                        Text(PersonalizeDisplay.percent(settings.textScale)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     Slider(value: $settings.textScale, in: 0.85...1.3, step: 0.05)
-                        .accessibilityValue("\(Int((settings.textScale * 100).rounded())) %")
+                        .accessibilityLabel("Taille du texte")
+                        .accessibilityValue(PersonalizeDisplay.percent(settings.textScale))
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Animations")
@@ -64,7 +73,7 @@ struct PersonalizeView: View {
             } header: {
                 Text("Affichage")
             } footer: {
-                Text("Le logo 3D, les fonds animés, les cartes inclinables et les apparitions en cascade. « Réduire les animations » d'iOS est toujours respecté.")
+                Text("« Réduire les animations » d'iOS est toujours respecté.")
             }
 
             Section("Conversations") {
@@ -121,20 +130,6 @@ struct PersonalizeView: View {
                     .labelsHidden()
                     Text(ChatDisplay.memoryCaption(settings.contextTokens)).font(.caption).foregroundStyle(.secondary)
                 }
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Créativité (température)")
-                        Spacer()
-                        Text(String(format: "%.1f", settings.temperature)).monospacedDigit().foregroundStyle(.secondary)
-                    }
-                    Slider(value: $settings.temperature, in: 0...1.5, step: 0.1)
-                }
-                Toggle(isOn: $settings.sendOnEnter) {
-                    VStack(alignment: .leading) {
-                        Text("Entrée pour envoyer")
-                        Text("Pratique avec un clavier ou sur iPad").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
                 Toggle(isOn: $settings.showThinking) {
                     VStack(alignment: .leading) {
                         Text("Afficher le raisonnement")
@@ -142,6 +137,24 @@ struct PersonalizeView: View {
                     }
                 }
                 Toggle("Retour haptique", isOn: $settings.haptics)
+                DisclosureGroup("Avancé") {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Créativité")
+                            Spacer()
+                            Text(PersonalizeDisplay.temperature(settings.temperature)).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                        Slider(value: $settings.temperature, in: 0...1.5, step: 0.1)
+                            .accessibilityLabel("Créativité")
+                            .accessibilityValue(PersonalizeDisplay.temperature(settings.temperature))
+                    }
+                    Toggle(isOn: $settings.sendOnEnter) {
+                        VStack(alignment: .leading) {
+                            Text("Entrée pour envoyer")
+                            Text("Pratique avec un clavier ou sur iPad").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
 
             Section("Voix") {
@@ -164,9 +177,11 @@ struct PersonalizeView: View {
                     HStack {
                         Text("Vitesse de lecture")
                         Spacer()
-                        Text(settings.voiceRate < 0.45 ? "Lente" : settings.voiceRate > 0.55 ? "Rapide" : "Normale").foregroundStyle(.secondary)
+                        Text(PersonalizeDisplay.voiceRate(settings.voiceRate)).foregroundStyle(.secondary)
                     }
                     Slider(value: $settings.voiceRate, in: 0.3...0.7, step: 0.05)
+                        .accessibilityLabel("Vitesse de lecture")
+                        .accessibilityValue(PersonalizeDisplay.voiceRate(settings.voiceRate))
                 }
             }
 
@@ -191,7 +206,11 @@ struct PersonalizeView: View {
                             .lineLimit(2...6)
                     }
                 }
-                Button("Enregistrer", systemImage: "checkmark", action: saveAssistant)
+                if assistantDirty {
+                    Button("Enregistrer", systemImage: "checkmark", action: saveAssistant)
+                        .fontWeight(.semibold)
+                        .frame(minHeight: 44)
+                }
             }
 
             Section("Onglets") {
@@ -203,30 +222,30 @@ struct PersonalizeView: View {
             }
 
             Section {
-                Button("Exporter", systemImage: "square.and.arrow.up") { export() }
-                Button("Importer", systemImage: "square.and.arrow.down") {
+                Button("Exporter mes réglages", systemImage: "square.and.arrow.up") { export() }
+                    .frame(minHeight: 44)
+                Button("Importer des réglages", systemImage: "square.and.arrow.down") {
                     importText = ""
                     importing = true
                 }
-                Button("Remettre par défaut", systemImage: "arrow.counterclockwise") { reset() }
+                .frame(minHeight: 44)
+                Button("Tout remettre par défaut", systemImage: "arrow.counterclockwise", role: .destructive) {
+                    confirmReset = true
+                }
+                .frame(minHeight: 44)
+            } header: {
+                Text("Sauvegarde")
+            } footer: {
+                Text("L'export copie vos réglages, sans vos clés, pour les remettre sur un autre appareil.")
             }
         }
         .navigationTitle("Personnaliser")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button("Exporter mes réglages", systemImage: "square.and.arrow.up") { export() }
-                    Button("Importer des réglages", systemImage: "square.and.arrow.down") {
-                        importText = ""
-                        importing = true
-                    }
-                    Button("Tout remettre par défaut", systemImage: "arrow.counterclockwise") { reset() }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .accessibilityLabel("Exporter, importer, remettre par défaut")
-            }
+        .confirmationDialog("Tout remettre par défaut ?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Tout remettre par défaut", role: .destructive) { reset() }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Couleurs, affichage, mémoire, style des messages, onglets et assistant reprennent leurs valeurs de départ. Vos clés et conversations sont gardées.")
         }
         .sheet(isPresented: $pickLevel) {
             NavigationStack {
@@ -247,6 +266,10 @@ struct PersonalizeView: View {
             name = settings.assistantName
             about = settings.aboutMe
             style = settings.responseStyle
+        }
+        .onDisappear {
+            // Rien ne se perd en quittant l'écran sans toucher « Enregistrer ».
+            if assistantDirty { storeAssistant() }
         }
         .toast($toast)
     }
@@ -308,11 +331,15 @@ struct PersonalizeView: View {
     }
 
     private func saveAssistant() {
+        storeAssistant()
+        toast = Toast(text: "Assistant enregistré")
+    }
+
+    private func storeAssistant() {
         settings.setAssistantName(name)
         settings.aboutMe = about
         settings.responseStyle = style
         name = settings.assistantName
-        toast = Toast(text: "Assistant enregistré")
     }
 
     private func export() {
