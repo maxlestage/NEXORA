@@ -210,11 +210,19 @@ mémoire 32k tokens, consigne 3 000 car.
   −3,0 % / −2,6 %. 40 étapes inchangées (l'étage profond ne part pas avant ≈ 40
   résultats). Tests : 382 → 383.
 
-## Prochain passage : INTERFACE
-Interface : session de l'agent (revoir depuis 3.0.9), ou Routines / Nouvelle session.
-Ensuite tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
+- 3.0.31 (interface) : écran Routines — `RoutinesDisplay` (`rowDetail` : planning et
+  prochain passage sur une ligne au lieu de deux ; `defaultName` : nom tiré de la mission
+  coupé à 40 car. au mot près, avant toute la première ligne ; `saveProblem` ;
+  `reposFooter` : explique pourquoi « Ajouter un dépôt » est grisé). Longue explication
+  du haut retirée de la liste remplie → état vide `ContentUnavailableView` avec bouton
+  « Créer une routine » ; balayage à droite « Lancer » (avant seulement dans la fiche).
+  Tests : 383 → 386.
+
+## Prochain passage : TOKENS
+Tokens : résumé des vieux messages du chat à la coupure (le chat coupe déjà par
 paquets, `keepAfterTrim` ; un résumé coûte quelques tokens mais permettrait de couper
-plus profond, à mesurer sur le banc chat) ; modèle moins cher pour `askOnce` jugé risqué
+plus profond, à mesurer sur le banc chat) ;
+ensuite interface : session de l'agent (revoir depuis 3.0.9) ou Nouvelle session ; modèle moins cher pour `askOnce` jugé risqué
 (la traduction NEXORA guide toute la session) — seulement si un réglage le demande.
 
 ## Pistes tokens à faire

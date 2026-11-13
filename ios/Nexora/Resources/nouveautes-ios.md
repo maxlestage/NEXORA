@@ -5,6 +5,16 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.31 — 13 novembre 2026 — Routines plus simples
+
+- Amélioré : chaque routine tient sur une ligne claire (« Toutes les heures… ·
+  prochain passage aujourd'hui à 14:11 ») ; balayez vers la droite pour la lancer
+  tout de suite.
+- Amélioré : sans routine, un écran explique à quoi elles servent avec un bouton
+  « Créer une routine » ; l'explication ne prend plus de place une fois la liste remplie.
+- Corrigé : le nom par défaut d'une routine est coupé proprement (40 caractères) et
+  l'écran dit pourquoi « Ajouter un dépôt » est grisé (GitHub non connecté).
+
 ## 3.0.30 — 13 novembre 2026 — Longues sessions de l'agent moins chères
 
 - Amélioré : dans une longue session, quand un ancien résultat d'outil n'est plus
