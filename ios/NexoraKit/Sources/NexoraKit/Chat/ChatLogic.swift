@@ -28,22 +28,62 @@ public enum ChatLogic {
     /// le cache de prompt des fournisseurs les relit pour bien moins cher (couper à
     /// chaque tour changeait le début de chaque requête). Le point de coupure est
     /// recalculé depuis le début de la conversation : il ne dépend que des messages.
+    /// À chaque coupure, les longues réponses anciennes sont d'abord raccourcies
+    /// (`compacted`) : la mémoire garde plus de messages pour moins de tokens.
     public static func recentHistory(_ messages: [ChatMessage], budgetTokens: Int) -> ([LLMMessage], Int) {
-        let usable = messages.filter(isUsable).map { LLMMessage($0.role.rawValue, $0.content) }
+        var usable = messages.filter(isUsable).map { LLMMessage($0.role.rawValue, $0.content) }
         if budgetTokens <= 0 || usable.isEmpty { return (usable, 0) }
         let target = budgetTokens * keepAfterTrim / 4
+        var costs = usable.map(cost)
         var start = 0
         var used = 0
-        for (end, m) in usable.enumerated() {
-            used += cost(m)
+        // Les réponses déjà raccourcies (indices inférieurs) : seulement au moment d'une
+        // coupure, quand le début de la requête change de toute façon.
+        var compactedTo = 0
+        for end in usable.indices {
+            used += costs[end]
             if used <= budgetTokens { continue }
-            // Le dernier message part toujours, même s'il dépasse à lui seul.
+            // D'abord raccourcir les longues réponses anciennes (les plus vieilles
+            // d'abord, les `compactKeep` derniers messages restent entiers)…
+            while compactedTo < end + 1 - compactKeep {
+                let i = compactedTo
+                compactedTo += 1
+                guard i >= start, usable[i].role == "assistant" else { continue }
+                let short = compacted(usable[i].content)
+                guard short.count < usable[i].content.count else { continue }
+                usable[i] = LLMMessage(usable[i].role, short)
+                used -= costs[i]
+                costs[i] = cost(usable[i])
+                used += costs[i]
+            }
+            // …puis laisser de côté les plus anciens. Le dernier message part
+            // toujours, même s'il dépasse à lui seul.
             while start < end && used > target {
-                used -= cost(usable[start])
+                used -= costs[start]
                 start += 1
             }
         }
         return (Array(usable[start...]), start)
+    }
+
+    /// Les derniers messages jamais raccourcis.
+    public static let compactKeep = 8
+    /// Une réponse ancienne plus longue que ceci est raccourcie…
+    public static let compactAbove = 3000
+    /// …à ses `compactHead` premiers caractères (coupés en fin de ligne).
+    public static let compactHead = 1500
+
+    /// Une longue réponse ancienne réduite à son début, avec un repère clair pour le
+    /// modèle (un bloc de code ouvert est refermé). Les questions de l'utilisateur et
+    /// les réponses courtes restent entières.
+    public static func compacted(_ text: String) -> String {
+        guard text.count > compactAbove else { return text }
+        var head = String(text.prefix(compactHead))
+        if let nl = head.lastIndex(of: "\n"), head.distance(from: head.startIndex, to: nl) >= compactHead * 2 / 3 {
+            head = String(head[..<nl])
+        }
+        if head.components(separatedBy: "```").count % 2 == 0 { head += "\n```" }
+        return head + "\n\n[… suite de cette ancienne réponse omise (\(text.count - head.count) caractères) pour économiser la mémoire …]"
     }
 
     /// Le poids d'un message dans la mémoire (≈ 4 caractères par token).
