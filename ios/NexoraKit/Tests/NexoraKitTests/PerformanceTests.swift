@@ -243,7 +243,7 @@ struct PerformanceTests {
 /// sinon il est retiré du message précédent à chaque étape (avant).
 /// `dedup` : un fichier relu sans changement n'est pas renvoyé en entier (3.0.12) ;
 /// toutes les 5 étapes, l'agent relit le fichier lu deux étapes plus tôt.
-private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true) -> (sent: Int, uncached: Int) {
+private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
         + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
@@ -251,7 +251,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
     var history = [LLMMessage("user", "Ajoute une page contact avec un formulaire")]
     var previous: [LLMMessage] = []
     var sent = 0, uncached = 0
-    for step in 0..<40 {
+    for step in 0..<steps {
         let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
         let file = step % 5 == 4 ? step - 2 : step
         history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
@@ -356,7 +356,8 @@ struct TokenBench {
         func openai(_ r: (sent: Int, uncached: Int)) -> Double {
             Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
         }
-        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets, relectures renvoyées", resent), ("par paquets", grouped)] {
+        let longRun = agentSessionChars(batch: AgentRun.compactBatch, steps: 80)
+        for (name, r) in [("à chaque étape", each), ("par paquets, rappel retiré à chaque étape", before), ("par paquets, relectures renvoyées", resent), ("par paquets", grouped), ("par paquets, 80 étapes", longRun)] {
             print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
                 + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
         }
@@ -425,6 +426,30 @@ struct TokenBench {
             #expect(full.count >= min(i + 1, AgentRun.keepFullResults))
             #expect(full.count < AgentRun.keepFullResults + AgentRun.compactBatch)
         }
+        // Très vieux résultats : seul le titre reste, par paquets de `deepBatch`.
+        var aged = [LLMMessage("user", "Tâche")]
+        var drops: [Int] = []
+        for i in 0..<60 {
+            aged.append(LLMMessage("assistant", "{\"tool\":\"read_file\"}"))
+            aged.append(LLMMessage("user", "Résultat de read_file \(i) :\n" + String(repeating: "z", count: 5000)))
+            AgentRun.compactHistory(&aged, batch: AgentRun.compactBatch)
+            let titles = aged.filter { $0.content.hasSuffix(AgentRun.droppedNote) }
+            #expect(titles.allSatisfy { $0.content.hasPrefix("Résultat de read_file ") && $0.content.count < 120 })
+            drops.append(titles.count)
+            // Jamais un des `keepFullResults + keepBriefResults` derniers.
+            let recent = aged.filter { $0.content.hasPrefix("Résultat de") }.suffix(AgentRun.keepFullResults + AgentRun.keepBriefResults)
+            #expect(!recent.contains { $0.content.hasSuffix(AgentRun.droppedNote) })
+        }
+        #expect(drops.last! >= 60 - AgentRun.keepFullResults - AgentRun.keepBriefResults - AgentRun.deepBatch - AgentRun.compactBatch)
+        // Peu de changements du début de la requête : par paquets.
+        #expect(Set(drops).count <= 6)
+        // Contexte trop long (sans paquet) : réduits tout de suite, et sans effet une seconde fois.
+        var now = aged
+        AgentRun.compactHistory(&now)
+        #expect(now.filter { $0.content.hasSuffix(AgentRun.droppedNote) }.count == 60 - AgentRun.keepFullResults - AgentRun.keepBriefResults)
+        var twice = now
+        AgentRun.compactHistory(&twice)
+        #expect(twice == now)
     }
 }
 
