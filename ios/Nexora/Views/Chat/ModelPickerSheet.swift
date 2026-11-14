@@ -204,55 +204,77 @@ struct ModelPickerSheet: View {
     }
 }
 
-/// Le choix de l'agent d'une conversation.
+/// Le choix de l'agent d'une conversation : recherche, « Sans agent » en tête,
+/// puis les agents par catégorie (`AgentPickerDisplay`).
 struct AgentPickerSheet: View {
     let selected: Agent?
     let onPick: (Agent?) -> Void
 
     @Environment(AgentLibrary.self) private var agents
     @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
 
     var body: some View {
+        let groups = AgentPickerDisplay.groups(agents.all, query: query)
         NavigationStack {
             List {
-                Button {
-                    onPick(nil)
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text("💬 Sans agent (assistant personnel)")
-                        Spacer()
-                        if selected == nil { Image(systemName: "checkmark") }
+                if AgentPickerDisplay.showsNone(query: query) {
+                    row(emoji: "💬", name: "Sans agent", description: "Assistant personnel", isSelected: selected == nil) {
+                        onPick(nil)
                     }
                 }
-                ForEach(agents.byCategory, id: \.0) { category, list in
-                    Section(category) {
-                        ForEach(list) { a in
-                            Button {
+                if let title = AgentPickerDisplay.emptyTitle(found: groups.count, query: query) {
+                    ContentUnavailableView {
+                        Label(title, systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Essayez un autre mot : un nom, un métier, une tâche.")
+                    } actions: {
+                        Button("Effacer la recherche") { query = "" }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                ForEach(groups) { group in
+                    Section(group.category) {
+                        ForEach(group.agents) { a in
+                            row(emoji: a.emoji, name: a.name, description: a.description, isSelected: a.id == selected?.id) {
                                 onPick(a)
-                                dismiss()
-                            } label: {
-                                HStack {
-                                    Text(a.emoji)
-                                    VStack(alignment: .leading) {
-                                        Text(a.name).foregroundStyle(.primary)
-                                        if !a.description.isEmpty {
-                                            Text(a.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                                        }
-                                    }
-                                    Spacer()
-                                    if a.id == selected?.id { Image(systemName: "checkmark") }
-                                }
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Agent")
+            .searchable(text: $query, prompt: "Chercher un agent")
+            .navigationTitle("Choisir un agent")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
             }
         }
+    }
+
+    private func row(emoji: String, name: String, description: String, isSelected: Bool,
+                     pick: @escaping () -> Void) -> some View {
+        Button {
+            pick()
+            dismiss()
+        } label: {
+            HStack(spacing: 10) {
+                Text(emoji).font(.title3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).foregroundStyle(.primary)
+                    if !description.isEmpty {
+                        Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                }
+                Spacer()
+                if isSelected { Image(systemName: "checkmark").foregroundStyle(.tint) }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AgentPickerDisplay.accessibility(name: name, description: description, selected: isSelected))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .listRowBackground(isSelected ? Color.accentColor.opacity(0.1) : nil)
     }
 }

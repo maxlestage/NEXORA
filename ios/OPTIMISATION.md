@@ -467,8 +467,16 @@ mémoire 32k tokens, consigne 3 000 car.
   même paquet que le reste (ne déclenche pas de paquet à lui seul : le cache sert),
   JSON toujours valide, idempotent. Gain ci-dessus. Tests : 434 → 435.
 
-## Prochain passage : INTERFACE
-Chat (2e passage) ou choix de l'agent (AgentPickerSheet). Puis tokens.
+- 3.0.57 (interface) : choix de l'agent (AgentPickerSheet) — `AgentPickerDisplay`
+  (`groups` : recherche par mots sans accents/majuscules/tirets dans le nom, la description
+  et la catégorie, catégories vides cachées ; avant : aucune recherche, toute la liste à
+  faire défiler), `showsNone` (ligne « Sans agent » + « Assistant personnel » sur deux
+  lignes), état vide (`emptyTitle` + « Effacer la recherche »), ligne actuelle surlignée,
+  lignes ≥ 44 pt touchables sur toute la largeur, libellé VoiceOver (`accessibility`).
+  Titre « Agent » → « Choisir un agent ». Tests : 435 → 439.
+
+## Prochain passage : TOKENS
+Puis interface : chat (2e passage) ou session de l'agent (2e passage).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
