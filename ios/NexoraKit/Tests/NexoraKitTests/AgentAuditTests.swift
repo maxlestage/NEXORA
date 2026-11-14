@@ -173,6 +173,26 @@ struct AgentAuditTests {
         #expect(results.dropFirst(old).allSatisfy { $0.content.len > 5000 })
     }
 
+    @Test("un ancien résultat raccourci garde son début, coupé en fin de ligne")
+    func briefHead() {
+        let file = (1...80).map { "import 'package:app/module_\($0).dart';" }.joined(separator: "\n")
+        var history = [LLMMessage("user", "Tâche")]
+        for _ in 0..<(AgentRun.keepFullResults + 1) {
+            history.append(LLMMessage("assistant", "{\"tool\":\"read_file\"}"))
+            history.append(LLMMessage("user", "Résultat de read_file :\n" + file))
+        }
+        AgentRun.compactHistory(&history)
+        let old = history[2].content
+        let head = String(old[..<old.range(of: "\n… (ancien résultat raccourci")!.lowerBound])
+        #expect(head.count <= AgentRun.briefKeep && head.count >= AgentRun.briefKeep / 2)
+        // Des lignes entières seulement.
+        #expect(head.components(separatedBy: "\n").dropFirst().allSatisfy { $0.hasSuffix(";") })
+        #expect(old.contains("relis le fichier si besoin"))
+        // Sans fin de ligne assez loin : coupé net.
+        #expect(AgentRun.briefHead(String(repeating: "z", count: 900)).count == AgentRun.briefKeep)
+        #expect(AgentRun.briefHead("court") == "court")
+    }
+
     @Test("après la bascule, les dépenses vont au modèle qui a répondu, l'erreur à celui qui a échoué")
     func attribution() async {
         let openrouter = Catalog.providers.first { $0.id == "openrouter" }!
