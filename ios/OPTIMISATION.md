@@ -429,9 +429,14 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `ranged` : hors cache −10,3 %, Anthropic −7,5 %, OpenAI −1,6 % ; envoyés +0,6 %
   (le renvoi court ne compte plus parmi les 6 longs résultats gardés). Tests : 426 → 429.
 
-## Prochain passage : INTERFACE
-Tous les écrans ont été vus une fois ; repasser sur les plus utilisés (session de
-l'agent, chat).
+- 3.0.53 (interface) : session de l'agent, 2e passage — `SessionsDisplay.reviewButton`
+  (« Relire les 3 fichiers modifiés », `nil` pendant le travail ou sans brouillon) :
+  bouton principal pleine largeur, 44 pt, en bas au-dessus du champ (caché pendant la
+  saisie) ; avant : seule la carte des brouillons, souvent loin plus haut dans le
+  journal. `draftsHint` : 88 → 48 car. « Relancer » (CI) à 44 pt. Tests : 429 → 430.
+
+## Prochain passage : TOKENS
+Puis interface : repasser sur le chat (2e passage) ou l'écran Modèles.
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

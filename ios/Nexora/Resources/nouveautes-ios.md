@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.53 — 14 novembre 2026 — Brouillons de l'agent plus faciles à relire
+
+- Nouveau : quand l'agent a fini, un bouton « Relire les 3 fichiers modifiés » apparaît en bas de la session, à portée du pouce (avant : il fallait remonter jusqu'à la carte des brouillons).
+- Amélioré : la phrase de la carte des brouillons est deux fois plus courte.
+- Amélioré : le bouton « Relancer » de la CI est plus facile à toucher.
+
 ## 3.0.52 — 14 novembre 2026 — Relectures de l'agent plus économes
 
 - Amélioré : quand l'agent relit des lignes d'un fichier qu'il a déjà lues plus haut, elles ne sont plus renvoyées au modèle ; seules les lignes nouvelles partent.

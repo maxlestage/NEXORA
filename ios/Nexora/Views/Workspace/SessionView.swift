@@ -300,6 +300,7 @@ struct SessionView: View {
                 Spacer(minLength: 0)
                 if run.ciRounds >= AgentRun.maxCiRounds && !run.running {
                     Button("Relancer") { sessions.retryCi(run) }
+                        .frame(minHeight: 44)
                 }
             }
         }
@@ -338,9 +339,7 @@ struct SessionView: View {
                             rejected: run.rejected.count
                         ))
                         .fontWeight(.bold)
-                        Text(run.running
-                            ? "L'agent travaille encore…"
-                            : "Relisez chaque fichier, acceptez ou refusez, puis validez : rien ne part sans vous.")
+                        Text(SessionsDisplay.draftsHint(running: run.running))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         let names = run.changes.keys.prefix(6)
@@ -377,6 +376,23 @@ struct SessionView: View {
                 // Le crédit restant chez le fournisseur de la session.
                 QuotaBadge(providerId: run.provider.id, dense: true)
                 Spacer(minLength: 0)
+            }
+            // Session finie avec des brouillons : l'action principale, à portée du
+            // pouce (la carte des brouillons peut être loin plus haut). Cachée pendant
+            // la saisie d'une nouvelle instruction.
+            if !focused, input.isEmpty, photos.isEmpty,
+               let review = SessionsDisplay.reviewButton(files: run.changes.count, busy: busy) {
+                Button {
+                    reviewing = true
+                } label: {
+                    Label(review, systemImage: "checklist")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.amber)
+                .accessibilityHint("Accepter ou refuser chaque fichier, puis valider")
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             if !photos.isEmpty || loadingPhotos {
                 PhotoDraftStrip(photos: $photos, loading: loadingPhotos)
