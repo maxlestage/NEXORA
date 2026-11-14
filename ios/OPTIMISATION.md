@@ -540,9 +540,17 @@ mémoire 32k tokens, consigne 3 000 car.
   close. Seul levier restant : couper plus souvent moins (`keepAfterTrim` 3/4 → 1/2,
   ≈ −35 % estimé) mais garde moins de contexte en moyenne → écarté (résultat moins bon).
 
-## Prochain passage : INTERFACE
-QuotaSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
-Puis tokens : diff des relectures sans base (voir pistes).
+- 3.0.62 (interface) : fiche d'un fournisseur (QuotaSheet) — `QuotaDisplay` (`counted` :
+  « Compté par NEXORA » en lignes courtes avec vrais pluriels, « Aujourd'hui : 1 requête ·
+  12k tokens » puis « Envoyés · reçus » ; avant : « 12k (10k envoyés · 1,5k reçus) » et
+  « 45 req » ; `countedEmpty` : état vide au lieu de lignes à zéro ; `amount` : saisie
+  vide = retirer, illisible = « OK » grisé — avant, « abc » effaçait le solde ;
+  `resetMessage`). « Remettre à zéro » confirmé ; vibration au solde/crédit choisi ;
+  « Actualiser » 44 pt. Tests : 453 → 457.
+
+## Prochain passage : TOKENS
+Diff des relectures sans base (voir pistes). Puis interface : RepoLists (branches, PR,
+tickets) ou chat 2e passage.
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

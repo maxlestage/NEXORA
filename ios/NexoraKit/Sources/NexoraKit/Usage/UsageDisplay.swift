@@ -24,3 +24,61 @@ public enum UsageDisplay {
         return "\(name), \(summary), \(spent)"
     }
 }
+
+/// Textes de la fiche d'un fournisseur (QuotaSheet), testables sous Linux.
+public enum QuotaDisplay {
+    /// Une ligne « libellé … valeur » de la carte « Compté par NEXORA ».
+    public struct Row: Sendable, Hashable {
+        public let key: String
+        public let value: String
+
+        public init(_ key: String, _ value: String) {
+            self.key = key
+            self.value = value
+        }
+    }
+
+    /// Les lignes de « Compté par NEXORA », courtes et avec de vrais pluriels ;
+    /// vide quand rien n'a encore été compté (voir `countedEmpty`).
+    public static func counted(_ u: ProviderUsage) -> [Row] {
+        guard u.requestsTotal > 0 || u.requestsToday > 0 else { return [] }
+        var rows: [Row] = []
+        if u.requestsToday > 0 {
+            rows.append(Row("Aujourd'hui", "\(requests(u.requestsToday)) · \(UsageFormat.compact(u.tokensToday)) tokens"))
+            rows.append(Row("Envoyés · reçus", "\(UsageFormat.compact(u.tokensInToday)) · \(UsageFormat.compact(u.tokensOutToday))"))
+            if let c = UsageFormat.cached(u) { rows.append(Row("Relus depuis le cache", c)) }
+        } else {
+            rows.append(Row("Aujourd'hui", "Aucune requête"))
+        }
+        rows.append(Row("Depuis le début", "\(requests(u.requestsTotal)) · \(UsageFormat.compact(u.tokensTotal)) tokens"))
+        return rows
+    }
+
+    /// L'état vide de « Compté par NEXORA ».
+    public static let countedEmpty = "Rien de compté pour l'instant : les chiffres apparaissent dès votre premier message à ce fournisseur."
+
+    /// `1` → « 1 requête », `3` → « 3 requêtes ».
+    public static func requests(_ n: Int) -> String {
+        n > 1 ? "\(n) requêtes" : "\(n) requête"
+    }
+
+    /// Ce que donne un montant saisi : effacer (champ vide), une valeur, ou illisible
+    /// (« OK » grisé : avant, une saisie illisible effaçait le solde sans prévenir).
+    public enum Amount: Sendable, Equatable {
+        case clear
+        case value(Double)
+        case invalid
+    }
+
+    public static func amount(_ s: String) -> Amount {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return .clear }
+        let v = UsageText.parseAmount(t)
+        return v > 0 && v.isFinite ? .value(v) : .invalid
+    }
+
+    /// La question posée avant « Remettre à zéro ».
+    public static func resetMessage(_ name: String) -> String {
+        "Les requêtes, tokens et dépenses comptés pour \(name) sont effacés. Votre clé et vos réglages restent."
+    }
+}
