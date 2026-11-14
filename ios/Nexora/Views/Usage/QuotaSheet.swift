@@ -11,6 +11,9 @@ struct QuotaSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var prompt: AmountPrompt?
     @State private var amount = ""
+    @State private var confirmReset = false
+    /// Change à chaque solde ou crédit choisi : une vibration le confirme.
+    @State private var saved = 0
 
     private enum AmountPrompt {
         case prepaid, budget
@@ -34,6 +37,7 @@ struct QuotaSheet: View {
         }
         .presentationDetents([.large, .medium])
         .presentationDragIndicator(.visible)
+        .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
     }
 
     @ViewBuilder
@@ -98,13 +102,15 @@ struct QuotaSheet: View {
 
                 UsageSectionTitle("Compté par NEXORA")
                 UsageCard {
-                    UsageRow("Requêtes aujourd'hui", "\(u.requestsToday)")
-                    UsageRow(
-                        "Tokens aujourd'hui",
-                        "\(UsageFormat.compact(u.tokensToday)) (\(UsageFormat.compact(u.tokensInToday)) envoyés · \(UsageFormat.compact(u.tokensOutToday)) reçus)"
-                    )
-                    if let c = UsageFormat.cached(u) { UsageRow("Relus depuis le cache", c) }
-                    UsageRow("Depuis le début", "\(u.requestsTotal) req · \(UsageFormat.compact(u.tokensTotal)) tokens")
+                    let rows = QuotaDisplay.counted(u)
+                    if rows.isEmpty {
+                        Text(QuotaDisplay.countedEmpty)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(rows, id: \.self) { row in
+                        UsageRow(row.key, row.value)
+                    }
                     if u.estimated {
                         Text("≈ Une partie est estimée (environ 4 caractères par token) : ce fournisseur n'indique pas toujours le décompte exact.")
                             .font(.caption)
@@ -138,6 +144,9 @@ struct QuotaSheet: View {
                 .keyboardType(.decimalPad)
             Button("Annuler", role: .cancel) { prompt = nil }
             Button("OK") { applyPrompt(p) }
+                .disabled(QuotaDisplay.amount(amount) == .invalid)
+        } message: {
+            Text("Laissez vide pour retirer le montant.")
         }
     }
 
@@ -157,6 +166,8 @@ struct QuotaSheet: View {
                         Task { await usage.refresh(p, key: settings.key(p.id)) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
+                            .frame(width: 44, height: 44)
+                            .contentShape(.rect)
                     }
                     .accessibilityLabel("Actualiser")
                 }
@@ -217,7 +228,10 @@ struct QuotaSheet: View {
             UsageFlow {
                 ForEach(ModelPrices.monthlyPlans[p.id] ?? [], id: \.name) { plan in
                     let selected = u.monthlyBudget == plan.amount
-                    Button("\(plan.name) · \(UsageFormat.dollars(plan.amount))") { usage.setBudget(p.id, plan.amount) }
+                    Button("\(plan.name) · \(UsageFormat.dollars(plan.amount))") {
+                        usage.setBudget(p.id, plan.amount)
+                        saved += 1
+                    }
                         .buttonStyle(.bordered)
                         .tint(selected ? Theme.accent(settings.accent) : .secondary)
                         .fontWeight(selected ? .bold : .regular)
@@ -255,10 +269,16 @@ struct QuotaSheet: View {
                 Label("Clé et réglages", systemImage: "slider.horizontal.3")
             }
             .buttonStyle(.bordered)
-            Button("Remettre à zéro", role: .destructive) { usage.reset(p.id) }
+            Button("Remettre à zéro", role: .destructive) { confirmReset = true }
                 .buttonStyle(.borderless)
         }
         .padding(.top, 18)
+        .confirmationDialog("Remettre à zéro les compteurs ?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Remettre à zéro", role: .destructive) { usage.reset(p.id) }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text(QuotaDisplay.resetMessage(p.name))
+        }
     }
 
     private func promptTitle(_ p: ProviderDef) -> String {
@@ -266,12 +286,21 @@ struct QuotaSheet: View {
     }
 
     private func applyPrompt(_ p: ProviderDef) {
-        let v = UsageText.parseAmount(amount)
+        let v: Double?
+        switch QuotaDisplay.amount(amount) {
+        case .invalid:
+            return
+        case .clear:
+            v = nil
+        case .value(let x):
+            v = x
+        }
         if let current = prompt {
             switch current {
-            case .prepaid: usage.setPrepaid(p.id, v > 0 ? v : nil)
-            case .budget: usage.setBudget(p.id, v > 0 ? v : nil)
+            case .prepaid: usage.setPrepaid(p.id, v)
+            case .budget: usage.setBudget(p.id, v)
             }
+            if v != nil { saved += 1 }
         }
         prompt = nil
     }

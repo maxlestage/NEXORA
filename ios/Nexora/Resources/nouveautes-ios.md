@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.62 — 14 novembre 2026 — Une fiche de crédit plus claire
+- Plus clair : la fiche d'un fournisseur montre « Aujourd'hui : 3 requêtes · 12k tokens » en lignes courtes, et dit simplement quand rien n'a encore été compté.
+- Plus sûr : « Remettre à zéro » demande confirmation ; un montant illisible ne peut plus effacer votre solde par erreur.
+- Pratique : une vibration confirme le solde ou le crédit choisi, et le bouton « Actualiser » est plus facile à toucher.
+
 ## 3.0.61 — 14 novembre 2026 — L'effort en un geste
 - Amélioré : dans « Sélectionner un modèle », l'effort (Faible → Max) se règle directement dans la feuille, sans ouvrir une autre page ; la note dessous explique le niveau choisi.
 - Plus clair : la section « Autres fournisseurs » est nommée, et « Ajouter des modèles » passe en bas.
