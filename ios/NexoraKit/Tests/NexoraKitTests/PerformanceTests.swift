@@ -930,3 +930,29 @@ struct FileTreeBench {
         for f in Self.repo { #expect(AgentRun.fileTree(Self.repo).contains(f.split(separator: "/").last!)) }
     }
 }
+
+@Suite("Résultats de recherche")
+struct SearchHitsBench {
+    @Test("regroupés par fichier : chemin écrit une fois, ordre et lignes gardés")
+    func grouped() {
+        let hits = ["app/lib/a.dart:3: final x = 1;", "app/lib/a.dart:9: x + 1", "b.rs:2: let x", "app/lib/a.dart:12: x"]
+        #expect(AgentRun.groupHits(hits) == "app/lib/a.dart :\n  3: final x = 1;\n  9: x + 1\nb.rs:2: let x\napp/lib/a.dart:12: x")
+        #expect(AgentRun.groupHits([]) == "")
+        #expect(AgentRun.groupHits(["c:d:1: e: f", "c:d:4: g"]) == "c:d :\n  1: e: f\n  4: g")
+    }
+
+    @Test("banc : recherche type (40 lignes dans 8 fichiers), bien moins de caractères")
+    func bench() {
+        var hits: [String] = []
+        for f in 1...8 {
+            for l in 1...5 {
+                hits.append("app/lib/src/features/chat/state/chat_state_\(f).dart:\(l * 17): final state = ref.watch(chatStateProvider);")
+            }
+        }
+        let before = hits.joined(separator: "\n").count
+        let after = AgentRun.groupHits(hits).count
+        print("Recherche groupée (40 lignes, 8 fichiers) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 7)
+        for h in hits { #expect(AgentRun.groupHits(hits).contains(h.split(separator: ":", maxSplits: 2)[2])) }
+    }
+}

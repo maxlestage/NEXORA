@@ -403,7 +403,14 @@ mémoire 32k tokens, consigne 3 000 car.
   `repoNameNote` « Sera créé sous le nom « … » », `repoNameProblem` (vide, réservé,
   > 100 car.) bloque « Créer ». Boutons 44 pt. Tests : 418 → 421.
 
-## Prochain passage : TOKENS
+- 3.0.50 (tokens) : `AgentRun.groupHits` — search_code avec plus de 6 lignes trouvées :
+  les lignes de suite d'un même fichier passent sous son chemin écrit une fois
+  (« chemin :\n  12: texte ») ; une ligne seule garde « chemin:12: texte ». Banc
+  `SearchHitsBench.bench` (40 lignes dans 8 fichiers aux chemins Flutter typiques) :
+  979 → 603 tokens (−38 %). find_in_file (un seul fichier) déjà sans chemin répété.
+  Tests : 421 → 423.
+
+## Prochain passage : INTERFACE
 Écran d'interface restant : Crédits (CreditsView) ; ensuite repasser sur les écrans les
 plus utilisés (session de l'agent, chat).
 

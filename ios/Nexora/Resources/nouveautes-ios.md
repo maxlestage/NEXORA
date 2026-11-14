@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.50 — 14 novembre 2026 — Recherches de l'agent plus économes
+
+- Amélioré : quand une recherche de l'agent trouve beaucoup de lignes, elles sont regroupées par fichier (le chemin n'est écrit qu'une fois) : environ 38 % de tokens en moins pour ces résultats.
+- Inchangé : toutes les lignes trouvées et leur numéro restent envoyés, dans le même ordre.
+
 ## 3.0.49 — 14 novembre 2026 — Connexion à GitHub plus simple
 - Amélioré : la connexion par code est l'action principale ; la connexion par jeton se déplie seulement si vous en avez besoin.
 - Amélioré : « Copier le code et ouvrir GitHub » confirme la copie (message et vibration), et VoiceOver lit le code lettre par lettre.
