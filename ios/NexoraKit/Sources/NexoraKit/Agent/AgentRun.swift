@@ -737,11 +737,12 @@ public final class AgentRun {
                     if turns > 4 && m.content.len > 1500 && block.allMatches(m.content).contains(where: {
                         ($0[2] ?? "").len > 400 && $0[1] != "json"
                     }) { due += 1 }
+                } else if m.role == "user" && m.content.len <= 600 && m.content.contains(writtenMark) {
+                    // Jamais raccourci : tient seulement la place d'une lecture.
+                    seen += 1
                 } else if m.role == "user" && m.content.hasPrefix("Résultat de ") && m.content.len > 600 {
                     seen += 1
                     if seen > keep { due += 1 }
-                } else if m.role == "user" && m.content.contains(writtenMark) {
-                    seen += 1
                 }
             }
             if due < batch { return }
@@ -928,14 +929,24 @@ public final class AgentRun {
                     + "sers-toi de celui-là)"
             }
             if head.hasPrefix("Résultat de read_file"),
-               written.contains(body.trimmingCharacters(in: .whitespacesAndNewlines)) {
+               written.contains(blockText(body)) {
                 return head + writtenMark
             }
-            guard diffs, head.hasPrefix("Résultat de read_file"),
-                  let changed = changedOnly(body, earlier: earlier) else { return r }
-            return head + changed
+            guard diffs, head.hasPrefix("Résultat de read_file") else { return r }
+            if let changed = changedOnly(body, earlier: earlier) { return head + changed }
+            // Écrit par l'agent puis légèrement retouché (edit_file) : seulement les
+            // passages changés depuis ce qu'il a écrit (3.0.48).
+            if let changed = changedSince(blockText(body), bases: written.reversed()) {
+                return head + writtenChangedMark + changed
+            }
+            return r
         }
     }
+
+    /// Le début d'un fichier relu donné par ses changements depuis ce que l'agent a écrit.
+    nonisolated static let writtenChangedMark = "(tu as écrit ce fichier plus haut ; depuis, seuls ces "
+        + "passages ont changé — diff unifié : « - » ligne écrite, « + » ligne actuelle, numéros de "
+        + "ligne après @@ ; tout le reste est identique à ce que tu as écrit)\n"
 
     /// Un fichier relu identique au contenu que l'agent a écrit plus haut.
     nonisolated static let writtenMark = "(identique au contenu que tu as écrit plus haut, rien n'a "
@@ -943,15 +954,25 @@ public final class AgentRun {
 
     /// Les contenus encore entiers des blocs de code (hors JSON) des réponses de
     /// l'agent : les fichiers qu'il a écrits, sans les espaces de début et de fin.
-    nonisolated static func writtenBodies(_ history: [LLMMessage]) -> Set<String> {
-        var out = Set<String>()
+    /// Dans l'ordre de l'historique (le plus récent en dernier), sans doublon.
+    nonisolated static func writtenBodies(_ history: [LLMMessage]) -> [String] {
+        var out: [String] = [], seen = Set<String>()
         for m in history where m.role == "assistant" && m.content.contains("```") {
             for b in writtenBlock.allMatches(m.content) where b[1] != "json" {
-                let body = (b[2] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                if body.count > dedupMin { out.insert(body) }
+                let body = blockText(b[2] ?? "")
+                if body.count > dedupMin && seen.insert(body).inserted { out.append(body) }
             }
         }
         return out
+    }
+
+    /// Un contenu sans lignes vides au début ni espaces à la fin ; l'indentation de
+    /// la première ligne reste (les numéros et le diff restent justes).
+    nonisolated static func blockText(_ s: String) -> String {
+        var t = Substring(s)
+        while let c = t.last, c.isWhitespace { t.removeLast() }
+        while t.first?.isNewline == true { t.removeFirst() }
+        return String(t)
     }
 
     private nonisolated static let writtenBlock = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
@@ -979,23 +1000,26 @@ public final class AgentRun {
     /// haut (les plus récentes d'abord, 8 au plus) : seulement ses passages changés,
     /// avec 2 lignes autour. `nil` si le diff n'est pas au moins 2 fois plus court.
     nonisolated static func changedOnly(_ body: String, earlier: [String]) -> String? {
+        let bases = earlier.reversed().lazy.flatMap { resultBodies($0).reversed() }
+        return changedSince(body, bases: bases).map { changedMark + $0 }
+    }
+
+    /// Le diff de `body` avec la première base proche (8 essais au plus) : moins de
+    /// 30 % de lignes changées et au moins 2 fois plus court que `body`.
+    nonisolated static func changedSince<S: Sequence>(_ body: String, bases: S) -> String?
+        where S.Element == String {
         let lines = body.dsplit("\n")
         if lines.count < 20 { return nil }
-        var tried = 0
-        for m in earlier.reversed() {
-            for old in resultBodies(m).reversed() {
-                tried += 1
-                if tried > 8 { return nil }
-                // Tri rapide : la plupart des lignes doivent déjà être là.
-                let known = Set(old.dsplit("\n"))
-                if lines.filter({ known.contains($0) }).count * 10 < lines.count * 7 { continue }
-                let d = lineDiff(old, body)
-                let changed = d.added + d.removed
-                if d.truncated || changed == 0 || changed * 10 > lines.count * 3 { continue }
-                let text = unifiedDiff(d.lines)
-                if text.count * 2 > body.count { continue }
-                return changedMark + text
-            }
+        for old in bases.prefix(8) {
+            // Tri rapide : la plupart des lignes doivent déjà être là.
+            let known = Set(old.dsplit("\n"))
+            if lines.filter({ known.contains($0) }).count * 10 < lines.count * 7 { continue }
+            let d = lineDiff(old, body)
+            let changed = d.added + d.removed
+            if d.truncated || changed == 0 || changed * 10 > lines.count * 3 { continue }
+            let text = unifiedDiff(d.lines)
+            if text.count * 2 > body.count { continue }
+            return text
         }
         return nil
     }

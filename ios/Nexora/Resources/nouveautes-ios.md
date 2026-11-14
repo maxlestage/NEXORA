@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.48 — 14 novembre 2026 — L'agent relit ses fichiers retouchés à moindre coût
+- Amélioré : quand l'agent relit un fichier qu'il a écrit puis légèrement modifié, seuls les passages changés sont renvoyés au modèle, pas tout le fichier.
+- Amélioré : sur une session type, environ 7 % de tokens envoyés en moins et 10 % de moins hors cache.
+
 ## 3.0.47 — 14 novembre 2026 — Nouveautés plus faciles à parcourir
 
 - Nouveau : une recherche dans les nouveautés, mot par mot (« tokens », « agent », « 3.0.40 »…).

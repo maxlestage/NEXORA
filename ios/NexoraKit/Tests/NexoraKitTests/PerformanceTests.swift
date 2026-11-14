@@ -248,9 +248,12 @@ struct PerformanceTests {
 /// `diffs` : il n'est renvoyé que par ses changements (3.0.41).
 /// `written` : l'étape qui suit chaque écriture relit le fichier écrit ; `writes` : ce
 /// fichier, identique à ce que l'agent a écrit, n'est pas renvoyé (3.0.46).
+/// `retouched` : le fichier écrit (50 lignes) est relu après une retouche de 2 lignes ;
+/// avec `diffs`, seuls les passages changés depuis l'écriture repartent (3.0.48).
 private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
                                edited: Bool = false, diffs: Bool = true,
-                               written: Bool = false, writes: Bool = true) -> (sent: Int, uncached: Int) {
+                               written: Bool = false, writes: Bool = true,
+                               retouched: Bool = false) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
@@ -275,7 +278,9 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
             previous = history
         }
-        let code = step % 3 == 2 ? "\n```swift\n" + String(repeating: "c", count: 2000) + "\n```" : ""
+        let codeLines = (0..<50).map { "    let champ\($0) = formulaire.valeur(\($0), s\(step))" }
+        let codeBody = retouched ? codeLines.joined(separator: "\n") : String(repeating: "c", count: 2000)
+        let code = step % 3 == 2 ? "\n```swift\n" + codeBody + "\n```" : ""
         let file = step % 5 == 4 ? step - 2 : step
         history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
             + "(nom, e-mail, message) reliée au menu principal\", \"thought\": \"Je lis f\(file) pour voir "
@@ -294,6 +299,12 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         var result = ["Résultat de read_file :\n// f\(file)\n" + content]
         if written && step % 3 == 0 && step > 0 {
             result = ["Résultat de read_file :\n" + String(repeating: "c", count: 2000) + "\n"]
+        }
+        if retouched && step % 3 == 0 && step > 0 {
+            var lines = (0..<50).map { "    let champ\($0) = formulaire.valeur(\($0), s\(step - 1))" }
+            lines[12] += " // retouché"
+            lines[37] += " // retouché"
+            result = ["Résultat de read_file :\n" + lines.joined(separator: "\n") + "\n"]
         }
         if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes) }
         history.append(LLMMessage("user", result[0] + reminder))
@@ -469,9 +480,17 @@ struct TokenBench {
         let read = "Résultat de read_file (a.swift) :\n" + code + "\n"
         let r = AgentRun.dedupResults([read], history: past)[0]
         #expect(r == "Résultat de read_file (a.swift) :\n" + AgentRun.writtenMark)
-        // Modifié depuis, autre outil, réglage coupé : renvoyé en entier.
-        let edited = "Résultat de read_file (a.swift) :\n" + code + "\n// ajout"
-        #expect(AgentRun.dedupResults([edited], history: past) == [edited])
+        // Retouché depuis : seulement les changements depuis ce qui a été écrit (3.0.48).
+        let edited = "Résultat de read_file (a.swift) :\n" + code + "\n// ajout\n"
+        let e = AgentRun.dedupResults([edited], history: past)[0]
+        #expect(e.hasPrefix("Résultat de read_file (a.swift) :\n" + AgentRun.writtenChangedMark + "@@ -39,2 +39,3 @@"))
+        #expect(e.contains("+// ajout"))
+        #expect(e.count * 2 < edited.count)
+        #expect(AgentRun.dedupResults([edited], history: past, diffs: false) == [edited.dropLast() + "\n"])
+        // Beaucoup changé : renvoyé en entier.
+        let rewrote = "Résultat de read_file (a.swift) :\n" + code.replacingOccurrences(of: "calcule", with: "mesure")
+        #expect(AgentRun.dedupResults([rewrote], history: past) == [rewrote])
+        // Autre outil, réglage coupé : renvoyé en entier.
         let search = "Résultat de search_code :\n" + code
         #expect(AgentRun.dedupResults([search], history: past) == [search])
         #expect(AgentRun.dedupResults([read], history: past, writes: false) == [read])
@@ -528,6 +547,17 @@ struct TokenBench {
         #expect(writtenShort.sent < writtenFull.sent)
         #expect(anthropic(writtenShort) < anthropic(writtenFull))
         #expect(openai(writtenShort) < openai(writtenFull))
+        // Fichier écrit, retouché puis relu : seulement les changements (3.0.48).
+        let retouchedFull = agentSessionChars(batch: AgentRun.compactBatch, diffs: false, retouched: true)
+        let retouchedDiff = agentSessionChars(batch: AgentRun.compactBatch, retouched: true)
+        for (name, r) in [("fichiers écrits retouchés relus en entier", retouchedFull),
+                          ("fichiers écrits retouchés relus en diff", retouchedDiff)] {
+            print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        #expect(retouchedDiff.sent < retouchedFull.sent)
+        #expect(anthropic(retouchedDiff) < anthropic(retouchedFull))
+        #expect(openai(retouchedDiff) < openai(retouchedFull))
         // Fichier relu sans changement : pas renvoyé en entier.
         #expect(grouped.sent < resent.sent)
         #expect(anthropic(grouped) < anthropic(resent))

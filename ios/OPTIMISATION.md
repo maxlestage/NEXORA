@@ -39,6 +39,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.41, 40 étapes, fichier relu modifié (relu en diff) | 455 560 (−8,4 %) | 114 043 (−12 %) | 176 706 (−11,5 %) | 284 802 (−9,3 %) |
 | 3.0.46, 40 étapes, fichier écrit puis relu (`written: true`, nouvelle ligne : relu en entier) | 441 759 | 93 096 | 151 236 | 267 427 |
 | 3.0.46, 40 étapes, fichier écrit puis relu (renvoi court) | 388 169 (−12 %) | 73 375 (−21 %) | 123 198 (−18,5 %) | 230 772 (−13,7 %) |
+| 3.0.48, 40 étapes, fichier écrit, retouché puis relu (`retouched: true`, nouvelle ligne : relu en entier) | 440 134 | 105 129 | 164 912 | 272 631 |
+| 3.0.48, 40 étapes, fichier écrit, retouché puis relu (diff depuis l'écriture) | 410 558 (−6,7 %) | 94 436 (−10,2 %) | 149 657 (−9,3 %) | 252 497 (−7,4 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -381,12 +383,20 @@ mémoire 32k tokens, consigne 3 000 car.
   Puces de filtre 44 pt, titres en en-tête VoiceOver, points lus d'un bloc. Corrigé :
   pluriels du résumé « Quoi de neuf » (« nouveaus » → « nouveaux »). Tests : 415 → 418.
 
-## Prochain passage : TOKENS
+- 3.0.48 (tokens) : fichier écrit par l'agent, retouché (edit_file) puis relu —
+  `dedupResults` essaie, après les lectures précédentes, un diff (`changedSince`, même
+  seuils que 3.0.41) avec les blocs écrits encore entiers (`writtenBodies`, désormais
+  ordonnés, le plus récent d'abord) ; renvoi `writtenChangedMark` + diff unifié.
+  `blockText` garde l'indentation de la 1re ligne (avant : retirée, numéros justes mais
+  1re ligne fausse dans un diff). Essai écarté : compter ce diff comme une place de
+  « résultat long » (comme 3.0.46) — hors cache −22 % mais envoyés +1,8 % ; gardé : ne
+  pas le compter (tout baisse). Autres lignes du banc inchangées. Tests : 418 (test
+  `rereadWritten` étendu : diff, beaucoup changé → entier, réglage coupé).
+
+## Prochain passage : INTERFACE
 Écrans d'interface restants : Crédits (CreditsView), GitHub (GitHubView).
 
 ## Pistes tokens à faire
-- Fichier écrit puis légèrement modifié (edit_file) puis relu : servir de base au diff
-  (`changedOnly`) le contenu écrit, pas seulement les lectures précédentes.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
