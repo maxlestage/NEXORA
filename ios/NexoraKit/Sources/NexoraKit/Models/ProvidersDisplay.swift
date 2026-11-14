@@ -105,3 +105,61 @@ public enum ProviderDetailDisplay {
         return "Ça marche : \(model) a répondu en \(duration(ms: ms))\(said)."
     }
 }
+
+/// Logique d'affichage du sélecteur de modèle du chat (ModelPickerSheet), testable sous Linux.
+public enum ModelPickerDisplay {
+    /// Le texte sans majuscules, accents ni séparateurs (« Llama-3.1 » → « llama31 »).
+    static func squash(_ s: String) -> String {
+        let plain = s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return String(plain.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init))
+    }
+
+    /// Le modèle correspond-il à la recherche ? Chaque mot doit se trouver dans l'id du
+    /// modèle, son détail ou le nom du fournisseur, sans tenir compte des tirets, points,
+    /// espaces, majuscules ni accents : « llama 3 » trouve « llama-3.1-8b ».
+    public static func matches(_ query: String, model: String, detail: String = "", provider: String = "") -> Bool {
+        let words = query.split(whereSeparator: \.isWhitespace).map { squash(String($0)) }.filter { !$0.isEmpty }
+        if words.isEmpty { return true }
+        let hay = squash(model) + " " + squash(detail) + " " + squash(provider)
+        return words.allSatisfy { hay.contains($0) }
+    }
+
+    /// Phrase d'une section de fournisseur restée vide (nil si elle a des modèles).
+    public static func emptySection(onlyFree: Bool, hasLiveList: Bool) -> String? {
+        if onlyFree { return "Aucun modèle gratuit chez ce fournisseur." }
+        return hasLiveList ? "Aucun modèle." : "Aucun modèle : touchez « Charger la liste »."
+    }
+
+    /// État vide de toute la liste : titre, phrase et bouton qui la débloque
+    /// (nil s'il reste au moins un modèle à montrer).
+    public struct Empty: Equatable, Sendable {
+        public let title: String
+        public let message: String
+        public let action: String
+    }
+
+    public static func empty(found: Int, query: String, onlyFree: Bool) -> Empty? {
+        guard found == 0 else { return nil }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if onlyFree {
+            return Empty(title: q.isEmpty ? "Aucun modèle gratuit" : "Aucun modèle gratuit pour « \(q) »",
+                         message: "Le filtre « Gratuits » cache les modèles payants.",
+                         action: "Voir aussi les payants")
+        }
+        if !q.isEmpty {
+            return Empty(title: "Aucun modèle pour « \(q) »",
+                         message: "Essayez un autre nom, ou montrez tous les fournisseurs.",
+                         action: "Effacer la recherche")
+        }
+        return nil
+    }
+
+    /// Ce que lit VoiceOver pour une ligne : « gpt-4o, OpenAI, gratuit, modèle actuel ».
+    public static func accessibility(model: String, provider: String, free: Bool, local: Bool, selected: Bool) -> String {
+        var parts = [model, provider]
+        if free { parts.append("gratuit") }
+        if local { parts.append("local") }
+        if selected { parts.append("modèle actuel") }
+        return parts.joined(separator: ", ")
+    }
+}
