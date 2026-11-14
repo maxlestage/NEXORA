@@ -42,12 +42,17 @@ public enum Help {
     }
 
     /// Les thèmes et les questions qui correspondent à une recherche (tout si elle
-    /// est vide). Un thème sans question trouvée disparaît.
+    /// est vide). Chaque mot doit se trouver dans la question, la réponse ou le titre
+    /// du thème, dans n'importe quel ordre (« gratuite clé » trouve « clé gratuite »).
+    /// Un thème sans question trouvée disparaît.
     public static func search(_ query: String, in sections: [HelpSection] = Help.sections) -> [(section: HelpSection, topics: [HelpTopic])] {
-        let q = normalize(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        let words = normalize(query).split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "?" }).map(String.init)
         return sections.compactMap { s in
+            let title = normalize(s.title)
             let topics = s.topics.filter { t in
-                q.isEmpty || normalize(t.question).contains(q) || normalize(t.answer).contains(q) || normalize(s.title).contains(q)
+                guard !words.isEmpty else { return true }
+                let text = title + "\n" + normalize(t.question) + "\n" + normalize(t.answer)
+                return words.allSatisfy { text.contains($0) }
             }
             return topics.isEmpty ? nil : (s, topics)
         }
