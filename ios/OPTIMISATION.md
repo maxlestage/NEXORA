@@ -37,6 +37,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.36, 80 étapes avec relances | 1 203 363 (+0,2 %) | 231 820 (−8,4 %) | 386 929 (−5,9 %) | 717 591 (−1,3 %) |
 | 3.0.41, 40 étapes, fichier relu modifié (`edited: true`, nouvelle ligne : relu en entier) | 497 489 | 130 312 | 199 607 | 313 900 |
 | 3.0.41, 40 étapes, fichier relu modifié (relu en diff) | 455 560 (−8,4 %) | 114 043 (−12 %) | 176 706 (−11,5 %) | 284 802 (−9,3 %) |
+| 3.0.46, 40 étapes, fichier écrit puis relu (`written: true`, nouvelle ligne : relu en entier) | 441 759 | 93 096 | 151 236 | 267 427 |
+| 3.0.46, 40 étapes, fichier écrit puis relu (renvoi court) | 388 169 (−12 %) | 73 375 (−21 %) | 123 198 (−18,5 %) | 230 772 (−13,7 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -362,11 +364,21 @@ mémoire 32k tokens, consigne 3 000 car.
   et cachée pendant une recherche, invite de recherche simple. Une réponse refermée le
   reste. Questions et boutons de la carte « Premiers pas » 44 pt. Tests : 411 → 414.
 
-## Prochain passage : TOKENS
+- 3.0.46 (tokens) : fichier relu juste après avoir été écrit — `dedupResults` compare
+  la lecture complète (read_file) aux blocs de code encore entiers des réponses de
+  l'agent (`writtenBodies`) ; identique → renvoi court `writtenMark`. Ce renvoi tient
+  une place de « résultat long » dans `compactHistory` (sans lui, les places libérées
+  gardaient d'autres vieux résultats entiers : +1,8 % envoyés mesuré). Réglage
+  `writes:` pour le banc. Autres lignes du banc inchangées. Test `rereadWritten`.
+  Tests : 414 → 415.
+
+## Prochain passage : INTERFACE
 Écrans d'interface restants : Nouveautés (WhatsNewView), Crédits (CreditsView),
 GitHub (GitHubView).
 
 ## Pistes tokens à faire
+- Fichier écrit puis légèrement modifié (edit_file) puis relu : servir de base au diff
+  (`changedOnly`) le contenu écrit, pas seulement les lectures précédentes.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
