@@ -66,6 +66,11 @@ qui suit un raccourcissement). Coût = écrits ×1,25 + relus ×0,1.
 | 40 étapes avec modifications | 236 981 | 199 501 (−15,8 %) |
 | 80 étapes avec modifications | 551 621 | 445 243 (−19,3 %) |
 
+Chat sous cache Anthropic fidèle (`AnthropicCacheBench.chat`, 3.0.61+) : point automatique
+seul 311 280 ; consigne + début stable 307 654 (−1,2 %). Proche de l'estimation optimiste
+(310 242) : entre deux coupures, le point automatique retrouve la requête précédente (2
+messages plus loin) ; à une coupure tout est réécrit, ce qui est inévitable.
+
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
 | Version | Envoyés | Hors cache | Coût Anthropic | Coût OpenAI | Messages oubliés (fin) |
@@ -530,14 +535,16 @@ mémoire 32k tokens, consigne 3 000 car.
   grandes tailles de texte. Section « Autres fournisseurs » nommée ; « Ajouter des
   modèles » (rare) passe en bas. Tests : 449 → 452.
 
-## Prochain passage : TOKENS
-Chat mesuré avec `AnthropicCacheSim` (voir pistes ci-dessous).
-Puis interface : QuotaSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
+- 3.0.61+ (tokens, mesure seule, sans changement de version) : chat mesuré avec
+  `AnthropicCacheSim` (`chatChars(send:)`) ; cache déjà efficace (voir plus haut), piste
+  close. Seul levier restant : couper plus souvent moins (`keepAfterTrim` 3/4 → 1/2,
+  ≈ −35 % estimé) mais garde moins de contexte en moyenne → écarté (résultat moins bon).
+
+## Prochain passage : INTERFACE
+QuotaSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
+Puis tokens : diff des relectures sans base (voir pistes).
 
 ## Pistes tokens à faire
-- Cache Anthropic, suite : mesurer le chat avec `AnthropicCacheSim` (la coupure par paquets
-  retire le DÉBUT de l'historique : seule la consigne est relue) ; afficher les tokens relus
-  depuis le cache : fait en 3.0.60.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
