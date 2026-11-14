@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.55 — 14 novembre 2026 — Choix du modèle plus simple
+
+- Amélioré : la recherche de modèle ignore tirets, points et majuscules (« llama 3 » trouve « llama-3.1-8b ») et cherche chaque mot.
+- Nouveau : quand rien ne correspond, un message clair et un bouton « Effacer la recherche » ou « Voir aussi les payants ».
+- Corrigé : le filtre « Gratuits » montre aussi les modèles des fournisseurs gratuits.
+- Accessibilité : étoile des favoris plus facile à toucher (44 pt, vibration) et lignes lues en entier par VoiceOver.
+
 ## 3.0.54 — 14 novembre 2026 — Sessions de l'agent plus économes
 - Amélioré : les longues sessions de l'agent envoient environ 4 % de tokens en moins (coût ≈ 2 à 4 % plus bas).
 - Les vieux fichiers lus ne gardent plus qu'un court début, coupé en fin de ligne ; l'agent les relit s'il en a besoin.

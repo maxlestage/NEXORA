@@ -30,8 +30,18 @@ struct ModelPickerSheet: View {
         settings.favorites.compactMap(ModelRef.parse).filter { settings.provider($0.providerId) != nil }
     }
 
+    /// Les modèles d'un fournisseur qui passent le filtre « Gratuits » et la recherche.
+    private func filtered(_ p: ProviderDef, q: String) -> [ModelInfo] {
+        settings.models(for: p).filter { m in
+            (!onlyFree || m.free || p.free)
+                && ModelPickerDisplay.matches(q, model: m.id, detail: m.detail ?? "", provider: p.name)
+        }
+    }
+
     var body: some View {
-        let q = query.lowercased()
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lists = providers.map { (provider: $0, models: filtered($0, q: q)) }
+        let empty = ModelPickerDisplay.empty(found: lists.reduce(0) { $0 + $1.models.count }, query: q, onlyFree: onlyFree)
         NavigationStack {
             List {
                 Section {
@@ -59,8 +69,22 @@ struct ModelPickerSheet: View {
                         }
                     }
                 }
-                ForEach(providers) { p in
-                    section(p, q: q)
+                if let empty {
+                    Section {
+                        ContentUnavailableView {
+                            Label(empty.title, systemImage: onlyFree ? "gift" : "magnifyingglass")
+                        } description: {
+                            Text(empty.message)
+                        } actions: {
+                            Button(empty.action) {
+                                if onlyFree { onlyFree = false } else { query = "" }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                }
+                ForEach(lists, id: \.provider.id) { item in
+                    section(item.provider, models: item.models, filtered: !q.isEmpty || onlyFree)
                 }
                 Section {
                     Button {
@@ -88,20 +112,17 @@ struct ModelPickerSheet: View {
     }
 
     @ViewBuilder
-    private func section(_ p: ProviderDef, q: String) -> some View {
-        let models = settings.models(for: p).filter { m in
-            (!onlyFree || m.free) && (q.isEmpty || m.id.lowercased().contains(q) || p.name.lowercased().contains(q))
-        }
-        if !(models.isEmpty && !q.isEmpty) {
+    private func section(_ p: ProviderDef, models: [ModelInfo], filtered: Bool) -> some View {
+        if !(models.isEmpty && filtered) {
             Section {
                 if !settings.isReady(p) {
                     Text("Clé manquante : ajoutez-la dans Modèles.").font(.footnote).foregroundStyle(Theme.amber)
                 }
-                ForEach(models.prefix(q.isEmpty ? 60 : 200)) { m in
+                ForEach(models.prefix(filtered ? 200 : 60)) { m in
                     row(p, m, free: m.free)
                 }
-                if models.isEmpty {
-                    Text("Aucun modèle : chargez la liste.").font(.footnote).foregroundStyle(.secondary)
+                if models.isEmpty, let hint = ModelPickerDisplay.emptySection(onlyFree: onlyFree, hasLiveList: settings.hasLiveModels(p.id)) {
+                    Text(hint).font(.footnote).foregroundStyle(.secondary)
                 }
             } header: {
                 HStack {
@@ -145,13 +166,18 @@ struct ModelPickerSheet: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(ModelPickerDisplay.accessibility(
+                model: m.id, provider: p.name, free: free || p.free, local: p.local, selected: ref == selected))
             .accessibilityAddTraits(ref == selected ? .isSelected : [])
             Button {
                 settings.toggleFavorite(ref)
             } label: {
                 Image(systemName: fav ? "star.fill" : "star").foregroundStyle(fav ? Theme.amber : .secondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
+            .sensoryFeedback(.selection, trigger: fav)
             .accessibilityLabel(fav ? "Retirer des favoris" : "Ajouter aux favoris")
         }
         .listRowBackground(ref == selected ? Color.accentColor.opacity(0.1) : nil)

@@ -445,8 +445,18 @@ mémoire 32k tokens, consigne 3 000 car.
   la mesure : 40 étapes 468 845 envoyés / 170 567 Anthropic / 288 197 OpenAI. Gain
   ci-dessus. Tests : 430 → 431.
 
-## Prochain passage : INTERFACE
-Repasser sur le chat (2e passage) ou l'écran Modèles. Puis tokens.
+- 3.0.55 (interface) : sélecteur de modèle du chat (ModelPickerSheet) — `ModelPickerDisplay`
+  (`matches` : chaque mot, sans tirets/points/espaces/majuscules/accents, dans l'id, le
+  détail ou le fournisseur ; avant : sous-chaîne exacte de l'id ou du nom), état vide
+  global (`empty` : « Aucun modèle pour « x » » + « Effacer la recherche », ou « Voir aussi
+  les payants » avec le filtre Gratuits ; avant : liste vide sans rien), phrase de section
+  vide juste (`emptySection`), sections vides cachées aussi sous le filtre Gratuits ;
+  filtre Gratuits : modèles des fournisseurs gratuits compris (le badge « gratuit » les
+  montrait, le filtre les cachait) ; étoile 44 pt + vibration ; libellé VoiceOver.
+  Tests : 431 → 434.
+
+## Prochain passage : TOKENS
+Puis interface : chat (2e passage) ou choix de l'agent (AgentPickerSheet).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
