@@ -542,13 +542,14 @@ public final class AgentRun {
     }
 
     /// Le rappel ajouté à chaque résultat d'outil : l'agent relit la demande avant
-    /// chaque action (seul le plus récent est gardé dans l'historique).
+    /// chaque action (seul le plus récent est gardé dans l'historique). Raccourci en
+    /// 3.0.45 : 269 → 210 car. pour une demande courte (−22 %, jusqu'à 12 copies).
     public nonisolated static let reminderMark = "\n\n— RAPPEL DE LA DEMANDE —\n"
 
     public var reminder: String {
         let r = requests
         let next = r.count > 1
-            ? "\nPuis, dans l'ordre (la dernière prime en cas de contradiction) :\n"
+            ? "\nPuis, dans l'ordre (la dernière prime) :\n"
                 + r.dropFirst().enumerated().map { "\($0.offset + 2). « \($0.element) »" }.joined(separator: "\n")
             : ""
         let spec = specs.last ?? ""
@@ -558,10 +559,9 @@ public final class AgentRun {
             criteria = "\nCritères de réussite à remplir :\n" + DRegex(#"^\s*:\s*"#).replaceFirst(part, "").trim()
         }
         return Self.reminderMark
-            + "Ce que l'utilisateur t'a demandé au tout début : « \(r[0]) »\(next)\(criteria)\n"
-            + "Répète-toi cette demande dans \"demande\", et fais uniquement ce qui la "
-            + "sert. Quand elle est entièrement faite, appelle finish (ne refais pas "
-            + "une action déjà réussie)."
+            + "Demande faite au tout début : « \(r[0]) »\(next)\(criteria)\n"
+            + "Redis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
+            + "fait, appelle finish (sans refaire une action réussie)."
     }
 
     /// Les anciens rappels identiques au rappel courant restent en place jusqu'à

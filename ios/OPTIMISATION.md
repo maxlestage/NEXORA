@@ -345,14 +345,20 @@ mémoire 32k tokens, consigne 3 000 car.
   décoratives cachées à VoiceOver, titre en en-tête, logo 240 → 120 pt en tailles
   d'accessibilité, Passer et bouton principal 44 pt. Tests : 407 → 410.
 
-## Prochain passage : TOKENS
-Piste : raccourcir le rappel (`reminder`) qui répète la demande déjà en tête de consigne
-(mesurer avec TokenBench). Écrans d'interface restants : Aide (HelpView), Nouveautés
+- 3.0.44+ (tokens, sans changement de version) : rappel de la demande (`reminder`)
+  raccourci — 269 → 210 car. pour une demande courte (−22 % par copie, jusqu'à 12 copies
+  dans l'historique) : « Demande faite au tout début : « … » » et une seule phrase de
+  consigne ; « (la dernière prime) » sans répéter la règle déjà dans la consigne système.
+  Banc agent par paquets (40 étapes) : 470 556 → 468 845 tokens envoyés (−0,4 %),
+  108 140 → 107 550 hors cache, coût Anthropic 171 416 → 170 567 (gain faible : les
+  anciennes copies partent déjà avec `compactHistory`). « Critères de réussite à remplir »
+  gardé (test AgentSpecTests). Test `shortReminder` (plafond 215 car.). Tests : 410 → 411.
+
+## Prochain passage : INTERFACE
+Écrans d'interface restants : Aide (HelpView), Nouveautés
 (WhatsNewView), Crédits (CreditsView), GitHub (GitHubView).
 
 ## Pistes tokens à faire
-- Consigne système : le rappel ajouté au dernier résultat (`reminder`) répète la demande
-  déjà en tête de la consigne ; mesurer s'il peut être raccourci sans perte.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
