@@ -248,9 +248,9 @@ struct PerformanceTests {
 /// `diffs` : il n'est renvoyé que par ses changements (3.0.41).
 private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
                                edited: Bool = false, diffs: Bool = true) -> (sent: Int, uncached: Int) {
-    let reminder = AgentRun.reminderMark + "Ce que l'utilisateur t'a demandé au tout début : « Ajoute une page contact "
-        + "avec un formulaire »\nRépète-toi cette demande dans \"demande\", et fais uniquement ce qui la sert. "
-        + "Quand elle est entièrement faite, appelle finish (ne refais pas une action déjà réussie)."
+    let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
+        + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
+        + "fait, appelle finish (sans refaire une action réussie)."
     let system = String(repeating: "s", count: 6000)
     var history = [LLMMessage("user", "Ajoute une page contact avec un formulaire")]
     var previous: [LLMMessage] = []

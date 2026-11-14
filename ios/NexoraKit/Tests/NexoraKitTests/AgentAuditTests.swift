@@ -265,4 +265,15 @@ struct AgentAuditTests {
         #expect(sys.contains("utilise edit_file plutôt que de le réécrire"))
         #expect(sys.contains("court, en français"))
     }
+
+    @Test("rappel de la demande : court, avec la demande et finish")
+    func shortReminder() {
+        let run = makeRun(hub: FakeHub().transport, task: "Ajoute une page contact")
+        let r = run.reminder
+        // 269 caractères avant le raccourcissement (3.0.45), 210 après.
+        #expect(r.count <= 215, "\(r.count)")
+        #expect(r.hasPrefix(AgentRun.reminderMark))
+        #expect(r.contains("« Ajoute une page contact »"))
+        #expect(r.contains("\"demande\"") && r.contains("finish"))
+    }
 }
