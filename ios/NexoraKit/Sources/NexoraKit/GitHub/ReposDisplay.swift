@@ -51,6 +51,70 @@ public enum FilesDisplay {
         if files > 0 { parts.append(files == 1 ? "1 fichier" : "\(files) fichiers") }
         return parts.joined(separator: " · ")
     }
+
+    /// Les éléments d'un dossier dont le nom correspond à la recherche (sans majuscules
+    /// ni accents). L'ordre reçu est gardé.
+    public static func filter(_ items: [ContentItem], query: String) -> [ContentItem] {
+        items.filter { AgentsDisplay.matches(query, $0.name) }
+    }
+
+    /// Une taille de fichier à la française : « 840 o », « 1,2 Ko », « 3 Mo ».
+    public static func size(_ bytes: Int) -> String {
+        if bytes < 1_000 { return "\(max(0, bytes)) o" }
+        if bytes < 1_000_000 { return FileEditorDisplay.decimal(Double(bytes) / 1_000) + " Ko" }
+        return FileEditorDisplay.decimal(Double(bytes) / 1_000_000) + " Mo"
+    }
+}
+
+/// Logique d'affichage de « Joindre un fichier » (chat) : ce que coûte un fichier avant
+/// de le joindre, et ceux qui ne peuvent pas l'être. Testable sous Linux.
+public enum AttachDisplay {
+    /// Extensions de fichiers qui ne sont pas du texte (images, archives, polices…).
+    static let binaryExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "webp", "heic", "ico", "bmp", "tiff", "icns", "pdf",
+        "zip", "gz", "tar", "tgz", "7z", "rar", "jar", "xcarchive", "ipa", "apk", "aab",
+        "ttf", "otf", "woff", "woff2", "mp3", "wav", "m4a", "aac", "mp4", "mov", "avi",
+        "exe", "dll", "so", "dylib", "a", "o", "bin", "dat", "db", "sqlite", "keystore",
+        "p12", "mobileprovision", "car", "nib",
+    ]
+
+    /// Faux pour un fichier qui n'est sûrement pas du texte : inutile de le télécharger.
+    public static func canAttach(_ item: ContentItem) -> Bool {
+        guard !item.isDir, let dot = item.name.lastIndex(of: "."), dot != item.name.startIndex else { return !item.isDir }
+        return !binaryExtensions.contains(item.name[item.name.index(after: dot)...].lowercased())
+    }
+
+    /// Vrai si le fichier dépasse la limite d'une pièce jointe (seul le début partira).
+    public static func isCut(_ item: ContentItem) -> Bool {
+        (item.size ?? 0) > ChatAttachment.maxChars
+    }
+
+    /// La ligne sous le nom d'un fichier : « 12 Ko · ≈ 3k tokens » ; pour un gros fichier,
+    /// « 240 Ko · seul le début sera joint (≈ 15k tokens) » ; « Ne peut pas être joint »
+    /// pour une image ou une archive. Vide si la taille est inconnue.
+    public static func detail(_ item: ContentItem) -> String {
+        guard canAttach(item) else { return "Ne peut pas être joint (pas du texte)" }
+        guard let bytes = item.size else { return "" }
+        if bytes == 0 { return "Fichier vide" }
+        if isCut(item) {
+            return FilesDisplay.size(bytes) + " · seul le début sera joint (≈ "
+                + ChatDisplay.compact(ChatAttachment.maxChars / 4) + " tokens)"
+        }
+        let tokens = max(1, bytes / 4)
+        return FilesDisplay.size(bytes) + " · ≈ " + ChatDisplay.compact(tokens) + (tokens == 1 ? " token" : " tokens")
+    }
+
+    /// Ce que lit VoiceOver pour un fichier : nom, puis détail.
+    public static func accessibility(_ item: ContentItem) -> String {
+        let d = detail(item).replacingOccurrences(of: "≈ ", with: "environ ").replacingOccurrences(of: " · ", with: ", ")
+        return d.isEmpty ? item.name : item.name + ", " + d
+    }
+
+    /// Le titre de l'état vide : dossier vide ou recherche sans résultat.
+    public static func emptyTitle(query: String) -> String {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return q.isEmpty ? "Dossier vide" : "Aucun résultat pour « \(q) »"
+    }
 }
 
 /// Logique d'affichage de l'éditeur de fichier (fiche d'un dépôt), testable sous Linux.
@@ -83,19 +147,11 @@ public enum FileEditorDisplay {
         var lines = text.reduce(into: 1) { n, c in if c.isNewline { n += 1 } }
         if text.last?.isNewline == true { lines -= 1 }
         let bytes = text.utf8.count
-        let size: String
-        if bytes < 1_000 {
-            size = "\(bytes) o"
-        } else if bytes < 1_000_000 {
-            size = decimal(Double(bytes) / 1_000) + " Ko"
-        } else {
-            size = decimal(Double(bytes) / 1_000_000) + " Mo"
-        }
-        return (lines == 1 ? "1 ligne" : "\(lines) lignes") + " · " + size
+        return (lines == 1 ? "1 ligne" : "\(lines) lignes") + " · " + FilesDisplay.size(bytes)
     }
 
     /// Une décimale à la française, sans « ,0 » : 1,2 ; 12.
-    private static func decimal(_ x: Double) -> String {
+    static func decimal(_ x: Double) -> String {
         let r = (x * 10).rounded() / 10
         if r == r.rounded() { return String(Int(r)) }
         return String(format: "%.1f", r).replacingOccurrences(of: ".", with: ",")

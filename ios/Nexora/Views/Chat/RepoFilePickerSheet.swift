@@ -28,11 +28,8 @@ struct RepoFilePickerSheet: View {
     }
 
     private var repoList: some View {
-        let repos = github.repos.filter { query.isEmpty || $0.fullName.localizedCaseInsensitiveContains(query) }
+        let repos = ReposDisplay.filter(github.repos, query: query)
         return List {
-            if let e = github.error, github.repos.isEmpty {
-                Text(e).font(.footnote).foregroundStyle(Theme.red)
-            }
             ForEach(repos) { r in
                 NavigationLink {
                     RepoFileBrowser(repo: r, path: "", onPick: pick)
@@ -50,11 +47,40 @@ struct RepoFilePickerSheet: View {
                 }
             }
         }
-        .overlay { if github.loading && github.repos.isEmpty { ProgressView() } }
-        .searchable(text: $query, prompt: "Choisir un dépôt")
+        .overlay {
+            if !github.connected {
+                ContentUnavailableView(
+                    "GitHub n'est pas connecté",
+                    systemImage: "person.crop.circle.badge.questionmark",
+                    description: Text("Connectez votre compte dans l'onglet Code pour joindre un fichier d'un dépôt.")
+                )
+            } else if github.loading && github.repos.isEmpty {
+                ProgressView()
+            } else if let e = github.error, github.repos.isEmpty {
+                ContentUnavailableView {
+                    Label("Chargement impossible", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(e)
+                } actions: {
+                    Button("Réessayer") { Task { await github.loadRepos() } }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if repos.isEmpty {
+                if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView("Aucun dépôt", systemImage: "folder")
+                } else {
+                    ContentUnavailableView {
+                        Label(AttachDisplay.emptyTitle(query: query), systemImage: "magnifyingglass")
+                    } actions: {
+                        Button("Effacer la recherche") { query = "" }
+                    }
+                }
+            }
+        }
+        .searchable(text: $query, prompt: "Chercher un dépôt")
         .navigationTitle("Joindre un fichier")
         .navigationBarTitleDisplayMode(.inline)
-        .task { if github.repos.isEmpty { await github.loadRepos() } }
+        .task { if github.connected && github.repos.isEmpty { await github.loadRepos() } }
     }
 
     private func pick(_ file: ChatAttachment) {
@@ -73,12 +99,16 @@ private struct RepoFileBrowser: View {
     @State private var items: [ContentItem]?
     @State private var error: String?
     @State private var opening: String?
+    @State private var query = ""
 
     var body: some View {
+        let shown = FilesDisplay.filter(items ?? [], query: query)
         List {
             Section {
-                if let error { Text(error).font(.footnote).foregroundStyle(Theme.red) }
-                ForEach(items ?? []) { item in
+                if let error, items?.isEmpty == false {
+                    Text(error).font(.footnote).foregroundStyle(Theme.red)
+                }
+                ForEach(shown) { item in
                     if item.isDir {
                         NavigationLink {
                             RepoFileBrowser(repo: repo, path: item.path, onPick: onPick)
@@ -86,31 +116,76 @@ private struct RepoFileBrowser: View {
                             Label(item.name, systemImage: "folder.fill")
                         }
                     } else {
-                        Button {
-                            Task { await open(item) }
-                        } label: {
-                            HStack {
-                                Label(item.name, systemImage: "doc.text").foregroundStyle(.primary)
-                                Spacer()
-                                if opening == item.path { ProgressView() }
-                            }
-                        }
-                        .disabled(opening != nil)
+                        fileRow(item)
                     }
                 }
             } header: {
                 Text("/\(path)").textCase(nil).font(.caption.monospaced())
             }
         }
-        .overlay { if items == nil && error == nil { ProgressView() } }
+        .overlay {
+            if items == nil {
+                ProgressView()
+            } else if let error, items?.isEmpty == true {
+                ContentUnavailableView {
+                    Label("Chargement impossible", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Réessayer") { Task { await load() } }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if shown.isEmpty {
+                if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView(AttachDisplay.emptyTitle(query: query), systemImage: "folder")
+                } else {
+                    ContentUnavailableView {
+                        Label(AttachDisplay.emptyTitle(query: query), systemImage: "magnifyingglass")
+                    } actions: {
+                        Button("Effacer la recherche") { query = "" }
+                    }
+                }
+            }
+        }
+        .searchable(text: $query, prompt: "Chercher dans ce dossier")
         .navigationTitle(path.isEmpty ? repo.fullName : (path.components(separatedBy: "/").last ?? path))
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
+        .task { if items == nil { await load() } }
+    }
+
+    /// Un fichier : son nom, ce qu'il coûtera (taille, tokens), et s'il sera coupé.
+    private func fileRow(_ item: ContentItem) -> some View {
+        let detail = AttachDisplay.detail(item)
+        let ok = AttachDisplay.canAttach(item)
+        return Button {
+            Task { await open(item) }
+        } label: {
+            HStack {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name).foregroundStyle(ok ? .primary : .secondary)
+                        if !detail.isEmpty {
+                            Text(detail)
+                                .font(.caption)
+                                .foregroundStyle(AttachDisplay.isCut(item) && ok ? Theme.red : Color.secondary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: ok ? "doc.text" : "doc.questionmark")
+                }
+                Spacer()
+                if opening == item.path { ProgressView() }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .disabled(opening != nil || !ok)
+        .accessibilityLabel(AttachDisplay.accessibility(item))
     }
 
     private func load() async {
         do {
-            items = try await github.api.list(repo.owner.login, repo.name, path: path)
+            items = FilesDisplay.sorted(try await github.api.list(repo.owner.login, repo.name, path: path))
             error = nil
         } catch {
             items = []
