@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.44 — 14 novembre 2026 — Accueil du premier lancement plus simple
+
+- Amélioré : textes des trois pages d'accueil environ un tiers plus courts ; nombre d'agents et de fournisseurs toujours à jour.
+- Amélioré : « Passer » disparaît sur la dernière page, où « Commencer » suffit ; boutons de 44 pt.
+- Accessibilité : VoiceOver annonce « Page 2 sur 3 » et ignore les icônes décoratives ; logo plus petit en très grands caractères.
+
 ## 3.0.43 — 14 novembre 2026 — Consigne de l'agent plus courte
 
 - Amélioré : la consigne redonnée à l'agent à chaque étape est environ 5 % plus courte
