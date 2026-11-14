@@ -410,9 +410,16 @@ mémoire 32k tokens, consigne 3 000 car.
   979 → 603 tokens (−38 %). find_in_file (un seul fichier) déjà sans chemin répété.
   Tests : 421 → 423.
 
-## Prochain passage : INTERFACE
-Écran d'interface restant : Crédits (CreditsView) ; ensuite repasser sur les écrans les
-plus utilisés (session de l'agent, chat).
+- 3.0.51 (interface) : écran Crédits (CreditsView) — `CreditsDisplay` : fournisseurs et
+  agents cloud tirés de `Catalog` (avant : liste écrite à la main, il manquait Ollama Cloud
+  et Codestral ; « Fournisseurs d'IA · 21 », marques sans « (local) », dédoublonnées,
+  « A, B et C ») ; touchez la version pour la copier (« NEXORA iOS 3.0.51 », toast +
+  vibration, 44 pt) ; lignes lues d'un trait par VoiceOver, icône décorative cachée, titre
+  en en-tête. Tests : 423 → 426.
+
+## Prochain passage : TOKENS
+Interface ensuite : tous les écrans ont été vus une fois ; repasser sur les plus utilisés
+(session de l'agent, chat).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

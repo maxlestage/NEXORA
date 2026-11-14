@@ -1,5 +1,6 @@
 import NexoraKit
 import SwiftUI
+import UIKit
 
 /// Les crédits de l'application (Réglages → Crédits). À pousser dans une pile de
 /// navigation.
@@ -23,17 +24,21 @@ struct CreditsView: View {
         ("Speech · AVFoundation", "Dictée et lecture à voix haute"),
     ]
 
-    private let services: [(String, String)] = [
-        (
-            "Fournisseurs d'IA",
-            "Pollinations, Ollama, OpenRouter, Groq, Google Gemini, Mistral, Cerebras, GitHub Models, Hugging Face, Together, NVIDIA, SambaNova, Cohere, Cloudflare, Anthropic, OpenAI, DeepSeek, xAI, Perplexity, LM Studio"
-        ),
-        ("Agents cloud", "Claude Code, Gemini CLI, OpenAI Codex et Aider, sur GitHub Actions"),
-        (
-            "Catalogues d'agents",
-            "wshobson/agents, VoltAgent/awesome-claude-code-subagents, 0xfurai/claude-code-subagents, iannuttall/claude-agents"
-        ),
-    ]
+    /// Tirés des catalogues livrés : la liste reste juste quand un fournisseur s'ajoute.
+    private var services: [(String, String)] {
+        let providers = Catalog.providers.map(\.name)
+        return [
+            (CreditsDisplay.providersTitle(providers), CreditsDisplay.providersDetail(providers)),
+            ("Agents cloud", CreditsDisplay.cloudAgentsDetail(Catalog.cloudAgents.map(\.name))),
+            (
+                "Catalogues d'agents",
+                "wshobson/agents, VoltAgent/awesome-claude-code-subagents, 0xfurai/claude-code-subagents, iannuttall/claude-agents"
+            ),
+        ]
+    }
+
+    @State private var toast: Toast?
+    @State private var copied = 0
 
     var body: some View {
         List {
@@ -43,13 +48,21 @@ struct CreditsView: View {
                         .font(.system(size: 64))
                         .foregroundStyle(Theme.gradient(settings.accent))
                         .padding(.top, 8)
+                        .accessibilityHidden(true)
                     Text("NEXORA")
                         .font(.system(size: 30, weight: .black))
                         .tracking(8)
                         .foregroundStyle(Theme.gradient(settings.accent))
-                    Text("Version \(SettingsStore.appVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Button(action: copyVersion) {
+                        Label("Version \(SettingsStore.appVersion)", systemImage: "doc.on.doc")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Copie le numéro de version")
                     Text("Conception, design et développement")
                         .font(.subheadline.weight(.heavy))
                         .tracking(1.2)
@@ -87,6 +100,14 @@ struct CreditsView: View {
         }
         .navigationTitle("Crédits")
         .navigationBarTitleDisplayMode(.inline)
+        .toast($toast)
+        .sensoryFeedback(.success, trigger: copied) { _, _ in settings.haptics }
+    }
+
+    private func copyVersion() {
+        UIPasteboard.general.string = CreditsDisplay.versionText(SettingsStore.appVersion)
+        copied += 1
+        toast = Toast(text: CreditsDisplay.versionCopied(SettingsStore.appVersion))
     }
 
     private func group(_ title: String, _ items: [(String, String)]) -> some View {
@@ -96,6 +117,8 @@ struct CreditsView: View {
                     Text(item.0).fontWeight(.bold)
                     Text(item.1).font(.caption).foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(CreditsDisplay.rowAccessibility(item.0, item.1))
             }
         }
     }
