@@ -353,7 +353,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
 /// Un chat de 60 tours (question de 600 caractères, réponse de 4 000) avec la mémoire
 /// par défaut (32k tokens) : caractères envoyés et part hors cache. `everyTurn` :
 /// l'ancienne coupure (avant 3.0.14), refaite à chaque tour au plus juste.
-private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int], dropped: [Int]) {
+private func chatChars(everyTurn: Bool, send: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int, kept: [Int], dropped: [Int]) {
     let budget = 32000
     let system = String(repeating: "s", count: 3000)
     var messages: [ChatMessage] = []
@@ -380,6 +380,7 @@ private func chatChars(everyTurn: Bool) -> (sent: Int, uncached: Int, kept: [Int
             dropped.append(r.1)
         }
         kept.append(history.reduce(0) { $0 + $1.content.count / 4 + 4 })
+        send?(system, history)
         var same = 0
         while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
         sent += history.reduce(system.count) { $0 + $1.content.count }
@@ -1152,6 +1153,19 @@ struct AnthropicCacheBench {
             let explicit = run("consigne + début stable", steps: steps, stalls: stalls, edits: edits, marks: true)
             #expect(explicit < auto * 0.9)
         }
+    }
+
+    @Test("chat de 60 tours : la consigne est relue même après une coupure de la mémoire")
+    func chat() {
+        func run(_ name: String, marks: Bool) -> Double {
+            let sim = AnthropicCacheSim(systemMark: marks) { marks ? LLMClient.cacheMarks($0) : [] }
+            _ = chatChars(everyTurn: false) { sim.send($0, $1) }
+            print("🪙 cache Anthropic chat \(name) : écrits \(sim.written / 4), relus \(sim.read / 4), coût ≈ \(Int(sim.cost) / 4)")
+            return sim.cost
+        }
+        let auto = run("point automatique seul", marks: false)
+        let explicit = run("consigne + début stable", marks: true)
+        #expect(explicit < auto)
     }
 
     @Test("au plus deux tours marqués, loin de la fin, les mêmes plusieurs requêtes de suite")
