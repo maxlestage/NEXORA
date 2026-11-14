@@ -261,7 +261,8 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
                                written: Bool = false, writes: Bool = true,
                                retouched: Bool = false,
                                ranged: Bool = false, ranges: Bool = true,
-                               edits: Bool = false, args: Bool = true) -> (sent: Int, uncached: Int) {
+                               edits: Bool = false, args: Bool = true,
+                               tap: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
@@ -284,7 +285,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
             sent += total
             uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
-            previous = history
+            tap?(system, history); previous = history
         }
         let codeLines = (0..<50).map { "    let champ\($0) = formulaire.valeur(\($0), s\(step))" }
         let codeBody = retouched ? codeLines.joined(separator: "\n") : String(repeating: "c", count: 2000)
@@ -328,7 +329,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         let fresh = history.dropFirst(same).reduce(0) { $0 + $1.content.count } + (step == 0 ? system.count : 0)
         sent += total
         uncached += fresh
-        previous = history
+        tap?(system, history); previous = history
         if edits && step % 3 == 1 {
             let oldText = (0..<10).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // ancien" }.joined(separator: "\\n")
             let newText = (0..<18).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // nouveau" }.joined(separator: "\\n")
@@ -343,7 +344,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
             sent += total
             uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
-            previous = history
+            tap?(system, history); previous = history
         }
     }
     return (sent, uncached)
@@ -1091,5 +1092,105 @@ struct SearchHitsBench {
         print("Recherche groupée (40 lignes, 8 fichiers) : \(before / 4) → \(after / 4) tokens")
         #expect(after * 10 < before * 7)
         for h in hits { #expect(AgentRun.groupHits(hits).contains(h.split(separator: ":", maxSplits: 2)[2])) }
+    }
+}
+
+/// Le cache de prompt d'Anthropic, simulé fidèlement : une entrée n'est écrite qu'aux
+/// points de cache (fin de la requête, consigne système, tours marqués), et chaque
+/// point ne retrouve une entrée que dans ses 20 positions précédentes. Tout ce qui
+/// suit la plus longue entrée retrouvée est réécrit (×1,25) ; le reste est relu (×0,1).
+private final class AnthropicCacheSim {
+    var entries: Set<Int> = []
+    var read = 0, written = 0
+    let systemMark: Bool
+    let marks: (Int) -> [Int]
+    init(systemMark: Bool, marks: @escaping (Int) -> [Int]) {
+        self.systemMark = systemMark
+        self.marks = marks
+    }
+    func send(_ system: String, _ history: [LLMMessage]) {
+        // prefix[k] : la consigne et les k premiers messages.
+        var hasher = Hasher()
+        hasher.combine(system)
+        var hashes = [hasher.finalize()], sizes = [system.count]
+        for m in history {
+            hasher.combine(m)
+            hashes.append(hasher.finalize())
+            sizes.append(sizes[sizes.count - 1] + m.content.count)
+        }
+        var points = marks(history.count).map { $0 + 1 } + [history.count]
+        if systemMark { points.append(0) }
+        var best = -1
+        for p in points {
+            var k = p
+            while k >= max(0, p - 20) {
+                if entries.contains(hashes[k]) { best = max(best, k); break }
+                k -= 1
+            }
+        }
+        let hit = best >= 0 ? sizes[best] : 0
+        read += hit
+        written += sizes[history.count] - hit
+        for p in points { entries.insert(hashes[p]) }
+    }
+    var cost: Double { Double(written) * 1.25 + Double(read) * 0.1 }
+}
+
+@Suite("Cache Anthropic")
+struct AnthropicCacheBench {
+    @Test("points de cache explicites : la consigne et le début stable sont relus après un raccourcissement")
+    func explicitMarks() {
+        func run(_ name: String, steps: Int, stalls: Bool = false, edits: Bool = false, marks: Bool) -> Double {
+            let sim = AnthropicCacheSim(systemMark: marks) { marks ? LLMClient.cacheMarks($0) : [] }
+            _ = agentSessionChars(batch: AgentRun.compactBatch, steps: steps, stalls: stalls, edits: edits) { sim.send($0, $1) }
+            print("🪙 cache Anthropic \(name), \(steps) étapes\(stalls ? " avec relances" : "")\(edits ? " avec modifications" : "") : "
+                + "écrits \(sim.written / 4), relus \(sim.read / 4), coût ≈ \(Int(sim.cost) / 4)")
+            return sim.cost
+        }
+        for (steps, stalls, edits) in [(40, false, false), (80, false, false), (80, true, false), (40, false, true), (80, false, true)] {
+            let auto = run("point automatique seul", steps: steps, stalls: stalls, edits: edits, marks: false)
+            let explicit = run("consigne + début stable", steps: steps, stalls: stalls, edits: edits, marks: true)
+            #expect(explicit < auto * 0.9)
+        }
+    }
+
+    @Test("au plus deux tours marqués, loin de la fin, les mêmes plusieurs requêtes de suite")
+    func marks() {
+        #expect(LLMClient.cacheMarks(0).isEmpty)
+        #expect(LLMClient.cacheMarks(19).isEmpty)
+        #expect(LLMClient.cacheMarks(27).isEmpty)
+        #expect(LLMClient.cacheMarks(28) == [7])
+        #expect(LLMClient.cacheMarks(35) == [7])
+        #expect(LLMClient.cacheMarks(44) == [7, 23])
+        #expect(LLMClient.cacheMarks(81) == [39, 55])
+        for n in 0..<300 {
+            let m = LLMClient.cacheMarks(n)
+            #expect(m.count <= 2 && m.allSatisfy { $0 >= 0 && $0 <= n - LLMClient.cacheBack })
+        }
+    }
+
+    @Test("requête Anthropic : consigne et tours marqués en blocs avec cache_control ; rien sans cache")
+    func body() throws {
+        let client = LLMClient(transport: FakeTransport([]))
+        let p = ProviderDef(id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", kind: .anthropic)
+        let messages = (0..<30).map { LLMMessage($0 % 2 == 0 ? "user" : "assistant", "message \($0)") }
+        let b = client.body(p, model: "m", messages: messages, system: "consigne", options: LLMOptions(), stream: true)
+        let system = try #require(b["system"] as? [[String: Any]])
+        #expect(system.count == 1 && system[0]["text"] as? String == "consigne" && system[0]["cache_control"] != nil)
+        #expect(b["cache_control"] != nil)
+        let turns = try #require(b["messages"] as? [[String: Any]])
+        #expect(turns.count == 30)
+        for (i, t) in turns.enumerated() {
+            if i == 7 {
+                let blocks = try #require(t["content"] as? [[String: Any]])
+                #expect(blocks.count == 1 && blocks[0]["text"] as? String == "message 7" && blocks[0]["cache_control"] != nil)
+            } else {
+                #expect(t["content"] as? String == "message \(i)")
+            }
+        }
+        // Repli quand le serveur refuse le cache : la requête d'avant, sans aucun point.
+        let plain = client.body(p, model: "m", messages: messages, system: "consigne", options: LLMOptions(), stream: true, reasoning: false)
+        #expect(plain["system"] as? String == "consigne" && plain["cache_control"] == nil)
+        #expect((plain["messages"] as? [[String: Any]])?.allSatisfy { $0["content"] is String } == true)
     }
 }

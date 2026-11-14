@@ -68,7 +68,7 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
     func messages(_ i: Int) -> [[String: String]] {
         lock.withLock {
             (bodies[i]["messages"] as? [[String: Any]] ?? []).map {
-                ["role": $0["role"] as? String ?? "", "content": $0["content"] as? String ?? ""]
+                ["role": $0["role"] as? String ?? "", "content": Self.plain($0["content"])]
             }
         }
     }
@@ -83,9 +83,17 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
 
     static func text(_ b: [String: Any]) -> String {
         var parts: [String] = []
-        if let s = b["system"] as? String { parts.append(s) }
-        for m in b["messages"] as? [[String: Any]] ?? [] { parts.append(m["content"] as? String ?? "") }
+        if b["system"] != nil { parts.append(plain(b["system"])) }
+        for m in b["messages"] as? [[String: Any]] ?? [] { parts.append(plain(m["content"])) }
         return parts.joined(separator: "\n")
+    }
+
+    /// Le texte d'un contenu, qu'il parte en simple texte ou en blocs (Anthropic :
+    /// consigne et tours qui portent un point de cache).
+    static func plain(_ content: Any?) -> String {
+        if let s = content as? String { return s }
+        let blocks = content as? [[String: Any]] ?? []
+        return blocks.compactMap { $0["text"] as? String }.joined(separator: "\n")
     }
 
     func data(_ request: URLRequest) async throws -> (HTTPHead, Data) {
