@@ -724,8 +724,10 @@ public final class AgentRun {
     /// de ce qu'il a fait sans renvoyer tous les fichiers à chaque étape.
     /// `batch` > 0 : rien n'est touché tant que moins de `batch` messages sont à
     /// raccourcir (voir `compactBatch`) ; 0 : raccourcit tout de suite.
+    /// `args` : les longs passages « old », « new » et « content » des anciennes actions
+    /// (edit_file, write_file) ne gardent que leur début (voir `shortArgs`).
     public nonisolated static func compactHistory(
-        _ history: inout [LLMMessage], keep: Int = keepFullResults, batch: Int = 0
+        _ history: inout [LLMMessage], keep: Int = keepFullResults, batch: Int = 0, args: Bool = true
     ) {
         let block = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
         if batch > 0 {
@@ -762,7 +764,10 @@ public final class AgentRun {
             let long = m.content.len > 1500
             let short = block.replaceAllMapped(m.content) { b in
                 let body = b[2] ?? ""
-                if b[1] == "json" { return shortThought(dropGoal(b.text)) }
+                if b[1] == "json" {
+                    let lighter = shortThought(dropGoal(b.text))
+                    return args ? shortArgs(lighter) : lighter
+                }
                 if body.len <= 400 || !long { return b.text }
                 return "```\n(contenu retiré de l'historique : \(body.len) caractères, il est dans les brouillons)\n```"
             }
@@ -896,6 +901,32 @@ public final class AgentRun {
             return "\"thought\": \"" + cut.trimmingCharacters(in: .whitespaces) + "…\""
         }
     }
+
+    /// Longueur à partir de laquelle un passage « old », « new » ou « content » d'une
+    /// ancienne action est raccourci, et longueur gardée de son début.
+    public nonisolated static let argMin = 300
+    public nonisolated static let argKeep = 100
+
+    /// Les longs passages écrits dans le JSON d'une ancienne action (« old » et « new »
+    /// d'edit_file, « content » de write_file) : la modification est faite et se trouve
+    /// dans les brouillons, seul son début reste pour garder la trace de ce qui a été
+    /// changé. Même règle que pour les blocs de code des anciennes réponses.
+    nonisolated static func shortArgs(_ json: String) -> String {
+        guard json.contains("\"tool\"") || json.contains("\"actions\"") else { return json }
+        return argField.replaceAllMapped(json) { m in
+            let body = m[2] ?? ""
+            if body.count <= argMin { return m.text }
+            var cut = String(body.prefix(argKeep))
+            // Ne pas couper une séquence d'échappement (« \" », « \n »…) en deux.
+            var slashes = 0
+            for c in cut.reversed() { if c == "\\" { slashes += 1 } else { break } }
+            if slashes % 2 == 1 { cut.removeLast() }
+            return "\"" + (m[1] ?? "") + "\": \"" + cut
+                + "… (\(body.count) caractères retirés de l'historique : c'est fait, relis le fichier si besoin)\""
+        }
+    }
+
+    private nonisolated static let argField = DRegex(#""(old|new|content)"\s*:\s*"((?:[^"\\]|\\.)*)""#)
 
     private nonisolated static let thoughtField = DRegex(#""thought"\s*:\s*"((?:[^"\\]|\\.)*)""#)
 

@@ -253,11 +253,15 @@ struct PerformanceTests {
 /// `ranged` : fichiers de 100 lignes ; toutes les 4 étapes, l'agent relit les lignes 41
 /// à 100 du fichier lu juste avant ; `ranges` : ces lignes déjà données ne repartent
 /// pas (3.0.52).
+/// `edits` : une étape sur 3, l'agent modifie ensuite le fichier lu avec edit_file
+/// (« old » de 500 caractères, « new » de 900, dans le JSON) ; `args` : ces passages
+/// ne gardent que leur début dans les anciennes réponses (3.0.56).
 private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
                                edited: Bool = false, diffs: Bool = true,
                                written: Bool = false, writes: Bool = true,
                                retouched: Bool = false,
-                               ranged: Bool = false, ranges: Bool = true) -> (sent: Int, uncached: Int) {
+                               ranged: Bool = false, ranges: Bool = true,
+                               edits: Bool = false, args: Bool = true) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
@@ -274,7 +278,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             AgentRun.dropReminders(&history, keeping: reminder)
             history.append(LLMMessage("user", "Je n'ai pas trouvé d'action. Réponds avec un bloc "
                 + "```json {\"demande\": …, \"thought\": …, \"tool\": …, \"args\": {…}}```." + reminder))
-            AgentRun.compactHistory(&history, batch: batch)
+            AgentRun.compactHistory(&history, batch: batch, args: args)
             let total = history.reduce(system.count) { $0 + $1.content.count }
             var same = 0
             while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
@@ -317,7 +321,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         }
         if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes, ranges: ranges) }
         history.append(LLMMessage("user", result[0] + reminder))
-        AgentRun.compactHistory(&history, batch: batch)
+        AgentRun.compactHistory(&history, batch: batch, args: args)
         let total = history.reduce(system.count) { $0 + $1.content.count }
         var same = 0
         while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
@@ -325,6 +329,22 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         sent += total
         uncached += fresh
         previous = history
+        if edits && step % 3 == 1 {
+            let oldText = (0..<10).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // ancien" }.joined(separator: "\\n")
+            let newText = (0..<18).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // nouveau" }.joined(separator: "\\n")
+            history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
+                + "(nom, e-mail, message) reliée au menu principal\", \"thought\": \"J'ajoute l'entrée contact dans f\(file).\", "
+                + "\"tool\": \"edit_file\", \"args\": {\"path\": \"f\(file)\", \"old\": \"\(oldText)\", \"new\": \"\(newText)\"}}\n```"))
+            AgentRun.dropReminders(&history, keeping: reminder)
+            history.append(LLMMessage("user", "Résultat de edit_file :\nf\(file) modifié (brouillon)." + reminder))
+            AgentRun.compactHistory(&history, batch: batch, args: args)
+            let total = history.reduce(system.count) { $0 + $1.content.count }
+            var same = 0
+            while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
+            sent += total
+            uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
+            previous = history
+        }
     }
     return (sent, uncached)
 }
@@ -511,6 +531,39 @@ struct TokenBench {
         #expect(AgentRun.dedupResults([read], history: old) == [read])
     }
 
+    @Test("anciennes modifications : « old » et « new » réduits à leur début, JSON toujours valide")
+    func oldEditArgs() throws {
+        let long = String(repeating: "ligne \\\"citée\\\"\\n", count: 40)
+        let reply = "```json\n{\"demande\": \"d\", \"thought\": \"t\", \"tool\": \"edit_file\", \"args\": {\"path\": \"a.swift\", "
+            + "\"old\": \"\(long)\", \"new\": \"court\"}}\n```"
+        var h = [LLMMessage("user", "Demande")]
+        for i in 0..<12 {
+            h.append(LLMMessage("assistant", i == 0 ? reply : "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(i)\"}}\n```"))
+            h.append(LLMMessage("user", "Résultat de read_file :\n" + String(repeating: "r", count: 2000)))
+        }
+        var kept = h
+        AgentRun.compactHistory(&kept, args: false)
+        #expect(kept[1].content.contains(long))
+        AgentRun.compactHistory(&h)
+        let short = h[1].content
+        #expect(short.count < 400)
+        #expect(short.contains("\"path\": \"a.swift\""))
+        #expect(short.contains("\"new\": \"court\""))
+        #expect(short.contains("caractères retirés de l'historique"))
+        // Le JSON reste lisible (aucune séquence d'échappement coupée en deux).
+        let json = String(short.dropFirst(8).dropLast(4))
+        let obj = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        #expect(((obj?["args"] as? [String: Any])?["old"] as? String)?.hasPrefix("ligne \"citée\"") == true)
+        // Déjà raccourci : plus rien ne bouge (le début de la requête reste en cache).
+        var again = h
+        AgentRun.compactHistory(&again)
+        #expect(again == h)
+        // Une réponse récente (4 derniers tours) garde tout.
+        var recent = [LLMMessage("user", "Demande"), LLMMessage("assistant", reply), LLMMessage("user", "Résultat de edit_file :\nfait")]
+        AgentRun.compactHistory(&recent)
+        #expect(recent[1].content.contains(long))
+    }
+
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)
@@ -556,6 +609,21 @@ struct TokenBench {
         #expect(writtenShort.sent < writtenFull.sent)
         #expect(anthropic(writtenShort) < anthropic(writtenFull))
         #expect(openai(writtenShort) < openai(writtenFull))
+        // Anciennes modifications (edit_file) : « old » et « new » réduits à leur début (3.0.56).
+        let argsFull = agentSessionChars(batch: AgentRun.compactBatch, edits: true, args: false)
+        let argsShort = agentSessionChars(batch: AgentRun.compactBatch, edits: true)
+        let argsFull80 = agentSessionChars(batch: AgentRun.compactBatch, steps: 80, edits: true, args: false)
+        let argsShort80 = agentSessionChars(batch: AgentRun.compactBatch, steps: 80, edits: true)
+        for (name, r) in [("modifications gardées en entier", argsFull), ("modifications réduites à leur début", argsShort),
+                          ("80 étapes, modifications gardées en entier", argsFull80), ("80 étapes, modifications réduites à leur début", argsShort80)] {
+            print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        #expect(argsShort.sent < argsFull.sent)
+        #expect(anthropic(argsShort) < anthropic(argsFull))
+        #expect(openai(argsShort) < openai(argsFull))
+        #expect(anthropic(argsShort80) < anthropic(argsFull80))
+        #expect(openai(argsShort80) < openai(argsFull80))
         // Fichier écrit, retouché puis relu : seulement les changements (3.0.48).
         let retouchedFull = agentSessionChars(batch: AgentRun.compactBatch, diffs: false, retouched: true)
         let retouchedDiff = agentSessionChars(batch: AgentRun.compactBatch, retouched: true)

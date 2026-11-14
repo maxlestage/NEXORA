@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.56 — 14 novembre 2026 — Agent plus économe quand il modifie des fichiers
+
+- Amélioré : quand l'agent modifie beaucoup de fichiers, ses sessions consomment environ 10 % de tokens en moins (jusqu'à 18 % sur les longues sessions).
+- Les anciennes modifications ne sont plus renvoyées en entier au modèle à chaque étape : seul leur début reste, le fichier modifié est dans les brouillons.
+
 ## 3.0.55 — 14 novembre 2026 — Choix du modèle plus simple
 
 - Amélioré : la recherche de modèle ignore tirets, points et majuscules (« llama 3 » trouve « llama-3.1-8b ») et cherche chaque mot.
