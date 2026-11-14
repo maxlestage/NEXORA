@@ -41,6 +41,8 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.46, 40 étapes, fichier écrit puis relu (renvoi court) | 388 169 (−12 %) | 73 375 (−21 %) | 123 198 (−18,5 %) | 230 772 (−13,7 %) |
 | 3.0.48, 40 étapes, fichier écrit, retouché puis relu (`retouched: true`, nouvelle ligne : relu en entier) | 440 134 | 105 129 | 164 912 | 272 631 |
 | 3.0.48, 40 étapes, fichier écrit, retouché puis relu (diff depuis l'écriture) | 410 558 (−6,7 %) | 94 436 (−10,2 %) | 149 657 (−9,3 %) | 252 497 (−7,4 %) |
+| 3.0.52, 40 étapes, plage relue déjà lue (`ranged: true`, nouvelle ligne : plage renvoyée en entier) | 449 318 | 112 151 | 173 905 | 280 734 |
+| 3.0.52, 40 étapes, plage relue déjà lue (renvoi court, seules les lignes nouvelles) | 451 977 (+0,6 %) | 100 650 (−10,3 %) | 160 945 (−7,5 %) | 276 313 (−1,6 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -417,9 +419,19 @@ mémoire 32k tokens, consigne 3 000 car.
   vibration, 44 pt) ; lignes lues d'un trait par VoiceOver, icône décorative cachée, titre
   en en-tête. Tests : 423 → 426.
 
-## Prochain passage : TOKENS
-Interface ensuite : tous les écrans ont été vus une fois ; repasser sur les plus utilisés
-(session de l'agent, chat).
+- 3.0.52 (tokens) : `AgentRun.knownRange` (dans `dedupResults`, `ranges: true`) — une
+  plage de lignes lue (read_file avec start/end ou line, reconnue à sa fin « Lignes a à b
+  sur n ») dont le début, la fin ou le tout est déjà, à l'identique, dans une lecture
+  encore complète plus haut (8 bases au plus, fichiers écrits par l'agent compris) : ces
+  lignes (10 de suite au moins, plus de 600 car. en tout) sont remplacées par « (lignes
+  a à b : identiques à une lecture plus haut, non renvoyées) ». Avant : une plage lue
+  après le fichier entier repartait en entier (ni `contains` ni le diff ne la voyaient).
+  Banc `ranged` : hors cache −10,3 %, Anthropic −7,5 %, OpenAI −1,6 % ; envoyés +0,6 %
+  (le renvoi court ne compte plus parmi les 6 longs résultats gardés). Tests : 426 → 429.
+
+## Prochain passage : INTERFACE
+Tous les écrans ont été vus une fois ; repasser sur les plus utilisés (session de
+l'agent, chat).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

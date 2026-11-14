@@ -913,8 +913,12 @@ public final class AgentRun {
     /// lignes) ne renvoie que les passages changés, en diff unifié (3.0.41).
     /// Un fichier relu tel que l'agent vient de l'écrire (write_file, contenu encore
     /// entier dans une de ses réponses) ne repart pas non plus (3.0.46).
+    /// `ranges` : une plage de lignes (read_file avec start/end ou line) déjà donnée,
+    /// en tout ou en partie, par une lecture encore complète plus haut : seules les
+    /// lignes nouvelles repartent (3.0.52).
     public nonisolated static func dedupResults(
-        _ results: [String], history: [LLMMessage], diffs: Bool = true, writes: Bool = true
+        _ results: [String], history: [LLMMessage], diffs: Bool = true, writes: Bool = true,
+        ranges: Bool = true
     ) -> [String] {
         let earlier = history.filter { $0.role == "user" && $0.content.hasPrefix("Résultat de ") }.map(\.content)
         let written = writes ? writtenBodies(history) : []
@@ -932,6 +936,10 @@ public final class AgentRun {
                written.contains(blockText(body)) {
                 return head + writtenMark
             }
+            if ranges, head.hasPrefix("Résultat de read_file"),
+               let known = knownRange(body, earlier: earlier, written: written) {
+                return head + known
+            }
             guard diffs, head.hasPrefix("Résultat de read_file") else { return r }
             if let changed = changedOnly(body, earlier: earlier) { return head + changed }
             // Écrit par l'agent puis légèrement retouché (edit_file) : seulement les
@@ -941,6 +949,64 @@ public final class AgentRun {
             }
             return r
         }
+    }
+
+    /// La fin d'une plage lue (`readRange`) : « … Lignes a à b sur n » ou
+    /// « (Lignes a à b sur n : fin du fichier.) ».
+    private nonisolated static let rangeTail = DRegex(#"\n(?:… |\()Lignes (\d+) à (\d+) sur \d+[^\n]*$"#)
+
+    /// Lignes de suite au moins, et caractères au moins, pour ne pas renvoyer un
+    /// passage d'une plage déjà donnée plus haut.
+    nonisolated static let knownMinLines = 10
+
+    /// Une plage de lignes dont le début, la fin ou le tout est déjà, à l'identique,
+    /// dans une lecture encore complète plus haut (ou un fichier écrit par l'agent) :
+    /// ces lignes sont remplacées par un renvoi court qui dit leurs numéros. `nil` si
+    /// ce n'est pas une plage ou si le gain est trop petit.
+    nonisolated static func knownRange(_ body: String, earlier: [String], written: [String]) -> String? {
+        guard !body.contains("\n\nPlan du reste du fichier"),
+              let m = rangeTail.firstMatch(body), let from = Int(m[1] ?? ""), let to = Int(m[2] ?? ""),
+              let tailAt = body.range(of: m[0]!, options: .backwards) else { return nil }
+        let tail = String(body[tailAt.lowerBound...])
+        let lines = String(body[..<tailAt.lowerBound]).dsplit("\n")
+        guard lines.count == to - from + 1, lines.count >= knownMinLines else { return nil }
+        let bases = earlier.reversed().flatMap { resultBodies($0).reversed() } + written.reversed()
+        // Le plus long début et la plus longue fin de la plage déjà donnés d'un bloc.
+        var head = 0, end = 0
+        for b in bases.prefix(8) {
+            let old = b.dsplit("\n")
+            var at: [String: [Int]] = [:]
+            for (i, l) in old.enumerated() { at[l, default: []].append(i) }
+            for i in at[lines[0]] ?? [] {
+                var k = 0
+                while k < lines.count && i + k < old.count && old[i + k] == lines[k] { k += 1 }
+                head = max(head, k)
+            }
+            for i in at[lines[lines.count - 1]] ?? [] {
+                var k = 0
+                while k < lines.count && i - k >= 0 && old[i - k] == lines[lines.count - 1 - k] { k += 1 }
+                end = max(end, k)
+            }
+            if head == lines.count { break }
+        }
+        func chars(_ r: Range<Int>) -> Int { lines[r].reduce(0) { $0 + $1.count + 1 } }
+        func note(_ a: Int, _ b: Int) -> String {
+            "(lignes \(from + a) à \(from + b - 1) : identiques à une lecture plus haut, non renvoyées)"
+        }
+        if head < knownMinLines { head = 0 }
+        if end < knownMinLines { end = 0 }
+        if head + end >= lines.count {
+            // Tout est déjà là (une lecture, ou deux qui se touchent).
+            guard chars(0..<lines.count) > dedupMin else { return nil }
+            return "(lignes \(from) à \(to) : déjà données plus haut, identiques ; rien n'a changé "
+                + "depuis : sers-toi de cette lecture-là)" + tail
+        }
+        guard chars(0..<head) + chars((lines.count - end)..<lines.count) > dedupMin else { return nil }
+        var out: [String] = []
+        if head > 0 { out.append(note(0, head)) }
+        out += lines[head..<(lines.count - end)]
+        if end > 0 { out.append(note(lines.count - end, lines.count)) }
+        return out.joined(separator: "\n") + tail
     }
 
     /// Le début d'un fichier relu donné par ses changements depuis ce que l'agent a écrit.

@@ -250,10 +250,14 @@ struct PerformanceTests {
 /// fichier, identique à ce que l'agent a écrit, n'est pas renvoyé (3.0.46).
 /// `retouched` : le fichier écrit (50 lignes) est relu après une retouche de 2 lignes ;
 /// avec `diffs`, seuls les passages changés depuis l'écriture repartent (3.0.48).
+/// `ranged` : fichiers de 100 lignes ; toutes les 4 étapes, l'agent relit les lignes 41
+/// à 100 du fichier lu juste avant ; `ranges` : ces lignes déjà données ne repartent
+/// pas (3.0.52).
 private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
                                edited: Bool = false, diffs: Bool = true,
                                written: Bool = false, writes: Bool = true,
-                               retouched: Bool = false) -> (sent: Int, uncached: Int) {
+                               retouched: Bool = false,
+                               ranged: Bool = false, ranges: Bool = true) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
@@ -289,7 +293,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             + "sans casser la navigation existante.\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
         if reminders { AgentRun.dropReminders(&history, keeping: reminder) } else { AgentRun.dropReminders(&history) }
         var content = String(repeating: "r", count: 4000)
-        if edited {
+        if edited || ranged {
             // 100 lignes de 40 caractères ; relu après une petite modification.
             content = (0..<100).map { i -> String in
                 let line = "    let valeur\(i) = calcule(\(i), dans: f\(file))"
@@ -306,7 +310,12 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             lines[37] += " // retouché"
             result = ["Résultat de read_file :\n" + lines.joined(separator: "\n") + "\n"]
         }
-        if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes) }
+        if ranged && step % 4 == 3 {
+            let text = "// f\(step - 1)\n" + (0..<100).map { "    let valeur\($0) = calcule(\($0), dans: f\(step - 1))" }
+                .joined(separator: "\n")
+            result = ["Résultat de read_file :\n" + AgentRun.readRange("f\(step - 1)", text, 41, 100)]
+        }
+        if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes, ranges: ranges) }
         history.append(LLMMessage("user", result[0] + reminder))
         AgentRun.compactHistory(&history, batch: batch)
         let total = history.reduce(system.count) { $0 + $1.content.count }
@@ -558,6 +567,19 @@ struct TokenBench {
         #expect(retouchedDiff.sent < retouchedFull.sent)
         #expect(anthropic(retouchedDiff) < anthropic(retouchedFull))
         #expect(openai(retouchedDiff) < openai(retouchedFull))
+        // Plage relue, déjà donnée par la lecture d'avant : renvoi court (3.0.52).
+        let rangeFull = agentSessionChars(batch: AgentRun.compactBatch, ranged: true, ranges: false)
+        let rangeShort = agentSessionChars(batch: AgentRun.compactBatch, ranged: true)
+        for (name, r) in [("plages relues en entier", rangeFull), ("plages relues déjà données", rangeShort)] {
+            print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        // Les envoyés montent un peu (+0,6 %) : le renvoi court ne compte pas parmi les
+        // longs résultats gardés complets, un vieux fichier reste donc entier plus
+        // longtemps ; le hors cache et le coût baissent.
+        #expect(rangeShort.uncached * 100 < rangeFull.uncached * 95)
+        #expect(anthropic(rangeShort) < anthropic(rangeFull))
+        #expect(openai(rangeShort) < openai(rangeFull))
         // Fichier relu sans changement : pas renvoyé en entier.
         #expect(grouped.sent < resent.sent)
         #expect(anthropic(grouped) < anthropic(resent))
@@ -932,6 +954,53 @@ struct FileTreeBench {
 }
 
 @Suite("Résultats de recherche")
+struct RangeReadTests {
+    let text = (1...200).map { "    let valeur\($0) = calcule(\($0), dans: fichier)" }.joined(separator: "\n")
+
+    @Test("plage déjà lue en entier plus haut : renvoi court avec ses numéros")
+    func inside() {
+        let past = [LLMMessage("user", "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 1, 200))]
+        let r = AgentRun.dedupResults(["Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 60, 120)], history: past)[0]
+        #expect(r.hasPrefix("Résultat de read_file :\n(lignes 60 à 120 : déjà données plus haut"))
+        #expect(r.hasSuffix("Lis la suite avec \"start\": 121, cherche avec find_in_file, et modifie avec edit_file (sans réécrire tout le fichier)."))
+        #expect(r.count < 400)
+    }
+
+    @Test("plage qui chevauche une lecture d'avant : seulement les lignes nouvelles")
+    func overlap() {
+        let past = [LLMMessage("user", "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 60, 120))]
+        let r = AgentRun.dedupResults(["Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 100, 150)], history: past)[0]
+        #expect(r.hasPrefix("Résultat de read_file :\n(lignes 100 à 120 : identiques à une lecture plus haut, non renvoyées)\n"
+            + "    let valeur121 = "))
+        #expect(r.contains("    let valeur150 = "))
+        #expect(!r.contains("valeur120 "))
+        // Avant : même chose à la fin de la plage.
+        let before = AgentRun.dedupResults(["Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 30, 80)], history: past)[0]
+        #expect(before.contains("    let valeur59 = calcule(59, dans: fichier)\n(lignes 60 à 80 : identiques"))
+        #expect(!before.contains("valeur60 "))
+    }
+
+    @Test("plage modifiée, trop petite, raccourcie ou désactivée : renvoyée telle quelle")
+    func untouched() {
+        let past = [LLMMessage("user", "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 60, 120))]
+        // Aucune ligne commune.
+        let far = "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 130, 190)
+        #expect(AgentRun.dedupResults([far], history: past) == [far])
+        // Moins de 10 lignes en commun.
+        let few = "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 115, 175)
+        #expect(AgentRun.dedupResults([few], history: past) == [few])
+        // Réglage coupé.
+        let inside = "Résultat de read_file :\n" + AgentRun.readRange("a.swift", text, 70, 110)
+        #expect(AgentRun.dedupResults([inside], history: past, ranges: false) == [inside])
+        // Ancienne lecture raccourcie par compactHistory : plus de base.
+        let cut = [LLMMessage("user", "Résultat de read_file :\nx\n… (ancien résultat raccourci" + String(repeating: "y", count: 700))]
+        #expect(AgentRun.dedupResults([inside], history: cut) == [inside])
+        // Fichier entier (sans plage) : pas concerné.
+        let whole = "Résultat de read_file :\n" + text
+        #expect(!AgentRun.dedupResults([whole], history: past)[0].contains("(lignes"))
+    }
+}
+
 struct SearchHitsBench {
     @Test("regroupés par fichier : chemin écrit une fois, ordre et lignes gardés")
     func grouped() {
