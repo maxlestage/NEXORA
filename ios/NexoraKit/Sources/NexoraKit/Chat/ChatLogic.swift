@@ -43,13 +43,15 @@ public enum ChatLogic {
         for end in usable.indices {
             used += costs[end]
             if used <= budgetTokens { continue }
-            // D'abord raccourcir les longues réponses anciennes (les plus vieilles
+            // D'abord raccourcir les longues réponses et les fichiers joints anciens (les plus vieilles
             // d'abord, les `compactKeep` derniers messages restent entiers)…
             while compactedTo < end + 1 - compactKeep {
                 let i = compactedTo
                 compactedTo += 1
-                guard i >= start, usable[i].role == "assistant" else { continue }
-                let short = compacted(usable[i].content)
+                guard i >= start else { continue }
+                // Réponses longues raccourcies ; questions : seulement leurs fichiers joints.
+                let short = usable[i].role == "assistant" ? compacted(usable[i].content)
+                    : compactedAttachments(usable[i].content)
                 guard short.count < usable[i].content.count else { continue }
                 usable[i] = LLMMessage(usable[i].role, short)
                 used -= costs[i]
@@ -84,6 +86,42 @@ public enum ChatLogic {
         }
         if head.components(separatedBy: "```").count % 2 == 0 { head += "\n```" }
         return head + "\n\n[… suite de cette ancienne réponse omise (\(text.count - head.count) caractères) pour économiser la mémoire …]"
+    }
+
+    /// Les fichiers joints d'une ancienne question (`ChatLibrary.withAttachments`)
+    /// réduits à leur début, avec un repère clair ; la question elle-même reste entière.
+    /// Un message sans fichier joint revient tel quel.
+    public static func compactedAttachments(_ text: String) -> String {
+        guard text.count > compactAbove, text.hasPrefix("Fichier `") else { return text }
+        var out = ""
+        var rest = Substring(text)
+        // Chaque fichier : « Fichier `chemin` :\n<clôture>\n<contenu>\n<clôture> ».
+        while rest.hasPrefix("Fichier `"), let colon = rest.range(of: "` :\n") {
+            let afterHeader = rest[colon.upperBound...]
+            let fence = afterHeader.prefix { $0 == "`" }
+            guard fence.count >= 3, afterHeader.dropFirst(fence.count).hasPrefix("\n") else { break }
+            let bodyStart = afterHeader.index(afterHeader.startIndex, offsetBy: fence.count + 1)
+            guard let close = rest[bodyStart...].range(of: "\n" + fence) else { break }
+            let body = rest[bodyStart..<close.lowerBound]
+            out += rest[..<bodyStart]
+            if body.count > compactAbove {
+                var head = String(body.prefix(compactHead))
+                if let nl = head.lastIndex(of: "\n"), head.distance(from: head.startIndex, to: nl) >= compactHead * 2 / 3 {
+                    head = String(head[..<nl])
+                }
+                out += head + "\n[… suite de ce fichier joint omise (\(body.count - head.count) caractères) pour économiser la mémoire ; demande-le à nouveau si besoin …]"
+            } else {
+                out += body
+            }
+            out += "\n" + fence
+            rest = rest[close.upperBound...]
+            if rest.hasPrefix("\n\n") {
+                out += "\n\n"
+                rest = rest.dropFirst(2)
+            }
+        }
+        out += rest
+        return out
     }
 
     /// Le poids d'un message dans la mémoire (≈ 4 caractères par token).

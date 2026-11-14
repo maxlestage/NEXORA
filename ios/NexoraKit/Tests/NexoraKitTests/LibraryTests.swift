@@ -205,6 +205,26 @@ struct LibraryTests {
         let files = [ChatAttachment(path: "src/a.rs", text: "fn main() {}")]
         #expect(ChatLibrary.withAttachments("Explique", files) == "Fichier `src/a.rs` :\n```\nfn main() {}\n```\n\nExplique")
         #expect(ChatLibrary.withAttachments("Seul", []) == "Seul")
+        // Un fichier qui contient ``` est entouré d'une clôture plus longue.
+        let md = ChatAttachment(path: "LISEZMOI.md", text: "Exemple :\n```\nx\n```")
+        #expect(ChatLibrary.withAttachments("Lis", [md]) == "Fichier `LISEZMOI.md` :\n````\nExemple :\n```\nx\n```\n````\n\nLis")
+    }
+
+    @Test func compactedAttachments() {
+        let long = (1...800).map { "ligne \($0)" }.joined(separator: "\n")
+        let small = ChatAttachment(path: "a.txt", text: "court")
+        let big = ChatAttachment(path: "b.md", text: "```\n" + long + "\n```")
+        let text = ChatLibrary.withAttachments("Que fait ce code ?", [small, big])
+        let short = ChatLogic.compactedAttachments(text)
+        #expect(short.count < 2000)
+        #expect(short.hasPrefix("Fichier `a.txt` :\n```\ncourt\n```\n\nFichier `b.md` :\n````\n```\nligne 1\n"))
+        #expect(short.contains("suite de ce fichier joint omise"))
+        #expect(short.hasSuffix("…]\n````\n\nQue fait ce code ?"))
+        // Sans fichier joint, ou court : inchangé.
+        let plain = String(repeating: "q", count: 5000)
+        #expect(ChatLogic.compactedAttachments(plain) == plain)
+        let one = ChatLibrary.withAttachments("Et ça ?", [small])
+        #expect(ChatLogic.compactedAttachments(one) == one)
         #expect(ChatAttachment(path: "x", text: String(repeating: "a", count: 70000)).text.count == 60000)
     }
 

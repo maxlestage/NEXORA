@@ -77,6 +77,8 @@ Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 3
 |---|---|---|---|---|---|
 | 3.0.31 (coupure par paquets seule) | 1 360 054 | 160 535 | 320 620 | 760 294 | 64 |
 | 3.0.32 (vieilles longues réponses raccourcies à la coupure) | 1 319 648 (−3,0 %) | 155 024 (−3,4 %) | 310 242 (−3,2 %) | 737 336 (−3,0 %) | 36 |
+| 3.0.63, avec fichiers joints (`chatAttachments` : 12 000 car. joints à 1 question sur 6, gardés entiers) | 1 389 638 | 246 126 | 422 009 | 817 882 | 73 |
+| 3.0.64, avec fichiers joints (vieux fichiers joints raccourcis à la coupure) | 1 417 651 (+2,0 %) | 203 567 (−17,3 %) | 375 867 (−10,9 %) | 810 609 (−0,9 %) | 49 |
 
 ## Fait
 - 3.0.7 : interface du chat et de la liste des conversations.
@@ -563,10 +565,18 @@ mémoire 32k tokens, consigne 3 000 car.
   sans suivre le chemin (le titre « Résultat de read_file : » ne le porte pas pour un
   appel seul) → piste close (voir écartées).
 
-## Prochain passage : TOKENS
-Pistes restantes faibles : mesurer le journal xcodebuild le jour d'un échec iOS ; sinon
-banc chat avec pièces jointes (fichier joint répété ?). Puis interface : Actions/commits
-(RepoLists, 2e moitié) ou chat 2e passage.
+- 3.0.64 (tokens) : chat — `ChatLogic.compactedAttachments` : à une coupure de la mémoire,
+  les fichiers joints des anciennes questions (hors `compactKeep` derniers messages) sont
+  réduits à leurs `compactHead` premiers caractères avec un repère (« demande-le à nouveau
+  si besoin ») ; la question reste entière. Avant : seules les réponses étaient raccourcies,
+  un fichier de 15k tokens restait entier jusqu'à l'oubli. `ChatLibrary.fence` : clôture
+  plus longue que les ``` du fichier (bug : un .md joint fermait le bloc trop tôt). Plus de
+  messages gardés (73 → 49 oubliés) pour moins cher (envoyés +2 %, car la mémoire reste
+  pleine plus longtemps). Gain ci-dessus. Tests : 460 → 462.
+
+## Prochain passage : INTERFACE
+Actions/commits (RepoLists, 2e moitié) ou chat 2e passage. Puis tokens : mesurer le
+journal xcodebuild le jour d'un échec iOS.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
