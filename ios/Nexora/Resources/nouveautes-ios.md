@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.59 — 14 novembre 2026 — Joindre un fichier : le coût avant de choisir
+
+- Nouveau : sous chaque fichier d'un dépôt, sa taille et le nombre de tokens qu'il ajoutera au message ; un gros fichier prévient que seul son début sera joint.
+- Nouveau : recherche dans un dossier, dossiers d'abord et noms dans l'ordre naturel.
+- Amélioré : les images et archives, qui ne peuvent pas être jointes, sont grisées au lieu d'afficher une erreur après coup.
+- Amélioré : messages clairs si GitHub n'est pas connecté, si un dossier est vide ou si le chargement échoue (bouton « Réessayer »).
+
 ## 3.0.58 — 14 novembre 2026 — Agent moins cher avec Claude (Anthropic)
 - Amélioré : avec les modèles Claude d'Anthropic, une session de l'agent coûte environ 15 à 19 % de moins, à résultat égal.
 - Amélioré : la consigne et le début de la session sont relus depuis le cache même après le raccourcissement de l'historique ; avant, tout était alors refacturé au prix fort.

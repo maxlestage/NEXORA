@@ -502,8 +502,20 @@ mémoire 32k tokens, consigne 3 000 car.
   (512 à 4 096 tokens selon le modèle). Aides de test : `FakeTransport.plain` lit le contenu
   en blocs. Gain ci-dessus. Tests : 439 → 442.
 
-## Prochain passage : INTERFACE
-Chat (2e passage) ou session de l'agent (2e passage). Puis tokens.
+- 3.0.59 (interface) : « Joindre un fichier » du chat (RepoFilePickerSheet) — `AttachDisplay`
+  (`detail` : « 12 Ko · ≈ 3,0k tokens », gros fichier « seul le début sera joint (≈ 15k
+  tokens) » ; `canAttach` : images/archives grisées sans téléchargement inutile ;
+  `accessibility` ; `emptyTitle`) et `FilesDisplay.filter` / `size` (format partagé avec
+  `FileEditorDisplay.summary`). Recherche dans un dossier, tri `FilesDisplay.sorted`,
+  dépôts cherchés par `ReposDisplay.filter` (avant : nom seul, sensible aux accents),
+  états vides (GitHub non connecté, aucun dépôt, dossier vide, sans résultat), erreur avec
+  « Réessayer », lignes ≥ 44 pt. Le coût en tokens est visible AVANT de joindre.
+  Tests : 442 → 448.
+
+## Prochain passage : TOKENS
+Voir les pistes ci-dessous (chat mesuré avec `AnthropicCacheSim`, tokens relus affichés).
+Puis interface : écrans pas encore traités — QuotaSheet, ModelSheet, RepoLists (branches,
+PR, tickets), ou chat 2e passage.
 
 ## Pistes tokens à faire
 - Cache Anthropic, suite : mesurer le chat avec `AnthropicCacheSim` (la coupure par paquets
