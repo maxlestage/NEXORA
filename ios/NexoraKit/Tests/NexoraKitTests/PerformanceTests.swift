@@ -246,8 +246,11 @@ struct PerformanceTests {
 /// `stalls` : toutes les 10 étapes, une réponse sans action et la relance de l'app.
 /// `edited` : le fichier relu a été modifié entre-temps (2 lignes sur 100 changées) ;
 /// `diffs` : il n'est renvoyé que par ses changements (3.0.41).
+/// `written` : l'étape qui suit chaque écriture relit le fichier écrit ; `writes` : ce
+/// fichier, identique à ce que l'agent a écrit, n'est pas renvoyé (3.0.46).
 private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool = true, steps: Int = 40, stalls: Bool = false,
-                               edited: Bool = false, diffs: Bool = true) -> (sent: Int, uncached: Int) {
+                               edited: Bool = false, diffs: Bool = true,
+                               written: Bool = false, writes: Bool = true) -> (sent: Int, uncached: Int) {
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
         + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
@@ -289,7 +292,10 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             }.joined(separator: "\n")
         }
         var result = ["Résultat de read_file :\n// f\(file)\n" + content]
-        if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs) }
+        if written && step % 3 == 0 && step > 0 {
+            result = ["Résultat de read_file :\n" + String(repeating: "c", count: 2000) + "\n"]
+        }
+        if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes) }
         history.append(LLMMessage("user", result[0] + reminder))
         AgentRun.compactHistory(&history, batch: batch)
         let total = history.reduce(system.count) { $0 + $1.content.count }
@@ -454,6 +460,29 @@ struct TokenBench {
         #expect(AgentRun.dedupResults([again], history: past, diffs: false) == [again])
     }
 
+    @Test("fichier relu juste après l'avoir écrit : renvoi court")
+    func rereadWritten() {
+        let code = (0..<40).map { "    let valeur\($0) = calcule(\($0))" }.joined(separator: "\n")
+        let wrote = LLMMessage("assistant", "```json\n{\"tool\": \"write_file\", \"args\": {\"path\": \"a.swift\"}}\n```\n"
+            + "```swift\n" + code + "\n```")
+        let past = [LLMMessage("user", "Écris a.swift"), wrote, LLMMessage("user", "Résultat de write_file :\nÉcrit.")]
+        let read = "Résultat de read_file (a.swift) :\n" + code + "\n"
+        let r = AgentRun.dedupResults([read], history: past)[0]
+        #expect(r == "Résultat de read_file (a.swift) :\n" + AgentRun.writtenMark)
+        // Modifié depuis, autre outil, réglage coupé : renvoyé en entier.
+        let edited = "Résultat de read_file (a.swift) :\n" + code + "\n// ajout"
+        #expect(AgentRun.dedupResults([edited], history: past) == [edited])
+        let search = "Résultat de search_code :\n" + code
+        #expect(AgentRun.dedupResults([search], history: past) == [search])
+        #expect(AgentRun.dedupResults([read], history: past, writes: false) == [read])
+        // Contenu écrit retiré de l'historique (vieille réponse) : renvoyé en entier.
+        var old = [LLMMessage("user", "Écris a.swift"), LLMMessage("assistant", wrote.content + "\n" + String(repeating: "z", count: 900))]
+        for i in 0..<5 { old += [LLMMessage("user", "Résultat de list_files :\nok \(i)"), LLMMessage("assistant", "suite \(i)")] }
+        AgentRun.compactHistory(&old)
+        #expect(!old[1].content.contains(code))
+        #expect(AgentRun.dedupResults([read], history: old) == [read])
+    }
+
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)
@@ -489,6 +518,16 @@ struct TokenBench {
         #expect(editedDiff.sent < editedFull.sent)
         #expect(anthropic(editedDiff) < anthropic(editedFull))
         #expect(openai(editedDiff) < openai(editedFull))
+        // Fichier relu juste après l'avoir écrit : pas renvoyé en entier (3.0.46).
+        let writtenFull = agentSessionChars(batch: AgentRun.compactBatch, written: true, writes: false)
+        let writtenShort = agentSessionChars(batch: AgentRun.compactBatch, written: true)
+        for (name, r) in [("fichiers écrits relus en entier", writtenFull), ("fichiers écrits relus en renvoi court", writtenShort)] {
+            print("🪙 agent \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+        }
+        #expect(writtenShort.sent < writtenFull.sent)
+        #expect(anthropic(writtenShort) < anthropic(writtenFull))
+        #expect(openai(writtenShort) < openai(writtenFull))
         // Fichier relu sans changement : pas renvoyé en entier.
         #expect(grouped.sent < resent.sent)
         #expect(anthropic(grouped) < anthropic(resent))

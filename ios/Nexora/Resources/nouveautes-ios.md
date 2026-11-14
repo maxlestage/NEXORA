@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.46 — 14 novembre 2026 — Agent plus économe quand il relit ses fichiers
+
+- Amélioré : quand l'agent relit un fichier qu'il vient d'écrire, le contenu n'est plus renvoyé au modèle une seconde fois.
+- Amélioré : une session où l'agent vérifie ce qu'il écrit coûte environ 18 % de moins (Anthropic) et 14 % de moins (OpenAI).
+
 ## 3.0.45 — 14 novembre 2026 — Aide plus facile à parcourir
 
 - Amélioré : la recherche de l'aide trouve les mots dans n'importe quel ordre (« gratuite clé » trouve « clé gratuite »).

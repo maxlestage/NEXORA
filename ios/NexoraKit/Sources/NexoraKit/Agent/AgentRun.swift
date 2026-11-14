@@ -740,6 +740,8 @@ public final class AgentRun {
                 } else if m.role == "user" && m.content.hasPrefix("Résultat de ") && m.content.len > 600 {
                     seen += 1
                     if seen > keep { due += 1 }
+                } else if m.role == "user" && m.content.contains(writtenMark) {
+                    seen += 1
                 }
             }
             if due < batch { return }
@@ -806,9 +808,12 @@ public final class AgentRun {
             }
             // Seuls les longs résultats (fichiers lus, recherches) comptent : une courte
             // confirmation (« fichier écrit ») ne prend pas la place d'un fichier lu.
-            if m.content.len <= 600 { continue }
+            // Un fichier relu tel qu'il vient d'être écrit (renvoi court) compte comme
+            // une lecture : il tient la place du contenu, encore entier plus haut.
+            let rewritten = m.content.len <= 600 && m.content.contains(writtenMark)
+            if m.content.len <= 600 && !rewritten { continue }
             full += 1
-            if full <= keep { continue }
+            if full <= keep || rewritten { continue }
             history[i] = LLMMessage(
                 "user",
                 m.content.sub(0, 400) + "\n… (ancien résultat raccourci : \(m.content.len) caractères, relis le fichier si besoin)"
@@ -905,9 +910,14 @@ public final class AgentRun {
     /// (`compactHistory`), le contenu repart en entier.
     /// `diffs` : un fichier relu après une petite modification (moins de 30 % de ses
     /// lignes) ne renvoie que les passages changés, en diff unifié (3.0.41).
-    public nonisolated static func dedupResults(_ results: [String], history: [LLMMessage], diffs: Bool = true) -> [String] {
+    /// Un fichier relu tel que l'agent vient de l'écrire (write_file, contenu encore
+    /// entier dans une de ses réponses) ne repart pas non plus (3.0.46).
+    public nonisolated static func dedupResults(
+        _ results: [String], history: [LLMMessage], diffs: Bool = true, writes: Bool = true
+    ) -> [String] {
         let earlier = history.filter { $0.role == "user" && $0.content.hasPrefix("Résultat de ") }.map(\.content)
-        if earlier.isEmpty { return results }
+        let written = writes ? writtenBodies(history) : []
+        if earlier.isEmpty && written.isEmpty { return results }
         return results.map { r in
             guard let cut = r.range(of: " :\n") else { return r }
             let head = String(r[..<cut.upperBound])
@@ -917,11 +927,34 @@ public final class AgentRun {
                 return head + "(identique au résultat déjà donné plus haut, rien n'a changé depuis : "
                     + "sers-toi de celui-là)"
             }
+            if head.hasPrefix("Résultat de read_file"),
+               written.contains(body.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return head + writtenMark
+            }
             guard diffs, head.hasPrefix("Résultat de read_file"),
                   let changed = changedOnly(body, earlier: earlier) else { return r }
             return head + changed
         }
     }
+
+    /// Un fichier relu identique au contenu que l'agent a écrit plus haut.
+    nonisolated static let writtenMark = "(identique au contenu que tu as écrit plus haut, rien n'a "
+        + "changé depuis : sers-toi de celui-là)"
+
+    /// Les contenus encore entiers des blocs de code (hors JSON) des réponses de
+    /// l'agent : les fichiers qu'il a écrits, sans les espaces de début et de fin.
+    nonisolated static func writtenBodies(_ history: [LLMMessage]) -> Set<String> {
+        var out = Set<String>()
+        for m in history where m.role == "assistant" && m.content.contains("```") {
+            for b in writtenBlock.allMatches(m.content) where b[1] != "json" {
+                let body = (b[2] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if body.count > dedupMin { out.insert(body) }
+            }
+        }
+        return out
+    }
+
+    private nonisolated static let writtenBlock = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
 
     /// Le début d'un fichier relu donné seulement par ses changements.
     nonisolated static let changedMark = "(déjà lu plus haut ; depuis, seuls ces passages ont changé — "
