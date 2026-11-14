@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.43 — 14 novembre 2026 — Consigne de l'agent plus courte
+
+- Amélioré : la consigne redonnée à l'agent à chaque étape est environ 5 % plus courte
+  (7 407 → 7 061 caractères) : les phrases qui répétaient l'aide des outils sont retirées.
+- Les sessions de l'agent envoient donc un peu moins de tokens, pour le même travail.
+
 ## 3.0.42 — 13 novembre 2026 — Bibliothèque plus simple
 
 - Amélioré : un seul champ pour un dépôt ou un lien GitHub ; un lien vers un fichier .md installe l'agent directement (avant : deux champs séparés).

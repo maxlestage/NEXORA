@@ -329,11 +329,21 @@ mémoire 32k tokens, consigne 3 000 car.
   alerte à fermer ; puces, bouton du champ et « Tout sélectionner » 44 pt.
   Tests : 403 → 406.
 
-## Prochain passage : TOKENS
-Piste : diff des relectures sans base (voir ci-dessous), ou mesurer la consigne système
-(7 234 car.) pour des doublons.
+- 3.0.43 (tokens) : consigne système de l'agent dédoublonnée — mesurée 7 407 car. (tâche
+  courte, tous les outils) → 7 061 (−4,7 %, ≈ 86 tokens de moins par étape, ≈ 3 500 sur
+  40 étapes, surtout relus depuis le cache). Retiré de la fin : le détail de edit_file,
+  read_file (plages), write_file (contenu complet) et finish déjà dans la liste des outils,
+  et « sans toucher à ce qui n'a aucun rapport » déjà dans les règles. Test
+  `systemNoDuplicates` (plafond 7 100 car., aucune phrase ≥ 40 car. en double).
+  Tests : 406 → 407.
+
+## Prochain passage : INTERFACE
+Écran suivant : session de l'agent (AgentSessionView) ou Modèles, selon ce qui n'est pas
+encore fait plus haut.
 
 ## Pistes tokens à faire
+- Consigne système : le rappel ajouté au dernier résultat (`reminder`) répète la demande
+  déjà en tête de la consigne ; mesurer s'il peut être raccourci sans perte.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
