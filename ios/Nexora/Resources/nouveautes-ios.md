@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.60 — 14 novembre 2026 — Le cache de prompt compté juste
+- Corrigé : avec Claude (Anthropic), les tokens relus ou écrits dans le cache n'étaient pas comptés dans les tokens envoyés ; l'usage et le coût affichés étaient trop bas.
+- Amélioré : le coût de chaque réponse et des sessions de l'agent tient compte du cache (tokens relus au prix réduit, chez Anthropic, OpenAI et DeepSeek).
+- Nouveau : la fiche d'usage d'un fournisseur montre les tokens relus depuis le cache aujourd'hui (« 42k · 63 % des envoyés »).
+
 ## 3.0.59 — 14 novembre 2026 — Joindre un fichier : le coût avant de choisir
 
 - Nouveau : sous chaque fichier d'un dépôt, sa taille et le nombre de tokens qu'il ajoutera au message ; un gros fichier prévient que seul son début sera joint.

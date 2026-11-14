@@ -325,6 +325,9 @@ final class ChatStore {
                 guard let self else { return }
                 let tin = tokens.input > 0 ? tokens.input : (inputChars + 3) / 4
                 let tout = tokens.output > 0 && final ? tokens.output : (text.count + thinking.count + 3) / 4
+                // Tokens relus depuis le cache comptés à leur prix réduit.
+                let real = tokens.input > 0
+                let cost = price?.cost(TokenUsage(tin, tout, cached: real ? tokens.cached : 0, written: real ? tokens.written : 0))
                 self.mutate(id, now: final) { c in
                     // La réponse est à la fin : cherchée depuis la fin.
                     guard let i = c.messages.lastIndex(where: { $0.id == answerId }) else { return }
@@ -333,7 +336,7 @@ final class ChatStore {
                     c.messages[i].tokensIn = tin
                     c.messages[i].tokensOut = tout
                     c.messages[i].estimated = !(final && tokens.total > 0)
-                    c.messages[i].cost = price?.cost(tin, tout)
+                    c.messages[i].cost = cost
                     c.updated = Date()
                 }
                 // La lecture à voix haute avance phrase par phrase pendant la réponse ;

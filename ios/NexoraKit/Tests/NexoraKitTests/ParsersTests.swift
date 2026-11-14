@@ -61,6 +61,33 @@ struct ParsersTests {
         #expect(a?.usage == TokenUsage(40, 0))
     }
 
+    @Test("tokens du cache : comptés dans les envoyés, payés au prix réduit")
+    func cachedUsage() throws {
+        // Anthropic : input_tokens ne compte que la partie hors cache.
+        let a = try StreamLineParser.anthropic(#"data: {"type":"message_start","message":{"usage":{"input_tokens":100,"cache_read_input_tokens":8000,"cache_creation_input_tokens":1900,"output_tokens":1}}}"#)
+        #expect(a?.usage == TokenUsage(10_000, 0, cached: 8000, written: 1900))
+        // OpenAI (compris dans prompt_tokens) et DeepSeek.
+        let o = try StreamLineParser.openAI(#"data: {"choices":[],"usage":{"prompt_tokens":5000,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":4096}}}"#)
+        #expect(o?.usage == TokenUsage(5000, 20, cached: 4096))
+        let d = try StreamLineParser.openAI(#"data: {"choices":[],"usage":{"prompt_tokens":3000,"completion_tokens":7,"prompt_cache_hit_tokens":2560,"prompt_cache_miss_tokens":440}}"#)
+        #expect(d?.usage == TokenUsage(3000, 7, cached: 2560))
+        #expect(TokenUsage(10, 1, cached: 4, written: 2) + TokenUsage(5, 1, cached: 1) == TokenUsage(15, 2, cached: 5, written: 2))
+        // Coût : relus au prix du cache, écrits à 1,25 × ; sans prix du cache, prix plein.
+        let price = ModelPrice(input: 4, output: 20, cachedInput: 0.4)
+        #expect(abs(price.cost(TokenUsage(10_000, 0, cached: 8000, written: 1900)) - (100 * 4 + 8000 * 0.4 + 1900 * 5) / 1e6) < 1e-12)
+        #expect(price.cost(TokenUsage(1000, 100)) == price.cost(1000, 100))
+        #expect(ModelPrice(input: 4, output: 20).cost(TokenUsage(1000, 0, cached: 900)) == ModelPrice(input: 4, output: 20).cost(1000, 0))
+        // Carnet : la part relue est comptée et affichée.
+        var book = UsageBook()
+        let now = Date()
+        book.recordUsage("anthropic", usage: TokenUsage(10_000, 50, cached: 6300), now: now)
+        #expect(book.of("anthropic", now: now).tokensInToday == 10_000)
+        #expect(UsageFormat.cached(book.of("anthropic", now: now)) == "6,3k · 63 % des envoyés")
+        #expect(UsageFormat.cached(ProviderUsage("x")) == nil)
+        let back = ProviderUsage.fromJSON("anthropic", book.of("anthropic", now: now).toJSON())
+        #expect(back.tokensCachedToday == 6300)
+    }
+
     @Test("appels d'outils natifs rendus en bloc d'actions")
     func toolCalls() throws {
         var c = ToolCallCollector()

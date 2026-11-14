@@ -214,6 +214,8 @@ public struct ProviderUsage: Sendable, Hashable {
     public var requestsToday = 0
     public var tokensInToday = 0
     public var tokensOutToday = 0
+    /// La part des tokens envoyés aujourd'hui relue depuis le cache du fournisseur.
+    public var tokensCachedToday = 0
     public var requestsTotal = 0
     public var tokensTotal = 0
 
@@ -273,6 +275,7 @@ public struct ProviderUsage: Sendable, Hashable {
             requestsToday = 0
             tokensInToday = 0
             tokensOutToday = 0
+            tokensCachedToday = 0
             costToday = 0
         }
         let m = String(d.prefix(7))
@@ -318,6 +321,7 @@ public struct ProviderUsage: Sendable, Hashable {
             "requestsToday": requestsToday,
             "tokensInToday": tokensInToday,
             "tokensOutToday": tokensOutToday,
+            "tokensCachedToday": tokensCachedToday,
             "requestsTotal": requestsTotal,
             "tokensTotal": tokensTotal,
             "estimated": estimated,
@@ -345,6 +349,7 @@ public struct ProviderUsage: Sendable, Hashable {
         u.requestsToday = UsageJSON.int(j["requestsToday"]) ?? 0
         u.tokensInToday = UsageJSON.int(j["tokensInToday"]) ?? 0
         u.tokensOutToday = UsageJSON.int(j["tokensOutToday"]) ?? 0
+        u.tokensCachedToday = UsageJSON.int(j["tokensCachedToday"]) ?? 0
         u.requestsTotal = UsageJSON.int(j["requestsTotal"]) ?? 0
         u.tokensTotal = UsageJSON.int(j["tokensTotal"]) ?? 0
         u.estimated = j["estimated"] as? Bool ?? false
@@ -370,6 +375,14 @@ public enum UsageFormat {
         if n >= 10000 { return "\(Int((Double(n) / 1000).rounded()))k" }
         if n >= 1000 { return "\(fixed(Double(n) / 1000, 1))k" }
         return "\(n)"
+    }
+
+    /// La part des tokens envoyés aujourd'hui relue depuis le cache (facturée bien moins
+    /// cher) : « 42k · 63 % des envoyés » ; `nil` quand rien n'a été relu.
+    public static func cached(_ u: ProviderUsage) -> String? {
+        guard u.tokensCachedToday > 0, u.tokensInToday > 0 else { return nil }
+        let pct = min(100, Int((Double(u.tokensCachedToday) * 100 / Double(u.tokensInToday)).rounded()))
+        return "\(compact(u.tokensCachedToday)) · \(pct) % des envoyés"
     }
 
     /// `3.2` → `3,20 $`.

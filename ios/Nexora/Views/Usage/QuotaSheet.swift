@@ -103,6 +103,7 @@ struct QuotaSheet: View {
                         "Tokens aujourd'hui",
                         "\(UsageFormat.compact(u.tokensToday)) (\(UsageFormat.compact(u.tokensInToday)) envoyés · \(UsageFormat.compact(u.tokensOutToday)) reçus)"
                     )
+                    if let c = UsageFormat.cached(u) { UsageRow("Relus depuis le cache", c) }
                     UsageRow("Depuis le début", "\(u.requestsTotal) req · \(UsageFormat.compact(u.tokensTotal)) tokens")
                     if u.estimated {
                         Text("≈ Une partie est estimée (environ 4 caractères par token) : ce fournisseur n'indique pas toujours le décompte exact.")

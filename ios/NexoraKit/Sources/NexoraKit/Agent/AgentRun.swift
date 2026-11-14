@@ -138,7 +138,7 @@ public final class AgentRun {
         spentIn += u.input
         spentOut += u.output
         if let price = Catalog.price(provider: p.id, model: m) {
-            spentCost += price.cost(u.input, u.output)
+            spentCost += price.cost(u)
         } else if !(p.free && !p.needsKey) && !p.local {
             costPartial = true
         }
