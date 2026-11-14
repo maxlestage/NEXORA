@@ -9,36 +9,58 @@ struct HelpView: View {
 
     @State private var query = ""
     @State private var open: Set<String> = []
+    @State private var closed: Set<String> = []
 
     var body: some View {
         let found = Help.search(query)
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let expandAll = HelpDisplay.autoExpand(found, searching: searching)
         List {
-            Section {
-                HStack(spacing: 12) {
-                    Text("🧭").font(.system(size: 30))
-                    Text("Toutes les réponses pour bien utiliser NEXORA : clés gratuites, crédit, Ollama, agents et GitHub.")
-                        .font(.subheadline)
+            if !searching {
+                Section {
+                    HStack(spacing: 12) {
+                        Text("🧭").font(.system(size: 30)).accessibilityHidden(true)
+                        Text(HelpDisplay.intro).font(.subheadline)
+                    }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
-            if found.isEmpty {
-                ContentUnavailableView("Aucune réponse : essayez un autre mot.", systemImage: "magnifyingglass")
+            if searching && found.isEmpty {
+                ContentUnavailableView {
+                    Label(HelpDisplay.emptyTitle(query), systemImage: "magnifyingglass")
+                } description: {
+                    Text(HelpDisplay.emptyHint)
+                } actions: {
+                    Button("Effacer la recherche") { query = "" }
+                        .buttonStyle(.bordered)
+                        .frame(minHeight: 44)
+                }
             }
-            ForEach(found, id: \.section.id) { entry in
-                Section("\(entry.section.emoji)  \(entry.section.title)") {
+            ForEach(Array(found.enumerated()), id: \.element.section.id) { index, entry in
+                Section {
                     ForEach(entry.topics) { t in
-                        DisclosureGroup(isExpanded: binding(entry.section, t, searching: searching)) {
+                        DisclosureGroup(isExpanded: binding(t, expandAll: expandAll)) {
                             MarkdownView(text: t.answer)
                                 .padding(.vertical, 6)
                         } label: {
                             Text(t.question).font(.body.weight(.semibold))
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text("\(entry.section.emoji)  \(entry.section.title)")
+                        Spacer()
+                        // Le nombre de réponses trouvées, une seule fois en tête.
+                        if searching && index == 0 {
+                            Text(HelpDisplay.resultsLabel(HelpDisplay.count(found)))
+                                .textCase(nil)
                         }
                     }
                 }
             }
         }
-        .searchable(text: $query, prompt: "Chercher (clé, ollama, limite, token…)")
+        .searchable(text: $query, prompt: HelpDisplay.searchPrompt)
         .navigationTitle("Aide et guides")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -49,12 +71,19 @@ struct HelpView: View {
         }
     }
 
-    /// Ouverte pendant une recherche, ou quand vous l'avez touchée.
-    private func binding(_ s: HelpSection, _ t: HelpTopic, searching: Bool) -> Binding<Bool> {
+    /// Ouverte quand une recherche trouve peu de réponses, ou quand vous l'avez touchée.
+    /// Refermer une réponse ouverte d'office la garde fermée.
+    private func binding(_ t: HelpTopic, expandAll: Bool) -> Binding<Bool> {
         Binding(
-            get: { searching || open.contains(t.id) },
+            get: { (expandAll && !closed.contains(t.id)) || open.contains(t.id) },
             set: { on in
-                if on { open.insert(t.id) } else { open.remove(t.id) }
+                if on {
+                    open.insert(t.id)
+                    closed.remove(t.id)
+                } else {
+                    open.remove(t.id)
+                    closed.insert(t.id)
+                }
             }
         )
     }
@@ -96,6 +125,7 @@ struct GettingStartedCard: View {
                             help = true
                         } label: {
                             Image(systemName: "questionmark.circle")
+                                .frame(minWidth: 44, minHeight: 44)
                         }
                         .accessibilityLabel("Aide")
                         Button {
@@ -103,6 +133,7 @@ struct GettingStartedCard: View {
                             hidden = true
                         } label: {
                             Image(systemName: "xmark")
+                                .frame(minWidth: 44, minHeight: 44)
                         }
                         .accessibilityLabel("Masquer")
                     }

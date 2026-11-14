@@ -354,9 +354,17 @@ mémoire 32k tokens, consigne 3 000 car.
   anciennes copies partent déjà avec `compactHistory`). « Critères de réussite à remplir »
   gardé (test AgentSpecTests). Test `shortReminder` (plafond 215 car.). Tests : 410 → 411.
 
-## Prochain passage : INTERFACE
-Écrans d'interface restants : Aide (HelpView), Nouveautés
-(WhatsNewView), Crédits (CreditsView), GitHub (GitHubView).
+- 3.0.45 (interface) : centre d'aide (HelpView) — `Help.search` cherche mot par mot,
+  dans n'importe quel ordre (avant : la phrase exacte) ; `HelpDisplay` : au plus 3
+  réponses s'ouvrent seules pendant une recherche (avant : toutes, jusqu'à 32 réponses
+  dépliées), nombre de réponses en tête (« 4 réponses »), état vide « Rien pour « … » »
+  avec conseil et « Effacer la recherche », phrase d'accueil raccourcie (101 → 62 car.)
+  et cachée pendant une recherche, invite de recherche simple. Une réponse refermée le
+  reste. Questions et boutons de la carte « Premiers pas » 44 pt. Tests : 411 → 414.
+
+## Prochain passage : TOKENS
+Écrans d'interface restants : Nouveautés (WhatsNewView), Crédits (CreditsView),
+GitHub (GitHubView).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

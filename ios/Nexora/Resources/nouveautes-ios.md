@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.45 — 14 novembre 2026 — Aide plus facile à parcourir
+
+- Amélioré : la recherche de l'aide trouve les mots dans n'importe quel ordre (« gratuite clé » trouve « clé gratuite »).
+- Amélioré : seules 3 réponses au plus s'ouvrent seules ; au-delà, la liste des questions reste lisible, avec le nombre de réponses trouvées.
+- Nouveau : quand rien n'est trouvé, un conseil et un bouton « Effacer la recherche ».
+- Amélioré : boutons de la carte « Premiers pas » et questions de l'aide plus faciles à toucher (44 pt).
+
 ## 3.0.44 — 14 novembre 2026 — Accueil du premier lancement plus simple
 
 - Amélioré : textes des trois pages d'accueil environ un tiers plus courts ; nombre d'agents et de fournisseurs toujours à jour.
