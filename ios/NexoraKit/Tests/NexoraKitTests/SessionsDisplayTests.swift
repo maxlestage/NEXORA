@@ -56,4 +56,13 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.pullChip("site") == "PR site")
         #expect(SessionsDisplay.pullAccessibility("moi/site") == "Ouvrir la pull request de site sur GitHub")
     }
+
+    @Test func reviewButtonEtIndice() {
+        #expect(SessionsDisplay.reviewButton(files: 0, busy: false) == nil)
+        #expect(SessionsDisplay.reviewButton(files: 3, busy: true) == nil)
+        #expect(SessionsDisplay.reviewButton(files: 1, busy: false) == "Relire le fichier modifié")
+        #expect(SessionsDisplay.reviewButton(files: 4, busy: false) == "Relire les 4 fichiers modifiés")
+        #expect(SessionsDisplay.draftsHint(running: true) == "L'agent travaille encore…")
+        #expect(SessionsDisplay.draftsHint(running: false).count < 50)
+    }
 }

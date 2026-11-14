@@ -72,6 +72,18 @@ public enum SessionsDisplay {
         }
     }
 
+    /// Le bouton principal en bas d'une session finie qui a des brouillons :
+    /// « Relire les 3 fichiers modifiés ». `nil` pendant le travail ou sans brouillon.
+    public static func reviewButton(files: Int, busy: Bool) -> String? {
+        guard !busy, files > 0 else { return nil }
+        return files == 1 ? "Relire le fichier modifié" : "Relire les \(files) fichiers modifiés"
+    }
+
+    /// La phrase sous le résumé des brouillons (courte : le bouton dit déjà quoi faire).
+    public static func draftsHint(running: Bool) -> String {
+        running ? "L'agent travaille encore…" : "Relisez, puis validez : rien ne part sans vous."
+    }
+
     /// La pastille d'une pull request ouverte : « PR site » pour « moi/site ».
     public static func pullChip(_ fullName: String) -> String {
         "PR " + (fullName.split(separator: "/").last.map(String.init) ?? fullName)
