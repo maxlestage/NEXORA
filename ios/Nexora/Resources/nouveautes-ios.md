@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.49 — 14 novembre 2026 — Connexion à GitHub plus simple
+- Amélioré : la connexion par code est l'action principale ; la connexion par jeton se déplie seulement si vous en avez besoin.
+- Amélioré : « Copier le code et ouvrir GitHub » confirme la copie (message et vibration), et VoiceOver lit le code lettre par lettre.
+- Amélioré : un conseil s'affiche si le texte collé ne ressemble pas à un jeton GitHub.
+- Amélioré : en créant un dépôt, le nom final est montré (« Mon site » devient « Mon-site ») et un nom impossible est signalé avant l'envoi.
+
 ## 3.0.48 — 14 novembre 2026 — L'agent relit ses fichiers retouchés à moindre coût
 - Amélioré : quand l'agent relit un fichier qu'il a écrit puis légèrement modifié, seuls les passages changés sont renvoyés au modèle, pas tout le fichier.
 - Amélioré : sur une session type, environ 7 % de tokens envoyés en moins et 10 % de moins hors cache.

@@ -20,63 +20,98 @@ struct GitHubView: View {
     }
 }
 
-/// Se connecter : par code (flux « device ») ou en collant un jeton.
+/// Se connecter : par code (flux « device », action principale) ou en collant un jeton
+/// (replié quand le code est possible).
 struct GitHubSignInView: View {
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.openURL) private var openURL
     @State private var token = ""
+    @State private var tokenOpen = GitHubSession.clientId == nil
+    @State private var toast: Toast?
+    @State private var copied = 0
 
     var body: some View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Connectez votre compte").font(.headline)
-                    Text("Parcourez et modifiez vos dépôts, gérez issues, pull requests et GitHub Actions, et utilisez GitHub Models sans autre clé.")
+                    Text("Connectez votre compte")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(GitHubSignInDisplay.intro)
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
             if GitHubSession.clientId != nil {
-                Section("Avec un code") {
+                Section {
                     if let code = github.deviceCode {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 12) {
                             Text("Saisissez ce code sur GitHub :")
-                            Text(code.userCode).font(.largeTitle.monospaced().bold()).textSelection(.enabled)
-                            Button("Ouvrir github.com/login/device") {
+                            Text(code.userCode)
+                                .font(.largeTitle.monospaced().bold())
+                                .textSelection(.enabled)
+                                .accessibilityLabel(GitHubSignInDisplay.spokenCode(code.userCode))
+                            Button {
                                 UIPasteboard.general.string = code.userCode
+                                copied += 1
+                                toast = Toast(text: "Code copié : collez-le sur GitHub")
                                 if let u = URL(string: code.verificationUri) { openURL(u) }
+                            } label: {
+                                Text("Copier le code et ouvrir GitHub")
+                                    .frame(maxWidth: .infinity, minHeight: 44)
                             }
                             .buttonStyle(.borderedProminent)
                             HStack {
                                 ProgressView()
                                 Text("En attente de votre validation…").foregroundStyle(.secondary)
                             }
+                            .accessibilityElement(children: .combine)
                             Button("Annuler", role: .cancel) { github.cancelDeviceFlow() }
+                                .frame(minHeight: 44)
                         }
                     } else {
-                        Button("Se connecter avec GitHub", systemImage: "person.badge.key") { github.startDeviceFlow() }
+                        Button {
+                            github.startDeviceFlow()
+                        } label: {
+                            Label("Se connecter avec GitHub", systemImage: "person.badge.key")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 }
             }
             Section {
-                SecureField("ghp_… ou github_pat_…", text: $token)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button {
-                    Task { await github.signIn(token: token) }
-                } label: {
-                    if github.loading { ProgressView() } else { Text("Se connecter avec ce jeton") }
+                DisclosureGroup("Avec un jeton", isExpanded: $tokenOpen) {
+                    SecureField("ghp_… ou github_pat_…", text: $token)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.go)
+                        .onSubmit { signIn() }
+                    if let hint = GitHubSignInDisplay.tokenHint(token) {
+                        Text(hint).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    Button(action: signIn) {
+                        if github.loading { ProgressView() } else { Text("Se connecter avec ce jeton") }
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || github.loading)
+                    Link("Créer un jeton (droits repo et workflow)", destination: URL(string: "https://github.com/settings/tokens/new?scopes=repo,workflow,read:user,gist&description=NEXORA")!)
+                        .frame(minHeight: 44)
                 }
-                .disabled(token.trimmingCharacters(in: .whitespaces).isEmpty || github.loading)
-                Link("Créer un jeton (droits repo et workflow)", destination: URL(string: "https://github.com/settings/tokens/new?scopes=repo,workflow,read:user,gist&description=NEXORA")!)
-            } header: {
-                Text("Avec un jeton")
             } footer: {
-                Text("Le jeton est rangé dans le trousseau de l'iPhone.")
+                if tokenOpen { Text("Le jeton est rangé dans le trousseau de l'iPhone.") }
             }
             if let e = github.error {
                 Section { Text(e).foregroundStyle(Theme.red) }
             }
         }
+        .toast($toast)
+        .sensoryFeedback(.success, trigger: copied) { _, _ in settings.haptics }
+    }
+
+    private func signIn() {
+        guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !github.loading else { return }
+        Task { await github.signIn(token: token) }
     }
 }
 
@@ -181,9 +216,19 @@ struct CreateRepoSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Nom", text: $name).textInputAutocapitalization(.never).autocorrectionDisabled()
-                TextField("Description", text: $description)
-                Toggle("Privé", isOn: $isPrivate)
+                Section {
+                    TextField("Nom", text: $name).textInputAutocapitalization(.never).autocorrectionDisabled()
+                } footer: {
+                    if let note = ReposDisplay.repoNameNote(name) {
+                        Text(note)
+                    } else if !name.isEmpty, let problem = ReposDisplay.repoNameProblem(name) {
+                        Text(problem).foregroundStyle(Theme.red)
+                    }
+                }
+                Section {
+                    TextField("Description (facultative)", text: $description)
+                    Toggle("Privé", isOn: $isPrivate)
+                }
                 if let error { Text(error).foregroundStyle(Theme.red) }
             }
             .navigationTitle("Nouveau dépôt")
@@ -195,7 +240,7 @@ struct CreateRepoSheet: View {
                         busy = true
                         Task {
                             do {
-                                let repo = try await github.api.createRepo(name: name, description: description, isPrivate: isPrivate)
+                                let repo = try await github.api.createRepo(name: ReposDisplay.repoName(name), description: description, isPrivate: isPrivate)
                                 await github.loadRepos()
                                 dismiss()
                                 onCreated?(repo)
@@ -205,7 +250,7 @@ struct CreateRepoSheet: View {
                             busy = false
                         }
                     }
-                    .disabled(name.isEmpty || busy)
+                    .disabled(ReposDisplay.repoNameProblem(name) != nil || busy)
                 }
             }
         }

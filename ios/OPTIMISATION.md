@@ -393,8 +393,19 @@ mémoire 32k tokens, consigne 3 000 car.
   pas le compter (tout baisse). Autres lignes du banc inchangées. Tests : 418 (test
   `rereadWritten` étendu : diff, beaucoup changé → entier, réglage coupé).
 
-## Prochain passage : INTERFACE
-Écrans d'interface restants : Crédits (CreditsView), GitHub (GitHubView).
+- 3.0.49 (interface) : connexion à GitHub (GitHubSignInView) et nouveau dépôt
+  (CreateRepoSheet) — `GitHubSignInDisplay` : phrase d'accueil 128 → 78 car. ; connexion
+  par code en bouton principal pleine largeur ; jeton replié dans « Avec un jeton »
+  (déplié seulement sans clientId) ; « Copier le code et ouvrir GitHub » + toast et
+  vibration (avant : copie silencieuse) ; code lu lettre par lettre (`spokenCode`) ;
+  `tokenHint` (espace, préfixe inconnu ; ne bloque pas) ; Entrée du clavier connecte.
+  Dépôt : `ReposDisplay.repoName` (nom que GitHub donnera, accents et espaces → « - »),
+  `repoNameNote` « Sera créé sous le nom « … » », `repoNameProblem` (vide, réservé,
+  > 100 car.) bloque « Créer ». Boutons 44 pt. Tests : 418 → 421.
+
+## Prochain passage : TOKENS
+Écran d'interface restant : Crédits (CreditsView) ; ensuite repasser sur les écrans les
+plus utilisés (session de l'agent, chat).
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
