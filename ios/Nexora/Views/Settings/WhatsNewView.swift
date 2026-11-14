@@ -19,13 +19,18 @@ enum Releases {
 struct WhatsNewView: View {
     /// Le filtre : tout, ou seulement les nouveautés, améliorations, corrections.
     @State private var only: ChangeKind?
+    @State private var query = ""
+    /// Le nombre de versions affichées (les plus anciennes viennent sur demande).
+    @State private var limit = WhatsNewDisplay.pageSize
 
     var body: some View {
         let all = Releases.all
-        let shown = all.enumerated().filter { _, r in only == nil || r.points.contains { Changelog.kind(of: $0) == only } }
+        let shown = WhatsNewDisplay.filter(all, only: only, query: query)
+        let page = WhatsNewDisplay.visible(shown, limit: limit)
+        let narrowed = only != nil || !query.trimmingCharacters(in: .whitespaces).isEmpty
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 10) {
-                Text("\(all.count) versions · version installée : \(SettingsStore.appVersion)")
+                Text(narrowed ? WhatsNewDisplay.resultsLabel(shown.count) : WhatsNewDisplay.header(installed: SettingsStore.appVersion))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -34,17 +39,38 @@ struct WhatsNewView: View {
                         ForEach(ChangeKind.allCases) { k in chip(k, k.label, symbol: Theme.symbol(k)) }
                     }
                 }
-                if all.isEmpty {
-                    ContentUnavailableView("Aucune nouveauté.", systemImage: "sparkles")
+                if shown.isEmpty {
+                    ContentUnavailableView {
+                        Label(WhatsNewDisplay.emptyTitle(only: only, query: query), systemImage: "sparkles")
+                    } description: {
+                        if narrowed { Text(WhatsNewDisplay.emptyHint) }
+                    } actions: {
+                        if narrowed {
+                            Button("Tout afficher") {
+                                only = nil
+                                query = ""
+                            }
+                            .frame(minHeight: 44)
+                        }
+                    }
                 }
-                ForEach(shown, id: \.element.id) { i, r in
-                    ReleaseCard(release: r, current: i == 0, only: only)
+                ForEach(page.items) { s in
+                    ReleaseCard(release: s.release, current: s.isLatest, points: s.points)
+                }
+                if page.hidden > 0 {
+                    Button(WhatsNewDisplay.moreLabel(hidden: page.hidden)) {
+                        limit += WhatsNewDisplay.pageSize
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
             .padding(.bottom, 40)
         }
+        .searchable(text: $query, prompt: WhatsNewDisplay.searchPrompt)
+        .onChange(of: only) { limit = WhatsNewDisplay.pageSize }
+        .onChange(of: query) { limit = WhatsNewDisplay.pageSize }
         .navigationTitle("Nouveautés")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -55,13 +81,19 @@ struct WhatsNewView: View {
             only = k
         } label: {
             HStack(spacing: 4) {
-                if let symbol, let k { Image(systemName: symbol).foregroundStyle(Theme.color(k)) }
+                if let symbol, let k {
+                    Image(systemName: symbol)
+                        .foregroundStyle(Theme.color(k))
+                        .accessibilityHidden(true)
+                }
                 Text(label)
             }
             .font(.subheadline)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(selected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.06), in: .capsule)
+            .frame(minHeight: 44)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -73,8 +105,8 @@ struct WhatsNewView: View {
 struct ReleaseCard: View {
     let release: Release
     var current = false
-    /// N'afficher que ce type de changements.
-    var only: ChangeKind?
+    /// Les points à afficher (tous si rien n'est donné).
+    var points: [String]?
 
     @Environment(SettingsStore.self) private var settings
 
@@ -85,15 +117,16 @@ struct ReleaseCard: View {
                     Pill(text: release.version, color: current ? Theme.accent(settings.accent) : Theme.violet)
                     Text(release.date).font(.caption2).foregroundStyle(.secondary)
                 }
-                Text(release.title).font(.headline.weight(.heavy))
-                ForEach(Array(release.points.enumerated()), id: \.offset) { _, p in
+                Text(release.title)
+                    .font(.headline.weight(.heavy))
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(Array((points ?? release.points).enumerated()), id: \.offset) { _, p in
                     let kind = Changelog.kind(of: p)
-                    if only == nil || kind == only {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            KindTag(kind: kind)
-                            Text(Changelog.withoutTag(p)).font(.subheadline)
-                        }
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        KindTag(kind: kind)
+                        Text(Changelog.withoutTag(p)).font(.subheadline)
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }

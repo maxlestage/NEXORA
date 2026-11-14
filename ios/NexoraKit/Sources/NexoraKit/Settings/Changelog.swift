@@ -24,6 +24,15 @@ public enum ChangeKind: String, Sendable, CaseIterable, Identifiable {
 
     public var id: String { rawValue }
 
+    /// Au pluriel, en minuscules : « nouveaux », « améliorés », « corrigés ».
+    public var pluralLabel: String {
+        switch self {
+        case .nouveau: "nouveaux"
+        case .ameliore: "améliorés"
+        case .corrige: "corrigés"
+        }
+    }
+
     public var label: String {
         switch self {
         case .nouveau: "Nouveau"
@@ -114,14 +123,14 @@ public enum Changelog {
         return out.isEmpty ? [first] : out
     }
 
-    /// Le résumé d'une fenêtre « Quoi de neuf » : « 3 versions · 2 nouveaus · 5 corrigés ».
+    /// Le résumé d'une fenêtre « Quoi de neuf » : « 3 versions · 2 nouveaux · 5 corrigés ».
     public static func summary(_ releases: [Release]) -> String {
         var parts: [String] = []
         if releases.count > 1 { parts.append("\(releases.count) versions") }
         let points = releases.flatMap(\.points)
         for k in ChangeKind.allCases {
             let n = points.filter { kind(of: $0) == k }.count
-            if n > 0 { parts.append("\(n) \(k.label.lowercased())\(n > 1 ? "s" : "")") }
+            if n > 0 { parts.append("\(n) \(n > 1 ? k.pluralLabel : k.label.lowercased())") }
         }
         return parts.joined(separator: " · ")
     }

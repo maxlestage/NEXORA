@@ -372,9 +372,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `writes:` pour le banc. Autres lignes du banc inchangées. Test `rereadWritten`.
   Tests : 414 → 415.
 
-## Prochain passage : INTERFACE
-Écrans d'interface restants : Nouveautés (WhatsNewView), Crédits (CreditsView),
-GitHub (GitHubView).
+- 3.0.47 (interface) : Nouveautés (WhatsNewView) — `WhatsNewDisplay` : recherche mot
+  par mot (numéro, titre, points ; seuls les points trouvés restent si le titre ne
+  correspond pas), filtre par type, 10 versions d'abord puis « Voir 10 versions plus
+  anciennes (sur N) » (avant : ≈ 170 versions d'un bloc), état vide « Rien pour « … » » /
+  « Aucun changement « Corrigé » » avec « Tout afficher » (avant : liste vide sans
+  message), en-tête « Version installée : … » (et « N versions » pendant un filtre).
+  Puces de filtre 44 pt, titres en en-tête VoiceOver, points lus d'un bloc. Corrigé :
+  pluriels du résumé « Quoi de neuf » (« nouveaus » → « nouveaux »). Tests : 415 → 418.
+
+## Prochain passage : TOKENS
+Écrans d'interface restants : Crédits (CreditsView), GitHub (GitHubView).
 
 ## Pistes tokens à faire
 - Fichier écrit puis légèrement modifié (edit_file) puis relu : servir de base au diff

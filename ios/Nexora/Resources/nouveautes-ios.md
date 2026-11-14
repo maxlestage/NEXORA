@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.47 — 14 novembre 2026 — Nouveautés plus faciles à parcourir
+
+- Nouveau : une recherche dans les nouveautés, mot par mot (« tokens », « agent », « 3.0.40 »…).
+- Amélioré : les 10 dernières versions d'abord, les plus anciennes sur demande.
+- Amélioré : un message clair quand rien ne correspond, avec « Tout afficher ».
+- Corrigé : « 2 nouveaux » au lieu de « 2 nouveaus » dans la fenêtre « Quoi de neuf ».
+
 ## 3.0.46 — 14 novembre 2026 — Agent plus économe quand il relit ses fichiers
 
 - Amélioré : quand l'agent relit un fichier qu'il vient d'écrire, le contenu n'est plus renvoyé au modèle une seconde fois.
