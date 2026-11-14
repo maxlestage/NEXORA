@@ -1,7 +1,8 @@
 import NexoraKit
 import SwiftUI
 
-/// Les issues ou les pull requests d'un dépôt.
+/// Les issues ou les pull requests d'un dépôt : ouvertes ou fermées, recherche dès
+/// `IssuesDisplay.searchFrom` éléments, état vide clair.
 struct IssuesListView: View {
     let repo: Repo
     let pulls: Bool
@@ -12,36 +13,63 @@ struct IssuesListView: View {
     @State private var error: String?
     @State private var loading = true
     @State private var creating = false
+    @State private var query = ""
+
+    private var open: Bool { state == "open" }
+    private var shown: [Issue] { IssuesDisplay.filter(items, query: query) }
 
     var body: some View {
-        List {
+        let content = List {
             Picker("État", selection: $state) {
                 Text("Ouvertes").tag("open")
                 Text("Fermées").tag("closed")
             }
             .pickerStyle(.segmented)
-            if let error { Text(error).foregroundStyle(Theme.red) }
-            ForEach(items) { i in
-                NavigationLink { IssueDetailView(repo: repo, issue: i) } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(i.title).font(.headline).lineLimit(2)
-                        HStack(spacing: 8) {
-                            Text("#\(i.number)")
-                            if let u = i.user { Text("@\(u.login)") }
-                            if let c = i.comments, c > 0 { Label("\(c)", systemImage: "bubble.left") }
-                        }
-                        .font(.caption).foregroundStyle(.secondary)
-                    }
+            .frame(minHeight: 44)
+            if let error {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error).foregroundStyle(Theme.red)
+                    Button("Réessayer", systemImage: "arrow.clockwise") { Task { await load() } }
+                        .frame(minHeight: 44)
                 }
             }
-            if !loading && items.isEmpty && error == nil {
-                Text(pulls ? "Aucune pull request." : "Aucune issue.").foregroundStyle(.secondary)
+            if !shown.isEmpty {
+                Section {
+                    ForEach(shown) { i in
+                        NavigationLink { IssueDetailView(repo: repo, issue: i) } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(i.title).font(.headline).lineLimit(2)
+                                Text(IssuesDisplay.detail(i)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            .frame(minHeight: 44, alignment: .leading)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(IssuesDisplay.accessibility(i))
+                        }
+                    }
+                } header: {
+                    Text(IssuesDisplay.count(shown.count, open: open))
+                }
             }
         }
         .listStyle(.plain)
-        .overlay { if loading { ProgressView() } }
+        .overlay {
+            if loading && items.isEmpty {
+                ProgressView()
+            } else if !loading && error == nil && items.isEmpty {
+                ContentUnavailableView {
+                    Label(IssuesDisplay.emptyTitle(pulls: pulls, open: open),
+                          systemImage: pulls ? "arrow.triangle.pull" : "checkmark.bubble")
+                } description: {
+                    Text(IssuesDisplay.emptyHint(pulls: pulls, open: open))
+                }
+            } else if shown.isEmpty && !query.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
+        }
         .refreshable { await load() }
         .task(id: state) { await load() }
+        // Pas d'anciens éléments (ouverts) sous l'onglet Fermées pendant le chargement.
+        .onChange(of: state) { items = [] }
         .toolbar {
             if !pulls {
                 ToolbarItem(placement: .bottomBar) {
@@ -51,6 +79,13 @@ struct IssuesListView: View {
         }
         .sheet(isPresented: $creating) {
             NewIssueSheet(repo: repo) { Task { await load() } }
+        }
+        Group {
+            if items.count >= IssuesDisplay.searchFrom {
+                content.searchable(text: $query, prompt: pulls ? "Rechercher une pull request" : "Rechercher une issue")
+            } else {
+                content
+            }
         }
     }
 
@@ -75,11 +110,17 @@ struct IssueDetailView: View {
     let issue: Issue
 
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
     @State private var comments: [Comment] = []
     @State private var reply = ""
     @State private var state: String
     @State private var error: String?
     @State private var info: String?
+    @State private var sending = false
+    @State private var confirmMerge = false
+    @State private var confirmClose = false
+    /// Change à chaque action réussie (vibration).
+    @State private var done = 0
 
     init(repo: Repo, issue: Issue) {
         self.repo = repo
@@ -110,37 +151,30 @@ struct IssueDetailView: View {
             Section("Répondre") {
                 TextField("Votre commentaire", text: $reply, axis: .vertical).lineLimit(2...8)
                 Button("Commenter") {
+                    sending = true
                     Task {
+                        defer { sending = false }
                         do {
                             try await github.api.comment(repo.owner.login, repo.name, number: issue.number, body: reply)
                             reply = ""
+                            error = nil
+                            done += 1
                             await load()
                         } catch { self.error = error.localizedDescription }
                     }
                 }
-                .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .frame(minHeight: 44)
+                .disabled(sending || reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Section {
                 if issue.isPull && state == "open" {
-                    Button("Fusionner (squash)", systemImage: "arrow.triangle.merge") {
-                        Task {
-                            do {
-                                try await github.api.mergePull(repo.owner.login, repo.name, number: issue.number)
-                                state = "closed"
-                                info = "Pull request fusionnée."
-                            } catch { self.error = error.localizedDescription }
-                        }
-                    }
+                    Button("Fusionner", systemImage: "arrow.triangle.merge") { confirmMerge = true }
+                        .frame(minHeight: 44)
                 }
                 Button(state == "open" ? "Fermer" : "Rouvrir", systemImage: state == "open" ? "xmark.circle" : "arrow.uturn.left.circle") {
-                    let target = state == "open" ? "closed" : "open"
-                    Task {
-                        do {
-                            try await github.api.setIssueState(repo.owner.login, repo.name, number: issue.number, state: target)
-                            state = target
-                        } catch { self.error = error.localizedDescription }
-                    }
+                    if state == "open" { confirmClose = true } else { setState("open") }
                 }
+                .frame(minHeight: 44)
                 if let url = issue.htmlUrl.flatMap(URL.init(string:)) {
                     Link(destination: url) { Label("Ouvrir sur GitHub", systemImage: "safari") }
                 }
@@ -151,6 +185,36 @@ struct IssueDetailView: View {
         .navigationTitle("#\(issue.number)")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .sensoryFeedback(.success, trigger: done) { _, _ in settings.haptics }
+        .confirmationDialog(IssuesDisplay.mergeQuestion(issue), isPresented: $confirmMerge, titleVisibility: .visible) {
+            Button("Fusionner") { merge() }
+        }
+        .confirmationDialog(IssuesDisplay.closeQuestion(issue), isPresented: $confirmClose, titleVisibility: .visible) {
+            Button("Fermer", role: .destructive) { setState("closed") }
+        }
+    }
+
+    private func merge() {
+        Task {
+            do {
+                try await github.api.mergePull(repo.owner.login, repo.name, number: issue.number)
+                state = "closed"
+                info = "Pull request fusionnée."
+                error = nil
+                done += 1
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func setState(_ target: String) {
+        Task {
+            do {
+                try await github.api.setIssueState(repo.owner.login, repo.name, number: issue.number, state: target)
+                state = target
+                error = nil
+                done += 1
+            } catch { self.error = error.localizedDescription }
+        }
     }
 
     private func load() async {

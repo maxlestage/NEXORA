@@ -548,18 +548,34 @@ mémoire 32k tokens, consigne 3 000 car.
   `resetMessage`). « Remettre à zéro » confirmé ; vibration au solde/crédit choisi ;
   « Actualiser » 44 pt. Tests : 453 → 457.
 
+- 3.0.63 (interface) : issues et pull requests d'un dépôt (RepoLists) — `IssuesDisplay`
+  (`detail` « #12 · @max · 3 commentaires · il y a 2 j » avec vrais pluriels et date ;
+  `accessibility` ligne lue d'un trait ; `filter` titre/numéro/auteur sans accents, dès
+  `searchFrom` = 8 ; `emptyTitle`/`emptyHint` par état ; `count` en en-tête ;
+  `mergeQuestion`/`closeQuestion`). Fusionner et Fermer confirmés (avant : un toucher
+  fusionnait), « Fusionner (squash) » → « Fusionner » (détail dans la confirmation),
+  vibration au succès, Commenter désactivé pendant l'envoi, « Réessayer » sur erreur,
+  liste vidée au changement d'onglet (avant : ouvertes affichées sous « Fermées »),
+  lignes 44 pt. Tests : 457 → 460.
+  Passage tokens réévalué d'abord : « diff des relectures sans base » — le read_file
+  suivant repart déjà en entier (aucune base complète, diff exclu de `resultBodies`) ;
+  seul reste le renvoi orphelin dans l'historique, impossible à relier à son fichier
+  sans suivre le chemin (le titre « Résultat de read_file : » ne le porte pas pour un
+  appel seul) → piste close (voir écartées).
+
 ## Prochain passage : TOKENS
-Diff des relectures sans base (voir pistes). Puis interface : RepoLists (branches, PR,
-tickets) ou chat 2e passage.
+Pistes restantes faibles : mesurer le journal xcodebuild le jour d'un échec iOS ; sinon
+banc chat avec pièces jointes (fichier joint répété ?). Puis interface : Actions/commits
+(RepoLists, 2e moitié) ou chat 2e passage.
 
 ## Pistes tokens à faire
-- Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
-  un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
-  le diff reste sans base ; rare : la base est la plus récente lecture complète).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
   vérifier `foldSimilar` sur des avertissements Swift répétés le jour où il y en a un.
 
 ## Idées écartées
+- Renvois orphelins (« identique », diff) après raccourcissement de leur base : la
+  relecture suivante est déjà complète ; les relier à leur fichier demanderait de suivre
+  le chemin de l'appel (3.0.63, gain en tokens nul).
 - Modèle moins cher pour `askOnce` (traduction de la demande, sous-agents) : un seul
   appel par demande (≈ 2 à 3 k tokens, ≈ 1 à 2 % d'une session de 40 étapes) contre un
   risque réel de demande mal traduite par un petit modèle. À reconsidérer seulement si
