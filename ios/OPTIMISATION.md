@@ -337,9 +337,18 @@ mémoire 32k tokens, consigne 3 000 car.
   `systemNoDuplicates` (plafond 7 100 car., aucune phrase ≥ 40 car. en double).
   Tests : 406 → 407.
 
-## Prochain passage : INTERFACE
-Écran suivant : session de l'agent (AgentSessionView) ou Modèles, selon ce qui n'est pas
-encore fait plus haut.
+- 3.0.44 (interface) : accueil du premier lancement (OnboardingView) — `OnboardingDisplay`
+  (pages dans NexoraKit ; textes ≈ ⅓ plus courts : 124 → 83 car. pour la 1re page ;
+  « 14 agents intégrés » et « Plus de 20 fournisseurs » calculés depuis `Catalog` ;
+  `primaryLabel` « Suivant »/« Commencer » ; `showsSkip` : « Passer » caché sur la
+  dernière page ; `progress` « Page 2 sur 3 » lu par VoiceOver sur les points). Icônes
+  décoratives cachées à VoiceOver, titre en en-tête, logo 240 → 120 pt en tailles
+  d'accessibilité, Passer et bouton principal 44 pt. Tests : 407 → 410.
+
+## Prochain passage : TOKENS
+Piste : raccourcir le rappel (`reminder`) qui répète la demande déjà en tête de consigne
+(mesurer avec TokenBench). Écrans d'interface restants : Aide (HelpView), Nouveautés
+(WhatsNewView), Crédits (CreditsView), GitHub (GitHubView).
 
 ## Pistes tokens à faire
 - Consigne système : le rappel ajouté au dernier résultat (`reminder`) répète la demande
