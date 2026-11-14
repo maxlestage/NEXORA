@@ -46,6 +46,10 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.54, 40 étapes (début des vieux résultats raccourcis : 400 → 200 car., coupé en fin de ligne) | 448 045 (−4,4 %) | 106 250 (−1,2 %) | 166 992 (−2,1 %) | 277 147 (−3,8 %) |
 | 3.0.54, 80 étapes | 1 032 457 (−5,2 %) | 220 928 (−1,4 %) | 357 312 (−2,6 %) | 626 692 (−4,6 %) |
 | 3.0.54, 80 étapes avec relances | 1 138 684 (−5,1 %) | 227 222 (−1,4 %) | 375 173 (−2,6 %) | 682 953 (−4,5 %) |
+| 3.0.56, 40 étapes avec modifications (`edits: true`, nouvelle ligne : edit_file une étape sur 3, « old » 500 car. + « new » 900 car. gardés) | 726 893 | 121 476 | 212 386 | 424 184 |
+| 3.0.56, 40 étapes avec modifications (« old »/« new » des vieilles réponses réduits à 100 car.) | 654 030 (−10,0 %) | 115 505 (−4,9 %) | 198 233 (−6,7 %) | 384 767 (−9,3 %) |
+| 3.0.56, 80 étapes avec modifications (gardés) | 1 925 278 | 262 767 | 494 710 | 1 094 023 |
+| 3.0.56, 80 étapes avec modifications (réduits) | 1 583 006 (−17,8 %) | 244 259 (−7,0 %) | 439 199 (−11,2 %) | 913 633 (−16,5 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -455,8 +459,16 @@ mémoire 32k tokens, consigne 3 000 car.
   montrait, le filtre les cachait) ; étoile 44 pt + vibration ; libellé VoiceOver.
   Tests : 431 → 434.
 
-## Prochain passage : TOKENS
-Puis interface : chat (2e passage) ou choix de l'agent (AgentPickerSheet).
+- 3.0.56 (tokens) : `AgentRun.shortArgs` (dans `compactHistory`, `args: true`) — dans les
+  réponses de plus de 4 tours, les passages « old », « new » et « content » de plus de
+  300 car. écrits DANS le JSON de l'action (edit_file, write_file sans bloc de code) ne
+  gardent que leurs 100 premiers caractères + une note (avant : seuls les blocs de code
+  étaient retirés, ces passages repartaient à chaque étape jusqu'à la fin). Fait dans le
+  même paquet que le reste (ne déclenche pas de paquet à lui seul : le cache sert),
+  JSON toujours valide, idempotent. Gain ci-dessus. Tests : 434 → 435.
+
+## Prochain passage : INTERFACE
+Chat (2e passage) ou choix de l'agent (AgentPickerSheet). Puis tokens.
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
