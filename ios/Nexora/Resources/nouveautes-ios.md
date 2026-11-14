@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.63 — 14 novembre 2026 — Issues et pull requests plus simples
+
+- Amélioré : chaque ligne dit tout d'un coup d'œil (« #12 · @max · 3 commentaires · il y a 2 j ») et se lit d'un trait avec VoiceOver.
+- Nouveau : une recherche (titre, numéro ou auteur) dès 8 éléments, et un état vide clair (« Aucune pull request ouverte »).
+- Plus sûr : fusionner ou fermer demande d'abord confirmation ; une vibration confirme l'action réussie.
+- Corrigé : les éléments ouverts ne s'affichent plus un instant sous « Fermées ».
+
 ## 3.0.62 — 14 novembre 2026 — Une fiche de crédit plus claire
 - Plus clair : la fiche d'un fournisseur montre « Aujourd'hui : 3 requêtes · 12k tokens » en lignes courtes, et dit simplement quand rien n'a encore été compté.
 - Plus sûr : « Remettre à zéro » demande confirmation ; un montant illisible ne peut plus effacer votre solde par erreur.
