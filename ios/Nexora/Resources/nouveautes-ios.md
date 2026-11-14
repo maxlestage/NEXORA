@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.51 — 14 novembre 2026 — Crédits à jour et version facile à copier
+
+- Corrigé : la liste des fournisseurs des Crédits vient du catalogue et n'en oublie plus (Ollama Cloud et Codestral manquaient).
+- Nouveau : touchez la version pour la copier (message et vibration), pratique pour signaler un problème.
+- Amélioré : VoiceOver lit chaque ligne des Crédits d'un trait et saute l'icône décorative.
+
 ## 3.0.50 — 14 novembre 2026 — Recherches de l'agent plus économes
 
 - Amélioré : quand une recherche de l'agent trouve beaucoup de lignes, elles sont regroupées par fichier (le chemin n'est écrit qu'une fois) : environ 38 % de tokens en moins pour ces résultats.
