@@ -251,4 +251,18 @@ struct AgentAuditTests {
         #expect(!sys.contains("- github :"))
         #expect(sys.contains("Tu lis."))
     }
+
+    @Test("consigne de l'agent : courte et sans phrase en double")
+    func systemNoDuplicates() {
+        let run = makeRun(hub: FakeHub().transport, task: "Ajoute une page contact")
+        let sys = run.system
+        // 7 407 caractères avant le dédoublonnage (3.0.43), 7 061 après.
+        #expect(sys.count <= 7_100, "\(sys.count)")
+        let sentences = sys.components(separatedBy: CharacterSet(charactersIn: ".:\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.count >= 40 }
+        #expect(Set(sentences).count == sentences.count)
+        #expect(sys.contains("utilise edit_file plutôt que de le réécrire"))
+        #expect(sys.contains("court, en français"))
+    }
 }

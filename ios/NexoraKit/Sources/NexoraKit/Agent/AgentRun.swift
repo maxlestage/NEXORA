@@ -692,15 +692,12 @@ public final class AgentRun {
                 + "mets un bloc de code par fichier après le JSON, dans le même ordre. finish "
                 + "doit être seul. La liste des fichiers t'est donnée au départ : ne la "
                 + "redemande pas sans raison.\n"
-                + "Pour modifier un fichier existant, utilise edit_file (old puis new, "
-                + "dans deux blocs de code) : jamais besoin de le réécrire en entier, même "
-                + "s'il est très long. Un long fichier se lit par plages (read_file avec "
-                + "start/end) ou avec find_in_file. Pour write_file, mets ensuite le contenu "
-                + "COMPLET du fichier dans un bloc de code séparé. Lis un fichier avant de "
-                + "le modifier. Fais des "
-                + "changements cohérents et complets, sans toucher à ce qui n'a aucun "
-                + "rapport. Quand la tâche est faite, appelle "
-                + "finish avec un résumé et un message de commit court en français."
+                // Le détail des outils (edit_file, read_file, write_file, finish) et
+                // « ne touche pas à ce qui n'a aucun rapport » sont déjà plus haut :
+                // pas de doublon ici (moins de tokens à chaque étape).
+                + "Pour modifier un fichier existant, utilise edit_file plutôt que de le "
+                + "réécrire. Lis un fichier avant de le modifier. Fais des changements "
+                + "cohérents et complets. Le message de commit de finish : court, en français."
         )
         // Et à la fin, pour ne jamais l'oublier.
         let req = requests
