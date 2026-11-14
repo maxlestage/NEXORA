@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.61 — 14 novembre 2026 — L'effort en un geste
+- Amélioré : dans « Sélectionner un modèle », l'effort (Faible → Max) se règle directement dans la feuille, sans ouvrir une autre page ; la note dessous explique le niveau choisi.
+- Plus clair : la section « Autres fournisseurs » est nommée, et « Ajouter des modèles » passe en bas.
+- VoiceOver : chaque modèle est lu sans émoji, avec « modèle actuel » pour celui en cours.
+
 ## 3.0.60 — 14 novembre 2026 — Le cache de prompt compté juste
 - Corrigé : avec Claude (Anthropic), les tokens relus ou écrits dans le cache n'étaient pas comptés dans les tokens envoyés ; l'usage et le coût affichés étaient trop bas.
 - Amélioré : le coût de chaque réponse et des sessions de l'agent tient compte du cache (tokens relus au prix réduit, chez Anthropic, OpenAI et DeepSeek).

@@ -17,6 +17,7 @@ struct ModelSheet: View {
     @State private var morePicker = false
     @State private var addModels = false
     @State private var picked = 0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(current: ModelRef, level: ThinkLevel, onModel: @escaping (ModelRef) -> Void, onLevel: @escaping (ThinkLevel) -> Void) {
         self.current = current
@@ -39,34 +40,35 @@ struct ModelSheet: View {
                 // Changer de fournisseur d'un geste : le meilleur modèle de chacun de
                 // ceux qui sont prêts.
                 if !others.isEmpty {
-                    Section {
+                    Section(ModelSheetDisplay.othersTitle) {
                         ForEach(others, id: \.key) { r in
                             let p = settings.provider(r.providerId)
                             row(title: "\(p?.emoji ?? "🤖") \(settings.displayName(r))", subtitle: p?.name ?? r.providerId, checked: false) { pick(r) }
                         }
                     }
                 }
-                if settings.readyProviders.filter({ !$0.local }).count <= 2 {
-                    Section {
-                        Button {
-                            addModels = true
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text("Ajouter des modèles").foregroundStyle(.primary)
-                                    Text(ModelList.addModelsHint(providerId: current.providerId))
-                                        .font(.subheadline).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "key.fill").foregroundStyle(.secondary)
+                // L'effort se règle sur place, d'un geste ; la page détaillée reste
+                // pour les très grandes tailles de texte.
+                Section {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        NavigationLink(value: "effort") {
+                            LabeledContent("Effort", value: effort.label)
+                        }
+                    } else {
+                        Picker("Effort", selection: effortBinding) {
+                            ForEach(ThinkLevel.allCases) { l in
+                                Text(l.label).tag(l)
                             }
                         }
+                        .pickerStyle(.segmented)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
                     }
-                }
-                Section {
-                    NavigationLink(value: "effort") {
-                        LabeledContent("Effort", value: effort.label)
-                    }
+                } header: {
+                    Text("Effort")
+                } footer: {
+                    Text(ModelSheetDisplay.effortFooter(effort, nativeEffort: ModelList.hasNativeEffort(provider, model: current.model), model: current.model))
+                        .foregroundStyle(effort.warning ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
                 }
                 Section {
                     Button {
@@ -80,6 +82,23 @@ struct ModelSheet: View {
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                if ModelSheetDisplay.showsAddModels(remoteReady: settings.readyProviders.filter({ !$0.local }).count) {
+                    Section {
+                        Button {
+                            addModels = true
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Ajouter des modèles").foregroundStyle(.primary)
+                                    Text(ModelList.addModelsHint(providerId: current.providerId))
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "key.fill").foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -133,6 +152,17 @@ struct ModelSheet: View {
         return settings.models(for: p).first { $0.id == r.model }.map { $0.detail ?? r.model } ?? r.model
     }
 
+    /// L'effort choisi dans la barre segmentée : appliqué tout de suite, la feuille reste
+    /// ouverte (on peut encore changer de modèle).
+    private var effortBinding: Binding<ThinkLevel> {
+        Binding(get: { effort }, set: { l in
+            guard l != effort else { return }
+            effort = l
+            picked += 1
+            onLevel(l)
+        })
+    }
+
     private func pick(_ r: ModelRef) {
         picked += 1
         onModel(r)
@@ -152,6 +182,7 @@ struct ModelSheet: View {
                 }
             }
         }
+        .accessibilityLabel(ModelSheetDisplay.accessibility(title: title, subtitle: subtitle, checked: checked))
         .accessibilityAddTraits(checked ? .isSelected : [])
     }
 }

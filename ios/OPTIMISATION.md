@@ -522,10 +522,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `tokensCachedToday`) et `UsageFormat.cached` (« 42k · 63 % des envoyés ») affichés
   dans QuotaSheet. Pas de changement des requêtes (banc inchangé). Tests : 448 → 449.
 
-## Prochain passage : INTERFACE
-Écrans pas encore traités — QuotaSheet (ligne « Relus depuis le cache » ajoutée en
-3.0.60), ModelSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
-Puis tokens : chat mesuré avec `AnthropicCacheSim`.
+- 3.0.61 (interface) : « Sélectionner un modèle » (ModelSheet) — `ModelSheetDisplay`
+  (`effortFooter` : badge + effet du niveau + note « pas de réglage natif » ;
+  `showsAddModels` ; `othersTitle` ; `accessibility` : libellé sans émoji, « modèle
+  actuel »). L'effort se règle sur place (barre segmentée, appliqué sans fermer la
+  feuille ; avant : une page de plus à ouvrir) ; page détaillée gardée pour les très
+  grandes tailles de texte. Section « Autres fournisseurs » nommée ; « Ajouter des
+  modèles » (rare) passe en bas. Tests : 449 → 452.
+
+## Prochain passage : TOKENS
+Chat mesuré avec `AnthropicCacheSim` (voir pistes ci-dessous).
+Puis interface : QuotaSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
 
 ## Pistes tokens à faire
 - Cache Anthropic, suite : mesurer le chat avec `AnthropicCacheSim` (la coupure par paquets
