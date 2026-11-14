@@ -512,15 +512,25 @@ mémoire 32k tokens, consigne 3 000 car.
   « Réessayer », lignes ≥ 44 pt. Le coût en tokens est visible AVANT de joindre.
   Tests : 442 → 448.
 
-## Prochain passage : TOKENS
-Voir les pistes ci-dessous (chat mesuré avec `AnthropicCacheSim`, tokens relus affichés).
-Puis interface : écrans pas encore traités — QuotaSheet, ModelSheet, RepoLists (branches,
-PR, tickets), ou chat 2e passage.
+- 3.0.60 (tokens, comptage) : `TokenUsage.cached` / `written` — chez Anthropic,
+  `input_tokens` ne compte PAS `cache_read_input_tokens` ni `cache_creation_input_tokens` :
+  depuis les points de cache (3.0.58), l'usage affiché ne comptait que la fin de la requête
+  (ex. 100 tokens au lieu de 10 000). Ils sont ajoutés ; `cached` lu aussi chez OpenAI
+  (`prompt_tokens_details.cached_tokens`) et DeepSeek (`prompt_cache_hit_tokens`).
+  `ModelPrice.cost(TokenUsage)` : relus au prix `cachedInput`, écrits à 1,25 ×
+  (utilisé par le carnet, l'agent et le chat). `ProviderUsage.tokensCachedToday` (JSON
+  `tokensCachedToday`) et `UsageFormat.cached` (« 42k · 63 % des envoyés ») affichés
+  dans QuotaSheet. Pas de changement des requêtes (banc inchangé). Tests : 448 → 449.
+
+## Prochain passage : INTERFACE
+Écrans pas encore traités — QuotaSheet (ligne « Relus depuis le cache » ajoutée en
+3.0.60), ModelSheet, RepoLists (branches, PR, tickets), ou chat 2e passage.
+Puis tokens : chat mesuré avec `AnthropicCacheSim`.
 
 ## Pistes tokens à faire
 - Cache Anthropic, suite : mesurer le chat avec `AnthropicCacheSim` (la coupure par paquets
   retire le DÉBUT de l'historique : seule la consigne est relue) ; afficher les tokens relus
-  depuis le cache (`cache_read_input_tokens`) dans l'usage si ce n'est pas déjà compté.
+  depuis le cache : fait en 3.0.60.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).

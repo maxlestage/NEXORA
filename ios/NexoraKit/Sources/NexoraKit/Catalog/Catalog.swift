@@ -83,6 +83,16 @@ public struct ModelPrice: Sendable, Hashable {
         (Double(inputTokens) * input + Double(outputTokens) * output) / 1e6
     }
 
+    /// Le coût d'une réponse, cache compris : les tokens relus au prix `cachedInput`
+    /// (au prix plein s'il est inconnu), les tokens écrits dans le cache (Anthropic)
+    /// à 1,25 fois le prix plein.
+    public func cost(_ u: TokenUsage) -> Double {
+        let read = max(0, min(u.cached, u.input)), wrote = max(0, min(u.written, u.input - read))
+        let plain = u.input - read - wrote
+        return (Double(plain) * input + Double(read) * (cachedInput ?? input) + Double(wrote) * input * 1.25
+            + Double(u.output) * output) / 1e6
+    }
+
     public var label: String { "\(Self.dollars(input)) → \(Self.dollars(output)) / M tokens" }
 
     static func dollars(_ v: Double) -> String {

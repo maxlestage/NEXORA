@@ -1,13 +1,20 @@
 import Foundation
 
 /// Les tokens d'une réponse : envoyés (question, historique) et reçus.
+/// `cached` : la part des envoyés relue depuis le cache du fournisseur (moins chère) ;
+/// `written` : la part écrite dans le cache (Anthropic, un peu plus chère). Les deux
+/// sont comprises dans `input`.
 public struct TokenUsage: Sendable, Hashable {
     public var input: Int
     public var output: Int
+    public var cached: Int
+    public var written: Int
 
-    public init(_ input: Int, _ output: Int) {
+    public init(_ input: Int, _ output: Int, cached: Int = 0, written: Int = 0) {
         self.input = input
         self.output = output
+        self.cached = cached
+        self.written = written
     }
 
     public static let zero = TokenUsage(0, 0)
@@ -15,17 +22,28 @@ public struct TokenUsage: Sendable, Hashable {
     public var total: Int { input + output }
 
     public static func + (a: TokenUsage, b: TokenUsage) -> TokenUsage {
-        TokenUsage(a.input + b.input, a.output + b.output)
+        TokenUsage(a.input + b.input, a.output + b.output, cached: a.cached + b.cached, written: a.written + b.written)
     }
 
-    /// `usage` au format OpenAI (`prompt_tokens`, `completion_tokens`) ou Anthropic
-    /// (`input_tokens`, `output_tokens`).
+    /// `usage` au format OpenAI (`prompt_tokens`, `completion_tokens`,
+    /// `prompt_tokens_details.cached_tokens`), DeepSeek (`prompt_cache_hit_tokens`) ou
+    /// Anthropic (`input_tokens`, `output_tokens`). Chez Anthropic, `input_tokens` ne
+    /// compte PAS les tokens relus ou écrits dans le cache : ils sont ajoutés.
     public static func from(_ u: Any?) -> TokenUsage? {
         guard let u = u as? [String: Any] else { return nil }
-        let input = int(u["prompt_tokens"] ?? u["input_tokens"])
+        var input = int(u["prompt_tokens"] ?? u["input_tokens"])
         let output = int(u["completion_tokens"] ?? u["output_tokens"])
+        var cached = 0, written = 0
+        if u["cache_read_input_tokens"] != nil || u["cache_creation_input_tokens"] != nil {
+            cached = int(u["cache_read_input_tokens"])
+            written = int(u["cache_creation_input_tokens"])
+            input += cached + written
+        } else {
+            let details = (u["prompt_tokens_details"] ?? u["input_tokens_details"]) as? [String: Any]
+            cached = min(input, int(details?["cached_tokens"] ?? u["prompt_cache_hit_tokens"]))
+        }
         if input == 0 && output == 0 { return nil }
-        return TokenUsage(input, output)
+        return TokenUsage(input, output, cached: cached, written: written)
     }
 }
 
@@ -305,7 +323,7 @@ public struct StreamLineParser: Sendable {
             return nil
         case "message_start":
             guard let u = TokenUsage.from((j["message"] as? [String: Any])?["usage"]) else { return nil }
-            return ChatDelta(usage: TokenUsage(u.input, 0))
+            return ChatDelta(usage: TokenUsage(u.input, 0, cached: u.cached, written: u.written))
         case "message_delta":
             let u = TokenUsage.from(j["usage"])
             let reason = (j["delta"] as? [String: Any])?["stop_reason"] as? String

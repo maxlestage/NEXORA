@@ -55,9 +55,10 @@ public struct UsageBook: Sendable {
             u.requestsTotal += 1
             u.tokensInToday += t.input
             u.tokensOutToday += t.output
+            u.tokensCachedToday += t.cached
             u.tokensTotal += t.total
             if let price {
-                let c = price.cost(t.input, t.output)
+                let c = price.cost(t)
                 cost = c
                 u.costToday += c
                 u.costMonth += c
