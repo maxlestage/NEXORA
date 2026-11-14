@@ -471,12 +471,43 @@ extension AgentRun {
         }
         return (
             "\(hits.count) ligne(s) contiennent « \(query) »\(note) :\n"
-                + hits.prefix(80).joined(separator: "\n")
+                + Self.groupHits(Array(hits.prefix(80)))
                 + (hits.count > 80 ? "\n… (\(hits.count - 80) de plus : précise \"path\")" : "")
                 + (names.isEmpty ? "" : "\nFichiers dont le nom correspond : \(names.joined(separator: ", "))")
                 + limited,
             hits.count
         )
+    }
+
+    /// Des lignes trouvées (« chemin:ligne: texte »), regroupées par fichier : deux
+    /// lignes de suite ou plus d'un même fichier passent sous son chemin, écrit une
+    /// seule fois (« chemin :\n  12: texte »), au lieu de le répéter à chaque ligne.
+    /// Une ligne seule garde sa forme ; l'ordre est gardé.
+    public nonisolated static func groupHits(_ hits: [String]) -> String {
+        let hitRe = DRegex(#"^(.*?):(\d+): "#)
+        var parsed: [(path: String?, line: String)] = []
+        for h in hits {
+            if let m = hitRe.firstMatch(h), let path = m[1], let n = m[2] {
+                parsed.append((path, "  \(n): " + h.sub(path.len + n.len + 3, h.len)))
+            } else {
+                parsed.append((nil, h))
+            }
+        }
+        var out: [String] = []
+        var i = 0
+        while i < parsed.count {
+            guard let path = parsed[i].path else { out.append(hits[i]); i += 1; continue }
+            var j = i + 1
+            while j < parsed.count && parsed[j].path == path { j += 1 }
+            if j - i == 1 {
+                out.append(hits[i])
+            } else {
+                out.append("\(path) :")
+                out.append(contentsOf: parsed[i..<j].map(\.line))
+            }
+            i = j
+        }
+        return out.joined(separator: "\n")
     }
 
     /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
