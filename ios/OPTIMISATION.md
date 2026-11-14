@@ -43,6 +43,9 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.48, 40 étapes, fichier écrit, retouché puis relu (diff depuis l'écriture) | 410 558 (−6,7 %) | 94 436 (−10,2 %) | 149 657 (−9,3 %) | 252 497 (−7,4 %) |
 | 3.0.52, 40 étapes, plage relue déjà lue (`ranged: true`, nouvelle ligne : plage renvoyée en entier) | 449 318 | 112 151 | 173 905 | 280 734 |
 | 3.0.52, 40 étapes, plage relue déjà lue (renvoi court, seules les lignes nouvelles) | 451 977 (+0,6 %) | 100 650 (−10,3 %) | 160 945 (−7,5 %) | 276 313 (−1,6 %) |
+| 3.0.54, 40 étapes (début des vieux résultats raccourcis : 400 → 200 car., coupé en fin de ligne) | 448 045 (−4,4 %) | 106 250 (−1,2 %) | 166 992 (−2,1 %) | 277 147 (−3,8 %) |
+| 3.0.54, 80 étapes | 1 032 457 (−5,2 %) | 220 928 (−1,4 %) | 357 312 (−2,6 %) | 626 692 (−4,6 %) |
+| 3.0.54, 80 étapes avec relances | 1 138 684 (−5,1 %) | 227 222 (−1,4 %) | 375 173 (−2,6 %) | 682 953 (−4,5 %) |
 
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
@@ -435,8 +438,15 @@ mémoire 32k tokens, consigne 3 000 car.
   saisie) ; avant : seule la carte des brouillons, souvent loin plus haut dans le
   journal. `draftsHint` : 88 → 48 car. « Relancer » (CI) à 44 pt. Tests : 429 → 430.
 
-## Prochain passage : TOKENS
-Puis interface : repasser sur le chat (2e passage) ou l'écran Modèles.
+- 3.0.54 (tokens) : `AgentRun.briefKeep` = 200 (avant 400) et `briefHead` — les longs
+  résultats sortis des 6 gardés en entier ne gardent que leurs 200 premiers caractères
+  (titre compris), coupés à la fin d'une ligne si elle est au-delà de 100 car. (le début
+  d'un fichier, ses imports, ne sert presque jamais ; la note dit de le relire). Avant
+  la mesure : 40 étapes 468 845 envoyés / 170 567 Anthropic / 288 197 OpenAI. Gain
+  ci-dessus. Tests : 430 → 431.
+
+## Prochain passage : INTERFACE
+Repasser sur le chat (2e passage) ou l'écran Modèles. Puis tokens.
 
 ## Pistes tokens à faire
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à

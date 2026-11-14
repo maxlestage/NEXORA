@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.54 — 14 novembre 2026 — Sessions de l'agent plus économes
+- Amélioré : les longues sessions de l'agent envoient environ 4 % de tokens en moins (coût ≈ 2 à 4 % plus bas).
+- Les vieux fichiers lus ne gardent plus qu'un court début, coupé en fin de ligne ; l'agent les relit s'il en a besoin.
+
 ## 3.0.53 — 14 novembre 2026 — Brouillons de l'agent plus faciles à relire
 
 - Nouveau : quand l'agent a fini, un bouton « Relire les 3 fichiers modifiés » apparaît en bas de la session, à portée du pouce (avant : il fallait remonter jusqu'à la carte des brouillons).

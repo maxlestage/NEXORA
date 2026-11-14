@@ -817,14 +817,28 @@ public final class AgentRun {
             if full <= keep || rewritten { continue }
             history[i] = LLMMessage(
                 "user",
-                m.content.sub(0, 400) + "\n… (ancien résultat raccourci : \(m.content.len) caractères, relis le fichier si besoin)"
+                briefHead(m.content) + "\n… (ancien résultat raccourci : \(m.content.len) caractères, relis le fichier si besoin)"
             )
         }
     }
 
+    /// Caractères gardés du début d'un ancien long résultat raccourci (titre compris).
+    /// 400 → 200 en 3.0.54 : le début d'un fichier (ses imports) ne sert presque
+    /// jamais, et la note dit de le relire ; banc de 40 étapes : envoyés −4,4 %.
+    public nonisolated static let briefKeep = 200
+
+    /// Le début d'un ancien résultat (`briefKeep` caractères au plus), coupé à la fin
+    /// d'une ligne pour ne pas laisser une ligne de code à moitié.
+    nonisolated static func briefHead(_ content: String) -> String {
+        let head = content.sub(0, briefKeep)
+        guard head.count < content.count, let nl = head.lastIndex(of: "\n"),
+              head.distance(from: head.startIndex, to: nl) >= briefKeep / 2 else { return head }
+        return String(head[..<nl])
+    }
+
     /// Avec `keepFullResults`, le nombre de derniers résultats (longs ou courts) jamais
     /// réduits à leur titre (6 + 10 = 16) ; les plus vieux longs résultats parmi eux
-    /// sont raccourcis à 400 caractères. Au-delà, seul le titre du résultat reste (l'action qui l'a produit est dans la
+    /// sont raccourcis à `briefKeep` caractères. Au-delà, seul le titre du résultat reste (l'action qui l'a produit est dans la
     /// réponse juste au-dessus).
     public nonisolated static let keepBriefResults = 10
 
