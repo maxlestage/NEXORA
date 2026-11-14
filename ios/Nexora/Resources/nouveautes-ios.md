@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.52 — 14 novembre 2026 — Relectures de l'agent plus économes
+
+- Amélioré : quand l'agent relit des lignes d'un fichier qu'il a déjà lues plus haut, elles ne sont plus renvoyées au modèle ; seules les lignes nouvelles partent.
+- Amélioré : une session où l'agent relit des passages coûte environ 7 % de moins (Claude) sur un banc de 40 étapes.
+
 ## 3.0.51 — 14 novembre 2026 — Crédits à jour et version facile à copier
 
 - Corrigé : la liste des fournisseurs des Crédits vient du catalogue et n'en oublie plus (Ollama Cloud et Codestral manquaient).
