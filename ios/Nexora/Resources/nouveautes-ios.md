@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.57 — 14 novembre 2026 — Choix de l'agent plus simple
+- Nouveau : une recherche dans le choix de l'agent, par mots, sans accents ni majuscules (« redac mail » trouve « Rédacteur d'e-mails ») ; elle cherche aussi dans la description et la catégorie.
+- Amélioré : si rien ne correspond, un message clair et un bouton « Effacer la recherche ».
+- Amélioré : l'agent actuel est surligné, et chaque ligne est lue en entier par VoiceOver.
+
 ## 3.0.56 — 14 novembre 2026 — Agent plus économe quand il modifie des fichiers
 
 - Amélioré : quand l'agent modifie beaucoup de fichiers, ses sessions consomment environ 10 % de tokens en moins (jusqu'à 18 % sur les longues sessions).
