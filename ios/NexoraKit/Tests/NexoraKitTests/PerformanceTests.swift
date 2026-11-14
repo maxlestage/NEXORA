@@ -353,7 +353,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
 /// Un chat de 60 tours (question de 600 caractères, réponse de 4 000) avec la mémoire
 /// par défaut (32k tokens) : caractères envoyés et part hors cache. `everyTurn` :
 /// l'ancienne coupure (avant 3.0.14), refaite à chaque tour au plus juste.
-private func chatChars(everyTurn: Bool, send: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int, kept: [Int], dropped: [Int]) {
+private func chatChars(everyTurn: Bool, files: Bool = false, send: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int, kept: [Int], dropped: [Int]) {
     let budget = 32000
     let system = String(repeating: "s", count: 3000)
     var messages: [ChatMessage] = []
@@ -361,7 +361,11 @@ private func chatChars(everyTurn: Bool, send: ((String, [LLMMessage]) -> Void)? 
     var sent = 0, uncached = 0
     var kept: [Int] = [], dropped: [Int] = []
     for turn in 0..<60 {
-        messages.append(ChatMessage(role: .user, content: "Question \(turn) " + String(repeating: "q", count: 600)))
+        let question = "Question \(turn) " + String(repeating: "q", count: 600)
+        // `files` : un fichier de 12 000 caractères joint à une question sur six.
+        let attached = files && turn % 6 == 0
+            ? [ChatAttachment(path: "src/f\(turn).swift", text: String(repeating: "let x = 1\n", count: 1200))] : []
+        messages.append(ChatMessage(role: .user, content: ChatLibrary.withAttachments(question, attached)))
         var history: [LLMMessage]
         if everyTurn {
             let usable = messages.map { LLMMessage($0.role.rawValue, $0.content) }
@@ -467,6 +471,21 @@ struct TokenBench {
         #expect(starts == starts.sorted())
         // Coupé à chaque tour, le début changeait 31 fois sur 40 ; par paquets, 11 fois.
         #expect(Set(starts).count == 12)
+    }
+
+    @Test("chat avec fichiers joints : vieux fichiers raccourcis à la coupure")
+    func chatAttachments() {
+        let r = chatChars(everyTurn: false, files: true)
+        let anthropic = Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1
+        let openai = Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
+        print("🪙 chat avec fichiers joints : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, \(r.dropped.last!) messages laissés de côté, "
+            + "coût Anthropic ≈ \(Int(anthropic) / 4), OpenAI ≈ \(Int(openai) / 4)")
+        #expect(r.kept.allSatisfy { $0 <= 32000 })
+        // 3.0.64 : fichiers joints gardés entiers jusqu'à l'oubli → raccourcis à la coupure.
+        // Coût Anthropic 422 009 → 375 867, OpenAI 817 882 → 810 609, oubliés 73 → 49.
+        #expect(Int(anthropic) / 4 < 400_000)
+        #expect(Int(openai) / 4 < 817_882)
+        #expect(r.dropped.last! < 60)
     }
 
     @Test("fichier relu après modification : seulement les passages changés")

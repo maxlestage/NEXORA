@@ -182,9 +182,22 @@ public enum ChatLibrary {
     }
 
     /// Le message envoyé avec ses fichiers joints (placés avant le texte).
+    /// La clôture du bloc d'un fichier joint : plus longue que toute suite d'accents
+    /// graves du fichier (au moins 3), pour que le bloc ne se ferme jamais trop tôt
+    /// (un fichier Markdown avec ses propres blocs de code) et que la mémoire du chat
+    /// sache où il finit (`ChatLogic.compactedAttachments`).
+    static func fence(for text: String) -> String {
+        var longest = 0, run = 0
+        for c in text { if c == "`" { run += 1; longest = max(longest, run) } else { run = 0 } }
+        return String(repeating: "`", count: max(3, longest + 1))
+    }
+
     public static func withAttachments(_ text: String, _ files: [ChatAttachment]) -> String {
         if files.isEmpty { return text }
-        let joined = files.map { "Fichier `\($0.path)` :\n```\n\($0.text)\n```" }.joined(separator: "\n\n")
+        let joined = files.map { f -> String in
+            let fence = fence(for: f.text)
+            return "Fichier `\(f.path)` :\n\(fence)\n\(f.text)\n\(fence)"
+        }.joined(separator: "\n\n")
         return "\(joined)\n\n\(text)"
     }
 }

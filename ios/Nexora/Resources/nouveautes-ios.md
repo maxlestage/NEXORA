@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.64 — 14 novembre 2026 — Fichiers joints plus économes
+
+- Amélioré : dans un long chat, les anciens fichiers joints sont réduits à leur début quand la mémoire est pleine ; vos questions restent entières. Environ 11 % de coût en moins chez Anthropic avec des fichiers joints.
+- Amélioré : le chat se souvient de plus de messages (49 oubliés au lieu de 73 sur un chat type de 60 questions).
+- Corrigé : un fichier joint qui contient lui-même des blocs de code (Markdown) est transmis entier au modèle, sans bloc fermé trop tôt.
+
 ## 3.0.63 — 14 novembre 2026 — Issues et pull requests plus simples
 
 - Amélioré : chaque ligne dit tout d'un coup d'œil (« #12 · @max · 3 commentaires · il y a 2 j ») et se lit d'un trait avec VoiceOver.
