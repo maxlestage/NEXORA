@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.58 — 14 novembre 2026 — Agent moins cher avec Claude (Anthropic)
+- Amélioré : avec les modèles Claude d'Anthropic, une session de l'agent coûte environ 15 à 19 % de moins, à résultat égal.
+- Amélioré : la consigne et le début de la session sont relus depuis le cache même après le raccourcissement de l'historique ; avant, tout était alors refacturé au prix fort.
+- Rien ne change pour les autres fournisseurs.
+
 ## 3.0.57 — 14 novembre 2026 — Choix de l'agent plus simple
 - Nouveau : une recherche dans le choix de l'agent, par mots, sans accents ni majuscules (« redac mail » trouve « Rédacteur d'e-mails ») ; elle cherche aussi dans la description et la catégorie.
 - Amélioré : si rien ne correspond, un message clair et un bouton « Effacer la recherche ».

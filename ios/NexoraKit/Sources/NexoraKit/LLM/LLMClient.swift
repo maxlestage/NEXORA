@@ -120,13 +120,21 @@ public struct LLMClient: Sendable {
             b = [
                 "model": model,
                 "max_tokens": max(o.maxTokens, 1024),
-                "messages": Self.alternate(messages),
+                "messages": Self.alternate(messages, marks: reasoning),
                 "stream": stream,
             ]
             // Cache des prompts : l'historique déjà envoyé est relu plus vite (et moins
             // cher) au tour suivant. Retiré si le serveur le refuse.
-            if reasoning { b["cache_control"] = ["type": "ephemeral"] }
-            if let system, !system.isEmpty { b["system"] = system }
+            // Le point automatique (fin de la requête) ne suffit pas : dès que
+            // l'historique est raccourci, plus rien n'est retrouvé. La consigne système
+            // et le début stable de l'historique (`cacheMarks`) ont donc leur propre
+            // point, relu même après un raccourcissement.
+            if reasoning { b["cache_control"] = Self.cachePoint }
+            if let system, !system.isEmpty {
+                b["system"] = reasoning
+                    ? [["type": "text", "text": system, "cache_control": Self.cachePoint] as [String: Any]]
+                    : system
+            }
         case .ollama:
             var msgs: [[String: Any]] = []
             if let system, !system.isEmpty { msgs.append(["role": "system", "content": system]) }
@@ -155,7 +163,8 @@ public struct LLMClient: Sendable {
     /// L'API Messages veut des tours alternés qui commencent par l'utilisateur.
     /// Les images partent en blocs `image` (source base64) avant le texte ; sans
     /// image, `content` reste un simple texte.
-    static func alternate(_ messages: [LLMMessage]) -> [[String: Any]] {
+    /// `marks` : les tours de `cacheMarks` portent un point de cache.
+    static func alternate(_ messages: [LLMMessage], marks: Bool = false) -> [[String: Any]] {
         var turns: [(role: String, text: String, images: [LLMImage])] = []
         for m in messages where m.role != "system" {
             let blank = m.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -179,7 +188,41 @@ public struct LLMClient: Sendable {
         if let first = out.first, first["role"] as? String != "user" {
             out.insert(["role": "user", "content": "(début de la conversation)"], at: 0)
         }
+        if marks {
+            for i in cacheMarks(out.count) { out[i] = marked(out[i]) }
+        }
         return out
+    }
+
+    static var cachePoint: [String: Any] { ["type": "ephemeral"] }
+
+    /// Écart entre deux points de cache de l'historique, en tours.
+    public static let cacheStep = 8
+    /// Les derniers tours, que le prochain raccourcissement peut encore changer :
+    /// aucun point explicite n'y est posé (la fin a déjà le point automatique).
+    public static let cacheBack = 20
+
+    /// Les tours d'Anthropic qui portent un point de cache explicite (deux au plus :
+    /// avec la consigne et le point automatique, cela fait les 4 permis). Ils sont
+    /// alignés sur `cacheStep` : le même tour reste marqué plusieurs requêtes de
+    /// suite, et après un raccourcissement de l'historique le début resté identique
+    /// est relu depuis le cache (un point retrouve une entrée jusqu'à 20 positions
+    /// en arrière) au lieu d'être réécrit en entier.
+    public static func cacheMarks(_ turns: Int) -> [Int] {
+        guard turns >= cacheBack else { return [] }
+        let last = (turns - cacheBack) / cacheStep * cacheStep - 1
+        return [last - 2 * cacheStep, last].filter { $0 >= 0 }
+    }
+
+    /// Le tour avec un point de cache sur son dernier bloc.
+    static func marked(_ turn: [String: Any]) -> [String: Any] {
+        var turn = turn
+        var blocks = turn["content"] as? [[String: Any]] ?? []
+        if let text = turn["content"] as? String { blocks = [["type": "text", "text": text]] }
+        guard !blocks.isEmpty else { return turn }
+        blocks[blocks.count - 1]["cache_control"] = cachePoint
+        turn["content"] = blocks
+        return turn
     }
 
     func request(_ url: URL, method: String, headers: [String: String], body: [String: Any]?, timeout: TimeInterval) -> URLRequest {

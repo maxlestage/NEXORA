@@ -51,6 +51,21 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.56, 80 étapes avec modifications (gardés) | 1 925 278 | 262 767 | 494 710 | 1 094 023 |
 | 3.0.56, 80 étapes avec modifications (réduits) | 1 583 006 (−17,8 %) | 244 259 (−7,0 %) | 439 199 (−11,2 %) | 913 633 (−16,5 %) |
 
+Banc « Cache Anthropic » (`swift test --filter AnthropicCacheBench`, 3.0.58) : même session,
+mais cache d'Anthropic simulé FIDÈLEMENT (`AnthropicCacheSim` : une entrée n'est écrite qu'aux
+points de cache, un point ne retrouve une entrée que dans ses 20 positions précédentes). Le
+tableau ci-dessus suppose que tout préfixe identique est relu : vrai pour OpenAI/DeepSeek,
+trop optimiste pour Anthropic (avec le seul point automatique, RIEN n'est relu à la requête
+qui suit un raccourcissement). Coût = écrits ×1,25 + relus ×0,1.
+
+| Session | Point automatique seul (≤ 3.0.57) | Consigne + début stable (3.0.58) |
+|---|---|---|
+| 40 étapes | 199 501 | 169 303 (−15,1 %) |
+| 80 étapes | 445 040 | 364 607 (−18,1 %) |
+| 80 étapes avec relances | 471 617 | 380 966 (−19,2 %) |
+| 40 étapes avec modifications | 236 981 | 199 501 (−15,8 %) |
+| 80 étapes avec modifications | 551 621 | 445 243 (−19,3 %) |
+
 Banc chat (`chatMemory`, 60 tours, question 600 car., réponse 4 000, mémoire 32k) :
 
 | Version | Envoyés | Hors cache | Coût Anthropic | Coût OpenAI | Messages oubliés (fin) |
@@ -475,10 +490,25 @@ mémoire 32k tokens, consigne 3 000 car.
   lignes ≥ 44 pt touchables sur toute la largeur, libellé VoiceOver (`accessibility`).
   Titre « Agent » → « Choisir un agent ». Tests : 435 → 439.
 
-## Prochain passage : TOKENS
-Puis interface : chat (2e passage) ou session de l'agent (2e passage).
+- 3.0.58 (tokens) : points de cache explicites pour Anthropic (`LLMClient.body`) — en plus
+  du point automatique (fin de la requête), la consigne système part en bloc avec
+  `cache_control`, et deux tours du début stable de l'historique sont marqués
+  (`LLMClient.cacheMarks` : alignés sur `cacheStep` = 8 tours, à `cacheBack` = 20 tours au
+  moins de la fin ; 4 points en tout, le maximum permis). Après un raccourcissement par
+  paquets, la consigne et le début resté identique sont relus (×0,1) au lieu d'être réécrits
+  (×1,25). Réglages mesurés (pas 4/8/16, recul 12/16/20/24, 1 ou 2 points) : pas 8, recul 20,
+  2 points = le plus robuste. Repli inchangé : si le serveur refuse (400), la requête repart
+  sans aucun point (consigne en simple texte). Sans effet sous le minimum cachable du modèle
+  (512 à 4 096 tokens selon le modèle). Aides de test : `FakeTransport.plain` lit le contenu
+  en blocs. Gain ci-dessus. Tests : 439 → 442.
+
+## Prochain passage : INTERFACE
+Chat (2e passage) ou session de l'agent (2e passage). Puis tokens.
 
 ## Pistes tokens à faire
+- Cache Anthropic, suite : mesurer le chat avec `AnthropicCacheSim` (la coupure par paquets
+  retire le DÉBUT de l'historique : seule la consigne est relue) ; afficher les tokens relus
+  depuis le cache (`cache_read_input_tokens`) dans l'usage si ce n'est pas déjà compté.
 - Diff des relectures : quand `compactHistory` raccourcit une lecture servant de base à
   un diff plus récent, renvoyer plutôt le fichier entier au prochain read_file (aujourd'hui
   le diff reste sans base ; rare : la base est la plus récente lecture complète).
