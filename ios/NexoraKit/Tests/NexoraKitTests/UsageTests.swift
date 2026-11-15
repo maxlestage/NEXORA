@@ -190,6 +190,23 @@ struct UsageLevelTests {
         #expect(u.level(now.addingTimeInterval(31 * 60)) != .blocked)
     }
 
+    @Test("témoin lu par VoiceOver : l'état en mots")
+    func spoken() {
+        let now = day(2026, 11, 8, 12)
+        let p = provider("groq")
+        var u = ProviderUsage("groq")
+        #expect(UsageText.levelWord(.ok) == nil && UsageText.levelWord(.unknown) == nil)
+        #expect(UsageText.spoken(p, u, now: now) == "Crédit chez \(p.name) : \(UsageText.summary(p, u, now: now))")
+        u.windows = [RateWindow(kind: "requêtes", window: "min", limit: 30, remaining: 2)]
+        u.windowsAt = now
+        #expect(u.level(now) == .low)
+        #expect(UsageText.spoken(p, u, now: now).hasSuffix(", bientôt à court"))
+        u.lastErrorStatus = 402
+        u.lastErrorAt = now
+        let line = UsageText.spoken(p, u, now: now)
+        #expect(line.contains("Crédit épuisé") && line.hasSuffix(", bloqué"))
+    }
+
     @Test("compteurs remis à zéro chaque jour")
     func rollDay() {
         var u = ProviderUsage("x")
