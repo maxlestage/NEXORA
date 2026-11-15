@@ -603,10 +603,20 @@ mémoire 32k tokens, consigne 3 000 car.
   200 lignes gardées) : 4 944 → 3 327 tokens (−33 %) ; chemins des erreurs relatifs au
   dépôt, donc directement utilisables par read_file. Tests : 469 → 470.
 
-## Prochain passage : INTERFACE
-Écran Workflows/CloudAgentsView ou UsageView. Ensuite tokens : vérifier sur un vrai
-journal xcodebuild en échec (DerivedData « /Users/runner/Library/Developer/Xcode/
-DerivedData/… » aussi long, non retiré pour l'instant : à mesurer).
+- 3.0.68 (interface) : « Créer une image » (ImagePromptSheet) et images créées
+  (GeneratedImagesView) — `ImageGenDisplay` (`missingKey`/`canCreate` : OpenAI choisi sans
+  clé → « Créer » grisé + bouton « Utiliser Pollinations (gratuit) », avant la demande
+  partait et échouait ; `createLabel` « Créer 3 images » ; `costNote` plus court, même
+  information ; `progress` ; `keyNote` : « Modèles → OpenAI » au lieu de l'ancien nom
+  « Fournisseurs » ; `costLabel`). Boutons sous les images 34 → 44 pt, vibration à
+  l'enregistrement dans Photos, attente lue d'un trait par VoiceOver. Tests : 470 → 474.
+  (UsageView déjà traité en 3.0.37, CloudAgentsView en 3.0.38.)
+
+## Prochain passage : TOKENS
+Vérifier sur un vrai journal xcodebuild en échec (DerivedData « /Users/runner/Library/
+Developer/Xcode/DerivedData/… » non retiré : à mesurer). Sinon chercher une autre piste
+mesurable. Interface ensuite : visionneuse d'images (ChatImageViewer, sans vibration à
+l'enregistrement) ou ReposView (compte GitHub, liste des dépôts).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
