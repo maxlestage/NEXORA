@@ -136,12 +136,24 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return out
+            return personLogin(out) ?? out
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
             return x
         }
+    }
+
+    /// Une personne citée (auteur, assigné, relecteur…) réduite à son login : son
+    /// identifiant numérique et son lien (`https://github.com/<login>`, déduit du
+    /// login) ne servent pas à l'agent ; le type reste quand ce n'est pas « User »
+    /// (un robot, une organisation). `nil` si ce n'est pas une personne citée
+    /// seule : un profil complet (GET /user : nom, dépôts…) garde tout.
+    nonisolated static func personLogin(_ d: [String: Any]) -> [String: Any]? {
+        guard let login = d["login"] as? String, let type = d["type"] as? String,
+              d.keys.allSatisfy({ ["login", "id", "html_url", "type"].contains($0) }) else { return nil }
+        if let link = d["html_url"] as? String, link != "https://github.com/\(login)" { return nil }
+        return type == "User" ? ["login": login] : ["login": login, "type": type]
     }
 
     /// Les étiquettes d'un ticket ou d'une pull request réduites à leur nom
