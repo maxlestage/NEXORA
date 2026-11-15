@@ -649,9 +649,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubSlim` (5 tickets) : 1 144 → 920 tokens (−20 % ; 2 928 avant
   3.0.71). Valeurs nulles gardées. Tests : 482 (2 tests enrichis/adaptés au format).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.73) → prochain passage : INTERFACE — RepoView (fiche d'un dépôt).
-Tokens ensuite : clés nulles des réponses github (à mesurer sans perdre « merged_at »).
+- 3.0.74 (interface) : fiche d'un dépôt (RepoView) — `RepoDisplay` (`branchNotice` :
+  hors de la branche par défaut, bandeau « Branche feature/x » sous les onglets avec
+  « Revenir sur main » (44 pt) ; avant, la branche choisie n'était visible que dans le menu
+  « … », on pouvait enregistrer sur une autre branche sans le voir ; `branchOptions` :
+  branche par défaut d'abord, autres triées, sans doublon ; `menuAccessibility`).
+  Tests : 482 → 484.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.74) → prochain passage : TOKENS — clés nulles des réponses github
+(à mesurer sans perdre « merged_at »). Interface ensuite : FileEditorView ou IssuesListView.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

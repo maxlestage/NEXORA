@@ -16,6 +16,9 @@ struct RepoView: View {
     @State private var showCloud = false
     @Environment(GitHubSession.self) private var github
 
+    /// La branche affichée : celle choisie, sinon celle par défaut du dépôt.
+    private var current: String { branch ?? repo.branch }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("Section", selection: $section) {
@@ -24,12 +27,28 @@ struct RepoView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, 8)
+            // Hors de la branche par défaut, on le voit (les fichiers enregistrés vont sur elle)
+            // et on y revient d'un toucher ; avant, la branche n'était visible que dans le menu.
+            if let notice = RepoDisplay.branchNotice(current: current, defaultBranch: repo.branch) {
+                HStack {
+                    Label(notice, systemImage: "arrow.triangle.branch")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    Button(RepoDisplay.backLabel(defaultBranch: repo.branch)) { branch = nil }
+                        .font(.footnote)
+                        .frame(minHeight: 44)
+                }
+                .padding(.horizontal)
+            }
             switch section {
-            case .files: FileBrowserView(repo: repo, path: "", branch: branch ?? repo.branch)
+            case .files: FileBrowserView(repo: repo, path: "", branch: current)
             case .issues: IssuesListView(repo: repo, pulls: false)
             case .pulls: IssuesListView(repo: repo, pulls: true)
             case .actions: ActionsView(repo: repo)
-            case .commits: CommitsView(repo: repo, branch: branch ?? repo.branch)
+            case .commits: CommitsView(repo: repo, branch: current)
             }
         }
         .navigationTitle(repo.name)
@@ -38,7 +57,7 @@ struct RepoView: View {
             // L'action principale : l'agent autonome sur ce dépôt (une session de l'atelier).
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    NewSessionView(repo: repo, branch: branch ?? repo.branch)
+                    NewSessionView(repo: repo, branch: current)
                 } label: {
                     Image(systemName: "sparkles")
                         .frame(minWidth: 44, minHeight: 44)
@@ -50,8 +69,9 @@ struct RepoView: View {
                 Menu {
                     // Menu imbriqué : la branche choisie s'affiche sous « Branche ».
                     Picker("Branche", systemImage: "arrow.triangle.branch",
-                           selection: Binding(get: { branch ?? repo.branch }, set: { branch = $0 })) {
-                        ForEach(branches.isEmpty ? [repo.branch] : branches, id: \.self) { Text($0).tag($0) }
+                           selection: Binding(get: { current }, set: { branch = $0 == repo.branch ? nil : $0 })) {
+                        ForEach(RepoDisplay.branchOptions(branches, defaultBranch: repo.branch, current: current),
+                                id: \.self) { Text($0).tag($0) }
                     }
                     .pickerStyle(.menu)
                     Button("Agents cloud", systemImage: "cloud") { showCloud = true }
@@ -62,7 +82,7 @@ struct RepoView: View {
                     Image(systemName: "ellipsis.circle")
                         .frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel("Plus d'options, branche \(branch ?? repo.branch)")
+                .accessibilityLabel(RepoDisplay.menuAccessibility(current: current))
             }
         }
         .navigationDestination(isPresented: $showCloud) { CloudAgentsView(repo: repo) }
