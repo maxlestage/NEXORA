@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.65 — 15 novembre 2026 — Actions et commits plus simples
+
+- Amélioré : « Relancer » est visible directement sur les exécutions échouées ou annulées (avant : caché dans un balayage) ; un toucher ouvre l'exécution sur GitHub.
+- Amélioré : chaque exécution affiche son déclencheur en clair et sa date (« CI · main · envoi · il y a 2 h ») ; l'en-tête compte les échecs.
+- Sécurité : lancer un workflow demande confirmation (avant : un toucher suffisait) ; vibration au succès.
+- Amélioré : les commits montrent leur date et s'ouvrent sur GitHub ; états vides et « Réessayer » sur erreur ; VoiceOver lit chaque ligne d'un trait.
+
 ## 3.0.64 — 14 novembre 2026 — Fichiers joints plus économes
 
 - Amélioré : dans un long chat, les anciens fichiers joints sont réduits à leur début quand la mémoire est pleine ; vos questions restent entières. Environ 11 % de coût en moins chez Anthropic avec des fichiers joints.
