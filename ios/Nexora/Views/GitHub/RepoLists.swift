@@ -103,8 +103,8 @@ struct IssuesListView: View {
     }
 }
 
-/// Une issue ou une pull request : description, commentaires, réponse, fermeture,
-/// fusion.
+/// Une issue ou une pull request : description, actions (la principale en haut),
+/// commentaires, réponse.
 struct IssueDetailView: View {
     let repo: Repo
     let issue: Issue
@@ -114,9 +114,12 @@ struct IssueDetailView: View {
     @State private var comments: [Comment] = []
     @State private var reply = ""
     @State private var state: String
+    @State private var merged = false
     @State private var error: String?
     @State private var info: String?
     @State private var sending = false
+    /// Une action (fusion, fermeture) est en cours : boutons désactivés, pas de double envoi.
+    @State private var busy = false
     @State private var confirmMerge = false
     @State private var confirmClose = false
     /// Change à chaque action réussie (vibration).
@@ -128,18 +131,34 @@ struct IssueDetailView: View {
         _state = State(initialValue: issue.state)
     }
 
+    private var open: Bool { state == "open" }
+
     var body: some View {
         List {
             Section {
                 Text(issue.title).font(.title3.bold())
                 HStack {
-                    Pill(text: state == "open" ? "Ouverte" : "Fermée", color: state == "open" ? Theme.green : .secondary)
+                    Pill(text: IssuesDisplay.stateLabel(open: open, merged: merged),
+                         color: merged ? Theme.violet : (open ? Theme.green : .secondary))
                     Text("#\(issue.number) · @\(issue.user?.login ?? "")").font(.caption).foregroundStyle(.secondary)
                 }
                 if let body = issue.body, !body.isEmpty { MarkdownView(text: body) }
             }
+            Section {
+                ForEach(IssuesDisplay.actions(isPull: issue.isPull, open: open, merged: merged), id: \.self) { action in
+                    Button(action.title, systemImage: action.symbol) { run(action) }
+                        .frame(minHeight: 44)
+                        .disabled(busy)
+                }
+                if let url = issue.htmlUrl.flatMap(URL.init(string:)) {
+                    Link(destination: url) { Label("Ouvrir sur GitHub", systemImage: "safari") }
+                        .frame(minHeight: 44)
+                }
+                if let info { Text(info).foregroundStyle(Theme.green) }
+                if let error { Text(error).foregroundStyle(Theme.red) }
+            }
             if !comments.isEmpty {
-                Section("Commentaires") {
+                Section(IssuesDisplay.commentsHeader(comments.count)) {
                     ForEach(comments) { c in
                         VStack(alignment: .leading, spacing: 4) {
                             Text("@\(c.user?.login ?? "")").font(.caption.bold())
@@ -150,40 +169,14 @@ struct IssueDetailView: View {
             }
             Section("Répondre") {
                 TextField("Votre commentaire", text: $reply, axis: .vertical).lineLimit(2...8)
-                Button("Commenter") {
-                    sending = true
-                    Task {
-                        defer { sending = false }
-                        do {
-                            try await github.api.comment(repo.owner.login, repo.name, number: issue.number, body: reply)
-                            reply = ""
-                            error = nil
-                            done += 1
-                            await load()
-                        } catch { self.error = error.localizedDescription }
-                    }
-                }
-                .frame(minHeight: 44)
-                .disabled(sending || reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("Commenter", systemImage: "paperplane") { send() }
+                    .frame(minHeight: 44)
+                    .disabled(sending || reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Section {
-                if issue.isPull && state == "open" {
-                    Button("Fusionner", systemImage: "arrow.triangle.merge") { confirmMerge = true }
-                        .frame(minHeight: 44)
-                }
-                Button(state == "open" ? "Fermer" : "Rouvrir", systemImage: state == "open" ? "xmark.circle" : "arrow.uturn.left.circle") {
-                    if state == "open" { confirmClose = true } else { setState("open") }
-                }
-                .frame(minHeight: 44)
-                if let url = issue.htmlUrl.flatMap(URL.init(string:)) {
-                    Link(destination: url) { Label("Ouvrir sur GitHub", systemImage: "safari") }
-                }
-            }
-            if let info { Text(info).foregroundStyle(Theme.green) }
-            if let error { Text(error).foregroundStyle(Theme.red) }
         }
         .navigationTitle("#\(issue.number)")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
         .task { await load() }
         .sensoryFeedback(.success, trigger: done) { _, _ in settings.haptics }
         .confirmationDialog(IssuesDisplay.mergeQuestion(issue), isPresented: $confirmMerge, titleVisibility: .visible) {
@@ -194,11 +187,36 @@ struct IssueDetailView: View {
         }
     }
 
-    private func merge() {
+    private func run(_ action: IssuesDisplay.Action) {
+        switch action {
+        case .merge: confirmMerge = true
+        case .close: confirmClose = true
+        case .reopen: setState("open")
+        }
+    }
+
+    private func send() {
+        sending = true
         Task {
+            defer { sending = false }
+            do {
+                try await github.api.comment(repo.owner.login, repo.name, number: issue.number, body: reply)
+                reply = ""
+                error = nil
+                done += 1
+                await load()
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func merge() {
+        busy = true
+        Task {
+            defer { busy = false }
             do {
                 try await github.api.mergePull(repo.owner.login, repo.name, number: issue.number)
                 state = "closed"
+                merged = true
                 info = "Pull request fusionnée."
                 error = nil
                 done += 1
@@ -207,10 +225,13 @@ struct IssueDetailView: View {
     }
 
     private func setState(_ target: String) {
+        busy = true
         Task {
+            defer { busy = false }
             do {
                 try await github.api.setIssueState(repo.owner.login, repo.name, number: issue.number, state: target)
                 state = target
+                info = nil
                 error = nil
                 done += 1
             } catch { self.error = error.localizedDescription }

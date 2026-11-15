@@ -42,4 +42,17 @@ struct IssuesDisplayTests {
         #expect(IssuesDisplay.closeQuestion(try issue(7, "A", pull: true)).hasPrefix("Fermer la pull request #7"))
         #expect(IssuesDisplay.mergeQuestion(try issue(7, "A", pull: true)).contains("« A »"))
     }
+
+    @Test func actionsEtEtatDuDetail() {
+        #expect(IssuesDisplay.actions(isPull: true, open: true) == [.merge, .close])
+        #expect(IssuesDisplay.actions(isPull: false, open: true) == [.close])
+        #expect(IssuesDisplay.actions(isPull: true, open: false) == [.reopen])
+        #expect(IssuesDisplay.actions(isPull: true, open: false, merged: true).isEmpty)
+        #expect(IssuesDisplay.Action.merge.title == "Fusionner")
+        #expect(IssuesDisplay.stateLabel(open: true) == "Ouverte")
+        #expect(IssuesDisplay.stateLabel(open: false) == "Fermée")
+        #expect(IssuesDisplay.stateLabel(open: false, merged: true) == "Fusionnée")
+        #expect(IssuesDisplay.commentsHeader(0) == "Commentaires")
+        #expect(IssuesDisplay.commentsHeader(2) == "2 commentaires")
+    }
 }
