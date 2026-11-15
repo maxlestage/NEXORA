@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.68 — 15 novembre 2026 — Créer une image plus simple
+- Corrigé : avec le moteur OpenAI choisi mais sans clé OpenAI, « Créer » est grisé et un bouton « Utiliser Pollinations (gratuit) » règle le problème d'un toucher (avant : la demande partait et échouait).
+- Amélioré : le bouton dit ce qu'il fait (« Créer 3 images ») et le prix est annoncé en une phrase courte.
+- Amélioré : sous les images créées, les boutons Enregistrer, Partager et Refaire sont plus grands (44 pt) ; une vibration confirme l'enregistrement dans Photos.
+
 ## 3.0.67 — 15 novembre 2026 — Journaux de CI plus courts
 - Amélioré : quand l'agent lit le journal d'une compilation iOS ratée, il consomme environ un tiers de tokens en moins (4 900 → 3 300 sur un journal type).
 - Amélioré : les chemins des erreurs sont donnés depuis la racine du dépôt (« ios/Nexora/Vue.swift:7:9 »), prêts à être ouverts.

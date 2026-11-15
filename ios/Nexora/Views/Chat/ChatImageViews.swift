@@ -485,9 +485,11 @@ struct GeneratedImagesView: View {
     let streaming: Bool
     var onRedo: (() -> Void)?
 
+    @Environment(SettingsStore.self) private var settings
     @State private var viewer: ChatImageViewerItem?
     @State private var toast: Toast?
     @State private var saving = false
+    @State private var saved = 0
 
     private var urls: [URL] { chatImageURLs(message.images) }
 
@@ -511,6 +513,7 @@ struct GeneratedImagesView: View {
         .padding(.trailing, 24)
         .fullScreenCover(item: $viewer) { v in ChatImageViewer(names: v.names, start: v.start) }
         .toast($toast)
+        .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
     }
 
     private var placeholder: some View {
@@ -518,7 +521,7 @@ struct GeneratedImagesView: View {
         return HStack(spacing: 10) {
             ProgressView()
             VStack(alignment: .leading, spacing: 2) {
-                Text(n > 1 ? "Création de \(n) images…" : "Création de l'image…")
+                Text(ImageGenDisplay.progress(n))
                     .font(.subheadline.weight(.medium))
                 Text(message.imagePrompt ?? "")
                     .font(.caption)
@@ -529,12 +532,11 @@ struct GeneratedImagesView: View {
         .padding(14)
         .frame(maxWidth: 360, alignment: .leading)
         .background(Color(uiColor: .secondarySystemBackground).opacity(0.7), in: .rect(cornerRadius: 18))
+        .accessibilityElement(children: .combine)
     }
 
     private var costLabel: String {
-        if message.model?.hasPrefix("pollinations::") == true { return "gratuit" }
-        if let c = message.cost { return "≈ \(ChatDisplay.cost(c))" }
-        return ""
+        ImageGenDisplay.costLabel(model: message.model, cost: message.cost)
     }
 
     private var actions: some View {
@@ -543,24 +545,24 @@ struct GeneratedImagesView: View {
                 save()
             } label: {
                 Image(systemName: saving ? "hourglass" : "square.and.arrow.down")
-                    .frame(width: 34, height: 34)
-                    .contentShape(Rectangle().inset(by: -5))
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
             }
             .disabled(saving || urls.isEmpty)
             .accessibilityLabel("Enregistrer dans Photos")
             if !urls.isEmpty {
                 ShareLink(items: urls) {
                     Image(systemName: "square.and.arrow.up")
-                        .frame(width: 34, height: 34)
-                        .contentShape(Rectangle().inset(by: -5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
                 }
                 .accessibilityLabel("Partager")
             }
             if let onRedo {
                 Button(action: onRedo) {
                     Image(systemName: "arrow.clockwise")
-                        .frame(width: 34, height: 34)
-                        .contentShape(Rectangle().inset(by: -5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
                 }
                 .accessibilityLabel("Refaire")
             }
@@ -580,6 +582,7 @@ struct GeneratedImagesView: View {
         Task {
             let r = await PhotoLibrarySaver.save(list)
             saving = false
+            if r.ok { saved += 1 }
             toast = Toast(text: r.text, error: !r.ok)
         }
     }
@@ -606,19 +609,20 @@ struct ImagePromptSheet: View {
         ImageGenEngine.named(settings.imageEngine).resolved(hasOpenAIKey: settings.hasOwnKey("openai"))
     }
 
+    /// Le moteur choisi ici (avant résolution d'« Automatique »).
+    private var chosen: ImageGenEngine { ImageGenEngine.named(settings.imageEngine) }
+
     /// Ce que coûtera la demande, selon le moteur, la qualité, le format et le nombre.
     private var costNote: String {
-        if ImageGenEngine.named(settings.imageEngine) == .openai && !settings.hasOwnKey("openai") {
-            return "Aucune clé OpenAI enregistrée : ajoutez-la dans Modèles → OpenAI, ou choisissez Pollinations (gratuit)."
-        }
-        guard resolved == .openai else { return "Pollinations : gratuit, sans clé." }
-        let shape = ImageGenShape.named(settings.imageShape)
-        let quality = ImageGenQuality.named(settings.imageQuality)
-        let images = "\(count) image\(count > 1 ? "s" : "")"
-        guard let each = quality.perImage(shape) else {
-            return "OpenAI choisit la qualité : jusqu'à ≈ \(ChatDisplay.cost((ImageGenQuality.high.perImage(shape) ?? 0) * Double(count))) pour \(images) (votre clé OpenAI)."
-        }
-        return "OpenAI, qualité \(quality.label.lowercased()) : ≈ \(ChatDisplay.cost(each * Double(count))) pour \(images) (votre clé OpenAI)."
+        ImageGenDisplay.costNote(
+            engine: chosen, hasOpenAIKey: settings.hasOwnKey("openai"),
+            shape: ImageGenShape.named(settings.imageShape),
+            quality: ImageGenQuality.named(settings.imageQuality), count: count)
+    }
+
+    /// Une description et un moteur utilisable (pas OpenAI sans clé).
+    private var canCreate: Bool {
+        ImageGenDisplay.canCreate(prompt: prompt, engine: chosen, hasOpenAIKey: settings.hasOwnKey("openai"))
     }
 
     var body: some View {
@@ -632,7 +636,7 @@ struct ImagePromptSheet: View {
                 } header: {
                     Text("Description")
                 } footer: {
-                    Text("Astuce : tapez aussi « /image 3 une description » dans le chat.")
+                    Text("Astuce : « /image 3 une description » dans le chat.")
                 }
                 Section("Nombre d'images") {
                     Picker("Nombre", selection: $count) {
@@ -654,8 +658,15 @@ struct ImagePromptSheet: View {
                             }
                         }
                     }
+                    if ImageGenDisplay.missingKey(engine: chosen, hasOpenAIKey: settings.hasOwnKey("openai")) {
+                        Button("Utiliser Pollinations (gratuit)", systemImage: "wand.and.stars") {
+                            settings.imageEngine = ImageGenEngine.pollinations.rawValue
+                        }
+                        .frame(minHeight: 44)
+                    }
                 } footer: {
                     Text(costNote)
+                        .foregroundStyle(ImageGenDisplay.missingKey(engine: chosen, hasOpenAIKey: settings.hasOwnKey("openai")) ? Theme.red : Color.secondary)
                 }
             }
             .navigationTitle("Créer une image")
@@ -663,11 +674,12 @@ struct ImagePromptSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") {
+                    Button(ImageGenDisplay.createLabel(count)) {
+                        guard canCreate else { return }
                         onCreate(prompt.trimmingCharacters(in: .whitespacesAndNewlines), count)
                         dismiss()
                     }
-                    .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(!canCreate)
                 }
             }
             .onAppear {
@@ -717,11 +729,6 @@ struct ImageSettingsSection: View {
     }
 
     private func keyNote(_ engine: ImageGenEngine) -> String {
-        if settings.hasOwnKey("openai") { return "" }
-        switch engine {
-        case .auto: return " Aucune clé OpenAI enregistrée : Pollinations sera utilisé."
-        case .openai: return " Aucune clé OpenAI enregistrée : ajoutez-la dans Fournisseurs → OpenAI."
-        case .pollinations: return ""
-        }
+        ImageGenDisplay.keyNote(engine: engine, hasOpenAIKey: settings.hasOwnKey("openai"))
     }
 }
