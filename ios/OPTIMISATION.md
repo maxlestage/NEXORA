@@ -621,10 +621,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (−96 %), erreur gardée. Les chemins DerivedData vivent surtout dans ces commandes :
   plus besoin de les retirer à part. Tests : 474 → 475.
 
-## Prochain passage : INTERFACE
-Visionneuse d'images (ChatImageViewer, sans vibration à l'enregistrement) ou ReposView
-(compte GitHub, liste des dépôts). Tokens ensuite : chercher une autre piste mesurable
-(journaux CI : piste close sauf vrai journal en échec qui montre autre chose).
+- 3.0.70 (interface) : visionneuse d'images (ChatImageViewer) — `ImageViewerDisplay`
+  (`clamp`, `title` « 2 sur 3 » au lieu de « 2 / 3 », `spokenTitle` « Image 2 sur 3 » pour
+  VoiceOver, `saveAllLabel`). Enregistrer : toucher = cette image, appui long (menu) =
+  toutes les images (avant : une par une) ; vibration de réussite (réglage haptics), comme
+  GeneratedImagesView. Tests : 475 → 478.
+
+## Prochain passage : TOKENS
+Chercher une piste mesurable (journaux CI : piste close sauf vrai journal en échec qui
+montre autre chose). Interface ensuite : ReposView (compte GitHub, liste des dépôts).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
