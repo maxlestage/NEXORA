@@ -238,7 +238,7 @@ struct AgentShipTests {
         let api = "https://api.github.com"
         let user = #"{"login":"max","id":56438697,"node_id":"MDQ6VXNlcjU2NDM4Njk3","avatar_url":"https://avatars.githubusercontent.com/u/56438697?v=4","gravatar_id":"","url":"\#(api)/users/max","html_url":"https://github.com/max","followers_url":"\#(api)/users/max/followers","following_url":"\#(api)/users/max/following{/other_user}","gists_url":"\#(api)/users/max/gists{/gist_id}","starred_url":"\#(api)/users/max/starred{/owner}{/repo}","subscriptions_url":"\#(api)/users/max/subscriptions","organizations_url":"\#(api)/users/max/orgs","repos_url":"\#(api)/users/max/repos","events_url":"\#(api)/users/max/events{/privacy}","received_events_url":"\#(api)/users/max/received_events","type":"User","user_view_type":"public","site_admin":false}"#
         let r = "\(api)/repos/max/site/issues/\(n)"
-        return #"{"url":"\#(r)","repository_url":"\#(api)/repos/max/site","labels_url":"\#(r)/labels{/name}","comments_url":"\#(r)/comments","events_url":"\#(r)/events","html_url":"https://github.com/max/site/issues/\#(n)","id":\#(3_000_000 + n),"node_id":"I_kwDOMxyz\#(n)","number":\#(n),"title":"Le bouton Envoyer reste grisé \#(n)","user":\#(user),"labels":[{"id":1,"node_id":"LA_kw1","url":"\#(api)/repos/max/site/labels/bug","name":"bug","color":"d73a4a","default":true,"description":"Something isn't working"}],"state":"open","locked":false,"assignee":null,"assignees":[],"milestone":null,"comments":2,"created_at":"2026-11-10T07:00:00Z","updated_at":"2026-11-11T07:00:00Z","closed_at":null,"author_association":"OWNER","active_lock_reason":null,"body":"Après une photo, le bouton reste grisé.","reactions":{"url":"\#(r)/reactions","total_count":0,"+1":0,"-1":0},"timeline_url":"\#(r)/timeline","performed_via_github_app":null,"state_reason":null}"#
+        return #"{"url":"\#(r)","repository_url":"\#(api)/repos/max/site","labels_url":"\#(r)/labels{/name}","comments_url":"\#(r)/comments","events_url":"\#(r)/events","html_url":"https://github.com/max/site/issues/\#(n)","id":\#(3_000_000 + n),"node_id":"I_kwDOMxyz\#(n)","number":\#(n),"title":"Le bouton Envoyer reste grisé \#(n)","user":\#(user),"labels":[{"id":1,"node_id":"LA_kw1","url":"\#(api)/repos/max/site/labels/bug","name":"bug","color":"d73a4a","default":true,"description":"Something isn't working"}],"state":"open","locked":false,"assignee":null,"assignees":[],"milestone":null,"comments":2,"created_at":"2026-11-10T07:00:00Z","updated_at":"2026-11-11T07:00:00Z","closed_at":null,"author_association":"OWNER","active_lock_reason":null,"body":"Après une photo, le bouton reste grisé.","reactions":{"url":"\#(r)/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"\#(r)/timeline","performed_via_github_app":null,"state_reason":null}"#
     }
 
     @Test("outil github : liens vers l'API et identifiants internes retirés (banc)")
@@ -259,7 +259,7 @@ struct AgentShipTests {
         #expect(slim.count * 2 < before)
         for keep in ["\"number\": 5", "\"title\": \"Le bouton Envoyer reste grisé 5\"", "\"login\": \"max\"",
                      "\"html_url\": \"https://github.com/max/site/issues/5\"", "\"state\": \"open\"",
-                     "\"name\": \"bug\"", "\"body\":", "\"closed_at\": null", "\"total_count\": 0"] {
+                     "\"name\": \"bug\"", "\"body\":", "\"closed_at\": null"] {
             #expect(slim.contains(keep), "\(keep)")
         }
         for gone in ["node_id", "followers_url", "comments_url", "api.github.com", "gravatar_id", "avatar_url"] {
@@ -271,7 +271,13 @@ struct AgentShipTests {
                      "\"assignee\"", "locked", "site_admin", "user_view_type"] {
             #expect(!shown.contains(gone), "\(gone)")
         }
-        #expect(shown.count / 4 < 760)
+        // Aucune réaction : la clé disparaît ; sinon seuls les compteurs non nuls restent.
+        #expect(!shown.contains("reactions") && !shown.contains("hooray"))
+        let liked = AgentRun.slimGitHub(["reactions": ["url": "https://api.github.com/r", "total_count": 2,
+                                                       "+1": 2, "heart": 0]]) as? [String: Any]
+        let r = liked?["reactions"] as? [String: Any]
+        #expect(r?.keys.sorted() == ["+1", "total_count"] && r?["total_count"] as? Int == 2)
+        #expect(shown.count / 4 < 680)
         let kept = AgentRun.slimGitHub(["merged_at": NSNull(), "locked": true, "assignee": ["login": "max"],
                                         "milestone": NSNull(), "site_admin": false]) as? [String: Any]
         #expect(kept?.keys.sorted() == ["assignee", "locked", "merged_at"])

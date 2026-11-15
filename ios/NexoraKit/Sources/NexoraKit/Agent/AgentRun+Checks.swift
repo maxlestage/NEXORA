@@ -111,6 +111,8 @@ extension AgentRun {
     /// `_links`…) ni les identifiants internes (`node_id`, `gravatar_id`). Ils
     /// remplissent près de la moitié d'une réponse et l'agent sait écrire les
     /// chemins de l'API ; `html_url` et les liens de téléchargement sont gardés.
+    /// Les compteurs de réactions à zéro sont retirés (`reactions` disparaît s'il
+    /// n'y en a aucune).
     public nonisolated static func slimGitHub(_ x: Any) -> Any {
         switch x {
         case let d as [String: Any]:
@@ -122,6 +124,12 @@ extension AgentRun {
                 }
                 if k == "url", let s = v as? String, s.hasPrefix("https://api.github.com/") { continue }
                 if quietKeys.contains(k), isQuiet(v) { continue }
+                if k == "reactions", let r = v as? [String: Any] {
+                    // Seules les réactions présentes ; aucune réaction : clé retirée.
+                    let some = r.filter { $0.key != "url" && (($0.value as? Int) ?? 1) != 0 }
+                    if !some.isEmpty { out[k] = some }
+                    continue
+                }
                 out[k] = slimGitHub(v)
             }
             return out

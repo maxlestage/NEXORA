@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.77 — 15 novembre 2026 — Agent plus économe avec les tickets GitHub
+
+- Amélioré : quand l'agent lit des issues ou des pull requests, les compteurs de réactions à zéro ne lui sont plus envoyés (environ 17 % de tokens en moins sur une liste de tickets).
+- Les réactions réellement présentes (👍, ❤️…) restent visibles pour l'agent.
+
 ## 3.0.76 — 15 novembre 2026 — Issues et pull requests plus simples
 
 - Amélioré : sur une issue ou une pull request, « Fusionner », « Fermer » ou « Rouvrir » sont en haut, sous la description, plus besoin de descendre sous les commentaires.
