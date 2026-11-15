@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.76 — 15 novembre 2026 — Issues et pull requests plus simples
+
+- Amélioré : sur une issue ou une pull request, « Fusionner », « Fermer » ou « Rouvrir » sont en haut, sous la description, plus besoin de descendre sous les commentaires.
+- Corrigé : les boutons restent désactivés pendant une fusion ou une fermeture (pas de double envoi).
+- Nouveau : une pull request fusionnée affiche « Fusionnée » et ne propose plus de la rouvrir ; le nombre de commentaires s'affiche en titre.
+
 ## 3.0.75 — 15 novembre 2026 — Agent encore plus économe avec GitHub
 - Amélioré : les réponses de GitHub lues par l'agent coûtent environ 23 % de tokens en moins (champs vides comme « milestone: null » ou « locked: false » retirés).
 - Les informations utiles restent, même vides : date de fusion ou de fermeture, résultat d'un run en cours.

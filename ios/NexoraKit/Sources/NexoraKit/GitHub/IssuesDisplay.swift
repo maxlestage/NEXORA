@@ -67,4 +67,47 @@ public enum IssuesDisplay {
     public static func closeQuestion(_ i: Issue) -> String {
         "Fermer \(i.isPull ? "la pull request" : "l'issue") #\(i.number) ? Vous pourrez la rouvrir."
     }
+
+    /// Les actions d'une issue ou d'une pull request, la principale d'abord.
+    public enum Action: String, Sendable, CaseIterable {
+        case merge, close, reopen
+
+        /// Le texte du bouton.
+        public var title: String {
+            switch self {
+            case .merge: "Fusionner"
+            case .close: "Fermer"
+            case .reopen: "Rouvrir"
+            }
+        }
+
+        /// L'icône SF Symbols du bouton.
+        public var symbol: String {
+            switch self {
+            case .merge: "arrow.triangle.merge"
+            case .close: "xmark.circle"
+            case .reopen: "arrow.uturn.left.circle"
+            }
+        }
+    }
+
+    /// Les actions proposées : « Fusionner » puis « Fermer » pour une pull request
+    /// ouverte, « Fermer » pour une issue ouverte, rien après une fusion (on ne rouvre
+    /// pas une pull request fusionnée), sinon « Rouvrir ».
+    public static func actions(isPull: Bool, open: Bool, merged: Bool = false) -> [Action] {
+        if merged { return [] }
+        if !open { return [.reopen] }
+        return isPull ? [.merge, .close] : [.close]
+    }
+
+    /// La pastille d'état : « Ouverte », « Fermée » ou « Fusionnée ».
+    public static func stateLabel(open: Bool, merged: Bool = false) -> String {
+        merged ? "Fusionnée" : (open ? "Ouverte" : "Fermée")
+    }
+
+    /// Le titre de la section des commentaires : « 3 commentaires », ou
+    /// « Commentaires » s'il n'y en a pas encore.
+    public static func commentsHeader(_ n: Int) -> String {
+        comments(n) ?? "Commentaires"
+    }
 }

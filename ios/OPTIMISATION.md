@@ -664,10 +664,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubSlim` (5 tickets) : 920 → 706 tokens (−23 % ; 2 928 avant 3.0.71).
   Tests : 484 (banc enrichi).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.75) → prochain passage : INTERFACE — FileEditorView ou IssuesListView.
-Tokens ensuite : réactions toutes à zéro des tickets (`reactions` ≈ 60 car./ticket, mais
-le banc vérifie « total_count » : à repenser), ou autre piste du carnet.
+- 3.0.76 (interface) : IssueDetailView — actions (`IssuesDisplay.actions` : Fusionner puis
+  Fermer, Rouvrir, rien après fusion) remontées sous la description avec info/erreur
+  (avant : tout en bas, sous les commentaires et la réponse) ; `busy` désactive les boutons
+  pendant fusion/fermeture (double fusion possible avant) ; pastille « Fusionnée »
+  (`stateLabel`) ; titre « 3 commentaires » (`commentsHeader`) ; clavier replié au
+  défilement. Tests : 484 → 485.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.76) → prochain passage : TOKENS — réactions toutes à zéro des
+tickets (`reactions` ≈ 60 car./ticket ; le banc vérifie « total_count » : à repenser), ou
+autre piste du carnet. Interface ensuite : FileEditorView (RepoView.swift).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
