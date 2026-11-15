@@ -671,10 +671,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (`stateLabel`) ; titre « 3 commentaires » (`commentsHeader`) ; clavier replié au
   défilement. Tests : 484 → 485.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.76) → prochain passage : TOKENS — réactions toutes à zéro des
-tickets (`reactions` ≈ 60 car./ticket ; le banc vérifie « total_count » : à repenser), ou
-autre piste du carnet. Interface ensuite : FileEditorView (RepoView.swift).
+- 3.0.77 (tokens) : outil github de l'agent — `slimGitHub` ne garde de `reactions` que
+  les compteurs non nuls (sans `url`) et retire la clé quand il n'y en a aucune. Banc
+  `AgentShipTests.githubSlim` rendu réaliste (les 8 réactions renvoyées par GitHub) :
+  786 → 651 tokens (−17 %). Tests : 485 (banc enrichi : réactions présentes gardées).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.77) → prochain passage : INTERFACE — FileEditorView (RepoView.swift).
+Tokens ensuite : autre piste du carnet (par ex. `author_association`, `labels` réduits
+à leur nom dans les listes de tickets — vérifier que l'agent n'en a pas besoin).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
