@@ -144,4 +144,33 @@ struct CILogTests {
         #expect(CILog.clean("/home/runner/work/site/site/lib/a.dart:3:1: error: z") == ["lib/a.dart:3:1: error: z"])
         #expect(CILog.clean("cd /__w/site/site && make") == ["cd . && make"])
     }
+    @Test("journal xcodebuild : commandes complètes du compilateur raccourcies")
+    func xcodebuildCommandsBench() {
+        let dd = "/Users/runner/Library/Developer/Xcode/DerivedData/Nexora-bxkqzjwlmcfoyhdzrtpq/Build/Intermediates.noindex/Nexora.build/Debug-iphonesimulator/Nexora.build"
+        let tool = "/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend"
+        var l: [String] = ["▸ Run xcodebuild test"]
+        for n in 1...40 {
+            let f = "/Users/runner/work/NEXORA/NEXORA/ios/Nexora/Views/Vue\(n).swift"
+            l.append("SwiftCompile normal arm64 \(f) (in target 'Nexora' from project 'Nexora')")
+            l.append("    cd /Users/runner/work/NEXORA/NEXORA/ios")
+            // La commande complète (≈ 4 000 car.), comme xcodebuild l'affiche.
+            let flags = (1...30).map { " -I \(dd)/Objects-normal/arm64/m\($0) -Xcc -fmodule-map-file=\(dd)/m\($0).modulemap" }.joined()
+            l.append("    builtin-swiftTaskExecution -- \(tool) -frontend -c -primary-file \(f)\(flags) -o \(dd)/Objects-normal/arm64/Vue\(n).o")
+            if n == 30 { l += ["\(f):7:9: error: cannot find 'foo' in scope", "        foo()", "        ^~~"] }
+        }
+        l += ["** TEST FAILED **", "##[error]Process completed with exit code 65."]
+        let raw = l.joined(separator: "\n")
+        let after = CILog.condense(raw, lines: 200)
+        let kept = CILog.clean(raw).filter { $0.contains("builtin-swiftTaskExecution") }
+        print("🪙 journal xcodebuild avec commandes (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.contains("ios/Nexora/Views/Vue30.swift:7:9: error: cannot find 'foo' in scope"))
+        #expect(after.contains("##[error]Process completed with exit code 65."))
+        #expect(kept.count == 40)
+        #expect(kept.allSatisfy { $0.count < CILog.longKeep + 30 && $0.hasSuffix(" car.)") })
+        #expect(after.count < plainTail(raw, lines: 200).count / 5)
+        // Une ligne d'erreur longue est gardée bien plus loin ; une ligne courte, telle quelle.
+        let longError = "a.swift:1:1: error: " + String(repeating: "x", count: 1500)
+        #expect(CILog.shorten(longError) == longError)
+        #expect(CILog.shorten("court") == "court")
+    }
 }
