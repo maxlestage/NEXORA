@@ -643,10 +643,15 @@ mémoire 32k tokens, consigne 3 000 car.
   lien » (vibration) ; « Créer » remplacé par une roue pendant la création. Tests :
   479 → 482.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.72) → prochain passage : TOKENS — clés nulles des réponses
-github (à mesurer sans perdre « merged_at ») ; JSON compact au lieu d'indenté pour
-l'outil github. Interface ensuite : RepoView (fiche d'un dépôt).
+- 3.0.73 (tokens) : outil github de l'agent — `AgentRun.githubText` : JSON compact au
+  lieu d'indenté, une ligne par élément d'une liste (en tête ou dans un objet :
+  `workflow_runs`, `items`), donc la coupure à 7 000 car. tombe entre deux éléments.
+  Banc `AgentShipTests.githubSlim` (5 tickets) : 1 144 → 920 tokens (−20 % ; 2 928 avant
+  3.0.71). Valeurs nulles gardées. Tests : 482 (2 tests enrichis/adaptés au format).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.73) → prochain passage : INTERFACE — RepoView (fiche d'un dépôt).
+Tokens ensuite : clés nulles des réponses github (à mesurer sans perdre « merged_at »).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
