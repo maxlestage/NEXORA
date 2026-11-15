@@ -733,10 +733,18 @@ mémoire 32k tokens, consigne 3 000 car.
   lien symbolique `Resources/models.json` est copié tel quel dans `.build` (cassé) ; la CI
   (conteneur swift:6.4.2) est verte. Ne pas y toucher.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.85 : dépôts imbriqués) → prochain passage : INTERFACE : écran Modèles
-ou Réglages. Tokens ensuite : vérifier `workflow_runs` réels (`head_commit`, `actor` et
-`triggering_actor` en double ?) ou journal xcodebuild en échec réel.
+- 3.0.86 (interface) : Réglages › « Supprimer les anciennes conversations » —
+  `SettingsDisplay.cleanOption`/`cleanChoices`/`cleanMessage`, `ChatStore.staleCount` :
+  chaque durée dit ce qu'elle supprime (« 90 jours · 12 conversations » ; avant : la durée
+  seule, effet découvert après coup) ; durées sans effet masquées, doublons voisins réduits à
+  la plus longue ; rien à supprimer → message clair et bouton OK (avant : 4 choix puis toast
+  « Rien à supprimer ») ; choix en rouge (destructif), Annuler visible. Tests : 490 → 491.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.86 : ménage des conversations, Réglages) → prochain passage : TOKENS :
+`workflow_runs` réels — constaté le 15/11 : `triggering_actor` identique à `actor` et
+`head_commit.message` complet (plusieurs lignes) à chaque run → ne garder `triggering_actor`
+que s'il diffère, réduire le message à sa 1re ligne. Interface ensuite : écran Modèles.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

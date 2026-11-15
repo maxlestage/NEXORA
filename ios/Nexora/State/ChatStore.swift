@@ -78,6 +78,11 @@ final class ChatStore {
 
     /// Supprime les conversations non épinglées sans activité depuis `days` jours.
     @discardableResult
+    /// Nombre de conversations que `deleteOlderThan(days)` supprimerait (rien n'est supprimé).
+    func staleCount(_ days: Int) -> Int {
+        ConversationStore.stale(index, days: days, running: running).count
+    }
+
     func deleteOlderThan(_ days: Int) -> Int {
         let old = ConversationStore.stale(index, days: days, running: running)
         for id in old {

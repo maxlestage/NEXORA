@@ -22,6 +22,17 @@ struct SettingsDisplayTests {
         #expect(!SettingsDisplay.cleaned(3).contains("(s)"))
     }
 
+    @Test func menage() {
+        #expect(SettingsDisplay.cleanOption(days: 30, count: 12) == "30 jours · 12 conversations")
+        #expect(SettingsDisplay.cleanOption(days: 365, count: 1) == "1 an · 1 conversation")
+        // 0 retiré ; 180 et 365 suppriment autant : seule la plus longue reste.
+        let c = SettingsDisplay.cleanChoices([(30, 9), (90, 4), (180, 2), (365, 2), (720, 0)])
+        #expect(c.map(\.days) == [30, 90, 365])
+        #expect(SettingsDisplay.cleanChoices([(30, 0), (90, 0)]).isEmpty)
+        #expect(SettingsDisplay.cleanMessage(hasChoices: false).contains("Aucune"))
+        #expect(SettingsDisplay.cleanMessage(hasChoices: true).contains("épinglées"))
+    }
+
     @Test func github() {
         #expect(SettingsDisplay.github(login: "max", connected: true) == "Connecté : @max")
         #expect(SettingsDisplay.github(login: nil, connected: true) == "Connecté : @…")
