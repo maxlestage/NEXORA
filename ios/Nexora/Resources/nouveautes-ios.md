@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.82 — 15 novembre 2026 — Blocs de code plus pratiques
+
+- Amélioré : l'en-tête d'un bloc de code dit son nombre de lignes (« swift · 12 lignes »).
+- Amélioré : le bouton Copier est plus facile à toucher et confirme la copie par une vibration.
+- Nouveau : on peut sélectionner une partie du code pour n'en copier qu'un morceau.
+- Accessibilité : VoiceOver annonce le langage et la longueur du bloc, et dit « Copier le code swift ».
+
 ## 3.0.81 — 15 novembre 2026 — Pull requests plus légères pour l'agent
 - Amélioré : quand l'agent lit des tickets ou des pull requests sur GitHub, les listes vides (personne d'assigné, aucun relecteur demandé) ne lui sont plus envoyées : environ 3 % de tokens en moins sur ces réponses, davantage sur les pull requests.
 
