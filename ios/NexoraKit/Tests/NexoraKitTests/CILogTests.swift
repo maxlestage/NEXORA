@@ -121,4 +121,27 @@ struct CILogTests {
             #expect(!after.contains("2026-11-12T"))
         }
     }
+    @Test("journal xcodebuild : chemins du dossier de travail du runner retirés")
+    func xcodebuildBench() {
+        let root = "/Users/runner/work/NEXORA/NEXORA/"
+        var l: [String] = ["▸ Run xcodebuild test"]
+        for n in 1...120 {
+            let f = root + "ios/Nexora/Views/Vue\(n).swift"
+            l.append("SwiftCompile normal arm64 Compiling\\ Vue\(n).swift \(f) (in target 'Nexora' from project 'Nexora')")
+            l.append("    cd \(root)ios")
+            if n % 10 == 0 { l.append("\(f):\(n):5: warning: 'onChange(of:perform:)' was deprecated in iOS 17.0") }
+            if n == 90 { l += ["\(f):7:9: error: cannot find 'foo' in scope", "        foo()", "        ^~~"] }
+        }
+        l += ["** TEST FAILED **", "##[error]Process completed with exit code 65."]
+        let raw = l.joined(separator: "\n")
+        let after = CILog.condense(raw, lines: 200)
+        print("🪙 journal xcodebuild (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.contains("ios/Nexora/Views/Vue90.swift:7:9: error: cannot find 'foo' in scope"))
+        #expect(!after.contains(root))
+        #expect(after.contains("    cd ios"))
+        // Ailleurs qu'au dossier de travail, le chemin reste tel quel.
+        #expect(CILog.clean("/Users/runner/Library/x.swift:1:1: error: y") == ["/Users/runner/Library/x.swift:1:1: error: y"])
+        #expect(CILog.clean("/home/runner/work/site/site/lib/a.dart:3:1: error: z") == ["lib/a.dart:3:1: error: z"])
+        #expect(CILog.clean("cd /__w/site/site && make") == ["cd . && make"])
+    }
 }

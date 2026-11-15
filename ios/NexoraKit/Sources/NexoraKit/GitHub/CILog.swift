@@ -4,6 +4,11 @@ private let logStamp = DRegex(#"^\d{4}-\d\d-\d\dT[\d:.]+Z ?"#)
 private let logColor = DRegex(#"\u001B\[[0-9;]*[A-Za-z]"#)
 private let logProgress = DRegex(#"^\[\d+/\d+\] |^Received \d+ of \d+ \("#)
 private let logPlace = DRegex(#"(?:[\w.~-]*/)*[\w.-]+\.[A-Za-z]\w*:\d+(?::\d+)?"#)
+/// Le dossier de travail du runner (« /Users/runner/work/depot/depot/ »,
+/// « /home/runner/work/…/ », « /__w/…/ » dans un conteneur) : répété sur chaque
+/// ligne de xcodebuild, il ne dit rien à l'agent, qui lit des chemins du dépôt.
+private let logRoot = DRegex(#"(?:/home/runner/work|/Users/runner/work|/__w)/[^/\s'"]+/[^/\s'"]+/"#)
+private let logRootBare = DRegex(#"(?:/home/runner/work|/Users/runner/work|/__w)/[^/\s'"]+/[^/\s'"]+(?=[\s'"]|$)"#)
 private let logError = DRegex(
     #"##\[error\]|\berror\b|\bfail(ed|ure|s)?\b|panic|traceback|exception|fatal|✘"#, caseSensitive: false)
 
@@ -34,6 +39,9 @@ public enum CILog {
             line = logStamp.replaceFirst(line, "")
             if line.contains("\u{1B}") { line = logColor.replaceAll(line, "") }
             while let last = line.last, last == " " || last == "\t" { line.removeLast() }
+            if line.contains("/work/") || line.contains("/__w/") {
+                line = logRootBare.replaceAll(logRoot.replaceAll(line, ""), ".")
+            }
             // Le nettoyage de fin de job (« Post job cleanup », étapes « Post … »).
             if line.hasPrefix("Post job cleanup.") || line.hasPrefix("##[group]Post ")
                 || line.hasPrefix("Cleaning up orphan processes") { break }
