@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.78 — 15 novembre 2026 — Modifier un fichier en toute clarté
+- Nouveau : au-dessus du bouton Enregistrer, le nombre de lignes ajoutées et retirées (« +3 −1 ») et la branche où le commit partira.
+- Amélioré : VoiceOver lit ce résumé en toutes lettres (« 3 lignes ajoutées, 1 retirée, sur main »).
+
 ## 3.0.77 — 15 novembre 2026 — Agent plus économe avec les tickets GitHub
 
 - Amélioré : quand l'agent lit des issues ou des pull requests, les compteurs de réactions à zéro ne lui sont plus envoyés (environ 17 % de tokens en moins sur une liste de tickets).

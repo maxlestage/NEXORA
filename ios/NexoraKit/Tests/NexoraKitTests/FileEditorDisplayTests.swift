@@ -21,6 +21,18 @@ struct FileEditorDisplayTests {
         #expect(FileEditorDisplay.pathProblem(".github/ci.yml") == nil)
     }
 
+    @Test func lignesModifiees() {
+        let old = "a\nb\nc\n"
+        #expect(FileEditorDisplay.changeLine(old: old, new: "a\nB\nc\nd\n", branch: "main") == "+2 −1 · sur main")
+        #expect(FileEditorDisplay.changeLine(old: old, new: "a\nc\n", branch: "dev") == "+0 −1 · sur dev")
+        #expect(FileEditorDisplay.changeAccessibility(old: old, new: "a\nb\nc\nd\n", branch: "main")
+            == "1 ligne ajoutée, 0 retirées, sur main")
+        // Fichier trop long : pas de décompte, la branche reste dite.
+        let big = String(repeating: "x\n", count: 4_000)
+        #expect(FileEditorDisplay.lineChanges(old: big, new: big + "y") == nil)
+        #expect(FileEditorDisplay.changeLine(old: big, new: big + "y", branch: "main") == "Sur main")
+    }
+
     @Test func resume() {
         #expect(FileEditorDisplay.summary("") == "Fichier vide")
         #expect(FileEditorDisplay.summary("a") == "1 ligne · 1 o")

@@ -173,6 +173,37 @@ public enum FileEditorDisplay {
         return (lines == 1 ? "1 ligne" : "\(lines) lignes") + " · " + FilesDisplay.size(bytes)
     }
 
+    /// Lignes ajoutées et retirées entre le fichier lu et le texte modifié, ou nil
+    /// si l'un des deux dépasse `maxLines` lignes (calcul évité à chaque frappe).
+    public static func lineChanges(old: String, new: String, maxLines: Int = 3_000) -> (added: Int, removed: Int)? {
+        let a = old.split(separator: "\n", omittingEmptySubsequences: false)
+        let b = new.split(separator: "\n", omittingEmptySubsequences: false)
+        guard a.count <= maxLines, b.count <= maxLines else { return nil }
+        var added = 0, removed = 0
+        for change in b.difference(from: a) {
+            switch change {
+            case .insert: added += 1
+            case .remove: removed += 1
+            }
+        }
+        return (added, removed)
+    }
+
+    /// Ce qui sera enregistré, au-dessus du bouton : « +3 −1 · sur main ».
+    /// Sans décompte (fichier trop long) : « Sur main ».
+    public static func changeLine(old: String, new: String, branch: String) -> String {
+        guard let c = lineChanges(old: old, new: new) else { return "Sur \(branch)" }
+        return "+\(c.added) −\(c.removed) · sur \(branch)"
+    }
+
+    /// La même chose pour VoiceOver : « 3 lignes ajoutées, 1 retirée, sur main ».
+    public static func changeAccessibility(old: String, new: String, branch: String) -> String {
+        guard let c = lineChanges(old: old, new: new) else { return "Enregistrement sur \(branch)" }
+        let added = c.added == 1 ? "1 ligne ajoutée" : "\(c.added) lignes ajoutées"
+        let removed = c.removed == 1 ? "1 retirée" : "\(c.removed) retirées"
+        return "\(added), \(removed), sur \(branch)"
+    }
+
     /// Une décimale à la française, sans « ,0 » : 1,2 ; 12.
     static func decimal(_ x: Double) -> String {
         let r = (x * 10).rounded() / 10
