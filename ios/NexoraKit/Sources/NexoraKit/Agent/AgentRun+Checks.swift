@@ -134,6 +134,10 @@ extension AgentRun {
                     out[k] = names
                     continue
                 }
+                if nestedRepoKeys.contains(k), let r = v as? [String: Any], let short = repoName(r) {
+                    out[k] = short
+                    continue
+                }
                 out[k] = slimGitHub(v)
             }
             return personLogin(out) ?? out
@@ -154,6 +158,24 @@ extension AgentRun {
               d.keys.allSatisfy({ ["login", "id", "html_url", "type"].contains($0) }) else { return nil }
         if let link = d["html_url"] as? String, link != "https://github.com/\(login)" { return nil }
         return type == "User" ? ["login": login] : ["login": login, "type": type]
+    }
+
+    /// Clés sous lesquelles GitHub répète un dépôt entier (≈ 40 champs) : `repo` de
+    /// `head`/`base` d'une pull request (deux fois le même dépôt), `repository` et
+    /// `head_repository` de chaque run de workflow ou résultat de recherche de code.
+    nonisolated static let nestedRepoKeys: Set<String> = ["repo", "repository", "head_repository"]
+
+    /// Un dépôt cité dans un autre objet réduit à ce qui sert à l'agent : son nom
+    /// complet (pour écrire les chemins de l'API), sa branche par défaut, et `fork` ou
+    /// `private` quand ils sont vrais. `nil` si ce n'est pas un dépôt complet (sans
+    /// `full_name` ni `owner`) : il reste alors tel quel. Un dépôt demandé pour
+    /// lui-même (GET /repos/…, listes de dépôts) n'est pas sous ces clés : gardé entier.
+    nonisolated static func repoName(_ r: [String: Any]) -> [String: Any]? {
+        guard let name = r["full_name"] as? String, r["owner"] != nil else { return nil }
+        var out: [String: Any] = ["full_name": name]
+        if let b = r["default_branch"] as? String { out["default_branch"] = b }
+        for flag in ["fork", "private"] where (r[flag] as? Bool) == true { out[flag] = true }
+        return out
     }
 
     /// Les étiquettes d'un ticket ou d'une pull request réduites à leur nom

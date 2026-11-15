@@ -301,6 +301,64 @@ struct AgentShipTests {
         #expect(other?.count == 2)
     }
 
+    /// Un dépôt complet tel que GitHub le répète dans `head.repo`/`base.repo` (champs
+    /// réels, liens vers l'API compris).
+    static func repoJSON(_ owner: String, fork: Bool) -> [String: Any] {
+        let api = "https://api.github.com/repos/\(owner)/site"
+        var r: [String: Any] = [
+            "id": 812_345_678, "node_id": "R_kgDOMxyz", "name": "site", "full_name": "\(owner)/site",
+            "private": false, "owner": ["login": owner, "id": 56438697, "type": "User",
+                                         "html_url": "https://github.com/\(owner)", "avatar_url": "https://avatars.githubusercontent.com/u/1"],
+            "html_url": "https://github.com/\(owner)/site", "description": "Site vitrine de l'association",
+            "fork": fork, "url": api, "created_at": "2025-01-02T10:00:00Z", "updated_at": "2026-11-10T07:00:00Z",
+            "pushed_at": "2026-11-11T07:00:00Z", "git_url": "git://github.com/\(owner)/site.git",
+            "ssh_url": "git@github.com:\(owner)/site.git", "clone_url": "https://github.com/\(owner)/site.git",
+            "svn_url": "https://github.com/\(owner)/site", "homepage": "https://exemple.fr", "size": 2048,
+            "stargazers_count": 3, "watchers_count": 3, "language": "TypeScript", "has_issues": true,
+            "has_projects": true, "has_downloads": true, "has_wiki": false, "has_pages": false,
+            "has_discussions": false, "forks_count": 1, "mirror_url": NSNull(), "archived": false,
+            "disabled": false, "open_issues_count": 4, "license": NSNull(), "allow_forking": true,
+            "is_template": false, "web_commit_signoff_required": false, "topics": [String](),
+            "visibility": "public", "forks": 1, "open_issues": 4, "watchers": 3, "default_branch": "main",
+        ]
+        for k in ["forks_url", "keys_url", "hooks_url", "issues_url", "pulls_url", "commits_url", "branches_url"] {
+            r[k] = "\(api)/\(k.dropLast(4))"
+        }
+        return r
+    }
+
+    @Test("outil github : dépôt répété dans head/base d'une pull request réduit à son nom (banc)")
+    func githubNestedRepo() throws {
+        func side(_ owner: String, _ ref: String, fork: Bool) -> [String: Any] {
+            ["label": "\(owner):\(ref)", "ref": ref, "sha": "a1b2c3d4e5f6", "user": ["login": owner, "id": 1, "type": "User"],
+             "repo": Self.repoJSON(owner, fork: fork)]
+        }
+        let pull: [String: Any] = ["number": 7, "title": "Corrige le bouton", "state": "open", "body": "Corrige #5.",
+                                   "html_url": "https://github.com/max/site/pull/7", "merged_at": NSNull(),
+                                   "head": side("ami", "correctif", fork: true), "base": side("max", "main", fork: false)]
+        let pulls = [pull, pull, pull]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(pulls.map { p -> [String: Any] in
+            var p = p  // Référence : head/base gardés entiers (seuls les liens et identifiants partent).
+            for k in ["head", "base"] { var s = p[k] as! [String: Any]; s["repo"] = ["keep": AgentRun.slimGitHub(s["repo"]!)]; p[k] = s }
+            return p
+        })).count - 3 * 2 * #"{"keep":}"#.count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(pulls)).count
+        print("Banc github (3 pull requests) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 2 < before)
+        let shown = AgentRun.githubText(AgentRun.slimGitHub(pull))
+        #expect(shown.contains(#""repo":{"default_branch":"main","fork":true,"full_name":"ami/site"}"#))
+        #expect(shown.contains(#""repo":{"default_branch":"main","full_name":"max/site"}"#))
+        #expect(shown.contains(#""ref":"correctif""#) && shown.contains(#""merged_at":null"#))
+        #expect(!shown.contains("stargazers_count") && !shown.contains("clone_url"))
+        // Un dépôt demandé pour lui-même reste entier ; une valeur qui n'est pas un dépôt aussi.
+        let alone = AgentRun.slimGitHub(Self.repoJSON("max", fork: false)) as? [String: Any]
+        #expect(alone?["stargazers_count"] as? Int == 3)
+        let other = AgentRun.slimGitHub(["repository": ["name": "site"], "repo": "max/site"]) as? [String: Any]
+        #expect((other?["repository"] as? [String: Any])?["name"] as? String == "site" && other?["repo"] as? String == "max/site")
+        let priv = AgentRun.repoName(["full_name": "max/x", "owner": ["login": "max"], "private": true, "fork": false])
+        #expect(priv?.keys.sorted() == ["full_name", "private"])
+    }
+
     @Test("pull request fusionnée sur GitHub entre-temps : une nouvelle est ouverte")
     func mergedElsewhere() async {
         let hub = FakeHub()
