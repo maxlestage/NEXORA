@@ -73,13 +73,37 @@ extension AgentRun {
         var shown = text
         if let data = text.data(using: .utf8),
            let j = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
-            shown = prettyJSON(Self.slimGitHub(j))
+            shown = Self.githubText(Self.slimGitHub(j))
         }
         if shown.len > 7000 {
             shown = shown.sub(0, 7000) + "\n… (\(shown.len - 7000) caractères "
                 + "de plus : précise la requête, par exemple ?per_page=5)"
         }
         return "HTTP \(status)\n\(shown)"
+    }
+
+    /// Une réponse JSON de GitHub écrite pour le modèle : compacte (sans indentation,
+    /// qui coûtait près d'un tiers des tokens), une ligne par élément d'une liste pour
+    /// que les éléments restent faciles à distinguer et que la coupure à 7 000
+    /// caractères tombe entre deux éléments plutôt qu'au milieu d'un objet.
+    public nonisolated static func githubText(_ x: Any) -> String {
+        if let a = x as? [Any] {
+            if a.isEmpty { return "[]" }
+            return "[\n" + a.map { jsonText($0) }.joined(separator: ",\n") + "\n]"
+        }
+        if let d = x as? [String: Any] {
+            // Un objet qui contient une liste d'objets (`workflow_runs`, `items` d'une
+            // recherche…) : une ligne par clé et par élément de cette liste.
+            let lists = d.keys.filter { (d[$0] as? [Any]).map { !$0.isEmpty && $0.allSatisfy { $0 is [String: Any] } } ?? false }
+            if lists.isEmpty { return jsonText(d) }
+            // `[v]` puis sans les crochets : une valeur seule (texte, nombre) s'écrit aussi.
+            func inner(_ v: Any) -> String { String(jsonText([v]).dropFirst().dropLast()) }
+            let items: [String] = d.keys.sorted().map { k in
+                inner(k) + ":" + (lists.contains(k) ? githubText(d[k]!) : inner(d[k]!))
+            }
+            return "{\n" + items.joined(separator: ",\n") + "\n}"
+        }
+        return prettyJSON(x)
     }
 
     /// Une réponse de l'API GitHub allégée pour le modèle : sans les liens vers

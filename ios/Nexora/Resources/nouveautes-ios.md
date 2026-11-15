@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.73 — 15 novembre 2026 — Agent plus économe avec GitHub (suite)
+- Amélioré : les réponses de GitHub lues par l'agent sont envoyées en JSON compact, une ligne par élément : environ 20 % de tokens en moins pour une liste de tickets.
+- Amélioré : plus d'éléments tiennent avant la coupure à 7 000 caractères, qui tombe désormais entre deux éléments.
+
 ## 3.0.72 — 15 novembre 2026 — Liste des dépôts plus simple
 - Amélioré : vos propres dépôts s'affichent sous leur nom court (« nexora » au lieu de « vous/nexora »), avec leur nombre en tête de liste (« 3 sur 12 » pendant une recherche).
 - Nouveau : appui long sur un dépôt pour l'ouvrir sur GitHub ou copier son lien.

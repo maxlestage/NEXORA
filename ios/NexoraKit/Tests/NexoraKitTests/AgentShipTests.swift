@@ -226,7 +226,7 @@ struct AgentShipTests {
         run.specs.append("déjà compris")
         await run.run()
         #expect(llm.last(1).contains("HTTP 200"))
-        #expect(llm.last(1).contains("\"total_count\": 1"))
+        #expect(llm.last(1).contains("\"total_count\":1,\n\"workflow_runs\":[\n{\"id\":3}\n]"))
         #expect(llm.last(2).contains("Erreur ici"))
         #expect(!llm.last(2).contains("2026-11-10T"))
         #expect(llm.last(3).contains("la fusion est faite par l'app"))
@@ -247,7 +247,15 @@ struct AgentShipTests {
         let j = try JSONSerialization.jsonObject(with: Data(raw.utf8))
         let before = prettyJSON(j).count
         let slim = prettyJSON(AgentRun.slimGitHub(j))
-        print("Banc github (5 tickets) : \(before / 4) → \(slim.count / 4) tokens")
+        let shown = AgentRun.githubText(AgentRun.slimGitHub(j))
+        print("Banc github (5 tickets) : \(before / 4) → \(slim.count / 4) → \(shown.count / 4) tokens (compact)")
+        // Compact : une ligne par ticket, même contenu (relu à l'identique).
+        #expect(shown.count * 100 < slim.count * 85)
+        #expect(shown.split(separator: "\n").count == 7)
+        let back = try JSONSerialization.jsonObject(with: Data(shown.utf8)) as? [[String: Any]]
+        #expect(back?.count == 5 && back?[4]["number"] as? Int == 5)
+        #expect(shown.contains(#""closed_at":null"#) && shown.contains(#""html_url":"https://github.com/max/site/issues/5""#))
+        #expect(AgentRun.githubText(["a": 1]) == #"{"a":1}"# && AgentRun.githubText([Any]()) == "[]")
         #expect(slim.count * 2 < before)
         for keep in ["\"number\": 5", "\"title\": \"Le bouton Envoyer reste grisé 5\"", "\"login\": \"max\"",
                      "\"html_url\": \"https://github.com/max/site/issues/5\"", "\"state\": \"open\"",
