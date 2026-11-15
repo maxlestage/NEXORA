@@ -259,7 +259,7 @@ struct AgentShipTests {
         #expect(slim.count * 2 < before)
         for keep in ["\"number\": 5", "\"title\": \"Le bouton Envoyer reste grisé 5\"", "\"login\": \"max\"",
                      "\"html_url\": \"https://github.com/max/site/issues/5\"", "\"state\": \"open\"",
-                     "\"name\": \"bug\"", "\"body\":", "\"closed_at\": null"] {
+                     "\"bug\"", "\"body\":", "\"closed_at\": null"] {
             #expect(slim.contains(keep), "\(keep)")
         }
         for gone in ["node_id", "followers_url", "comments_url", "api.github.com", "gravatar_id", "avatar_url"] {
@@ -277,7 +277,12 @@ struct AgentShipTests {
                                                        "+1": 2, "heart": 0]]) as? [String: Any]
         let r = liked?["reactions"] as? [String: Any]
         #expect(r?.keys.sorted() == ["+1", "total_count"] && r?["total_count"] as? Int == 2)
-        #expect(shown.count / 4 < 680)
+        #expect(shown.count / 4 < 600)
+        // Étiquettes réduites à leur nom ; une liste qui n'en est pas une reste entière.
+        #expect(shown.contains(#""labels":["bug"]"#) && !shown.contains("d73a4a"))
+        #expect(AgentRun.labelNames([["name": "a"], ["id": 2]]) == nil && AgentRun.labelNames([Any]()) == nil)
+        let repoLabels = AgentRun.slimGitHub([["name": "bug", "color": "d73a4a"]]) as? [[String: Any]]
+        #expect(repoLabels?.first?["color"] as? String == "d73a4a")
         let kept = AgentRun.slimGitHub(["merged_at": NSNull(), "locked": true, "assignee": ["login": "max"],
                                         "milestone": NSNull(), "site_admin": false]) as? [String: Any]
         #expect(kept?.keys.sorted() == ["assignee", "locked", "merged_at"])

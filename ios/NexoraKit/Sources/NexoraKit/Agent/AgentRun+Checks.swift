@@ -112,7 +112,7 @@ extension AgentRun {
     /// remplissent près de la moitié d'une réponse et l'agent sait écrire les
     /// chemins de l'API ; `html_url` et les liens de téléchargement sont gardés.
     /// Les compteurs de réactions à zéro sont retirés (`reactions` disparaît s'il
-    /// n'y en a aucune).
+    /// n'y en a aucune). Les étiquettes sont réduites à leur nom.
     public nonisolated static func slimGitHub(_ x: Any) -> Any {
         switch x {
         case let d as [String: Any]:
@@ -130,6 +130,10 @@ extension AgentRun {
                     if !some.isEmpty { out[k] = some }
                     continue
                 }
+                if k == "labels", let names = labelNames(v) {
+                    out[k] = names
+                    continue
+                }
                 out[k] = slimGitHub(v)
             }
             return out
@@ -138,6 +142,17 @@ extension AgentRun {
         default:
             return x
         }
+    }
+
+    /// Les étiquettes d'un ticket ou d'une pull request réduites à leur nom
+    /// (`["bug"]`), la forme qu'attend l'API pour les poser : leur identifiant,
+    /// couleur et description ne servent pas à l'agent. `nil` si ce n'est pas une
+    /// liste d'étiquettes (la liste des étiquettes d'un dépôt, renvoyée seule, garde
+    /// tout car elle n'est pas sous une clé `labels`).
+    nonisolated static func labelNames(_ v: Any) -> [String]? {
+        guard let a = v as? [[String: Any]], !a.isEmpty else { return nil }
+        let names = a.compactMap { $0["name"] as? String }
+        return names.count == a.count ? names : nil
     }
 
     /// Clés retirées quand elles ne disent rien (nulles, fausses ou « public ») : leur

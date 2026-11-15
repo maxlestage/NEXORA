@@ -682,10 +682,18 @@ mémoire 32k tokens, consigne 3 000 car.
   disait l'ampleur du commit ni sa branche), `changeAccessibility` pour VoiceOver ;
   nouveau fichier : « Nouveau fichier · sur main ». Tests : 485 → 486.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.78) → prochain passage : TOKENS — par ex. `author_association`,
-`labels` réduits à leur nom dans les listes de tickets (vérifier que l'agent n'en a pas
-besoin). Interface ensuite : écran Modèles ou Personnaliser (non encore revus).
+- 3.0.79 (tokens) : outil github de l'agent — `AgentRun.labelNames` : sous une clé
+  `labels`, une liste d'étiquettes (toutes avec un `name`) devient la liste de leurs noms
+  (`["bug"]`, la forme que l'API attend pour les poser) ; id, couleur, `default`,
+  description et lien retirés. La liste des étiquettes d'un dépôt (renvoyée seule) reste
+  entière. Banc `AgentShipTests.githubSlim` (5 tickets) : 651 → 541 tokens (−17 % ; 3 045
+  avant 3.0.71). `author_association` gardé (dit si l'auteur est le propriétaire).
+  Tests : 486 (banc enrichi).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.79) → prochain passage : INTERFACE — écran Modèles ou Personnaliser
+(non encore revus). Tokens ensuite : `assignees` vide, `user.id`/`type` des auteurs
+(vérifier que l'agent n'en a pas besoin), ou journal xcodebuild en échec réel.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
