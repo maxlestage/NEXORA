@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.69 — 15 novembre 2026 — Journaux de compilation Xcode bien plus courts
+
+- Amélioré : quand l'agent lit le journal d'une compilation Xcode, les longues commandes du compilateur sont coupées au début ; sur un journal type, il envoie environ 96 % de tokens en moins.
+- Les erreurs restent entières (jusqu'à 2 000 caractères), avec leur fichier et leur ligne.
+
 ## 3.0.68 — 15 novembre 2026 — Créer une image plus simple
 - Corrigé : avec le moteur OpenAI choisi mais sans clé OpenAI, « Créer » est grisé et un bouton « Utiliser Pollinations (gratuit) » règle le problème d'un toucher (avant : la demande partait et échouait).
 - Amélioré : le bouton dit ce qu'il fait (« Créer 3 images ») et le prix est annoncé en une phrase courte.

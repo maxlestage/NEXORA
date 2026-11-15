@@ -612,11 +612,19 @@ mémoire 32k tokens, consigne 3 000 car.
   l'enregistrement dans Photos, attente lue d'un trait par VoiceOver. Tests : 470 → 474.
   (UsageView déjà traité en 3.0.37, CloudAgentsView en 3.0.38.)
 
-## Prochain passage : TOKENS
-Vérifier sur un vrai journal xcodebuild en échec (DerivedData « /Users/runner/Library/
-Developer/Xcode/DerivedData/… » non retiré : à mesurer). Sinon chercher une autre piste
-mesurable. Interface ensuite : visionneuse d'images (ChatImageViewer, sans vibration à
-l'enregistrement) ou ReposView (compte GitHub, liste des dépôts).
+- 3.0.69 (tokens) : journaux de CI — `CILog.shorten` : une ligne de plus de 600 car. sans
+  erreur est coupée à 300 car. + « … (+N car.) » (commande complète du compilateur que
+  xcodebuild affiche sous chaque étape, « export … ») ; une ligne d'erreur est gardée
+  jusqu'à 2 000 car. Le budget du journal se compte en LIGNES : quelques commandes de
+  4 000 car. le faisaient exploser. Banc `CILogTests.xcodebuildCommandsBench` (40 fichiers
+  compilés avec leur commande, 1 erreur, 200 lignes gardées) : 116 678 → 4 302 tokens
+  (−96 %), erreur gardée. Les chemins DerivedData vivent surtout dans ces commandes :
+  plus besoin de les retirer à part. Tests : 474 → 475.
+
+## Prochain passage : INTERFACE
+Visionneuse d'images (ChatImageViewer, sans vibration à l'enregistrement) ou ReposView
+(compte GitHub, liste des dépôts). Tokens ensuite : chercher une autre piste mesurable
+(journaux CI : piste close sauf vrai journal en échec qui montre autre chose).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

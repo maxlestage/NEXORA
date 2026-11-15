@@ -25,6 +25,23 @@ public enum CILog {
     /// Lignes d'erreurs reprises d'avant la fin gardée, au plus (part du budget).
     static func earlyBudget(_ lines: Int) -> Int { max(lines / 4, 1) }
 
+    /// Au-delà, une ligne sans erreur est coupée (commande complète du compilateur
+    /// qu'affiche xcodebuild sous chaque étape, « export … » des variables : souvent
+    /// plusieurs milliers de caractères chacune, sans rien d'utile à l'agent).
+    static let longLine = 600
+    /// Caractères gardés d'une longue ligne sans erreur (le nom de l'outil et le début).
+    static let longKeep = 300
+    /// Caractères gardés d'une ligne d'erreur, au plus.
+    static let errorKeep = 2000
+
+    /// La ligne raccourcie si elle est trop longue, avec le nombre de caractères omis.
+    static func shorten(_ line: String) -> String {
+        guard line.count > longLine else { return line }
+        let keep = isError(line) ? errorKeep : longKeep
+        guard line.count > keep else { return line }
+        return String(line.prefix(keep)) + " … (+\(line.count - keep) car.)"
+    }
+
     /// Une ligne qui signale une erreur.
     static func isError(_ line: String) -> Bool { logError.hasMatch(line) }
 
@@ -42,6 +59,7 @@ public enum CILog {
             if line.contains("/work/") || line.contains("/__w/") {
                 line = logRootBare.replaceAll(logRoot.replaceAll(line, ""), ".")
             }
+            if line.count > longLine { line = shorten(line) }
             // Le nettoyage de fin de job (« Post job cleanup », étapes « Post … »).
             if line.hasPrefix("Post job cleanup.") || line.hasPrefix("##[group]Post ")
                 || line.hasPrefix("Cleaning up orphan processes") { break }
