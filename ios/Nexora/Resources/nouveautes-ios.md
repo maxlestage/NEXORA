@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.84 — 15 novembre 2026 — Tableaux plus pratiques
+
+- Nouveau : un bouton Copier sur chaque tableau du chat ; il se colle tel quel dans Numbers, Excel ou Notes.
+- Amélioré : l'en-tête du tableau indique son nombre de lignes, et une vibration confirme la copie.
+- Accessibilité : VoiceOver lit chaque ligne avec ses en-têtes (« Nom : Alice, Âge : 30 »).
+
 ## 3.0.83 — 15 novembre 2026 — Agent plus économe sur GitHub
 
 - Amélioré : quand l'agent lit des tickets ou des pull requests, chaque personne citée (auteur, assigné, relecteur) n'est plus envoyée au modèle qu'avec son identifiant GitHub : environ 15 % de tokens en moins sur une liste de tickets.

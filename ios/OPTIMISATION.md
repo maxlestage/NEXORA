@@ -716,11 +716,18 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubSlim` (5 tickets) : 523 → 443 tokens (−15 % ; 3 045 avant 3.0.71).
   Tests : 488 (banc enrichi).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.83 : personnes citées) → prochain passage : INTERFACE :
-TableBlockView (tableau du chat : VoiceOver ligne par ligne, copie). Tokens ensuite :
-journal xcodebuild en échec réel, ou objets `repository`/`head`/`base` imbriqués d'une
-pull request (dépôt complet répété deux fois : le réduire à full_name + default_branch ?).
+- 3.0.84 (interface) : TableBlockView (MarkdownView.swift) — `TableDisplay` : en-tête
+  « Tableau · 5 lignes » avec bouton Copier (avant : aucun moyen de copier un tableau seul ;
+  copie en colonnes séparées par des tabulations, mise en forme Markdown retirée, à coller
+  dans un tableur), zone touchable 44 pt, vibration de succès (réglage haptics) ; VoiceOver :
+  une ligne = un élément lu avec ses en-têtes (« Nom : Alice, Âge : 30 » ; avant : cellule
+  par cellule sans en-tête), en-tête « Tableau, 3 colonnes, 5 lignes ». Tests : 488 → 489.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.84 : tableaux du chat) → prochain passage : TOKENS :
+objets `repository`/`head`/`base` imbriqués d'une pull request (dépôt complet répété deux
+fois : le réduire à full_name + default_branch ?), ou journal xcodebuild en échec réel.
+Interface ensuite : écran Modèles ou Réglages.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -174,26 +174,72 @@ struct CodeBlockView: View {
     }
 }
 
-/// Un tableau Markdown simple, qui défile si besoin.
+/// Un tableau Markdown : en-tête « Tableau · 5 lignes » avec bouton Copier (colonnes
+/// séparées par des tabulations, à coller dans un tableur), défilement horizontal ;
+/// VoiceOver lit chaque ligne avec ses en-têtes (« Nom : Alice, Âge : 30 »).
 struct TableBlockView: View {
     let rows: [[String]]
-
+    @State private var copied = false
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        ScrollView(.horizontal) {
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
-                    GridRow {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            MarkdownView.inline(cell, dark: scheme == .dark).font(i == 0 ? .subheadline.bold() : .subheadline)
-                        }
-                    }
-                    if i == 0 { Divider() }
+        let dark = scheme == .dark
+        let header = rows.first ?? []
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "tablecells").font(.caption).foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(TableDisplay.title(rows))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .accessibilityLabel(TableDisplay.spoken(rows))
+                Spacer()
+                Button {
+                    UIPasteboard.general.string = TableDisplay.copyText(rows)
+                    copied = true
+                } label: {
+                    Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.caption.weight(.semibold))
+                        // Zone touchable de 44 pt sans grandir l'en-tête du bloc.
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 8)
+                        .contentShape(.rect)
+                        .padding(.vertical, -12)
+                        .padding(.horizontal, -8)
                 }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(copied ? "Tableau copié" : "Copier le tableau")
             }
-            .padding(10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            Divider()
+            ScrollView(.horizontal) {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                        GridRow {
+                            ForEach(Array(row.enumerated()), id: \.offset) { j, cell in
+                                MarkdownView.inline(cell, dark: dark)
+                                    .font(i == 0 ? .subheadline.bold() : .subheadline)
+                                    // Une ligne = un seul élément VoiceOver, lu avec ses en-têtes.
+                                    .accessibilityHidden(i == 0 || j > 0)
+                                    .accessibilityLabel(TableDisplay.spokenRow(header: header, row: row))
+                            }
+                        }
+                        if i == 0 { Divider() }
+                    }
+                }
+                .padding(10)
+            }
         }
         .background(.fill.quaternary, in: .rect(cornerRadius: 10))
+        .padding(.vertical, 6)
+        .sensoryFeedback(.success, trigger: copied) { _, new in new && settings.haptics }
+        .task(id: copied) {
+            if copied {
+                try? await Task.sleep(for: .seconds(1.5))
+                copied = false
+            }
+        }
     }
 }
