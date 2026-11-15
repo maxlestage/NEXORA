@@ -359,6 +359,44 @@ struct AgentShipTests {
         #expect(priv?.keys.sorted() == ["full_name", "private"])
     }
 
+    @Test("banc github : runs de workflow sans acteur répété ni message de commit complet")
+    func githubRuns() throws {
+        let who: [String: Any] = ["login": "max", "id": 56, "html_url": "https://github.com/max", "type": "User"]
+        let person: [String: Any] = ["name": "Max", "email": "max@example.com"]
+        func run(_ n: Int) -> [String: Any] {
+            ["id": 4_000 + n, "name": "CI", "run_number": n, "event": "push", "status": "completed",
+             "conclusion": "success", "head_branch": "main", "head_sha": "sha\(n)", "actor": who, "triggering_actor": who,
+             "html_url": "https://github.com/max/site/actions/runs/\(n)",
+             "head_commit": ["id": "sha\(n)", "tree_id": "tree\(n)", "timestamp": "2026-11-15T22:48:18Z",
+                             "message": "Corrige le bouton \(n)\n\nLe bouton d'envoi restait grisé après une erreur réseau ;\nil se réactive maintenant et un message explique quoi faire.\nTests : 12 -> 13.",
+                             "author": person, "committer": person]]
+        }
+        let runs: [String: Any] = ["total_count": 5, "workflow_runs": (1...5).map(run)]
+        // Référence : même réponse, `head_sha` renommé (même longueur) pour que le run reste entier.
+        let plain: [String: Any] = ["total_count": 5, "workflow_runs": (1...5).map { n -> [String: Any] in
+            var r = run(n); r["head_shX"] = r.removeValue(forKey: "head_sha"); return r }]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(runs)).count
+        print("Banc github (5 runs) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 8)
+        let one = AgentRun.slimGitHub(run(1)) as? [String: Any]
+        #expect(one?["triggering_actor"] == nil && (one?["actor"] as? [String: Any])?["login"] as? String == "max")
+        let c = one?["head_commit"] as? [String: Any]
+        #expect(c?["message"] as? String == "Corrige le bouton 1 …")
+        #expect(c?.keys.sorted() == ["author", "message", "timestamp"])
+        // Relance par une autre personne, commit d'une autre personne : tout reste.
+        var other = run(2)
+        other["triggering_actor"] = ["login": "ami", "id": 7, "type": "User"]
+        other["head_commit"] = ["id": "autre", "message": "Une ligne", "author": person, "committer": ["name": "GitHub"]]
+        let kept = AgentRun.slimGitHub(other) as? [String: Any]
+        #expect((kept?["triggering_actor"] as? [String: Any])?["login"] as? String == "ami")
+        let kc = kept?["head_commit"] as? [String: Any]
+        #expect(kc?["id"] as? String == "autre" && kc?["message"] as? String == "Une ligne" && kc?["committer"] != nil)
+        // Un objet sans head_sha (un commit seul) n'est pas touché.
+        let commit = AgentRun.slimGitHub(["head_commit": ["message": "a\nb"]]) as? [String: Any]
+        #expect((commit?["head_commit"] as? [String: Any])?["message"] as? String == "a\nb")
+    }
+
     @Test("pull request fusionnée sur GitHub entre-temps : une nouvelle est ouverte")
     func mergedElsewhere() async {
         let hub = FakeHub()
