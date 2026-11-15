@@ -21,6 +21,29 @@ public enum SettingsDisplay {
             : "\(count(n, "conversation")) \(n > 1 ? "supprimées" : "supprimée")"
     }
 
+    /// Durées proposées pour le ménage des vieilles conversations (en jours).
+    public static let cleanPeriods = [30, 90, 180, 365]
+
+    /// Choix du ménage avec son effet : « 30 jours · 12 conversations » (« 1 an » pour 365).
+    public static func cleanOption(days: Int, count n: Int) -> String {
+        "\(days == 365 ? "1 an" : "\(days) jours") · \(count(n, "conversation"))"
+    }
+
+    /// Les choix qui suppriment au moins une conversation ; un seul exemplaire quand
+    /// deux durées voisines suppriment autant (on garde la plus longue, la plus prudente).
+    public static func cleanChoices(_ counts: [(days: Int, count: Int)]) -> [(days: Int, count: Int)] {
+        let useful = counts.filter { $0.count > 0 }.sorted { $0.days < $1.days }
+        return useful.enumerated().filter { i, c in
+            i + 1 >= useful.count || useful[i + 1].count != c.count
+        }.map(\.element)
+    }
+
+    /// Message du choix : rien à supprimer, ou rappel que les épinglées restent.
+    public static func cleanMessage(hasChoices: Bool) -> String {
+        hasChoices ? "Les conversations épinglées et en cours sont gardées."
+            : "Aucune conversation inactive depuis plus de 30 jours (les épinglées sont gardées)."
+    }
+
     /// Retour après l'export des agents perso (copiés dans le presse-papiers).
     public static func exported(_ n: Int) -> String {
         n == 0 ? "Aucun agent perso à exporter"

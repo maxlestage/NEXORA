@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var confirmDelete = false
     @State private var confirmReset = false
     @State private var cleaning = false
+    /// Choix du ménage calculés à l'ouverture : durée et nombre de conversations supprimées.
+    @State private var cleanChoices: [(days: Int, count: Int)] = []
     @State private var editingClientId = false
     @State private var clientId = ""
     @State private var size: Int?
@@ -106,6 +108,8 @@ struct SettingsView: View {
                         .accessibilityLabel("Recalculer la place")
                     }
                     Button {
+                        cleanChoices = SettingsDisplay.cleanChoices(
+                            SettingsDisplay.cleanPeriods.map { (days: $0, count: chats.staleCount($0)) })
                         cleaning = true
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
@@ -172,9 +176,13 @@ struct SettingsView: View {
                 ModelPickerSheet(selected: settings.resolve(nil)) { settings.defaultModel = $0.key }
             }
             .confirmationDialog("Supprimer les conversations inactives depuis…", isPresented: $cleaning, titleVisibility: .visible) {
-                ForEach([30, 90, 180, 365], id: \.self) { d in
-                    Button(d == 365 ? "1 an" : "\(d) jours") { clean(d) }
+                ForEach(cleanChoices.map { $0.days }, id: \.self) { d in
+                    let n = cleanChoices.first { $0.days == d }?.count ?? 0
+                    Button(SettingsDisplay.cleanOption(days: d, count: n), role: .destructive) { clean(d) }
                 }
+                Button(cleanChoices.isEmpty ? "OK" : "Annuler", role: .cancel) {}
+            } message: {
+                Text(SettingsDisplay.cleanMessage(hasChoices: !cleanChoices.isEmpty))
             }
             .alert("Effacer toutes les conversations ?", isPresented: $confirmDelete) {
                 Button("Annuler", role: .cancel) {}

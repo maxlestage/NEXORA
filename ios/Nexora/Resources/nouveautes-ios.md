@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.86 — 15 novembre 2026 — Ménage des conversations plus clair
+
+- Amélioré : « Supprimer les anciennes conversations » (Réglages) indique pour chaque durée combien de conversations partiront (« 90 jours · 12 conversations »).
+- Les durées qui ne suppriment rien ne sont plus proposées ; s'il n'y a rien à supprimer, l'app le dit tout de suite.
+- Les choix de suppression sont en rouge et un bouton Annuler est toujours visible.
+
 ## 3.0.85 — 15 novembre 2026 — Agent plus économe sur les pull requests
 
 - Amélioré : quand l'agent lit des pull requests ou des runs de CI sur GitHub, le dépôt répété dans chaque réponse est réduit à son nom et à sa branche par défaut.
