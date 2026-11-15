@@ -268,7 +268,7 @@ struct AgentShipTests {
         // Valeurs muettes (nulles, fausses, « public ») des clés connues : retirées ;
         // les nulles qui informent (`closed_at`, `merged_at`) restent.
         for gone in ["active_lock_reason", "performed_via_github_app", "state_reason", "milestone",
-                     "\"assignee\"", "locked", "site_admin", "user_view_type"] {
+                     "\"assignee\"", "assignees", "locked", "site_admin", "user_view_type"] {
             #expect(!shown.contains(gone), "\(gone)")
         }
         // Aucune réaction : la clé disparaît ; sinon seuls les compteurs non nuls restent.
@@ -277,15 +277,16 @@ struct AgentShipTests {
                                                        "+1": 2, "heart": 0]]) as? [String: Any]
         let r = liked?["reactions"] as? [String: Any]
         #expect(r?.keys.sorted() == ["+1", "total_count"] && r?["total_count"] as? Int == 2)
-        #expect(shown.count / 4 < 600)
+        #expect(shown.count / 4 < 540)
         // Étiquettes réduites à leur nom ; une liste qui n'en est pas une reste entière.
         #expect(shown.contains(#""labels":["bug"]"#) && !shown.contains("d73a4a"))
         #expect(AgentRun.labelNames([["name": "a"], ["id": 2]]) == nil && AgentRun.labelNames([Any]()) == nil)
         let repoLabels = AgentRun.slimGitHub([["name": "bug", "color": "d73a4a"]]) as? [[String: Any]]
         #expect(repoLabels?.first?["color"] as? String == "d73a4a")
         let kept = AgentRun.slimGitHub(["merged_at": NSNull(), "locked": true, "assignee": ["login": "max"],
-                                        "milestone": NSNull(), "site_admin": false]) as? [String: Any]
-        #expect(kept?.keys.sorted() == ["assignee", "locked", "merged_at"])
+                                        "milestone": NSNull(), "site_admin": false, "requested_teams": [Any](),
+                                        "assignees": [["login": "max"]], "requested_reviewers": [Any]()]) as? [String: Any]
+        #expect(kept?.keys.sorted() == ["assignee", "assignees", "locked", "merged_at"])
         // Un lien de téléchargement, une adresse hors API : gardés.
         let other = AgentRun.slimGitHub(["download_url": "https://raw.githubusercontent.com/a", "url": "https://exemple.fr"]) as? [String: Any]
         #expect(other?.count == 2)

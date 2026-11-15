@@ -697,10 +697,17 @@ mémoire 32k tokens, consigne 3 000 car.
   la barre (padding puis padding négatif). `CreditBar`/`ConversationCreditBar` (jamais
   utilisés) retirés. Tests : 486 → 487.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.80) → prochain passage : TOKENS. Écrans déjà revus : presque tous
-(Modèles 3.0.21, Personnaliser 3.0.27…) ; à revoir ensuite : MarkdownView (code copiable ?). Tokens ensuite : `assignees` vide, `user.id`/`type` des auteurs
-(vérifier que l'agent n'en a pas besoin), ou journal xcodebuild en échec réel.
+- 3.0.81 (tokens) : outil github de l'agent — `quietKeys`/`isQuiet` : `assignees`,
+  `requested_reviewers`, `requested_teams` retirés quand la liste est vide (une liste
+  non vide reste). Banc `AgentShipTests.githubSlim` (5 tickets) : 541 → 523 tokens
+  (−3,3 % ; davantage sur une pull request, qui a aussi les deux listes de relecteurs).
+  Tests : 487 (banc enrichi).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.81) → prochain passage : INTERFACE, MarkdownView (code copiable ?).
+Tokens ensuite : `user.id` des auteurs (l'API des assignations prend le login ; vérifier
+qu'aucun appel de l'agent ne demande l'id), `type: "User"` écarté (clé `type` trop
+générale : contents renvoie « file »/« dir »), ou journal xcodebuild en échec réel.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
