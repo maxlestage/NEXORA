@@ -740,11 +740,17 @@ mémoire 32k tokens, consigne 3 000 car.
   la plus longue ; rien à supprimer → message clair et bouton OK (avant : 4 choix puis toast
   « Rien à supprimer ») ; choix en rouge (destructif), Annuler visible. Tests : 490 → 491.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.86 : ménage des conversations, Réglages) → prochain passage : TOKENS :
-`workflow_runs` réels — constaté le 15/11 : `triggering_actor` identique à `actor` et
-`head_commit.message` complet (plusieurs lignes) à chaque run → ne garder `triggering_actor`
-que s'il diffère, réduire le message à sa 1re ligne. Interface ensuite : écran Modèles.
+- 3.0.87 (tokens) : outil github de l'agent — `AgentRun.slimRun` : un run de workflow
+  (`head_sha` + `head_commit`) perd `triggering_actor` quand il est identique à `actor`, et
+  son commit garde le titre du message (1re ligne + « … »), l'auteur et la date (sans `id`
+  = `head_sha`, `tree_id`, ni `committer` identique à l'auteur). Relance par une autre
+  personne ou commit d'un tiers : tout reste. Banc `AgentShipTests.githubRuns` (5 runs) :
+  773 → 451 tokens (−42 %). Tests : 491 → 492.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.87 : runs de workflow) → prochain passage : INTERFACE : écran Modèles.
+Tokens ensuite : jobs d'un run (`list_workflow_jobs` : `steps` réussies répétées, `labels`,
+`runner_*`) — réduire les étapes réussies à leur nom.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

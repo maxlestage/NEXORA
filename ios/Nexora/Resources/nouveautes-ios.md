@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.87 — 15 novembre 2026 — Agent plus économe sur la CI
+- Amélioré : quand l'agent consulte les runs de CI sur GitHub, il reçoit environ 40 % de tokens en moins.
+- Le message de chaque commit est réduit à son titre et la personne qui a lancé le run n'est plus répétée.
+
 ## 3.0.86 — 15 novembre 2026 — Ménage des conversations plus clair
 
 - Amélioré : « Supprimer les anciennes conversations » (Réglages) indique pour chaque durée combien de conversations partiront (« 90 jours · 12 conversations »).

@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? out
+            return personLogin(out) ?? slimRun(out)
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -158,6 +158,32 @@ extension AgentRun {
               d.keys.allSatisfy({ ["login", "id", "html_url", "type"].contains($0) }) else { return nil }
         if let link = d["html_url"] as? String, link != "https://github.com/\(login)" { return nil }
         return type == "User" ? ["login": login] : ["login": login, "type": type]
+    }
+
+    /// Un run de workflow (`head_sha` + `head_commit`) allégé : `triggering_actor`
+    /// retiré quand c'est la même personne que `actor` (presque toujours) ; le commit
+    /// réduit au titre de son message (1re ligne, suivie de « … » si coupé) et à son
+    /// auteur, sans `id` (= `head_sha`), `tree_id` ni `committer` identique à
+    /// l'auteur. Le message complet reste lisible par GET /repos/…/commits/<sha>.
+    /// Tout autre objet est rendu tel quel.
+    nonisolated static func slimRun(_ d: [String: Any]) -> [String: Any] {
+        guard let sha = d["head_sha"] as? String, var c = d["head_commit"] as? [String: Any] else { return d }
+        var out = d
+        if let a = d["actor"] as? [String: Any], let t = d["triggering_actor"] as? [String: Any],
+           NSDictionary(dictionary: a).isEqual(to: t) {
+            out["triggering_actor"] = nil
+        }
+        if (c["id"] as? String) == sha { c["id"] = nil }
+        c["tree_id"] = nil
+        if let m = c["message"] as? String, let nl = m.firstIndex(of: "\n") {
+            c["message"] = String(m[..<nl]) + " …"
+        }
+        if let a = c["author"] as? [String: Any], let k = c["committer"] as? [String: Any],
+           NSDictionary(dictionary: a).isEqual(to: k) {
+            c["committer"] = nil
+        }
+        out["head_commit"] = c
+        return out
     }
 
     /// Clés sous lesquelles GitHub répète un dépôt entier (≈ 40 champs) : `repo` de
