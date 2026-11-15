@@ -21,6 +21,8 @@ final class SpeechService: NSObject {
     /// Le niveau du son (pour animer le micro), de 0 à 1.
     private(set) var level: Double = 0
     private(set) var speaking = false
+    /// La réponse du chat en cours de lecture (pour son bouton « Arrêter la lecture »).
+    private(set) var readingID: UUID?
     /// La dernière erreur (micro refusé, pas de reconnaissance…).
     var error: String?
 
@@ -66,6 +68,7 @@ final class SpeechService: NSObject {
     /// Lit les phrases terminées d'une réponse en cours depuis `from` (tout le reste
     /// si `all`) ; rend la nouvelle position.
     func speakNew(_ text: String, from: Int, all: Bool) -> Int {
+        readingID = nil
         guard let next = SpeechText.next(text, spoken: from, all: all) else { return from }
         for sentence in next.sentences { enqueue(sentence) }
         return next.end
@@ -92,8 +95,9 @@ final class SpeechService: NSObject {
     }
 
     /// Lit tout un texte (Markdown nettoyé).
-    func speak(_ markdown: String, onDone: (() -> Void)? = nil) {
+    func speak(_ markdown: String, id: UUID? = nil, onDone: (() -> Void)? = nil) {
         stopSpeaking()
+        readingID = id
         for s in SpeechText.sentences(SpeechText.clean(markdown)) { enqueue(s) }
         if let onDone {
             if pending.isEmpty { onDone() } else { onQueueDone = onDone }
@@ -106,6 +110,7 @@ final class SpeechService: NSObject {
         // Rien n'a jamais été lu : pas de synthèse à créer pour l'arrêter.
         if let s = madeSynthesizer, s.isSpeaking { s.stopSpeaking(at: .immediate) }
         speaking = false
+        readingID = nil
     }
 
     private func finished(_ id: ObjectIdentifier) {
@@ -115,6 +120,7 @@ final class SpeechService: NSObject {
 
     private func finishQueue() {
         speaking = false
+        readingID = nil
         let done = onQueueDone
         onQueueDone = nil
         done?()

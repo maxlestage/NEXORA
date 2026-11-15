@@ -277,33 +277,41 @@ private struct ActionBar: View {
     @Environment(SpeechService.self) private var speech
     @State private var copied = false
     @State private var rating = false
-    @State private var more = false
     @State private var askRegenerate = false
 
     private var costLine: String { ChatDisplay.costLine(message, free: ChatDisplay.isFree(provider)) }
 
     var body: some View {
         HStack(spacing: 2) {
-            button(copied ? "checkmark" : "doc.on.doc", copied ? "Copié" : "Copier", tint: copied ? Theme.green : nil) {
-                UIPasteboard.general.string = message.content
-                copied = true
+            ForEach(AnswerActions.bar(canRegenerate: onRegenerate != nil), id: \.self) { item in
+                switch item {
+                case .copy:
+                    button(copied ? "checkmark" : "doc.on.doc", copied ? "Copié" : "Copier", tint: copied ? Theme.green : nil) {
+                        UIPasteboard.general.string = message.content
+                        copied = true
+                    }
+                case .regenerate:
+                    button("arrow.clockwise", "Régénérer") { onRegenerate?() }
+                case .speak:
+                    button(AnswerActions.speakSymbol(speaking: readingThis), AnswerActions.speakLabel(speaking: readingThis),
+                           tint: readingThis ? Theme.cyan : nil) {
+                        if readingThis {
+                            speech.stopSpeaking()
+                        } else {
+                            speech.rate = settings.voiceRate
+                            speech.speak(message.content, id: message.id)
+                        }
+                    }
+                case .rate:
+                    button(
+                        AnswerActions.rateSymbol(message.rating),
+                        AnswerActions.rateLabel(message.rating),
+                        tint: message.rating == 1 ? Theme.green : message.rating == -1 ? Theme.red : nil
+                    ) { rating = true }
+                case .more:
+                    moreMenu
+                }
             }
-            button(
-                message.rating == 1 ? "hand.thumbsup.fill" : message.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsup",
-                "Votre avis",
-                tint: message.rating == 1 ? Theme.green : message.rating == -1 ? Theme.red : nil
-            ) { rating = true }
-            button("speaker.wave.2", "Lire à voix haute") {
-                speech.rate = settings.voiceRate
-                if speech.speaking { speech.stopSpeaking() } else { speech.speak(message.content) }
-            }
-            ShareLink(item: message.content) {
-                Image(systemName: "square.and.arrow.up")
-                    .frame(width: 34, height: 34)
-                    .contentShape(Rectangle().inset(by: -5))
-            }
-            .accessibilityLabel("Partager")
-            button("ellipsis", "Plus") { more = true }
             if message.tokensIn + message.tokensOut > 0 {
                 Text(costLine)
                     .font(.caption2.monospaced())
@@ -338,13 +346,35 @@ private struct ActionBar: View {
             Button("Non merci", role: .cancel) {}
             if let onRegenerate { Button("Régénérer", action: onRegenerate) }
         }
-        .confirmationDialog("Réponse", isPresented: $more, titleVisibility: .hidden) {
-            if let onRegenerate { Button("Régénérer", action: onRegenerate) }
-            if let onChangeModel { Button("Réessayer avec un autre modèle", action: onChangeModel) }
-            Button("Sélectionner le texte", action: onSelectText)
-        } message: {
-            if message.tokensIn + message.tokensOut > 0 { Text(costLine) }
+    }
+
+    /// Cette réponse est en cours de lecture (et pas une autre).
+    private var readingThis: Bool { speech.speaking && speech.readingID == message.id }
+
+    /// « Plus » : autre modèle, partager, sélectionner le texte (et le coût en tête).
+    private var moreMenu: some View {
+        Menu {
+            Section {
+                ForEach(AnswerActions.menu(canChangeModel: onChangeModel != nil), id: \.self) { item in
+                    switch item {
+                    case .changeModel:
+                        Button(AnswerActions.label(item), systemImage: "arrow.left.arrow.right") { onChangeModel?() }
+                    case .share:
+                        ShareLink(item: message.content) { Label(AnswerActions.label(item), systemImage: "square.and.arrow.up") }
+                    case .selectText:
+                        Button(AnswerActions.label(item), systemImage: "text.cursor", action: onSelectText)
+                    }
+                }
+            } header: {
+                if message.tokensIn + message.tokensOut > 0 { Text(costLine) }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundStyle(.secondary)
+                .frame(width: 34, height: 34)
+                .contentShape(Rectangle().inset(by: -5))
         }
+        .accessibilityLabel("Plus")
     }
 
     private func button(_ symbol: String, _ label: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {

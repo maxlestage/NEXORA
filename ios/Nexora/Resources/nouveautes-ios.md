@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.66 — 15 novembre 2026 — Réponses plus pratiques
+- Amélioré : « Régénérer » est directement sous la dernière réponse (avant : caché dans « Plus »).
+- Amélioré : le bouton de lecture devient « Arrêter la lecture » pendant que la réponse est lue.
+- Amélioré : « Partager » rejoint le menu « Plus », avec le coût de la réponse en tête.
+- Accessibilité : VoiceOver annonce l'avis déjà donné (« bonne réponse », « mauvaise réponse »).
+
 ## 3.0.65 — 15 novembre 2026 — Actions et commits plus simples
 
 - Amélioré : « Relancer » est visible directement sur les exécutions échouées ou annulées (avant : caché dans un balayage) ; un toucher ouvre l'exécution sur GitHub.

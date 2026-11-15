@@ -583,9 +583,24 @@ mémoire 32k tokens, consigne 3 000 car.
   `commitDetail`/`commitAccessibility` avec date). Toucher = ouvrir sur GitHub, vibration
   au succès, boutons désactivés pendant l'envoi, états vides, « Réessayer ». Tests : 462 → 466.
 
+- 3.0.66 (interface) : barre d'actions sous une réponse du chat (MessageBubble) —
+  `AnswerActions` (`bar` : « Régénérer » visible sous la dernière réponse, avant caché dans
+  « Plus » ; 5 boutons au plus ; `menu` : Partager passe dans « Plus » (Menu au lieu d'une
+  feuille, coût en en-tête) avec « Autre modèle » et « Sélectionner le texte » ;
+  `speakLabel`/`speakSymbol` : « Arrêter la lecture » pendant que CETTE réponse est lue,
+  `SpeechService.readingID` ; avant, le bouton disait toujours « Lire » et arrêtait la
+  lecture d'une autre réponse ; `rateLabel` : VoiceOver annonce l'avis donné).
+  Tests : 466 → 469.
+  Passage tokens réévalué d'abord, rien de sûr à gagner : skills du chat (liste envoyée
+  seulement aux 2 premiers tours de chargement, consigne stable d'un tour à l'autre),
+  sous-agents (`delegate`, un appel), consigne du chat (≈ 500 car.), plan des longs
+  fichiers déjà fait (`readRange`/`outline`). Seul reste le journal xcodebuild.
+
 ## Prochain passage : TOKENS
-Mesurer le journal xcodebuild le jour d'un échec iOS ; sinon chercher une autre piste
-(TokenBench). Ensuite interface : écran Workflows/CloudAgentsView ou chat 2e passage.
+Mesurer le journal xcodebuild le jour d'un échec iOS ; sinon, piste possible : seuil de
+lecture entière de read_file (24 000 car. ≈ 6k tokens sans plage) → plus bas avec le plan,
+à mesurer sur le banc ET sur le nombre de lectures en plus. Ensuite interface : écran
+Workflows/CloudAgentsView ou UsageView.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
