@@ -703,11 +703,17 @@ mémoire 32k tokens, consigne 3 000 car.
   (−3,3 % ; davantage sur une pull request, qui a aussi les deux listes de relecteurs).
   Tests : 487 (banc enrichi).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.81) → prochain passage : INTERFACE, MarkdownView (code copiable ?).
-Tokens ensuite : `user.id` des auteurs (l'API des assignations prend le login ; vérifier
+- 3.0.82 (interface) : CodeBlockView (MarkdownView.swift) — `CodeBlockDisplay` : en-tête
+  « swift · 12 lignes » (avant : le seul langage), VoiceOver « Bloc de code swift, 12 lignes »
+  et « Copier le code swift » (avant : « Copier » sans contexte) ; bouton Copier : zone
+  touchable ≈ 28 → 44 pt sans grandir l'en-tête, vibration de succès (réglage haptics) ;
+  code sélectionnable (copier un morceau). Tests : 487 → 488.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.82 : blocs de code) → prochain passage : TOKENS. Pistes : `user.id` des auteurs (l'API des assignations prend le login ; vérifier
 qu'aucun appel de l'agent ne demande l'id), `type: "User"` écarté (clé `type` trop
 générale : contents renvoie « file »/« dir »), ou journal xcodebuild en échec réel.
+Interface ensuite : TableBlockView (tableau du chat : VoiceOver ligne par ligne, copie).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

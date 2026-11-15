@@ -126,15 +126,26 @@ struct CodeBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Circle().fill(Theme.gradient(settings.accent)).frame(width: 8, height: 8)
-                Text(language.isEmpty ? "code" : language).font(.caption.monospaced().weight(.semibold))
+                Text(CodeBlockDisplay.title(language: language, code: code))
+                    .font(.caption.monospaced().weight(.semibold))
+                    .lineLimit(1)
+                    .accessibilityLabel(CodeBlockDisplay.spoken(language: language, code: code))
                 Spacer()
                 Button {
                     UIPasteboard.general.string = code
                     copied = true
                 } label: {
-                    Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc").font(.caption)
+                    Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.caption.weight(.semibold))
+                        // Zone touchable de 44 pt sans grandir l'en-tête du bloc.
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 8)
+                        .contentShape(.rect)
+                        .padding(.vertical, -12)
+                        .padding(.horizontal, -8)
                 }
                 .buttonStyle(.borderless)
+                .accessibilityLabel(copied ? "Code copié" : CodeBlockDisplay.copyLabel(language: language))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -145,12 +156,15 @@ struct CodeBlockView: View {
                     .lineSpacing(3)
                     .padding(12)
                     .fixedSize(horizontal: true, vertical: false)
+                    // Sélectionner une partie du code (le bouton copie tout).
+                    .textSelection(.enabled)
             }
         }
         .background(dark ? Color(hex: 0x0B0B13) : Color(hex: 0xF1F1F7))
         .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(dark ? Color.white.opacity(0.13) : Color.black.opacity(0.08)))
         .padding(.vertical, 6)
+        .sensoryFeedback(.success, trigger: copied) { _, new in new && settings.haptics }
         .task(id: copied) {
             if copied {
                 try? await Task.sleep(for: .seconds(1.5))
