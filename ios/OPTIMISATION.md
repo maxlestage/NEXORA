@@ -627,9 +627,18 @@ mémoire 32k tokens, consigne 3 000 car.
   toutes les images (avant : une par une) ; vibration de réussite (réglage haptics), comme
   GeneratedImagesView. Tests : 475 → 478.
 
-## Prochain passage : TOKENS
-Chercher une piste mesurable (journaux CI : piste close sauf vrai journal en échec qui
-montre autre chose). Interface ensuite : ReposView (compte GitHub, liste des dépôts).
+- 3.0.71 (tokens) : outil github de l'agent — `AgentRun.slimGitHub` retire des réponses
+  JSON les liens vers l'API (`*_url` sauf `html_url`/`download_url`/
+  `browser_download_url`, `url` en api.github.com, `_links`) et `node_id`/`gravatar_id`.
+  Banc `AgentShipTests.githubSlim` (5 tickets tels que renvoyés par GitHub) : 2 928 →
+  1 144 tokens (−61 %) ; avant, la réponse dépassait la limite de 7 000 car. et était
+  coupée (≈ 3 tickets visibles), maintenant les 5 tiennent. Valeurs nulles gardées
+  (« merged_at »: null informe). Tests : 478 → 479.
+
+## Prochain passage : INTERFACE
+(fait en 3.0.71) → prochain passage : INTERFACE, ReposView (compte GitHub, liste des
+dépôts). Tokens ensuite : clés nulles des réponses github (à mesurer sans perdre
+« merged_at ») ; JSON compact au lieu d'indenté pour l'outil github.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

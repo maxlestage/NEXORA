@@ -73,13 +73,38 @@ extension AgentRun {
         var shown = text
         if let data = text.data(using: .utf8),
            let j = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
-            shown = prettyJSON(j)
+            shown = prettyJSON(Self.slimGitHub(j))
         }
         if shown.len > 7000 {
             shown = shown.sub(0, 7000) + "\n… (\(shown.len - 7000) caractères "
                 + "de plus : précise la requête, par exemple ?per_page=5)"
         }
         return "HTTP \(status)\n\(shown)"
+    }
+
+    /// Une réponse de l'API GitHub allégée pour le modèle : sans les liens vers
+    /// l'API elle-même (`comments_url`, `followers_url`, `url` en api.github.com,
+    /// `_links`…) ni les identifiants internes (`node_id`, `gravatar_id`). Ils
+    /// remplissent près de la moitié d'une réponse et l'agent sait écrire les
+    /// chemins de l'API ; `html_url` et les liens de téléchargement sont gardés.
+    public nonisolated static func slimGitHub(_ x: Any) -> Any {
+        switch x {
+        case let d as [String: Any]:
+            var out: [String: Any] = [:]
+            for (k, v) in d {
+                if k == "node_id" || k == "gravatar_id" || k == "_links" { continue }
+                if k.hasSuffix("_url") && k != "html_url" && k != "download_url" && k != "browser_download_url" {
+                    continue
+                }
+                if k == "url", let s = v as? String, s.hasPrefix("https://api.github.com/") { continue }
+                out[k] = slimGitHub(v)
+            }
+            return out
+        case let a as [Any]:
+            return a.map { slimGitHub($0) }
+        default:
+            return x
+        }
     }
 
     /// Une requête brute à GitHub, le corps passé en JSON (sans partage de valeurs

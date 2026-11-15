@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.71 — 15 novembre 2026 — Agent plus économe avec GitHub
+
+- Amélioré : quand l'agent consulte GitHub (tickets, pull requests, workflows), les réponses lui sont envoyées sans les liens internes de l'API : environ 60 % de tokens en moins.
+- Amélioré : l'agent voit donc plus de tickets ou de runs d'un coup, sans réponse coupée.
+
 ## 3.0.70 — 15 novembre 2026 — Images en plein écran plus pratiques
 
 - Nouveau : avec plusieurs images, un appui long sur « Enregistrer » les enregistre toutes dans Photos.
