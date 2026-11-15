@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.83 — 15 novembre 2026 — Agent plus économe sur GitHub
+
+- Amélioré : quand l'agent lit des tickets ou des pull requests, chaque personne citée (auteur, assigné, relecteur) n'est plus envoyée au modèle qu'avec son identifiant GitHub : environ 15 % de tokens en moins sur une liste de tickets.
+- Les robots et les organisations restent signalés comme tels, et un profil complet reste entier.
+
 ## 3.0.82 — 15 novembre 2026 — Blocs de code plus pratiques
 
 - Amélioré : l'en-tête d'un bloc de code dit son nombre de lignes (« swift · 12 lignes »).

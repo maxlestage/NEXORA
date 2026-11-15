@@ -709,11 +709,18 @@ mémoire 32k tokens, consigne 3 000 car.
   touchable ≈ 28 → 44 pt sans grandir l'en-tête, vibration de succès (réglage haptics) ;
   code sélectionnable (copier un morceau). Tests : 487 → 488.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.82 : blocs de code) → prochain passage : TOKENS. Pistes : `user.id` des auteurs (l'API des assignations prend le login ; vérifier
-qu'aucun appel de l'agent ne demande l'id), `type: "User"` écarté (clé `type` trop
-générale : contents renvoie « file »/« dir »), ou journal xcodebuild en échec réel.
-Interface ensuite : TableBlockView (tableau du chat : VoiceOver ligne par ligne, copie).
+- 3.0.83 (tokens) : outil github de l'agent — `AgentRun.personLogin` : une personne citée
+  seule (clés parmi login, id, html_url, type ; lien = `https://github.com/<login>`)
+  devient `{"login":"max"}` ; `type` gardé hors « User » (Bot, Organization). Un profil
+  complet (GET /user, avec nom…) ou un lien différent (robots d'apps) garde tout. Banc
+  `AgentShipTests.githubSlim` (5 tickets) : 523 → 443 tokens (−15 % ; 3 045 avant 3.0.71).
+  Tests : 488 (banc enrichi).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.83 : personnes citées) → prochain passage : INTERFACE :
+TableBlockView (tableau du chat : VoiceOver ligne par ligne, copie). Tokens ensuite :
+journal xcodebuild en échec réel, ou objets `repository`/`head`/`base` imbriqués d'une
+pull request (dépôt complet répété deux fois : le réduire à full_name + default_branch ?).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

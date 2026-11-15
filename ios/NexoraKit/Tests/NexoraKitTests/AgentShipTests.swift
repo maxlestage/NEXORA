@@ -277,7 +277,16 @@ struct AgentShipTests {
                                                        "+1": 2, "heart": 0]]) as? [String: Any]
         let r = liked?["reactions"] as? [String: Any]
         #expect(r?.keys.sorted() == ["+1", "total_count"] && r?["total_count"] as? Int == 2)
-        #expect(shown.count / 4 < 540)
+        #expect(shown.count / 4 < 480)
+        // Personne citée réduite à son login (type gardé hors « User ») ; profil complet gardé.
+        #expect(shown.contains(#""user":{"login":"max"}"#) && !shown.contains("56438697"))
+        let bot = AgentRun.slimGitHub(["login": "dependabot[bot]", "id": 4, "type": "Bot",
+                                       "html_url": "https://github.com/apps/dependabot"]) as? [String: Any]
+        #expect(bot?["id"] as? Int == 4)
+        let app = AgentRun.slimGitHub(["login": "ci", "id": 5, "type": "Bot"]) as? [String: Any]
+        #expect(app?.keys.sorted() == ["login", "type"])
+        let me = AgentRun.slimGitHub(["login": "max", "id": 1, "type": "User", "name": "Max"]) as? [String: Any]
+        #expect(me?.count == 4)
         // Étiquettes réduites à leur nom ; une liste qui n'en est pas une reste entière.
         #expect(shown.contains(#""labels":["bug"]"#) && !shown.contains("d73a4a"))
         #expect(AgentRun.labelNames([["name": "a"], ["id": 2]]) == nil && AgentRun.labelNames([Any]()) == nil)
