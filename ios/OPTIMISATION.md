@@ -723,11 +723,20 @@ mémoire 32k tokens, consigne 3 000 car.
   une ligne = un élément lu avec ses en-têtes (« Nom : Alice, Âge : 30 » ; avant : cellule
   par cellule sans en-tête), en-tête « Tableau, 3 colonnes, 5 lignes ». Tests : 488 → 489.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.84 : tableaux du chat) → prochain passage : TOKENS :
-objets `repository`/`head`/`base` imbriqués d'une pull request (dépôt complet répété deux
-fois : le réduire à full_name + default_branch ?), ou journal xcodebuild en échec réel.
-Interface ensuite : écran Modèles ou Réglages.
+- 3.0.85 (tokens) : outil github de l'agent — `AgentRun.nestedRepoKeys`/`repoName` : un
+  dépôt complet (≈ 40 champs) sous `repo` (head/base d'une pull request, deux fois),
+  `repository` ou `head_repository` (runs de workflow, recherche de code) réduit à
+  `full_name` + `default_branch` (+ `fork`/`private` s'ils sont vrais). Un dépôt demandé
+  pour lui-même (GET /repos/…, listes) reste entier. Banc `AgentShipTests.githubNestedRepo`
+  (3 pull requests) : 1 434 → 335 tokens (−77 %). Tests : 489 → 490.
+  Note : en local, `ParityTests.bundled` et `UsageTests` (prix en direct) échouent car le
+  lien symbolique `Resources/models.json` est copié tel quel dans `.build` (cassé) ; la CI
+  (conteneur swift:6.4.2) est verte. Ne pas y toucher.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.85 : dépôts imbriqués) → prochain passage : INTERFACE : écran Modèles
+ou Réglages. Tokens ensuite : vérifier `workflow_runs` réels (`head_commit`, `actor` et
+`triggering_actor` en double ?) ou journal xcodebuild en échec réel.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

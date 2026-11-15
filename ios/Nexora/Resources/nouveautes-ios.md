@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.85 — 15 novembre 2026 — Agent plus économe sur les pull requests
+
+- Amélioré : quand l'agent lit des pull requests ou des runs de CI sur GitHub, le dépôt répété dans chaque réponse est réduit à son nom et à sa branche par défaut.
+- Amélioré : une liste de pull requests coûte environ 75 % de tokens en moins, sans perdre d'information utile à l'agent.
+
 ## 3.0.84 — 15 novembre 2026 — Tableaux plus pratiques
 
 - Nouveau : un bouton Copier sur chaque tableau du chat ; il se colle tel quel dans Numbers, Excel ou Notes.
