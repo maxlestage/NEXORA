@@ -121,6 +121,7 @@ extension AgentRun {
                     continue
                 }
                 if k == "url", let s = v as? String, s.hasPrefix("https://api.github.com/") { continue }
+                if quietKeys.contains(k), isQuiet(v) { continue }
                 out[k] = slimGitHub(v)
             }
             return out
@@ -129,6 +130,21 @@ extension AgentRun {
         default:
             return x
         }
+    }
+
+    /// Clés retirées quand elles ne disent rien (nulles, fausses ou « public ») : leur
+    /// absence se lit de la même façon. Les autres valeurs nulles restent, car elles
+    /// informent (`merged_at`, `closed_at`, `conclusion` d'un run en cours…).
+    nonisolated static let quietKeys: Set<String> = [
+        "active_lock_reason", "performed_via_github_app", "state_reason", "milestone",
+        "assignee", "auto_merge", "locked", "site_admin", "user_view_type",
+    ]
+
+    nonisolated static func isQuiet(_ v: Any) -> Bool {
+        if v is NSNull { return true }
+        // Seules des clés booléennes sont concernées (`locked`, `site_admin`).
+        if let b = v as? Bool { return !b }
+        return (v as? String) == "public"
     }
 
     /// Une requête brute à GitHub, le corps passé en JSON (sans partage de valeurs

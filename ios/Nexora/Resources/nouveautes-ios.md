@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.75 — 15 novembre 2026 — Agent encore plus économe avec GitHub
+- Amélioré : les réponses de GitHub lues par l'agent coûtent environ 23 % de tokens en moins (champs vides comme « milestone: null » ou « locked: false » retirés).
+- Les informations utiles restent, même vides : date de fusion ou de fermeture, résultat d'un run en cours.
+
 ## 3.0.74 — 15 novembre 2026 — Branche d'un dépôt toujours visible
 
 - Amélioré : hors de la branche par défaut, un bandeau sous les onglets du dépôt indique la branche choisie (les fichiers enregistrés vont sur elle).
