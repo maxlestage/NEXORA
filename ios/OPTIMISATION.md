@@ -635,10 +635,18 @@ mémoire 32k tokens, consigne 3 000 car.
   coupée (≈ 3 tickets visibles), maintenant les 5 tiennent. Valeurs nulles gardées
   (« merged_at »: null informe). Tests : 478 → 479.
 
-## Prochain passage : INTERFACE
-(fait en 3.0.71) → prochain passage : INTERFACE, ReposView (compte GitHub, liste des
-dépôts). Tokens ensuite : clés nulles des réponses github (à mesurer sans perdre
-« merged_at ») ; JSON compact au lieu d'indenté pour l'outil github.
+- 3.0.72 (interface) : liste des dépôts (ReposView) — `ReposDisplay.title` (nom court
+  « nexora » pour ses propres dépôts, « autre/nexora » sinon), `header` (« 12 dépôts »,
+  « 3 sur 12 » pendant une recherche, au lieu de « Dépôts »), `accessibility` (VoiceOver
+  lit « privé » : le cadenas n'avait pas de libellé). Erreur dans une section avec
+  « Réessayer » (44 pt) ; appui long sur un dépôt : « Ouvrir sur GitHub », « Copier le
+  lien » (vibration) ; « Créer » remplacé par une roue pendant la création. Tests :
+  479 → 482.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.72) → prochain passage : TOKENS — clés nulles des réponses
+github (à mesurer sans perdre « merged_at ») ; JSON compact au lieu d'indenté pour
+l'outil github. Interface ensuite : RepoView (fiche d'un dépôt).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -118,6 +118,9 @@ struct GitHubSignInView: View {
 /// Vos dépôts, avec recherche.
 struct ReposView: View {
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
+    @Environment(\.openURL) private var openURL
+    @State private var copied = 0
     @State private var query = ""
     @State private var creating = false
 
@@ -149,14 +152,19 @@ struct ReposView: View {
                 }
             }
             if let e = github.error {
-                Text(e).foregroundStyle(Theme.red).font(.footnote)
+                Section {
+                    Text(e).foregroundStyle(Theme.red).font(.footnote)
+                    Button("Réessayer", systemImage: "arrow.clockwise") { Task { await github.refresh() } }
+                        .frame(minHeight: 44)
+                        .disabled(github.loading)
+                }
             }
-            Section("Dépôts") {
+            Section {
                 ForEach(shown) { r in
                     NavigationLink(value: r) {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack {
-                                Text(r.fullName).font(.headline).lineLimit(1)
+                                Text(ReposDisplay.title(r, login: github.user?.login)).font(.headline).lineLimit(1)
                                 if r.isPrivate { Image(systemName: "lock.fill").font(.caption).foregroundStyle(.secondary) }
                             }
                             if let d = r.description, !d.isEmpty {
@@ -167,11 +175,26 @@ struct ReposView: View {
                                 Text(meta).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                         }
-                        .accessibilityElement(children: .combine)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(ReposDisplay.accessibility(r, login: github.user?.login))
                     }
+                    .contextMenu {
+                        if let url = URL(string: r.htmlUrl) {
+                            Button("Ouvrir sur GitHub", systemImage: "safari") { openURL(url) }
+                            Button("Copier le lien", systemImage: "link") {
+                                UIPasteboard.general.string = r.htmlUrl
+                                copied += 1
+                            }
+                        }
+                    }
+                }
+            } header: {
+                if !github.repos.isEmpty {
+                    Text(ReposDisplay.header(shown: shown.count, total: github.repos.count))
                 }
             }
         }
+        .sensoryFeedback(.success, trigger: copied) { _, _ in settings.haptics }
         .overlay {
             if github.loading && github.repos.isEmpty {
                 ProgressView()
@@ -236,21 +259,23 @@ struct CreateRepoSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") {
-                        busy = true
-                        Task {
-                            do {
-                                let repo = try await github.api.createRepo(name: ReposDisplay.repoName(name), description: description, isPrivate: isPrivate)
-                                await github.loadRepos()
-                                dismiss()
-                                onCreated?(repo)
-                            } catch {
-                                self.error = error.localizedDescription
+                    if busy { ProgressView() } else {
+                        Button("Créer") {
+                            busy = true
+                            Task {
+                                do {
+                                    let repo = try await github.api.createRepo(name: ReposDisplay.repoName(name), description: description, isPrivate: isPrivate)
+                                    await github.loadRepos()
+                                    dismiss()
+                                    onCreated?(repo)
+                                } catch {
+                                    self.error = error.localizedDescription
+                                }
+                                busy = false
                             }
-                            busy = false
                         }
+                        .disabled(ReposDisplay.repoNameProblem(name) != nil)
                     }
-                    .disabled(ReposDisplay.repoNameProblem(name) != nil || busy)
                 }
             }
         }

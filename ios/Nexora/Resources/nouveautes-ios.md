@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.72 — 15 novembre 2026 — Liste des dépôts plus simple
+- Amélioré : vos propres dépôts s'affichent sous leur nom court (« nexora » au lieu de « vous/nexora »), avec leur nombre en tête de liste (« 3 sur 12 » pendant une recherche).
+- Nouveau : appui long sur un dépôt pour l'ouvrir sur GitHub ou copier son lien.
+- Amélioré : en cas d'erreur, un bouton « Réessayer » ; « Créer » montre que la création est en cours ; VoiceOver lit « privé » pour les dépôts privés.
+
 ## 3.0.71 — 15 novembre 2026 — Agent plus économe avec GitHub
 
 - Amélioré : quand l'agent consulte GitHub (tickets, pull requests, workflows), les réponses lui sont envoyées sans les liens internes de l'API : environ 60 % de tokens en moins.
