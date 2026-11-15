@@ -37,4 +37,29 @@ struct ReposDisplayTests {
             == "il y a 30 min")
         #expect(ReposDisplay.meta(try repo("c"), now: now) == "")
     }
+
+    @Test func nomCourtPourSesDepots() throws {
+        let r = try repo("nexora")
+        #expect(ReposDisplay.title(r, login: "max") == "nexora")
+        #expect(ReposDisplay.title(r, login: "MAX") == "nexora")
+        #expect(ReposDisplay.title(r, login: "autre") == "max/nexora")
+        #expect(ReposDisplay.title(r, login: nil) == "max/nexora")
+    }
+
+    @Test func enTeteAvecCompte() {
+        #expect(ReposDisplay.header(shown: 12, total: 12) == "12 dépôts")
+        #expect(ReposDisplay.header(shown: 1, total: 1) == "1 dépôt")
+        #expect(ReposDisplay.header(shown: 0, total: 0) == "0 dépôts")
+        #expect(ReposDisplay.header(shown: 3, total: 12) == "3 sur 12")
+    }
+
+    @Test func lectureVoiceOver() throws {
+        let now = try #require(ReposDisplay.parseDate("2026-11-12T12:00:00Z"))
+        let r = try repo("nexora", description: "Assistant", language: "Swift", stars: 2, pushedAt: "2026-11-09T12:00:00Z")
+        #expect(ReposDisplay.accessibility(r, login: "max", now: now) == "nexora, Assistant, Swift, étoiles 2, il y a 3 j")
+        let j: [String: Any] = ["id": 1, "full_name": "o/p", "name": "p", "owner": ["login": "o"],
+                                "private": true, "html_url": "https://github.com/o/p"]
+        let p = try JSONDecoder().decode(Repo.self, from: JSONSerialization.data(withJSONObject: j))
+        #expect(ReposDisplay.accessibility(p, login: "max", now: now) == "o/p, privé")
+    }
 }

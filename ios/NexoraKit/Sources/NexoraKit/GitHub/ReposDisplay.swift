@@ -20,6 +20,29 @@ public enum ReposDisplay {
         return parts.joined(separator: " · ")
     }
 
+    /// Le nom affiché : « nexora » pour vos propres dépôts (votre nom devant ne dit rien),
+    /// « autre/nexora » pour ceux d'un autre compte ou d'une organisation.
+    public static func title(_ repo: Repo, login: String?) -> String {
+        guard let login, repo.owner.login.caseInsensitiveCompare(login) == .orderedSame else { return repo.fullName }
+        return repo.name
+    }
+
+    /// L'en-tête de la liste : « 12 dépôts », « 1 dépôt », ou « 3 sur 12 » pendant une recherche.
+    public static func header(shown: Int, total: Int) -> String {
+        if shown < total { return "\(shown) sur \(total)" }
+        return total == 1 ? "1 dépôt" : "\(total) dépôts"
+    }
+
+    /// Ce que VoiceOver lit pour un dépôt : nom, « privé », description puis détails.
+    public static func accessibility(_ repo: Repo, login: String?, now: Date = Date()) -> String {
+        var parts = [title(repo, login: login)]
+        if repo.isPrivate { parts.append("privé") }
+        if let d = repo.description, !d.isEmpty { parts.append(d) }
+        let m = meta(repo, now: now).replacingOccurrences(of: "★ ", with: "étoiles ")
+        if !m.isEmpty { parts.append(m.replacingOccurrences(of: " · ", with: ", ")) }
+        return parts.joined(separator: ", ")
+    }
+
     /// Date ISO 8601 de l'API GitHub (« 2026-11-12T17:49:05Z »).
     public static func parseDate(_ s: String) -> Date? {
         let f = ISO8601DateFormatter()
