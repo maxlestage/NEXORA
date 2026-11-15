@@ -259,80 +259,142 @@ struct NewIssueSheet: View {
     }
 }
 
-/// GitHub Actions : les exécutions récentes (relancer) et les workflows (lancer).
+/// GitHub Actions : les exécutions récentes (« Relancer » visible sur celles qui ont
+/// échoué) et les workflows (lancer après confirmation).
 struct ActionsView: View {
     let repo: Repo
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
+    @Environment(\.openURL) private var openURL
     @State private var runs: [WorkflowRun] = []
     @State private var workflows: [Workflow] = []
     @State private var error: String?
     @State private var info: String?
     @State private var loading = true
+    @State private var busy: Set<Int> = []
+    @State private var toLaunch: Workflow?
+    @State private var done = 0
 
     var body: some View {
         List {
             if let info { Text(info).foregroundStyle(Theme.green) }
-            if let error { Text(error).foregroundStyle(Theme.red) }
-            Section("Exécutions") {
-                ForEach(runs) { r in
-                    HStack(spacing: 10) {
-                        statusIcon(r)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(r.title).lineLimit(2)
-                            Text("\(r.name ?? "") · \(r.headBranch ?? "") · \(r.event ?? "")").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                    }
-                    .swipeActions {
-                        Button("Relancer", systemImage: "arrow.clockwise") {
-                            Task {
-                                do {
-                                    try await github.api.rerun(repo.owner.login, repo.name, runId: r.id)
-                                    info = "Exécution relancée."
-                                    await load()
-                                } catch { self.error = error.localizedDescription }
-                            }
-                        }
-                        .tint(.accentColor)
-                        if let url = r.htmlUrl.flatMap(URL.init(string:)) {
-                            Link(destination: url) { Label("GitHub", systemImage: "safari") }
-                        }
-                    }
+            if let error {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error).foregroundStyle(Theme.red)
+                    Button("Réessayer", systemImage: "arrow.clockwise") { Task { await load() } }
+                        .frame(minHeight: 44)
                 }
             }
-            Section("Workflows") {
-                ForEach(workflows) { w in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(w.name)
-                            Text(w.file).font(.caption.monospaced()).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Lancer") {
-                            Task {
-                                do {
-                                    try await github.api.dispatch(repo.owner.login, repo.name, workflowId: w.id, ref: repo.branch)
-                                    info = "« \(w.name) » lancé sur \(repo.branch)."
-                                } catch { self.error = error.localizedDescription }
+            if !runs.isEmpty {
+                Section {
+                    ForEach(runs) { r in runRow(r) }
+                } header: {
+                    Text(ActionsDisplay.runsHeader(runs))
+                }
+            }
+            if !workflows.isEmpty {
+                Section("Workflows") {
+                    ForEach(workflows) { w in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(w.name)
+                                Text(w.file).font(.caption.monospaced()).foregroundStyle(.secondary)
                             }
+                            Spacer()
+                            Button("Lancer") { toLaunch = w }
+                                .buttonStyle(.bordered)
+                                .frame(minHeight: 44)
+                                .disabled(busy.contains(w.id))
+                                .accessibilityLabel("Lancer \(w.name)")
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
             }
         }
-        .overlay { if loading { ProgressView() } }
+        .overlay {
+            if loading && runs.isEmpty && workflows.isEmpty {
+                ProgressView()
+            } else if !loading && error == nil && runs.isEmpty && workflows.isEmpty {
+                ContentUnavailableView {
+                    Label("Aucune action", systemImage: "gearshape.2")
+                } description: {
+                    Text("Ce dépôt n'a pas encore de workflow GitHub Actions.")
+                }
+            }
+        }
         .refreshable { await load() }
         .task { await load() }
+        .sensoryFeedback(.success, trigger: done) { _, _ in settings.haptics }
+        .confirmationDialog(toLaunch.map { ActionsDisplay.dispatchQuestion($0, branch: repo.branch) } ?? "",
+                            isPresented: Binding(get: { toLaunch != nil }, set: { if !$0 { toLaunch = nil } }),
+                            titleVisibility: .visible, presenting: toLaunch) { w in
+            Button("Lancer") { dispatch(w) }
+        }
+    }
+
+    private func runRow(_ r: WorkflowRun) -> some View {
+        HStack(spacing: 10) {
+            statusIcon(r)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.title).lineLimit(2)
+                Text(ActionsDisplay.detail(r)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ActionsDisplay.accessibility(r))
+            Spacer(minLength: 0)
+            if ActionsDisplay.needsRerun(r) {
+                Button("Relancer") { rerun(r) }
+                    .buttonStyle(.bordered)
+                    .frame(minHeight: 44)
+                    .disabled(busy.contains(r.id))
+                    .accessibilityLabel("Relancer \(r.title)")
+            }
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .onTapGesture { if let url = r.htmlUrl.flatMap(URL.init(string:)) { openURL(url) } }
+        .accessibilityAction(named: "Ouvrir sur GitHub") { if let url = r.htmlUrl.flatMap(URL.init(string:)) { openURL(url) } }
+        .swipeActions {
+            Button("Relancer", systemImage: "arrow.clockwise") { rerun(r) }
+                .tint(.accentColor)
+        }
     }
 
     @ViewBuilder
     private func statusIcon(_ r: WorkflowRun) -> some View {
-        switch (r.status ?? "", r.conclusion ?? "") {
-        case ("completed", "success"): Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.green)
-        case ("completed", "skipped"), ("completed", "neutral"): Image(systemName: "minus.circle").foregroundStyle(.secondary)
-        case ("completed", "cancelled"): Image(systemName: "slash.circle").foregroundStyle(.secondary)
-        case ("completed", _): Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.red)
-        default: ProgressView().controlSize(.small)
+        switch ActionsDisplay.state(r) {
+        case .success: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.green)
+        case .skipped: Image(systemName: "minus.circle").foregroundStyle(.secondary)
+        case .cancelled: Image(systemName: "slash.circle").foregroundStyle(.secondary)
+        case .failure: Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.red)
+        case .running: ProgressView().controlSize(.small)
+        }
+    }
+
+    private func rerun(_ r: WorkflowRun) {
+        busy.insert(r.id)
+        Task {
+            defer { busy.remove(r.id) }
+            do {
+                try await github.api.rerun(repo.owner.login, repo.name, runId: r.id)
+                info = "Exécution relancée."
+                error = nil
+                done += 1
+                await load()
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func dispatch(_ w: Workflow) {
+        busy.insert(w.id)
+        Task {
+            defer { busy.remove(w.id) }
+            do {
+                try await github.api.dispatch(repo.owner.login, repo.name, workflowId: w.id, ref: repo.branch)
+                info = ActionsDisplay.dispatched(w, branch: repo.branch)
+                error = nil
+                done += 1
+            } catch { self.error = error.localizedDescription }
         }
     }
 
@@ -353,30 +415,53 @@ struct ActionsView: View {
     }
 }
 
-/// Les derniers commits d'une branche.
+/// Les derniers commits d'une branche ; un toucher ouvre le commit sur GitHub.
 struct CommitsView: View {
     let repo: Repo
     let branch: String
     @Environment(GitHubSession.self) private var github
+    @Environment(\.openURL) private var openURL
     @State private var commits: [Commit] = []
     @State private var error: String?
+    @State private var loading = true
 
     var body: some View {
         List {
-            if let error { Text(error).foregroundStyle(Theme.red) }
+            if let error {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error).foregroundStyle(Theme.red)
+                    Button("Réessayer", systemImage: "arrow.clockwise") { Task { await load() } }
+                        .frame(minHeight: 44)
+                }
+            }
             ForEach(commits) { c in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(c.title).lineLimit(2)
-                    Text("\(String(c.sha.prefix(7))) · \(c.commit.author?.name ?? "")").font(.caption.monospaced()).foregroundStyle(.secondary)
+                    Text(ActionsDisplay.commitDetail(c)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { if let url = c.htmlUrl.flatMap(URL.init(string:)) { openURL(url) } }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ActionsDisplay.commitAccessibility(c))
+                .accessibilityAddTraits(c.htmlUrl == nil ? [] : .isLink)
             }
         }
         .listStyle(.plain)
+        .overlay {
+            if loading && commits.isEmpty {
+                ProgressView()
+            } else if !loading && error == nil && commits.isEmpty {
+                ContentUnavailableView("Aucun commit sur \(branch)", systemImage: "clock.arrow.circlepath")
+            }
+        }
         .refreshable { await load() }
         .task(id: branch) { await load() }
     }
 
     private func load() async {
+        loading = true
+        defer { loading = false }
         do {
             commits = try await github.api.commits(repo.owner.login, repo.name, branch: branch)
             error = nil

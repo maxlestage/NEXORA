@@ -574,9 +574,18 @@ mémoire 32k tokens, consigne 3 000 car.
   messages gardés (73 → 49 oubliés) pour moins cher (envoyés +2 %, car la mémoire reste
   pleine plus longtemps). Gain ci-dessus. Tests : 460 → 462.
 
-## Prochain passage : INTERFACE
-Actions/commits (RepoLists, 2e moitié) ou chat 2e passage. Puis tokens : mesurer le
-journal xcodebuild le jour d'un échec iOS.
+- 3.0.65 (interface) : Actions et commits d'un dépôt (RepoLists, 2e moitié) —
+  `ActionsDisplay` (`state`/`RunState.label` « Réussie », « Échouée »… ; `needsRerun` :
+  « Relancer » visible sur la ligne après un échec ou une annulation, avant caché dans un
+  balayage ; `event` « push » → « envoi », « workflow_dispatch » → « manuel » ; `detail`
+  « CI · main · envoi · il y a 2 h » ; `accessibility` ; `runsHeader` « 2 échouées » ;
+  `dispatchQuestion` : lancer un workflow confirmé, avant un toucher suffisait ;
+  `commitDetail`/`commitAccessibility` avec date). Toucher = ouvrir sur GitHub, vibration
+  au succès, boutons désactivés pendant l'envoi, états vides, « Réessayer ». Tests : 462 → 466.
+
+## Prochain passage : TOKENS
+Mesurer le journal xcodebuild le jour d'un échec iOS ; sinon chercher une autre piste
+(TokenBench). Ensuite interface : écran Workflows/CloudAgentsView ou chat 2e passage.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
