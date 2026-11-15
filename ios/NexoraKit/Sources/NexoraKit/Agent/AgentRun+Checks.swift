@@ -155,18 +155,22 @@ extension AgentRun {
         return names.count == a.count ? names : nil
     }
 
-    /// Clés retirées quand elles ne disent rien (nulles, fausses ou « public ») : leur
-    /// absence se lit de la même façon. Les autres valeurs nulles restent, car elles
+    /// Clés retirées quand elles ne disent rien (nulles, fausses, « public » ou liste
+    /// vide : personne d'assigné, aucun relecteur demandé) : leur absence se lit de la
+    /// même façon. Les autres valeurs nulles restent, car elles
     /// informent (`merged_at`, `closed_at`, `conclusion` d'un run en cours…).
     nonisolated static let quietKeys: Set<String> = [
         "active_lock_reason", "performed_via_github_app", "state_reason", "milestone",
         "assignee", "auto_merge", "locked", "site_admin", "user_view_type",
+        "assignees", "requested_reviewers", "requested_teams",
     ]
 
     nonisolated static func isQuiet(_ v: Any) -> Bool {
         if v is NSNull { return true }
         // Seules des clés booléennes sont concernées (`locked`, `site_admin`).
         if let b = v as? Bool { return !b }
+        // Listes de personnes (`assignees`, `requested_reviewers`…) : vides seulement.
+        if let a = v as? [Any] { return a.isEmpty }
         return (v as? String) == "public"
     }
 

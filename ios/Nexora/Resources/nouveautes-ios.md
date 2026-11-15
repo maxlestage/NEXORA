@@ -5,6 +5,9 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.81 — 15 novembre 2026 — Pull requests plus légères pour l'agent
+- Amélioré : quand l'agent lit des tickets ou des pull requests sur GitHub, les listes vides (personne d'assigné, aucun relecteur demandé) ne lui sont plus envoyées : environ 3 % de tokens en moins sur ces réponses, davantage sur les pull requests.
+
 ## 3.0.80 — 15 novembre 2026 — Témoin de crédit plus clair
 
 - Amélioré : VoiceOver dit l'état du crédit (« bientôt à court », « bloqué ») au lieu de laisser la couleur du point seule l'indiquer.
