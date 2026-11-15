@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.70 — 15 novembre 2026 — Images en plein écran plus pratiques
+
+- Nouveau : avec plusieurs images, un appui long sur « Enregistrer » les enregistre toutes dans Photos.
+- Amélioré : une petite vibration confirme l'enregistrement dans Photos.
+- Amélioré : le titre « 2 sur 3 » est lu « Image 2 sur 3 » par VoiceOver.
+
 ## 3.0.69 — 15 novembre 2026 — Journaux de compilation Xcode bien plus courts
 
 - Amélioré : quand l'agent lit le journal d'une compilation Xcode, les longues commandes du compilateur sont coupées au début ; sur un journal type, il envoie environ 96 % de tokens en moins.

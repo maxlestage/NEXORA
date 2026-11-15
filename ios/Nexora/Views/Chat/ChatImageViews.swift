@@ -368,18 +368,25 @@ enum PhotoLibrarySaver {
 // MARK: - Plein écran
 
 /// Les images en plein écran : balayer pour passer de l'une à l'autre, pincer
-/// pour zoomer ; partager ou enregistrer dans Photos.
+/// pour zoomer ; partager ou enregistrer dans Photos (toucher : cette image ;
+/// appui long : toutes les images).
 struct ChatImageViewer: View {
     let names: [String]
     @State var index: Int
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SettingsStore.self) private var settings
     @State private var toast: Toast?
     @State private var saving = false
+    @State private var saved = 0
 
     init(names: [String], start: Int) {
         self.names = names
-        _index = State(initialValue: min(max(start, 0), max(names.count - 1, 0)))
+        _index = State(initialValue: ImageViewerDisplay.clamp(start, count: names.count))
+    }
+
+    private var currentURL: URL? {
+        chatImageURLs([names.indices.contains(index) ? names[index] : ""]).first
     }
 
     var body: some View {
@@ -391,36 +398,59 @@ struct ChatImageViewer: View {
             }
             .tabViewStyle(.page(indexDisplayMode: names.count > 1 ? .automatic : .never))
             .background(Color.black.ignoresSafeArea())
-            .navigationTitle(names.count > 1 ? "\(index + 1) / \(names.count)" : "Image")
+            .navigationTitle(ImageViewerDisplay.title(index: index, count: names.count))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+                ToolbarItem(placement: .principal) {
+                    Text(ImageViewerDisplay.title(index: index, count: names.count))
+                        .font(.headline)
+                        .accessibilityLabel(ImageViewerDisplay.spokenTitle(index: index, count: names.count))
+                }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    if let url = chatImageURLs([names.indices.contains(index) ? names[index] : ""]).first {
+                    if let url = currentURL {
                         ShareLink(item: url) {
                             Image(systemName: "square.and.arrow.up")
                         }
                         .accessibilityLabel("Partager")
-                        Button {
-                            save(url)
-                        } label: {
-                            Image(systemName: saving ? "hourglass" : "square.and.arrow.down")
-                        }
-                        .disabled(saving)
-                        .accessibilityLabel("Enregistrer dans Photos")
+                        saveButton(url)
                     }
                 }
             }
             .toast($toast)
+            .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
         }
     }
 
-    private func save(_ url: URL) {
+    @ViewBuilder
+    private func saveButton(_ url: URL) -> some View {
+        let icon = Image(systemName: saving ? "hourglass" : "square.and.arrow.down")
+        if let all = ImageViewerDisplay.saveAllLabel(count: names.count) {
+            Menu {
+                Button("Enregistrer cette image", systemImage: "photo") { save([url]) }
+                Button(all, systemImage: "photo.on.rectangle") { save(chatImageURLs(names)) }
+            } label: {
+                icon
+            } primaryAction: {
+                save([url])
+            }
+            .disabled(saving)
+            .accessibilityLabel("Enregistrer dans Photos")
+            .accessibilityHint("Appui long pour enregistrer toutes les images")
+        } else {
+            Button { save([url]) } label: { icon }
+                .disabled(saving)
+                .accessibilityLabel("Enregistrer dans Photos")
+        }
+    }
+
+    private func save(_ urls: [URL]) {
         saving = true
         Task {
-            let r = await PhotoLibrarySaver.save([url])
+            let r = await PhotoLibrarySaver.save(urls)
             saving = false
+            if r.ok { saved += 1 }
             toast = Toast(text: r.text, error: !r.ok)
         }
     }

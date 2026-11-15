@@ -64,3 +64,26 @@ public enum ImageGenDisplay {
         return ""
     }
 }
+
+/// Les textes et les règles de la visionneuse d'images en plein écran (testables sous Linux).
+public enum ImageViewerDisplay {
+    /// L'image ouverte au départ, toujours dans la liste (0 si la liste est vide).
+    public static func clamp(_ start: Int, count: Int) -> Int {
+        min(max(start, 0), max(count - 1, 0))
+    }
+
+    /// Le titre court de la barre : « Image » seule, sinon « 2 sur 3 ».
+    public static func title(index: Int, count: Int) -> String {
+        count > 1 ? "\(clamp(index, count: count) + 1) sur \(count)" : "Image"
+    }
+
+    /// Le titre lu par VoiceOver : « Image 2 sur 3 ».
+    public static func spokenTitle(index: Int, count: Int) -> String {
+        count > 1 ? "Image \(title(index: index, count: count))" : "Image"
+    }
+
+    /// Le choix « tout enregistrer » n'apparaît que s'il y a plusieurs images.
+    public static func saveAllLabel(count: Int) -> String? {
+        count > 1 ? "Enregistrer les \(count) images" : nil
+    }
+}

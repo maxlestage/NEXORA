@@ -44,3 +44,28 @@ struct ImageGenDisplayTests {
         #expect(ImageGenDisplay.costLabel(model: nil, cost: nil).isEmpty)
     }
 }
+
+@Suite("Visionneuse d'images : affichage")
+struct ImageViewerDisplayTests {
+    @Test("image de départ toujours valide")
+    func clamp() {
+        #expect(ImageViewerDisplay.clamp(-2, count: 3) == 0)
+        #expect(ImageViewerDisplay.clamp(5, count: 3) == 2)
+        #expect(ImageViewerDisplay.clamp(1, count: 3) == 1)
+        #expect(ImageViewerDisplay.clamp(4, count: 0) == 0)
+    }
+
+    @Test("titres courts, lus en entier par VoiceOver")
+    func titles() {
+        #expect(ImageViewerDisplay.title(index: 0, count: 1) == "Image")
+        #expect(ImageViewerDisplay.title(index: 1, count: 3) == "2 sur 3")
+        #expect(ImageViewerDisplay.spokenTitle(index: 1, count: 3) == "Image 2 sur 3")
+        #expect(ImageViewerDisplay.spokenTitle(index: 0, count: 1) == "Image")
+    }
+
+    @Test("« tout enregistrer » seulement avec plusieurs images")
+    func saveAll() {
+        #expect(ImageViewerDisplay.saveAllLabel(count: 1) == nil)
+        #expect(ImageViewerDisplay.saveAllLabel(count: 3) == "Enregistrer les 3 images")
+    }
+}
