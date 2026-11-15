@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.80 — 15 novembre 2026 — Témoin de crédit plus clair
+
+- Amélioré : VoiceOver dit l'état du crédit (« bientôt à court », « bloqué ») au lieu de laisser la couleur du point seule l'indiquer.
+- Amélioré : le témoin de crédit du chat, des sessions et de Modèles est plus facile à toucher (zone de 44 pt) sans prendre plus de place.
+
 ## 3.0.79 — 15 novembre 2026 — Tickets GitHub encore plus légers pour l'agent
 
 - Amélioré : quand l'agent lit des tickets ou des pull requests, leurs étiquettes ne gardent que leur nom ; environ 17 % de tokens en moins pour une liste de tickets.

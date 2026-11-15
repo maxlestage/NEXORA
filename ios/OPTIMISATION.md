@@ -690,9 +690,16 @@ mémoire 32k tokens, consigne 3 000 car.
   avant 3.0.71). `author_association` gardé (dit si l'auteur est le propriétaire).
   Tests : 486 (banc enrichi).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.79) → prochain passage : INTERFACE — écran Modèles ou Personnaliser
-(non encore revus). Tokens ensuite : `assignees` vide, `user.id`/`type` des auteurs
+- 3.0.80 (interface) : témoin de crédit (QuotaBadge, chat, sessions, Modèles) —
+  `UsageText.levelWord`/`spoken` : VoiceOver lit « Crédit chez Groq : 28 / 30 req/min,
+  bientôt à court » (avant : l'état n'était donné que par la couleur du point), indice
+  « Ouvre le détail… » ; version dense : zone touchable ≈ 21 → 45 pt de haut sans grandir
+  la barre (padding puis padding négatif). `CreditBar`/`ConversationCreditBar` (jamais
+  utilisés) retirés. Tests : 486 → 487.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.80) → prochain passage : TOKENS. Écrans déjà revus : presque tous
+(Modèles 3.0.21, Personnaliser 3.0.27…) ; à revoir ensuite : MarkdownView (code copiable ?). Tokens ensuite : `assignees` vide, `user.id`/`type` des auteurs
 (vérifier que l'agent n'en a pas besoin), ou journal xcodebuild en échec réel.
 
 ## Pistes tokens à faire

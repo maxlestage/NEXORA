@@ -48,7 +48,9 @@ struct QuotaBadge: View {
                 label(text: text, level: level)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Crédit et quotas chez \(p.name) : \(text)")
+            // L'état (couleur du point) est dit en mots : « …, bientôt à court ».
+            .accessibilityLabel(UsageText.spoken(p, u, now: now))
+            .accessibilityHint("Ouvre le détail du crédit et des quotas")
             .sheet(isPresented: $showSheet) {
                 QuotaSheet(providerId: p.id)
             }
@@ -78,7 +80,10 @@ struct QuotaBadge: View {
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .contentShape(.capsule)
+            // Zone touchable de 44 pt de haut sans grandir la barre qui l'accueille.
+            .padding(.vertical, 12)
+            .contentShape(.rect)
+            .padding(.vertical, -12)
         } else {
             HStack(spacing: 6) {
                 dot

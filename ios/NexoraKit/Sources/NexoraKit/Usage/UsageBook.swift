@@ -206,6 +206,26 @@ public enum UsageText {
         return "Pas encore utilisé"
     }
 
+    /// L'état du témoin en un mot, pour VoiceOver : la couleur du point ne se lit pas.
+    /// Rien quand tout va bien ou qu'on ne sait rien (le résumé suffit).
+    public static func levelWord(_ l: UsageLevel) -> String? {
+        switch l {
+        case .low: "bientôt à court"
+        case .blocked: "bloqué"
+        case .ok, .unknown: nil
+        }
+    }
+
+    /// Ce que VoiceOver lit sur le témoin : « Crédit chez Groq : Limite atteinte, bloqué ».
+    public static func spoken(_ p: ProviderDef, _ u: ProviderUsage, now: Date = Date()) -> String {
+        let text = summary(p, u, now: now)
+        var line = "Crédit chez \(p.name) : \(text)"
+        if let word = levelWord(u.level(now)) {
+            line += ", \(word)"
+        }
+        return line
+    }
+
     public static func level(_ l: UsageLevel) -> String {
         switch l {
         case .ok: "Tout va bien"
