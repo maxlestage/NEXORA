@@ -596,17 +596,26 @@ mémoire 32k tokens, consigne 3 000 car.
   sous-agents (`delegate`, un appel), consigne du chat (≈ 500 car.), plan des longs
   fichiers déjà fait (`readRange`/`outline`). Seul reste le journal xcodebuild.
 
-## Prochain passage : TOKENS
-Mesurer le journal xcodebuild le jour d'un échec iOS ; sinon, piste possible : seuil de
-lecture entière de read_file (24 000 car. ≈ 6k tokens sans plage) → plus bas avec le plan,
-à mesurer sur le banc ET sur le nombre de lectures en plus. Ensuite interface : écran
-Workflows/CloudAgentsView ou UsageView.
+- 3.0.67 (tokens) : journaux de CI — `CILog.clean` retire le dossier de travail du runner
+  (« /Users/runner/work/R/R/ », « /home/runner/work/R/R/ », « /__w/R/R/ » ; sans « / »
+  final → « . »), répété sur chaque ligne de xcodebuild (SwiftCompile, « cd », erreurs).
+  Banc `CILogTests.xcodebuildBench` (120 fichiers compilés, 12 avertissements, 1 erreur,
+  200 lignes gardées) : 4 944 → 3 327 tokens (−33 %) ; chemins des erreurs relatifs au
+  dépôt, donc directement utilisables par read_file. Tests : 469 → 470.
+
+## Prochain passage : INTERFACE
+Écran Workflows/CloudAgentsView ou UsageView. Ensuite tokens : vérifier sur un vrai
+journal xcodebuild en échec (DerivedData « /Users/runner/Library/Developer/Xcode/
+DerivedData/… » aussi long, non retiré pour l'instant : à mesurer).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
   vérifier `foldSimilar` sur des avertissements Swift répétés le jour où il y en a un.
 
 ## Idées écartées
+- Seuil de lecture entière de read_file plus bas (3.0.67) : sous 600 lignes le fichier
+  est rendu entier de toute façon ; baisser le seuil oblige à réduire aussi le morceau,
+  donc plus d'allers-retours, chacun renvoyant tout l'historique → perte probable.
 - Renvois orphelins (« identique », diff) après raccourcissement de leur base : la
   relecture suivante est déjà complète ; les relier à leur fichier demanderait de suivre
   le chemin de l'appel (3.0.63, gain en tokens nul).

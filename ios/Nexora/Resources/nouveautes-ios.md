@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.67 — 15 novembre 2026 — Journaux de CI plus courts
+- Amélioré : quand l'agent lit le journal d'une compilation iOS ratée, il consomme environ un tiers de tokens en moins (4 900 → 3 300 sur un journal type).
+- Amélioré : les chemins des erreurs sont donnés depuis la racine du dépôt (« ios/Nexora/Vue.swift:7:9 »), prêts à être ouverts.
+
 ## 3.0.66 — 15 novembre 2026 — Réponses plus pratiques
 - Amélioré : « Régénérer » est directement sous la dernière réponse (avant : caché dans « Plus »).
 - Amélioré : le bouton de lecture devient « Arrêter la lecture » pendant que la réponse est lue.
