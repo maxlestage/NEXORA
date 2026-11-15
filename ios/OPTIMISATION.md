@@ -676,10 +676,16 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubSlim` rendu réaliste (les 8 réactions renvoyées par GitHub) :
   786 → 651 tokens (−17 %). Tests : 485 (banc enrichi : réactions présentes gardées).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.77) → prochain passage : INTERFACE — FileEditorView (RepoView.swift).
-Tokens ensuite : autre piste du carnet (par ex. `author_association`, `labels` réduits
-à leur nom dans les listes de tickets — vérifier que l'agent n'en a pas besoin).
+- 3.0.78 (interface) : FileEditorView (RepoView.swift) — `FileEditorDisplay.lineChanges`
+  (`CollectionDifference` ligne à ligne, évité au-delà de 3 000 lignes pour ne pas ralentir
+  la frappe), `changeLine` « +3 −1 · sur main » au-dessus d'Enregistrer (avant : rien ne
+  disait l'ampleur du commit ni sa branche), `changeAccessibility` pour VoiceOver ;
+  nouveau fichier : « Nouveau fichier · sur main ». Tests : 485 → 486.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.78) → prochain passage : TOKENS — par ex. `author_association`,
+`labels` réduits à leur nom dans les listes de tickets (vérifier que l'agent n'en a pas
+besoin). Interface ensuite : écran Modèles ou Personnaliser (non encore revus).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

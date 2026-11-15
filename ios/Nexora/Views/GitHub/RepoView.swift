@@ -262,25 +262,33 @@ struct FileEditorView: View {
                 ProgressView().frame(maxHeight: .infinity)
             }
             if changed {
-                HStack {
-                    if !isNew {
-                        Button("Annuler les modifications", systemImage: "arrow.uturn.backward") {
-                            text = file?.text ?? ""
+                VStack(spacing: 8) {
+                    // Ce qui part dans le commit, et sur quelle branche, avant d'enregistrer.
+                    Text(isNew ? "Nouveau fichier · sur \(branch)" : FileEditorDisplay.changeLine(old: file?.text ?? "", new: text, branch: branch))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityLabel(isNew ? "Nouveau fichier, sur \(branch)" : FileEditorDisplay.changeAccessibility(old: file?.text ?? "", new: text, branch: branch))
+                    HStack {
+                        if !isNew {
+                            Button("Annuler les modifications", systemImage: "arrow.uturn.backward") {
+                                text = file?.text ?? ""
+                            }
+                            .labelStyle(.iconOnly)
+                            .frame(minWidth: 44, minHeight: 44)
                         }
-                        .labelStyle(.iconOnly)
-                        .frame(minWidth: 44, minHeight: 44)
+                        TextField(FileEditorDisplay.defaultMessage(path: path, isNew: isNew), text: $message)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Message du commit (facultatif)")
+                        Button {
+                            Task { await save() }
+                        } label: {
+                            if saving { ProgressView() } else { Text("Enregistrer") }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(minHeight: 44)
+                        .disabled(saving || pathProblem != nil)
                     }
-                    TextField(FileEditorDisplay.defaultMessage(path: path, isNew: isNew), text: $message)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Message du commit (facultatif)")
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        if saving { ProgressView() } else { Text("Enregistrer") }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .frame(minHeight: 44)
-                    .disabled(saving || pathProblem != nil)
                 }
                 .padding()
                 .background(.bar)
