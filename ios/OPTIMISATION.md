@@ -656,9 +656,18 @@ mémoire 32k tokens, consigne 3 000 car.
   branche par défaut d'abord, autres triées, sans doublon ; `menuAccessibility`).
   Tests : 482 → 484.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.74) → prochain passage : TOKENS — clés nulles des réponses github
-(à mesurer sans perdre « merged_at »). Interface ensuite : FileEditorView ou IssuesListView.
+- 3.0.75 (tokens) : outil github de l'agent — `AgentRun.quietKeys`/`isQuiet` : valeurs
+  muettes retirées pour une liste fermée de clés (`active_lock_reason`,
+  `performed_via_github_app`, `state_reason`, `milestone`, `assignee`, `auto_merge` nuls ;
+  `locked`, `site_admin` faux ; `user_view_type` « public »). Les autres nulles restent
+  (`merged_at`, `closed_at`, `conclusion`…) ; `draft` gardé (faux = prête). Banc
+  `AgentShipTests.githubSlim` (5 tickets) : 920 → 706 tokens (−23 % ; 2 928 avant 3.0.71).
+  Tests : 484 (banc enrichi).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.75) → prochain passage : INTERFACE — FileEditorView ou IssuesListView.
+Tokens ensuite : réactions toutes à zéro des tickets (`reactions` ≈ 60 car./ticket, mais
+le banc vérifie « total_count » : à repenser), ou autre piste du carnet.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -265,6 +265,16 @@ struct AgentShipTests {
         for gone in ["node_id", "followers_url", "comments_url", "api.github.com", "gravatar_id", "avatar_url"] {
             #expect(!slim.contains(gone), "\(gone)")
         }
+        // Valeurs muettes (nulles, fausses, « public ») des clés connues : retirées ;
+        // les nulles qui informent (`closed_at`, `merged_at`) restent.
+        for gone in ["active_lock_reason", "performed_via_github_app", "state_reason", "milestone",
+                     "\"assignee\"", "locked", "site_admin", "user_view_type"] {
+            #expect(!shown.contains(gone), "\(gone)")
+        }
+        #expect(shown.count / 4 < 760)
+        let kept = AgentRun.slimGitHub(["merged_at": NSNull(), "locked": true, "assignee": ["login": "max"],
+                                        "milestone": NSNull(), "site_admin": false]) as? [String: Any]
+        #expect(kept?.keys.sorted() == ["assignee", "locked", "merged_at"])
         // Un lien de téléchargement, une adresse hors API : gardés.
         let other = AgentRun.slimGitHub(["download_url": "https://raw.githubusercontent.com/a", "url": "https://exemple.fr"]) as? [String: Any]
         #expect(other?.count == 2)
