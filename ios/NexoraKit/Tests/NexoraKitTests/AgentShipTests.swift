@@ -627,7 +627,7 @@ struct AgentShipTests {
                                "author": git, "committer": git, "tree": ["sha": sha, "url": "https://api.github.com/x"], "comment_count": 0,
                                "verification": ["verified": false, "reason": "unsigned", "signature": NSNull(), "payload": NSNull()]],
                     "author": who, "committer": who,
-                    "parents": [["sha": String(repeating: "p\(n)", count: 20), "url": "https://api.github.com/x", "html_url": "https://github.com/x"]]]
+                    "parents": [["sha": String(repeating: n == 0 ? "p0" : "c\(n - 1)", count: 20), "url": "https://api.github.com/x", "html_url": "https://github.com/x"]]]
         }
         let base = commit(0)
         let compare: [String: Any] = ["url": "https://api.github.com/repos/max/site/compare/master...dev",
@@ -651,6 +651,19 @@ struct AgentShipTests {
         let b = out?["base_commit"] as? [String: Any]
         #expect(b?["sha"] as? String == base["sha"] as? String && b?["message"] as? String == "Étape 0 du travail …")
         #expect((out?["commits"] as? [Any])?.count == 3 && out?["files"] != nil)
+        // Historique linéaire : parents déduits de l'ordre, retirés ; total égal au nombre listé, retiré.
+        #expect((out?["commits"] as? [[String: Any]])?.allSatisfy { $0["parents"] == nil } == true)
+        #expect(out?["total_commits"] == nil)
+        // Commit de fusion (2 parents) ou hors suite, liste tronquée : tout reste.
+        var merge = compare
+        var c2 = commit(2)
+        c2["parents"] = [["sha": "a"], ["sha": "b"]]
+        merge["commits"] = [commit(1), c2, commit(4)]
+        merge["total_commits"] = 300
+        let mo = AgentRun.slimGitHub(merge) as? [String: Any]
+        let mc = mo?["commits"] as? [[String: Any]]
+        #expect(mc?[0]["parents"] == nil && (mc?[1]["parents"] as? [String]) == ["a", "b"])
+        #expect((mc?[2]["parents"] as? [String]) == [commit(3)["sha"] as! String] && mo?["total_commits"] as? Int == 300)
         // Lien d'un commit déduit du dépôt et du sha : retiré ; lien inattendu : gardé.
         #expect((out?["commits"] as? [[String: Any]])?.first?["html_url"] == nil)
         var odd = commit(4)

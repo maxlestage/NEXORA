@@ -288,14 +288,29 @@ extension AgentRun {
     /// `base_commit` (cas courant : la branche part de la base), remplacé sinon par son
     /// seul sha ; `base_commit` réduit à son sha, au titre de son message et à son
     /// auteur (l'agent compare la branche, la base complète se lit par
-    /// GET …/commits/<sha>). Les commits de la branche et les fichiers sont gardés.
+    /// GET …/commits/<sha>). Les commits de la branche et les fichiers sont gardés,
+    /// mais `parents` est retiré d'un commit dont le seul parent est le commit qui le
+    /// précède dans la liste (le premier : la base de fusion) — l'historique est alors
+    /// linéaire et se lit dans l'ordre ; un commit de fusion ou hors suite garde ses
+    /// parents. `total_commits` est retiré quand il vaut le nombre de commits listés.
     /// Tout autre objet est rendu tel quel.
     nonisolated static func slimCompare(_ d: [String: Any]) -> [String: Any] {
         guard d["ahead_by"] != nil, let base = d["base_commit"] as? [String: Any],
               let sha = base["sha"] as? String else { return d }
         var out = d
+        var previous = sha
         if let m = d["merge_base_commit"] as? [String: Any] {
+            if let ms = m["sha"] as? String { previous = ms }
             out["merge_base_commit"] = (m["sha"] as? String) == sha ? nil : (m["sha"] as? String).map { $0 as Any } ?? m
+        }
+        if let commits = d["commits"] as? [[String: Any]] {
+            if (d["total_commits"] as? Int) == commits.count { out["total_commits"] = nil }
+            out["commits"] = commits.map { c -> [String: Any] in
+                var c = c
+                if let p = c["parents"] as? [String], p == [previous] { c["parents"] = nil }
+                if let s = c["sha"] as? String { previous = s }
+                return c
+            }
         }
         var short: [String: Any] = ["sha": sha]
         if let c = base["commit"] as? [String: Any] {
