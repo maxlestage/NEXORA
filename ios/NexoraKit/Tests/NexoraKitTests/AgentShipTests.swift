@@ -327,6 +327,31 @@ struct AgentShipTests {
         return r
     }
 
+    @Test("banc github : liste de dépôts sans alias en double ni valeurs vides")
+    func githubRepoList() throws {
+        let repos = (1...5).map { n in Self.repoJSON("max\(n)", fork: false) }
+        // Référence : mêmes dépôts, `forks_count` renommé (même longueur) pour qu'ils restent entiers.
+        let plain = repos.map { r -> [String: Any] in
+            var r = r; r["forks_counX"] = r.removeValue(forKey: "forks_count"); return r }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(repos)).count
+        print("Banc github (liste de 5 dépôts) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 9)
+        let shown = AgentRun.githubText(AgentRun.slimGitHub(repos[0]))
+        for gone in ["\"forks\"", "\"open_issues\"", "\"watchers\"", "\"watchers_count\"", "\"private\"",
+                     "\"license\"", "\"topics\"", "\"archived\"", "\"is_template\""] {
+            #expect(!shown.contains(gone), "\(gone) devrait être retiré")
+        }
+        #expect(shown.contains(#""forks_count":1"#) && shown.contains(#""open_issues_count":4"#)
+            && shown.contains(#""stargazers_count":3"#) && shown.contains(#""visibility":"public""#)
+            && shown.contains(#""homepage":"https://exemple.fr""#) && shown.contains(#""has_wiki":false"#))
+        // Valeurs différentes ou vraies : gardées.
+        var odd = repos[0]
+        odd["watchers"] = 9; odd["archived"] = true; odd["private"] = true; odd["visibility"] = "private"
+        let kept = AgentRun.slimRepo(odd)
+        #expect(kept["watchers"] as? Int == 9 && kept["archived"] as? Bool == true && kept["private"] as? Bool == true)
+    }
+
     @Test("outil github : dépôt répété dans head/base d'une pull request réduit à son nom (banc)")
     func githubNestedRepo() throws {
         func side(_ owner: String, _ ref: String, fork: Bool) -> [String: Any] {

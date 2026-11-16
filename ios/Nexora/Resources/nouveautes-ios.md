@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.105 — 16 novembre 2026 — Dépôts plus légers pour l'agent
+- Amélioré : quand l'agent lit un dépôt GitHub ou une liste de dépôts, la réponse envoyée au modèle est environ 29 % plus courte.
+- Retirés : les compteurs en double et les champs vides ; rien d'utile n'est perdu.
+- Une liste de dépôts tient mieux dans une réponse : les derniers dépôts ne sont plus coupés.
+
 ## 3.0.104 — 16 novembre 2026 — Fiche d'un agent plus claire
 - Amélioré : les outils de l'agent sont nommés en mots simples (« Lire un fichier ») et rangés dans une ligne repliable qui les résume (« Tous », « 3 sur 8 »).
 - Amélioré : quand « Enregistrer » est grisé, la fiche dit ce qui manque (le nom, la consigne ou les deux).

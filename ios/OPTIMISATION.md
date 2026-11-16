@@ -864,9 +864,17 @@ mémoire 32k tokens, consigne 3 000 car.
   avant « @ » seul) aussi accepté par `AgentLibrary.named`. Tests : 508 → 510 (mêmes 2 échecs
   Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.104 : fiche d'un agent) → prochain passage : TOKENS.
-Interface ensuite : écran Modèles, 2e passage, ou sélecteur de modèle (ModelPickerSheet).
+- 3.0.105 (tokens) : `slimRepo` — un dépôt demandé seul (GET /repos/…, listes de dépôts :
+  `full_name` + `owner` + `forks_count`) sans alias identiques (`forks`, `open_issues`,
+  `watchers`, `watchers_count`), `private` faux si `visibility` = public, ni valeurs vides
+  (`license`/`homepage`/`mirror_url` nuls, `topics` vide, `archived`, `disabled`,
+  `is_template`, `web_commit_signoff_required`, `has_discussions`, `has_pages` faux).
+  Banc `AgentShipTests.githubRepoList` (5 dépôts) : 990 → 699 tokens (−29 %).
+  Tests : 510 → 511 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.105 : dépôts seuls) → prochain passage : INTERFACE.
+Interface : écran Modèles, 2e passage, ou sélecteur de modèle (ModelPickerSheet).
 Tokens ensuite : message complet des commits d'une comparaison (garder ? l'agent le lit
 pour comprendre la branche : à juger avant de couper). Fichiers d'une PR (GET
 …/pulls/n/files) vérifiés en 3.0.103 : déjà légers (`blob_url`/`raw_url`/`contents_url`
