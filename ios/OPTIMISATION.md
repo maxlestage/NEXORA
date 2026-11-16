@@ -850,12 +850,19 @@ mémoire 32k tokens, consigne 3 000 car.
   explications Téléphone / GitHub 2 phrases → 1 (le secret reste montré sous l'agent).
   Tests : 506 → 507 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.102 : fiche d'une routine) → prochain passage : TOKENS.
-Tokens : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
-mesurer) ; message complet des commits d'une comparaison (garder ? l'agent le lit pour
-comprendre la branche : à juger avant de couper).
-Interface ensuite : fiche d'un agent (AgentEditor).
+- 3.0.103 (tokens) : `slimRef` — dans `head`/`base` d'une pull request, `label`
+  (« propriétaire:ref ») et `user` (propriétaire seul) retirés quand ils se déduisent de
+  `repo.full_name` et `ref` ; dépôt supprimé (`repo` nul) ou valeurs différentes : gardés.
+  Banc `AgentShipTests.githubPullRefs` (3 PR, référence de même longueur non déductible) :
+  307 → 240 tokens (−22 %). Tests : 507 → 508 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.103 : head/base des pull requests) → prochain passage : INTERFACE.
+Interface : fiche d'un agent (AgentEditor).
+Tokens ensuite : message complet des commits d'une comparaison (garder ? l'agent le lit
+pour comprendre la branche : à juger avant de couper). Fichiers d'une PR (GET
+…/pulls/n/files) vérifiés en 3.0.103 : déjà légers (`blob_url`/`raw_url`/`contents_url`
+retirés par la règle des `_url`, `sha` par `slimFile`) → rien à faire.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

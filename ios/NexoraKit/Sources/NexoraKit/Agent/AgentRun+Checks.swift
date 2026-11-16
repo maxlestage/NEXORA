@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))
+            return personLogin(out) ?? slimRef(slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -330,6 +330,20 @@ extension AgentRun {
             let rest = p.dropFirst(head.count).split(separator: "\n", omittingEmptySubsequences: false).count - 1
             out["patch"] = head + "\n… (\(max(rest, 1)) lignes de plus : lis le fichier pour la suite)"
         }
+        return out
+    }
+
+    /// Une extrémité (`head`/`base`) d'une pull request allégée : `label`
+    /// (« propriétaire:branche ») et `user` (le propriétaire) retirés quand ils se
+    /// déduisent du nom complet du dépôt (déjà réduit par `repoName`) et de `ref`.
+    /// Dépôt supprimé (`repo` nul) ou valeurs inattendues : tout reste.
+    nonisolated static func slimRef(_ d: [String: Any]) -> [String: Any] {
+        guard let ref = d["ref"] as? String, d["sha"] is String,
+              let name = (d["repo"] as? [String: Any])?["full_name"] as? String,
+              let owner = name.split(separator: "/").first.map(String.init) else { return d }
+        var out = d
+        if (d["label"] as? String) == "\(owner):\(ref)" { out["label"] = nil }
+        if let u = d["user"] as? [String: Any], u.count == 1, (u["login"] as? String) == owner { out["user"] = nil }
         return out
     }
 
