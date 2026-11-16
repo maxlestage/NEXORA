@@ -769,10 +769,15 @@ mémoire 32k tokens, consigne 3 000 car.
   `Resources/models.json` est recopié tel quel dans `.build` et n'y pointe sur rien → 2 tests
   du catalogue échouent en local (aussi sans le changement) ; la CI (macOS) est verte.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.90 : fiche d'un fournisseur) → prochain passage : TOKENS :
-`get_workflow_run` seul (`referenced_workflows`, `pull_requests` vides) ou artefacts d'un
-run. Interface ensuite : Personnaliser.
+- 3.0.91 (tokens) : outil github de l'agent — `AgentRun.slimRun` retire aussi d'un run
+  `pull_requests` et `referenced_workflows` vides, `check_suite_id`/`check_suite_node_id`,
+  `run_started_at` identique à `created_at`, `display_title` identique au nom ou au titre du
+  commit (PR liée, titre propre, démarrage différé : gardés). Banc
+  `AgentShipTests.githubRunAlone` (GET d'un run) : 173 → 123 tokens (−29 %). Tests : 495 → 496.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.91 : run seul) → prochain passage : INTERFACE : Personnaliser.
+Tokens ensuite : artefacts d'un run (`list_workflow_run_artifacts`).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

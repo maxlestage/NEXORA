@@ -165,10 +165,24 @@ extension AgentRun {
     /// réduit au titre de son message (1re ligne, suivie de « … » si coupé) et à son
     /// auteur, sans `id` (= `head_sha`), `tree_id` ni `committer` identique à
     /// l'auteur. Le message complet reste lisible par GET /repos/…/commits/<sha>.
-    /// Tout autre objet est rendu tel quel.
+    /// Aussi retirés : les listes vides `pull_requests` et `referenced_workflows`,
+    /// les identifiants de la suite de vérifications (`check_suite_id`,
+    /// `check_suite_node_id` : l'agent passe par le numéro du run), `run_started_at`
+    /// identique à `created_at`, et `display_title` identique au nom du workflow ou au
+    /// titre du commit. Tout autre objet est rendu tel quel.
     nonisolated static func slimRun(_ d: [String: Any]) -> [String: Any] {
         guard let sha = d["head_sha"] as? String, var c = d["head_commit"] as? [String: Any] else { return d }
         var out = d
+        for k in ["pull_requests", "referenced_workflows"] where (d[k] as? [Any])?.isEmpty == true {
+            out[k] = nil
+        }
+        out["check_suite_id"] = nil
+        out["check_suite_node_id"] = nil
+        if let s = d["run_started_at"] as? String, s == d["created_at"] as? String { out["run_started_at"] = nil }
+        if let t = d["display_title"] as? String,
+           t == d["name"] as? String || t == (c["message"] as? String)?.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) {
+            out["display_title"] = nil
+        }
         if let a = d["actor"] as? [String: Any], let t = d["triggering_actor"] as? [String: Any],
            NSDictionary(dictionary: a).isEqual(to: t) {
             out["triggering_actor"] = nil
