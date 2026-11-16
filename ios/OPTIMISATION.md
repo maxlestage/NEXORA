@@ -795,9 +795,16 @@ mémoire 32k tokens, consigne 3 000 car.
   titre `sheetTitle` = version installée (avant : « depuis la 3.0.80 », ambigu) ; bouton
   « Toutes les nouveautés » 44 pt. Tests : 498 → 499 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.94 : « Quoi de neuf ») → prochain passage : TOKENS ; interface ensuite : accueil du chat vide ou session de l'agent (2e passage).
-Tokens ensuite : autre réponse GitHub fréquente de l'agent (ex. liste des commits, `files` d'un commit).
+- 3.0.95 (tokens) : outil github de l'agent — `AgentRun.slimCommit` (objet avec `sha` +
+  `commit` + `parents`) : `committer` identique à l'auteur retiré (personne GitHub et git),
+  parents réduits à leur sha, sans `tree` ni `comment_count` à zéro ; `verification` réduite à
+  `verified` + `reason` (signature et charge utile retirées), absente pour un commit non signé.
+  Banc `AgentShipTests.githubCommits` (5 commits, 2 signés) : 1 443 → 476 tokens (−67 %).
+  Tests : 499 → 500 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.95 : commits GitHub) → prochain passage : INTERFACE : accueil du chat vide ou session de l'agent (2e passage).
+Tokens ensuite : `files` d'un commit (GET …/commits/<sha> : `patch` long, `blob_url`/`raw_url`/`contents_url`), ou comparaison de branches.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -470,6 +470,56 @@ struct AgentShipTests {
         #expect(other?["digest"] as? String == "x")
     }
 
+    @Test("banc github : liste de commits sans signature, arbre ni committer en double")
+    func githubCommits() throws {
+        func user(_ login: String) -> [String: Any] {
+            ["login": login, "id": 56_438_697, "node_id": "MDQ6VXNlcjU2NDM4Njk3", "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
+             "gravatar_id": "", "url": "https://api.github.com/users/\(login)", "html_url": "https://github.com/\(login)",
+             "followers_url": "https://api.github.com/users/\(login)/followers", "repos_url": "https://api.github.com/users/\(login)/repos",
+             "type": "User", "user_view_type": "public", "site_admin": false]
+        }
+        func commit(_ n: Int, signed: Bool) -> [String: Any] {
+            let sha = String(repeating: "\(n)abc", count: 10)
+            let who: [String: Any] = ["name": "Max", "email": "max@exemple.fr", "date": "2026-11-16T0\(n):00:00Z"]
+            return ["sha": sha, "node_id": "C_kwDOAbc\(n)", "html_url": "https://github.com/max/site/commit/\(sha)",
+                    "url": "https://api.github.com/repos/max/site/commits/\(sha)",
+                    "comments_url": "https://api.github.com/repos/max/site/commits/\(sha)/comments",
+                    "commit": ["author": who, "committer": who, "message": "Correctif \(n)\n\nDétail du correctif \(n).",
+                               "tree": ["sha": String(repeating: "f\(n)", count: 20), "url": "https://api.github.com/repos/max/site/git/trees/x"],
+                               "url": "https://api.github.com/repos/max/site/git/commits/\(sha)", "comment_count": 0,
+                               "verification": signed
+                                ? ["verified": true, "reason": "valid", "signature": String(repeating: "S", count: 800),
+                                   "payload": String(repeating: "P", count: 300), "verified_at": "2026-11-16T00:00:00Z"]
+                                : ["verified": false, "reason": "unsigned", "signature": NSNull(), "payload": NSNull(), "verified_at": NSNull()]],
+                    "author": user("max"), "committer": user("max"),
+                    "parents": [["sha": String(repeating: "\(n)def", count: 10), "url": "https://api.github.com/repos/max/site/commits/p",
+                                 "html_url": "https://github.com/max/site/commit/p"]]]
+        }
+        let list: [Any] = (1...5).map { commit($0, signed: $0 % 2 == 0) }
+        // Référence : même liste, `parents` renommé (même longueur) pour que les commits restent entiers.
+        let plain: [Any] = list.map { c -> Any in var r = c as! [String: Any]; r["parentX"] = r.removeValue(forKey: "parents"); return r }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (5 commits) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 6)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        let first = out?.first, c = first?["commit"] as? [String: Any]
+        #expect(first?["committer"] == nil && (first?["author"] as? [String: Any])?["login"] as? String == "max")
+        #expect(first?["parents"] as? [String] == [String(repeating: "1def", count: 10)])
+        #expect(c?["tree"] == nil && c?["committer"] == nil && c?["comment_count"] == nil && c?["verification"] == nil)
+        #expect(c?["message"] as? String == "Correctif 1\n\nDétail du correctif 1.")
+        let v = (out?[1]["commit"] as? [String: Any])?["verification"] as? [String: Any]
+        #expect(v?["verified"] as? Bool == true && v?["reason"] as? String == "valid" && v?["signature"] == nil)
+        // Committer différent (fusion sur GitHub) : gardé.
+        var merged = commit(6, signed: false)
+        var mc = merged["commit"] as! [String: Any]
+        mc["committer"] = ["name": "GitHub", "email": "noreply@github.com", "date": "2026-11-16T06:00:00Z"]
+        merged["commit"] = mc
+        merged["committer"] = user("web-flow")
+        let m = AgentRun.slimGitHub(merged) as? [String: Any]
+        #expect((m?["commit"] as? [String: Any])?["committer"] != nil && m?["committer"] != nil)
+    }
+
     @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
     func githubJobs() throws {
         func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {

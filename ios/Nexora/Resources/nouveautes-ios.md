@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.95 — 16 novembre 2026 — Commits GitHub plus légers pour l'agent
+
+- Amélioré : quand l'agent lit des commits sur GitHub, il reçoit environ 67 % de tokens en moins (signature, arbre et auteur en double retirés).
+- Message, fichiers et statistiques de chaque commit restent complets.
+
 ## 3.0.94 — 16 novembre 2026 — « Quoi de neuf » plus court
 
 - Amélioré : après plusieurs mises à jour, la fenêtre « Quoi de neuf » montre une seule carte avec les 5 points forts (nouveautés d'abord) au lieu de 10 cartes à faire défiler
