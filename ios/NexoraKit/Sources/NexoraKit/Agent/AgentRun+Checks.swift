@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))
+            return personLogin(out) ?? slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -274,6 +274,32 @@ extension AgentRun {
             }
         }
         out["commit"] = c
+        return out
+    }
+
+    /// Une comparaison de branches (`ahead_by` + `base_commit` : GET …/compare/a...b)
+    /// allégée : `merge_base_commit` retiré quand c'est le même commit que
+    /// `base_commit` (cas courant : la branche part de la base), remplacé sinon par son
+    /// seul sha ; `base_commit` réduit à son sha, au titre de son message et à son
+    /// auteur (l'agent compare la branche, la base complète se lit par
+    /// GET …/commits/<sha>). Les commits de la branche et les fichiers sont gardés.
+    /// Tout autre objet est rendu tel quel.
+    nonisolated static func slimCompare(_ d: [String: Any]) -> [String: Any] {
+        guard d["ahead_by"] != nil, let base = d["base_commit"] as? [String: Any],
+              let sha = base["sha"] as? String else { return d }
+        var out = d
+        if let m = d["merge_base_commit"] as? [String: Any] {
+            out["merge_base_commit"] = (m["sha"] as? String) == sha ? nil : (m["sha"] as? String).map { $0 as Any } ?? m
+        }
+        var short: [String: Any] = ["sha": sha]
+        if let c = base["commit"] as? [String: Any] {
+            if let msg = c["message"] as? String {
+                let first = msg.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+                short["message"] = first.count > 1 ? String(first[0]) + " …" : msg
+            }
+            if let a = c["author"] { short["author"] = a }
+        }
+        out["base_commit"] = short
         return out
     }
 

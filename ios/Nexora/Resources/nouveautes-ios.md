@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.99 — 16 novembre 2026 — Comparaisons de branches plus légères
+- Amélioré : quand l'agent compare deux branches sur GitHub, la réponse consomme environ 29 % de tokens en moins.
+- Le commit de base n'est plus envoyé deux fois : il est réduit à son titre et à son auteur, les commits et fichiers de la branche restent entiers.
+
 ## 3.0.98 — 16 novembre 2026 — Vous voyez ce que fait l'agent
 - Nouveau : pendant le travail, sous le journal, une ligne dit en clair ce que fait l'agent (« Lit App.swift… », « Réfléchit… ») au lieu d'une roue seule.
 - Amélioré : VoiceOver lit cette ligne, la roue n'est plus muette.

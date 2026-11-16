@@ -561,6 +561,50 @@ struct AgentShipTests {
         #expect((AgentRun.slimGitHub(odd) as? [String: Any])?["changes"] as? Int == 9)
     }
 
+    @Test("banc github : comparaison de branches sans base répétée")
+    func githubCompare() throws {
+        func commit(_ n: Int) -> [String: Any] {
+            let sha = String(repeating: "c\(n)", count: 20)
+            let who: [String: Any] = ["login": "max", "id": 1, "node_id": "U_1", "html_url": "https://github.com/max", "type": "User",
+                                      "avatar_url": "https://avatars.githubusercontent.com/u/1"]
+            let git: [String: Any] = ["name": "Max", "email": "m@x.fr", "date": "2026-11-1\(n)T10:00:00Z"]
+            return ["sha": sha, "node_id": "C_\(n)", "html_url": "https://github.com/max/site/commit/\(sha)",
+                    "url": "https://api.github.com/repos/max/site/commits/\(sha)",
+                    "commit": ["message": "Étape \(n) du travail\n\nDétails de l'étape \(n) : plusieurs lignes d'explication sur ce qui change et pourquoi.",
+                               "author": git, "committer": git, "tree": ["sha": sha, "url": "https://api.github.com/x"], "comment_count": 0,
+                               "verification": ["verified": false, "reason": "unsigned", "signature": NSNull(), "payload": NSNull()]],
+                    "author": who, "committer": who,
+                    "parents": [["sha": String(repeating: "p\(n)", count: 20), "url": "https://api.github.com/x", "html_url": "https://github.com/x"]]]
+        }
+        let base = commit(0)
+        let compare: [String: Any] = ["url": "https://api.github.com/repos/max/site/compare/master...dev",
+                                      "html_url": "https://github.com/max/site/compare/master...dev",
+                                      "permalink_url": "https://github.com/max/site/compare/max:a...max:b",
+                                      "diff_url": "https://github.com/max/site/compare/master...dev.diff",
+                                      "patch_url": "https://github.com/max/site/compare/master...dev.patch",
+                                      "base_commit": base, "merge_base_commit": base, "status": "ahead",
+                                      "ahead_by": 3, "behind_by": 0, "total_commits": 3, "commits": [commit(1), commit(2), commit(3)],
+                                      "files": [["filename": "a.swift", "status": "modified", "additions": 2, "deletions": 1, "changes": 3,
+                                                 "sha": String(repeating: "f", count: 40), "patch": "@@ -1 +1,2 @@\n-x\n+y\n+z"]]]
+        // Référence : `ahead_by` renommé (même longueur) pour que la comparaison reste entière.
+        var plain = compare
+        plain["ahead_bX"] = plain.removeValue(forKey: "ahead_by")
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(compare)).count
+        print("Banc github (comparaison, 3 commits) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 8)
+        let out = AgentRun.slimGitHub(compare) as? [String: Any]
+        #expect(out?["merge_base_commit"] == nil)
+        let b = out?["base_commit"] as? [String: Any]
+        #expect(b?["sha"] as? String == base["sha"] as? String && b?["message"] as? String == "Étape 0 du travail …")
+        #expect((out?["commits"] as? [Any])?.count == 3 && out?["files"] != nil)
+        // Base de fusion différente (branches divergées) : gardée, réduite à son sha.
+        var diverged = compare
+        diverged["merge_base_commit"] = commit(9)
+        let m = (AgentRun.slimGitHub(diverged) as? [String: Any])?["merge_base_commit"] as? String
+        #expect(m == commit(9)["sha"] as? String)
+    }
+
     @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
     func githubJobs() throws {
         func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {
