@@ -880,11 +880,19 @@ mémoire 32k tokens, consigne 3 000 car.
   lignes de sa propre section (gardé en haut, où les fournisseurs se mélangent).
   Tests : 511 → 512 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.106 : sélecteur de modèle) → prochain passage : TOKENS.
-Tokens : message complet des commits d'une comparaison (garder ? l'agent le lit
-pour comprendre la branche : à juger avant de couper), ou autre réponse GitHub lourde.
-Interface ensuite : écran Modèles (ProvidersView), 2e passage, ou AgentPickerSheet.
+- 3.0.107 (tokens) : `slimCompare` — dans une comparaison de branches, `parents` retiré
+  d'un commit dont le seul parent est le commit précédent de la liste (le premier : la base
+  de fusion), `total_commits` retiré s'il vaut le nombre listé ; commit de fusion, hors
+  suite ou liste tronquée : gardés. Messages complets des commits gardés (l'agent les lit
+  pour comprendre la branche). Banc `AgentShipTests.githubCompare` (3 commits, historique
+  désormais linéaire) : 358 → 312 tokens (−13 %) ; référence non allégée 491.
+  Tests : 512 (banc enrichi ; mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.107 : comparaison de branches) → prochain passage : INTERFACE.
+Interface : écran Modèles (ProvidersView), 2e passage, ou AgentPickerSheet.
+Tokens ensuite : liste de commits (GET …/commits, plus récent d'abord) : même retrait des
+parents linéaires (parent = commit suivant de la liste) ; ou autre réponse GitHub lourde.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
