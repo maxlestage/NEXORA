@@ -781,9 +781,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (`PersonalizeDisplay.bubbleStyleLabel`, avant : « Salut, Plein »), 44 pt ; légende du
   raisonnement sans liste de modèles. Tests : 496 → 497 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.92 : Personnaliser) → prochain passage : TOKENS : artefacts d'un run
-(`list_workflow_run_artifacts`). Interface ensuite : accueil.
+- 3.0.93 (tokens) : outil github de l'agent — `AgentRun.slimArtifact` (objet avec
+  `size_in_bytes` + `expires_at`) retire `digest`, `expired` faux, `updated_at` identique à
+  `created_at`, et `repository_id`/`head_repository_id` de son `workflow_run`. Banc
+  `AgentShipTests.githubArtifacts` (3 artefacts) : 323 → 183 tokens (−43 %). Tests : 497 → 498
+  (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens fait en 3.0.93 : artefacts d'un run) → prochain passage : INTERFACE : accueil.
+Tokens ensuite : autre réponse GitHub fréquente de l'agent (ex. liste des commits, `files` d'un commit).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

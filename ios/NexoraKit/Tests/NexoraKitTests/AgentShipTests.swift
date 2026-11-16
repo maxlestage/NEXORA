@@ -434,6 +434,42 @@ struct AgentShipTests {
         #expect(kept["run_started_at"] as? String == "2026-11-16T03:02:00Z")
     }
 
+    @Test("banc github : artefacts d'un run sans empreinte ni identifiants de dépôt")
+    func githubArtifacts() throws {
+        func artifact(_ n: Int, expired: Bool) -> [String: Any] {
+            ["id": 7_000 + n, "node_id": "MDg6QXJ0aWZhY3Q3MDAw\(n)", "name": "build-\(n)", "size_in_bytes": 1_048_576 * n,
+             "url": "https://api.github.com/repos/max/site/actions/artifacts/\(7_000 + n)",
+             "archive_download_url": "https://api.github.com/repos/max/site/actions/artifacts/\(7_000 + n)/zip",
+             "expired": expired, "digest": "sha256:" + String(repeating: "a1b2c3d4", count: 8),
+             "created_at": "2026-11-16T03:05:00Z", "updated_at": "2026-11-16T03:05:00Z",
+             "expires_at": "2027-02-14T03:05:00Z",
+             "workflow_run": ["id": 4_001, "repository_id": 712_345_678, "head_repository_id": 712_345_678,
+                              "head_branch": "main", "head_sha": "abc123def456abc123def456abc123def456abcd"]]
+        }
+        let list: [String: Any] = ["total_count": 3, "artifacts": [artifact(1, expired: false), artifact(2, expired: false), artifact(3, expired: true)]]
+        // Référence : même réponse, `expires_at` renommé (même longueur) pour que les artefacts restent entiers.
+        let plain: [String: Any] = ["total_count": 3, "artifacts": (list["artifacts"] as! [[String: Any]]).map { a -> [String: Any] in
+            var r = a; r["expires_aX"] = r.removeValue(forKey: "expires_at"); return r }]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (3 artefacts) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 7)
+        let arts = (AgentRun.slimGitHub(list) as? [String: Any])?["artifacts"] as? [[String: Any]]
+        let first = arts?.first
+        #expect(first?["digest"] == nil && first?["expired"] == nil && first?["updated_at"] == nil)
+        #expect(first?["name"] as? String == "build-1" && first?["size_in_bytes"] as? Int == 1_048_576)
+        let run = first?["workflow_run"] as? [String: Any]
+        #expect(run?["repository_id"] == nil && run?["head_repository_id"] == nil && run?["id"] as? Int == 4_001)
+        #expect(run?["head_sha"] as? String == "abc123def456abc123def456abc123def456abcd")
+        // Expiré : gardé ; mis à jour plus tard : gardé ; objet sans expires_at : non touché.
+        #expect(arts?.last?["expired"] as? Bool == true)
+        var later = artifact(4, expired: false)
+        later["updated_at"] = "2026-11-16T03:09:00Z"
+        #expect((AgentRun.slimGitHub(later) as? [String: Any])?["updated_at"] as? String == "2026-11-16T03:09:00Z")
+        let other = AgentRun.slimGitHub(["size_in_bytes": 1, "digest": "x"]) as? [String: Any]
+        #expect(other?["digest"] as? String == "x")
+    }
+
     @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
     func githubJobs() throws {
         func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {

@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimJob(slimRun(out))
+            return personLogin(out) ?? slimArtifact(slimJob(slimRun(out)))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -217,6 +217,26 @@ extension AgentRun {
             case "skipped": return name + " (ignorée)"
             default: return s
             }
+        }
+        return out
+    }
+
+    /// Un artefact de run (`size_in_bytes` + `expires_at`) allégé : son empreinte
+    /// `digest` (64 caractères hexadécimaux, inutile à l'agent), `updated_at` identique
+    /// à `created_at`, `expired` quand il est faux (gardé s'il est vrai : l'artefact ne
+    /// se télécharge plus) ; son `workflow_run` perd les identifiants internes de dépôt
+    /// (`repository_id`, `head_repository_id`) et garde numéro, branche et commit.
+    /// Tout autre objet est rendu tel quel.
+    nonisolated static func slimArtifact(_ d: [String: Any]) -> [String: Any] {
+        guard d["size_in_bytes"] != nil, d["expires_at"] != nil else { return d }
+        var out = d
+        out["digest"] = nil
+        if (d["expired"] as? Bool) == false { out["expired"] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        if var w = d["workflow_run"] as? [String: Any] {
+            w["repository_id"] = nil
+            w["head_repository_id"] = nil
+            out["workflow_run"] = w
         }
         return out
     }
