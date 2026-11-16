@@ -26,4 +26,10 @@ struct PersonalizeDisplayTests {
         #expect(PersonalizeDisplay.assistantChanged(name: "NEXORA", about: "dev", style: "sois bref",
                                                      savedName: base.savedName, savedAbout: base.savedAbout, savedStyle: base.savedStyle))
     }
+
+    @Test func stylesDesMessages() {
+        #expect(PersonalizeDisplay.bubbleStyles.map(\.value) == ["gradient", "filled", "minimal"])
+        #expect(PersonalizeDisplay.bubbleStyleLabel("filled") == "Style Plein")
+        #expect(PersonalizeDisplay.bubbleStyleLabel("inconnu") == "Style Contour")
+    }
 }
