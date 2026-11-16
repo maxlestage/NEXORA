@@ -824,10 +824,17 @@ mémoire 32k tokens, consigne 3 000 car.
   roue, regroupés pour VoiceOver. Avant : une roue seule, sans texte ni libellé.
   Tests : 502 → 503 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.98 : activité en direct de la session) → prochain passage : TOKENS.
-Tokens : comparaison de branches (GET …/compare : `commits` complets répétés, `base_commit`/`merge_base_commit` en double), ou fichiers d'une PR (déjà couverts par `slimFile`, à mesurer).
-Interface ensuite : écran Agents (AgentsView) ou Routines (RoutinesView).
+- 3.0.99 (tokens) : `slimCompare` (réponse de GET …/compare : `ahead_by` + `base_commit`)
+  retire `merge_base_commit` quand c'est le même commit que `base_commit` (sinon réduit à
+  son sha) et réduit `base_commit` à sha + titre du message + auteur. Commits de la branche
+  et fichiers gardés. Banc `AgentShipTests.githubCompare` (3 commits, 1 fichier) :
+  602 → 425 tokens (−29 %). Tests : 503 → 504 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.99 : comparaison de branches) → prochain passage : INTERFACE.
+Interface : écran Agents (AgentsView) ou Routines (RoutinesView).
+Tokens ensuite : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
+mesurer) ; commits d'une comparaison (message complet répété, `html_url` déductible du sha).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
