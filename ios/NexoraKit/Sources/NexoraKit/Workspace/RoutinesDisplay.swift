@@ -43,4 +43,13 @@ public enum RoutinesDisplay {
     public static func reposFooter(connected: Bool) -> String? {
         connected ? nil : "Connectez GitHub dans l'onglet Code pour choisir un dépôt."
     }
+
+    /// Une phrase sous le choix « Où » : où tourne la routine et ce qu'elle fait.
+    /// (Le secret à ajouter pour GitHub est montré à part, sous l'agent choisi.)
+    public static func runnerHint(_ runner: RoutineRunner) -> String {
+        switch runner {
+        case .app: "Tourne sur ce téléphone avec votre modèle ; un passage manqué est rattrapé au retour dans l'app."
+        case .github: "Tourne sur GitHub, même téléphone éteint, et ouvre une pull request."
+        }
+    }
 }

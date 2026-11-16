@@ -843,12 +843,19 @@ mémoire 32k tokens, consigne 3 000 car.
   `githubCompare` (3 commits) 425 → 358 (−16 %). Tests : 506 (attentes ajoutées aux bancs ;
   mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.101 : liens des commits) → prochain passage : INTERFACE.
-Interface : Routines (RoutinesView, 2e passage) ou fiche d'un agent (AgentEditor).
-Tokens ensuite : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
+- 3.0.102 (interface) : fiche d'une routine (RoutineEditorView, 2e passage de Routines) —
+  « Enregistrer » passe dans la barre du haut (`.confirmationAction`, roue pendant
+  l'envoi) au lieu du bas d'un long formulaire ; « Supprimer » quitte la barre pour le bas
+  de la fiche (bouton rouge ≥ 44 pt, confirmation gardée) ; `RoutinesDisplay.runnerHint` :
+  explications Téléphone / GitHub 2 phrases → 1 (le secret reste montré sous l'agent).
+  Tests : 506 → 507 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.102 : fiche d'une routine) → prochain passage : TOKENS.
+Tokens : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
 mesurer) ; message complet des commits d'une comparaison (garder ? l'agent le lit pour
 comprendre la branche : à juger avant de couper).
+Interface ensuite : fiche d'un agent (AgentEditor).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

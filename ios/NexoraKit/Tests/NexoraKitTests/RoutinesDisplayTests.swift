@@ -36,4 +36,14 @@ struct RoutinesDisplayTests {
         #expect(RoutinesDisplay.reposFooter(connected: true) == nil)
         #expect(RoutinesDisplay.reposFooter(connected: false) != nil)
     }
+
+    @Test func explicationDuLieuEnUnePhrase() {
+        for runner in RoutineRunner.allCases {
+            let hint = RoutinesDisplay.runnerHint(runner)
+            #expect(hint.count <= 110)
+            #expect(hint.filter { $0 == "." }.count == 1)
+        }
+        #expect(RoutinesDisplay.runnerHint(.app).contains("rattrapé"))
+        #expect(RoutinesDisplay.runnerHint(.github).contains("téléphone éteint"))
+    }
 }
