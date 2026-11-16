@@ -397,6 +397,43 @@ struct AgentShipTests {
         #expect((commit?["head_commit"] as? [String: Any])?["message"] as? String == "a\nb")
     }
 
+    @Test("banc github : un run seul sans listes vides ni champs répétés")
+    func githubRunAlone() throws {
+        let who: [String: Any] = ["login": "max", "id": 56, "html_url": "https://github.com/max", "type": "User"]
+        let person: [String: Any] = ["name": "Max", "email": "max@example.com"]
+        var run: [String: Any] = [
+            "id": 4_001, "name": "CI", "display_title": "Corrige le bouton", "run_number": 12, "event": "push",
+            "status": "completed", "conclusion": "failure", "head_branch": "main", "head_sha": "abc123",
+            "path": ".github/workflows/ci.yml", "workflow_id": 99, "run_attempt": 1,
+            "check_suite_id": 55_123_456_789, "check_suite_node_id": "CS_kwDOJ8v5Zs8AAAAM1a2b3c",
+            "pull_requests": [Any](), "referenced_workflows": [Any](),
+            "created_at": "2026-11-16T03:00:30Z", "updated_at": "2026-11-16T03:06:03Z",
+            "run_started_at": "2026-11-16T03:00:30Z", "actor": who, "triggering_actor": who,
+            "html_url": "https://github.com/max/site/actions/runs/4001",
+            "head_commit": ["id": "abc123", "tree_id": "t1", "timestamp": "2026-11-16T03:00:00Z",
+                            "message": "Corrige le bouton\n\nDétails.", "author": person, "committer": person]]
+        // Référence : le traitement d'avant (sans les nouveaux retraits).
+        var plain = AgentRun.slimGitHub(run) as! [String: Any]
+        for (k, v) in run where ["pull_requests", "referenced_workflows", "check_suite_id",
+                                 "check_suite_node_id", "run_started_at", "display_title"].contains(k) { plain[k] = v }
+        let before = AgentRun.githubText(plain).count
+        let slim = AgentRun.slimGitHub(run) as! [String: Any]
+        let after = AgentRun.githubText(slim).count
+        print("Banc github (un run seul) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 8)
+        for k in ["pull_requests", "referenced_workflows", "check_suite_id", "check_suite_node_id",
+                  "run_started_at", "display_title"] { #expect(slim[k] == nil) }
+        #expect(slim["created_at"] as? String == "2026-11-16T03:00:30Z" && slim["workflow_id"] as? Int == 99)
+        // Une pull request liée, un titre propre, un démarrage différé : gardés.
+        run["pull_requests"] = [["number": 7]]
+        run["display_title"] = "Déploiement manuel"
+        run["run_started_at"] = "2026-11-16T03:02:00Z"
+        let kept = AgentRun.slimGitHub(run) as! [String: Any]
+        #expect((kept["pull_requests"] as? [Any])?.count == 1)
+        #expect(kept["display_title"] as? String == "Déploiement manuel")
+        #expect(kept["run_started_at"] as? String == "2026-11-16T03:02:00Z")
+    }
+
     @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
     func githubJobs() throws {
         func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {

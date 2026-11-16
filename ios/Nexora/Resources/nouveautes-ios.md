@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.91 — 16 novembre 2026 — Runs GitHub plus légers pour l'agent
+
+- Amélioré : quand l'agent consulte un run de workflow GitHub, la réponse lui est transmise sans les listes vides ni les champs répétés : environ 30 % de tokens en moins pour un run.
+
 ## 3.0.90 — 16 novembre 2026 — Clé d'un fournisseur jamais perdue
 
 - Amélioré : une clé ou une adresse collée sur la fiche d'un fournisseur est enregistrée dès que vous revenez en arrière, même sans appuyer sur « Entrée » ni sur « Enregistrer et tester ».
