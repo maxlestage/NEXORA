@@ -397,6 +397,48 @@ struct AgentShipTests {
         #expect((commit?["head_commit"] as? [String: Any])?["message"] as? String == "a\nb")
     }
 
+    @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
+    func githubJobs() throws {
+        func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {
+            ["name": name, "status": "completed", "conclusion": end, "number": n,
+             "started_at": "2026-11-15T22:48:1\(n)Z", "completed_at": "2026-11-15T22:49:1\(n)Z"]
+        }
+        func job(_ n: Int, failed: Bool) -> [String: Any] {
+            let names = ["Set up job", "Checkout", "Install Swift", "Build", "Test", "Upload", "Post Checkout", "Complete job"]
+            let steps = names.enumerated().map { i, name -> [String: Any] in
+                if failed && name == "Test" { return step(i + 1, name, "failure") }
+                if failed && name == "Upload" { return step(i + 1, name, "skipped") }
+                return step(i + 1, name, "success")
+            }
+            return ["id": 9_000 + n, "run_id": 4_001, "name": "job \(n)", "status": "completed",
+                    "conclusion": failed ? "failure" : "success", "head_sha": "sha1", "head_branch": "main",
+                    "workflow_name": "CI", "html_url": "https://github.com/max/site/actions/runs/4001/job/\(9_000 + n)",
+                    "started_at": "2026-11-15T22:48:10Z", "completed_at": "2026-11-15T22:52:10Z",
+                    "labels": ["ubuntu-latest"], "runner_id": 12, "runner_name": "GitHub Actions 12",
+                    "runner_group_id": 1, "runner_group_name": "GitHub Actions", "steps": steps]
+        }
+        let jobs: [String: Any] = ["total_count": 3, "jobs": [job(1, failed: false), job(2, failed: false), job(3, failed: true)]]
+        // Référence : même réponse, `run_id` renommé (même longueur) pour que les jobs restent entiers.
+        let plain: [String: Any] = ["total_count": 3, "jobs": (jobs["jobs"] as! [[String: Any]]).map { j -> [String: Any] in
+            var r = j; r["run_iX"] = r.removeValue(forKey: "run_id"); return r }]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(jobs)).count
+        print("Banc github (3 jobs) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before * 6)
+        let bad = AgentRun.slimGitHub(job(3, failed: true)) as? [String: Any]
+        let steps = bad?["steps"] as? [Any]
+        #expect(steps?.count == 8 && steps?[1] as? String == "Checkout" && steps?[5] as? String == "Upload (ignorée)")
+        let failure = steps?[4] as? [String: Any]
+        #expect(failure?["conclusion"] as? String == "failure" && failure?["number"] as? Int == 5)
+        #expect(bad?["runner_id"] == nil && bad?["runner_group_id"] == nil && bad?["runner_name"] as? String == "GitHub Actions 12")
+        // Étape en cours : gardée entière ; objet sans run_id : non touché.
+        var live = job(4, failed: false)
+        live["steps"] = [["name": "Build", "status": "in_progress", "conclusion": NSNull(), "number": 1]]
+        #expect(((AgentRun.slimGitHub(live) as? [String: Any])?["steps"] as? [Any])?.first is [String: Any])
+        let alone = AgentRun.slimGitHub(["steps": [step(1, "a", "success")]]) as? [String: Any]
+        #expect((alone?["steps"] as? [Any])?.first is [String: Any])
+    }
+
     @Test("pull request fusionnée sur GitHub entre-temps : une nouvelle est ouverte")
     func mergedElsewhere() async {
         let hub = FakeHub()

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.89 — 16 novembre 2026 — Agent plus économe sur les jobs de CI
+- Amélioré : quand l'agent consulte les jobs d'une CI, chaque étape réussie n'est plus qu'un nom ; environ 66 % de tokens en moins sur cette réponse.
+- Les étapes en échec, annulées ou en cours restent détaillées, pour trouver la panne aussi vite.
+
 ## 3.0.88 — 16 novembre 2026 — Modèle par défaut en un geste
 
 - Amélioré : dans l'onglet Modèles, touchez la carte « Modèle par défaut » pour en changer directement (avant : il fallait passer par les Réglages).

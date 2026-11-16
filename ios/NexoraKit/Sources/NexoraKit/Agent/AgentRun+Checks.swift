@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRun(out)
+            return personLogin(out) ?? slimJob(slimRun(out))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -183,6 +183,27 @@ extension AgentRun {
             c["committer"] = nil
         }
         out["head_commit"] = c
+        return out
+    }
+
+    /// Un job de workflow (`run_id` + `steps`) allégé : chaque étape réussie est
+    /// réduite à son nom, une étape ignorée à « nom (ignorée) » ; une étape en échec,
+    /// annulée ou en cours garde tout (numéro, état, heures). Les identifiants
+    /// internes de la machine (`runner_id`, `runner_group_id`) sont retirés ; son nom
+    /// reste. Tout autre objet est rendu tel quel.
+    nonisolated static func slimJob(_ d: [String: Any]) -> [String: Any] {
+        guard d["run_id"] != nil, let steps = d["steps"] as? [[String: Any]] else { return d }
+        var out = d
+        out["runner_id"] = nil
+        out["runner_group_id"] = nil
+        out["steps"] = steps.map { s -> Any in
+            guard let name = s["name"] as? String, (s["status"] as? String) == "completed" else { return s }
+            switch s["conclusion"] as? String {
+            case "success": return name
+            case "skipped": return name + " (ignorée)"
+            default: return s
+            }
+        }
         return out
     }
 
