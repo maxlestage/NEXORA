@@ -27,4 +27,17 @@ import Testing
         #expect(ModelPickerDisplay.accessibility(model: "m", provider: "Groq", free: true, local: true, selected: false)
             == "m, Groq, gratuit, local")
     }
+
+    @Test func sectionDuHaut() {
+        let a = ModelRef("groq", "llama"), b = ModelRef("openai", "gpt-4o")
+        #expect(ModelPickerDisplay.top(selected: a, favorites: [b]) == [a, b])
+        #expect(ModelPickerDisplay.top(selected: b, favorites: [b]) == [b])
+        #expect(ModelPickerDisplay.top(selected: nil, favorites: []) == [])
+        #expect(ModelPickerDisplay.topTitle(selected: a, favorites: []) == "Modèle actuel")
+        #expect(ModelPickerDisplay.topTitle(selected: a, favorites: [b]) == "Actuel et favoris")
+        #expect(ModelPickerDisplay.topTitle(selected: b, favorites: [b]) == "⭐ Favoris")
+        #expect(ModelPickerDisplay.topTitle(selected: nil, favorites: []) == nil)
+        #expect(ModelPickerDisplay.catalogNote(updated: "") == "Liste intégrée à l'app")
+        #expect(ModelPickerDisplay.catalogNote(updated: "12 nov.") == "Liste du 12 nov.")
+    }
 }

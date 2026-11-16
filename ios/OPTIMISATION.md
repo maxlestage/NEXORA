@@ -872,13 +872,19 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubRepoList` (5 dépôts) : 990 → 699 tokens (−29 %).
   Tests : 510 → 511 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.105 : dépôts seuls) → prochain passage : INTERFACE.
-Interface : écran Modèles, 2e passage, ou sélecteur de modèle (ModelPickerSheet).
-Tokens ensuite : message complet des commits d'une comparaison (garder ? l'agent le lit
-pour comprendre la branche : à juger avant de couper). Fichiers d'une PR (GET
-…/pulls/n/files) vérifiés en 3.0.103 : déjà légers (`blob_url`/`raw_url`/`contents_url`
-retirés par la règle des `_url`, `sha` par `slimFile`) → rien à faire.
+- 3.0.106 (interface) : sélecteur de modèle (ModelPickerSheet) — section du haut
+  `ModelPickerDisplay.top`/`topTitle` : le modèle actuel en tête (« Modèle actuel » /
+  « Actuel et favoris ») s'il n'est pas favori, avant il fallait le chercher dans la liste
+  de son fournisseur ; ligne « Chercher les nouveaux modèles » (action rare) déplacée du
+  haut vers le bas, avec `catalogNote` (« Liste du … ») ; emoji du fournisseur retiré des
+  lignes de sa propre section (gardé en haut, où les fournisseurs se mélangent).
+  Tests : 511 → 512 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.106 : sélecteur de modèle) → prochain passage : TOKENS.
+Tokens : message complet des commits d'une comparaison (garder ? l'agent le lit
+pour comprendre la branche : à juger avant de couper), ou autre réponse GitHub lourde.
+Interface ensuite : écran Modèles (ProvidersView), 2e passage, ou AgentPickerSheet.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

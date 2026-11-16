@@ -1,7 +1,7 @@
 import NexoraKit
 import SwiftUI
 
-/// « Choisir un modèle » : favoris, puis chaque fournisseur (prêts d'abord) avec
+/// « Choisir un modèle » : modèle actuel et favoris, puis chaque fournisseur (prêts d'abord) avec
 /// ses modèles, les plus récents en premier, badge « gratuit » et prix quand il est
 /// connu (`ui/widgets/model_picker.dart`).
 struct ModelPickerSheet: View {
@@ -26,6 +26,11 @@ struct ModelPickerSheet: View {
         return all ? ready + settings.providers.filter { !settings.isReady($0) } : ready
     }
 
+    /// Le modèle actuel, s'il appartient à un fournisseur connu.
+    private var current: ModelRef? {
+        settings.provider(selected.providerId) == nil ? nil : selected
+    }
+
     private var favorites: [ModelRef] {
         settings.favorites.compactMap(ModelRef.parse).filter { settings.provider($0.providerId) != nil }
     }
@@ -44,27 +49,11 @@ struct ModelPickerSheet: View {
         let empty = ModelPickerDisplay.empty(found: lists.reduce(0) { $0 + $1.models.count }, query: q, onlyFree: onlyFree)
         NavigationStack {
             List {
-                Section {
-                    HStack {
-                        Text(settings.catalog.updated.isEmpty
-                            ? "Les plus récents en premier"
-                            : "Derniers modèles au \(settings.catalog.updated) · les plus récents en premier")
-                            .font(.footnote).foregroundStyle(.secondary)
-                        Spacer()
-                        Button {
-                            Task { await refreshCatalog() }
-                        } label: {
-                            if refreshingCatalog { ProgressView() } else { Image(systemName: "arrow.triangle.2.circlepath.icloud") }
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Chercher les nouveaux modèles")
-                    }
-                }
-                if !favorites.isEmpty && q.isEmpty {
-                    Section("⭐ Favoris") {
-                        ForEach(favorites, id: \.key) { r in
+                if q.isEmpty, let title = ModelPickerDisplay.topTitle(selected: current, favorites: favorites) {
+                    Section(title) {
+                        ForEach(ModelPickerDisplay.top(selected: current, favorites: favorites), id: \.key) { r in
                             if let p = settings.provider(r.providerId) {
-                                row(p, ModelInfo(r.model), free: false)
+                                row(p, ModelInfo(r.model), free: false, showsProvider: true)
                             }
                         }
                     }
@@ -87,6 +76,21 @@ struct ModelPickerSheet: View {
                     section(item.provider, models: item.models, filtered: !q.isEmpty || onlyFree)
                 }
                 Section {
+                    Button {
+                        Task { await refreshCatalog() }
+                    } label: {
+                        HStack {
+                            Label("Chercher les nouveaux modèles", systemImage: "arrow.triangle.2.circlepath.icloud")
+                            Spacer()
+                            if refreshingCatalog {
+                                ProgressView()
+                            } else {
+                                Text(ModelPickerDisplay.catalogNote(updated: settings.catalog.updated))
+                                    .font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .disabled(refreshingCatalog)
                     Button {
                         showAll = !all
                     } label: {
@@ -119,7 +123,7 @@ struct ModelPickerSheet: View {
                     Text("Clé manquante : ajoutez-la dans Modèles.").font(.footnote).foregroundStyle(Theme.amber)
                 }
                 ForEach(models.prefix(filtered ? 200 : 60)) { m in
-                    row(p, m, free: m.free)
+                    row(p, m, free: m.free, showsProvider: false)
                 }
                 if models.isEmpty, let hint = ModelPickerDisplay.emptySection(onlyFree: onlyFree, hasLiveList: settings.hasLiveModels(p.id)) {
                     Text(hint).font(.footnote).foregroundStyle(.secondary)
@@ -142,7 +146,9 @@ struct ModelPickerSheet: View {
         }
     }
 
-    private func row(_ p: ProviderDef, _ m: ModelInfo, free: Bool) -> some View {
+    /// `showsProvider` : l'emoji du fournisseur n'est utile qu'en haut (modèles mélangés) ;
+    /// dans la section d'un fournisseur, son en-tête le donne déjà.
+    private func row(_ p: ProviderDef, _ m: ModelInfo, free: Bool, showsProvider: Bool) -> some View {
         let ref = ModelRef(p.id, m.id)
         let fav = settings.isFavorite(ref)
         return HStack(spacing: 10) {
@@ -151,7 +157,7 @@ struct ModelPickerSheet: View {
                 dismiss()
             } label: {
                 HStack(spacing: 10) {
-                    Text(p.emoji).font(.title3)
+                    if showsProvider { Text(p.emoji).font(.title3) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(m.id).font(.callout.monospaced()).foregroundStyle(.primary).lineLimit(1)
                         if let detail = m.detail {
