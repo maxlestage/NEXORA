@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.90 — 16 novembre 2026 — Clé d'un fournisseur jamais perdue
+
+- Amélioré : une clé ou une adresse collée sur la fiche d'un fournisseur est enregistrée dès que vous revenez en arrière, même sans appuyer sur « Entrée » ni sur « Enregistrer et tester ».
+- Amélioré : supprimer un serveur perso demande une confirmation (avant : supprimé d'un seul geste, sans retour possible) et prévient s'il s'agit de votre modèle par défaut.
+
 ## 3.0.89 — 16 novembre 2026 — Agent plus économe sur les jobs de CI
 - Amélioré : quand l'agent consulte les jobs d'une CI, chaque étape réussie n'est plus qu'un nom ; environ 66 % de tokens en moins sur cette réponse.
 - Les étapes en échec, annulées ou en cours restent détaillées, pour trouver la panne aussi vite.

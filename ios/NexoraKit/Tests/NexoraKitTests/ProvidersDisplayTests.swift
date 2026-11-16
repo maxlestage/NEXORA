@@ -87,6 +87,19 @@ struct ProviderDetailDisplayTests {
         #expect(ProviderDetailDisplay.duration(ms: 1960) == "2,0 s")
         #expect(ProviderDetailDisplay.testSuccess(model: "o3", ms: 420, answer: " OK NEXORA \n")
                 == "Ça marche : o3 a répondu en 420 ms (« OK NEXORA »).")
+    }
+
+    @Test func enregistrementEnQuittantEtSuppression() {
+        #expect(!ProviderDetailDisplay.unsaved(key: "", storedKey: nil, url: "http://a", baseUrl: "http://a"))
+        #expect(!ProviderDetailDisplay.unsaved(key: " sk-1\n", storedKey: "sk-1", url: "http://a ", baseUrl: "http://a"))
+        #expect(ProviderDetailDisplay.unsaved(key: "sk-2", storedKey: "sk-1", url: "http://a", baseUrl: "http://a"))
+        #expect(ProviderDetailDisplay.unsaved(key: "sk-1", storedKey: nil, url: "http://a", baseUrl: "http://a"))
+        #expect(ProviderDetailDisplay.unsaved(key: "", storedKey: "sk-1", url: "http://a", baseUrl: "http://a"))
+        #expect(ProviderDetailDisplay.unsaved(key: "", storedKey: nil, url: "http://b", baseUrl: "http://a"))
+        #expect(ProviderDetailDisplay.deleteConfirmation(name: "Mon PC", isDefault: false)
+                == "« Mon PC » et sa clé seront supprimés.")
+        #expect(ProviderDetailDisplay.deleteConfirmation(name: " ", isDefault: true)
+                == "« Serveur perso » et sa clé seront supprimés. C'est votre modèle par défaut : un autre sera utilisé à sa place.")
         #expect(ProviderDetailDisplay.testSuccess(model: "o3", ms: 3000, answer: "") == "Ça marche : o3 a répondu en 3,0 s.")
     }
 }

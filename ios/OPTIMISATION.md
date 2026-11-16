@@ -760,10 +760,19 @@ mémoire 32k tokens, consigne 3 000 car.
   `runner_group_id` retirés (le nom de la machine reste). Banc `AgentShipTests.githubJobs`
   (3 jobs de 8 étapes, dont 1 en échec) : 1 230 → 412 tokens (−66 %). Tests : 493 → 494.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.89 : jobs d'un run) → prochain passage : INTERFACE : fiche d'un
-fournisseur (ProviderDetailView) ou Personnaliser. Tokens ensuite : `get_workflow_run`
-seul (`referenced_workflows`, `pull_requests` vides) ou artefacts d'un run.
+- 3.0.90 (interface) : fiche d'un fournisseur (ProviderDetailView) — clé et adresse
+  enregistrées en quittant la page si elles diffèrent de ce qui est stocké
+  (`ProviderDetailDisplay.unsaved`) : avant, une clé collée puis « retour » sans Entrée ni
+  test était perdue. « Supprimer » un serveur perso : confirmation (avant : 1 geste, sans
+  retour) avec message `deleteConfirmation` (prévient si c'est le modèle par défaut).
+  Tests : 494 → 495. Note : sous Linux (Swift 6.4.2), le lien symbolique
+  `Resources/models.json` est recopié tel quel dans `.build` et n'y pointe sur rien → 2 tests
+  du catalogue échouent en local (aussi sans le changement) ; la CI (macOS) est verte.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.90 : fiche d'un fournisseur) → prochain passage : TOKENS :
+`get_workflow_run` seul (`referenced_workflows`, `pull_requests` vides) ou artefacts d'un
+run. Interface ensuite : Personnaliser.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
