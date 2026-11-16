@@ -12,6 +12,17 @@ struct ProvidersDisplayTests {
     ]
     private func ready(_ p: ProviderDef) -> Bool { !p.needsKey || p.id == "groq" }
 
+    @Test func carteModeleParDefaut() {
+        let c = ProvidersDisplay.defaultCard(model: "llama-3.3", provider: "Groq", readyCount: 3)
+        #expect(c.note == "Groq")
+        #expect(c.accessibility == "Modèle par défaut : llama-3.3, Groq. 3 fournisseurs prêts")
+        #expect(c.hint == "Touchez pour changer de modèle")
+        #expect(ProvidersDisplay.defaultCard(model: "m", provider: "Groq", readyCount: 1).accessibility.hasSuffix("1 fournisseur prêt"))
+        let vide = ProvidersDisplay.defaultCard(model: "m", provider: "", readyCount: 0)
+        #expect(vide.note == "Ajoutez une clé ci-dessous")
+        #expect(vide.accessibility == "Modèle par défaut : m. Aucun fournisseur prêt")
+    }
+
     @Test func filtresEtRecherche() {
         #expect(ProvidersDisplay.filter(list, filter: "all", query: "", isReady: ready).count == 5)
         #expect(ProvidersDisplay.filter(list, filter: "free", query: "", isReady: ready).map(\.id) == ["groq", "pollen"])

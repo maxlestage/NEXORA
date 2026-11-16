@@ -747,10 +747,17 @@ mémoire 32k tokens, consigne 3 000 car.
   personne ou commit d'un tiers : tout reste. Banc `AgentShipTests.githubRuns` (5 runs) :
   773 → 451 tokens (−42 %). Tests : 491 → 492.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.87 : runs de workflow) → prochain passage : INTERFACE : écran Modèles.
-Tokens ensuite : jobs d'un run (`list_workflow_jobs` : `steps` réussies répétées, `labels`,
-`runner_*`) — réduire les étapes réussies à leur nom.
+- 3.0.88 (interface) : onglet Modèles (ProvidersView) — `ProvidersDisplay.defaultCard` : la
+  carte « Modèle par défaut » devient un bouton (chevron) qui ouvre le sélecteur de modèle
+  (avant : lecture seule, changement seulement via Réglages, 2 onglets + 1 ligne → 1 geste) ;
+  toast « Modèle par défaut : … » ; 0 fournisseur prêt → « Ajoutez une clé ci-dessous » ;
+  VoiceOver : un seul élément « Modèle par défaut : m, Groq. 3 fournisseurs prêts » + indice.
+  Tests : 492 → 493.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.88 : onglet Modèles) → prochain passage : TOKENS : jobs d'un run
+(`list_workflow_jobs` : `steps` réussies répétées, `labels`, `runner_*`) — réduire les étapes
+réussies à leur nom. Interface ensuite : fiche d'un fournisseur (ProviderDetailView) ou Personnaliser.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

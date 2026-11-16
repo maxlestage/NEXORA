@@ -64,6 +64,25 @@ public enum ProvidersDisplay {
     public static func accessibility(_ p: ProviderDef, ready: Bool) -> String {
         ([p.name, ready ? "prêt" : "clé requise"] + tags(p)).joined(separator: ", ")
     }
+
+    /// Carte « Modèle par défaut » en tête de l'onglet (touchable : ouvre le sélecteur).
+    public struct DefaultCard: Equatable, Sendable {
+        public let note: String
+        public let accessibility: String
+        public let hint: String
+    }
+
+    /// Sous-titre et VoiceOver de la carte : le fournisseur, ou ce qu'il faut faire
+    /// quand aucun fournisseur n'est prêt.
+    public static func defaultCard(model: String, provider: String, readyCount: Int) -> DefaultCard {
+        let ready = readyCount == 0 ? "aucun fournisseur prêt"
+            : readyCount == 1 ? "1 fournisseur prêt" : "\(readyCount) fournisseurs prêts"
+        let note = readyCount == 0 ? "Ajoutez une clé ci-dessous" : provider
+        let who = provider.isEmpty ? model : "\(model), \(provider)"
+        return DefaultCard(note: note,
+                           accessibility: "Modèle par défaut : \(who). \(ready.prefix(1).uppercased() + ready.dropFirst())",
+                           hint: "Touchez pour changer de modèle")
+    }
 }
 
 /// Logique d'affichage de la fiche d'un fournisseur (ProviderDetailView), testable sous Linux.
