@@ -27,4 +27,16 @@ public enum PersonalizeDisplay {
     ) -> Bool {
         Preferences.cleanName(name) != savedName || about != savedAbout || style != savedStyle
     }
+
+    /// Styles des messages envoyés, dans l'ordre affiché : (valeur, libellé).
+    public static let bubbleStyles: [(value: String, label: String)] = [
+        ("gradient", "Contour"), ("filled", "Plein"), ("minimal", "Discret"),
+    ]
+
+    /// Ce que VoiceOver lit pour un style de message : « Style Contour »
+    /// (et non le texte d'exemple « Salut » de l'aperçu).
+    public static func bubbleStyleLabel(_ value: String) -> String {
+        let label = bubbleStyles.first { $0.value == value }?.label ?? "Contour"
+        return "Style \(label)"
+    }
 }

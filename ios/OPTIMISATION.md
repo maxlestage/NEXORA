@@ -775,9 +775,15 @@ mémoire 32k tokens, consigne 3 000 car.
   commit (PR liée, titre propre, démarrage différé : gardés). Banc
   `AgentShipTests.githubRunAlone` (GET d'un run) : 173 → 123 tokens (−29 %). Tests : 495 → 496.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.91 : run seul) → prochain passage : INTERFACE : Personnaliser.
-Tokens ensuite : artefacts d'un run (`list_workflow_run_artifacts`).
+- 3.0.92 (interface) : Personnaliser, 2e passage — « Votre assistant » remonté juste sous
+  l'aperçu (avant : 6e section sur 8) ; « Retour haptique » rangé dans Affichage (n'avait rien
+  à faire dans Conversations) ; boutons de style des messages : VoiceOver lit « Style Plein »
+  (`PersonalizeDisplay.bubbleStyleLabel`, avant : « Salut, Plein »), 44 pt ; légende du
+  raisonnement sans liste de modèles. Tests : 496 → 497 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.92 : Personnaliser) → prochain passage : TOKENS : artefacts d'un run
+(`list_workflow_run_artifacts`). Interface ensuite : accueil.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

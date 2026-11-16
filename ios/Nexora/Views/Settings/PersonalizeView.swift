@@ -28,6 +28,34 @@ struct PersonalizeView: View {
         Form {
             Section { preview }
 
+            Section("Votre assistant") {
+                TextField("Nom de l'assistant", text: $name)
+                    .onSubmit(saveAssistant)
+                Toggle(isOn: $settings.customInstructions) {
+                    VStack(alignment: .leading) {
+                        Text("Instructions personnelles")
+                        Text("Ajoutées à chaque conversation, avec ou sans agent").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if settings.customInstructions {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Ce que l'assistant doit savoir sur vous").font(.caption).foregroundStyle(.secondary)
+                        TextField("Ex. : je suis développeur Flutter, je travaille sur iPhone, je débute en Rust…", text: $about, axis: .vertical)
+                            .lineLimit(2...6)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Comment il doit répondre").font(.caption).foregroundStyle(.secondary)
+                        TextField("Ex. : tutoie-moi, sois bref, donne toujours un exemple de code commenté…", text: $style, axis: .vertical)
+                            .lineLimit(2...6)
+                    }
+                }
+                if assistantDirty {
+                    Button("Enregistrer", systemImage: "checkmark", action: saveAssistant)
+                        .fontWeight(.semibold)
+                        .frame(minHeight: 44)
+                }
+            }
+
             Section("Couleurs") {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 12)], spacing: 12) {
                     ForEach(Theme.palettes) { p in
@@ -70,6 +98,7 @@ struct PersonalizeView: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                 }
+                Toggle("Retour haptique", isOn: $settings.haptics)
             } header: {
                 Text("Affichage")
             } footer: {
@@ -93,7 +122,7 @@ struct PersonalizeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Style des messages envoyés")
                     HStack(spacing: 8) {
-                        ForEach([("gradient", "Contour"), ("filled", "Plein"), ("minimal", "Discret")], id: \.0) { value, label in
+                        ForEach(PersonalizeDisplay.bubbleStyles, id: \.value) { value, label in
                             Button {
                                 settings.bubbleStyle = value
                             } label: {
@@ -109,6 +138,10 @@ struct PersonalizeView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .frame(minHeight: 44)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(PersonalizeDisplay.bubbleStyleLabel(value))
+                            .accessibilityAddTraits(.isButton)
                             .accessibilityAddTraits(settings.bubbleStyle == value ? .isSelected : [])
                         }
                     }
@@ -133,10 +166,9 @@ struct PersonalizeView: View {
                 Toggle(isOn: $settings.showThinking) {
                     VStack(alignment: .leading) {
                         Text("Afficher le raisonnement")
-                        Text("Claude, DeepSeek R1, Qwen3, gpt-oss…").font(.caption).foregroundStyle(.secondary)
+                        Text("Pour les modèles qui réfléchissent avant de répondre").font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                Toggle("Retour haptique", isOn: $settings.haptics)
                 DisclosureGroup("Avancé") {
                     VStack(alignment: .leading) {
                         HStack {
@@ -182,34 +214,6 @@ struct PersonalizeView: View {
                     Slider(value: $settings.voiceRate, in: 0.3...0.7, step: 0.05)
                         .accessibilityLabel("Vitesse de lecture")
                         .accessibilityValue(PersonalizeDisplay.voiceRate(settings.voiceRate))
-                }
-            }
-
-            Section("Votre assistant") {
-                TextField("Nom de l'assistant", text: $name)
-                    .onSubmit(saveAssistant)
-                Toggle(isOn: $settings.customInstructions) {
-                    VStack(alignment: .leading) {
-                        Text("Instructions personnelles")
-                        Text("Ajoutées à chaque conversation, avec ou sans agent").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if settings.customInstructions {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Ce que l'assistant doit savoir sur vous").font(.caption).foregroundStyle(.secondary)
-                        TextField("Ex. : je suis développeur Flutter, je travaille sur iPhone, je débute en Rust…", text: $about, axis: .vertical)
-                            .lineLimit(2...6)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Comment il doit répondre").font(.caption).foregroundStyle(.secondary)
-                        TextField("Ex. : tutoie-moi, sois bref, donne toujours un exemple de code commenté…", text: $style, axis: .vertical)
-                            .lineLimit(2...6)
-                    }
-                }
-                if assistantDirty {
-                    Button("Enregistrer", systemImage: "checkmark", action: saveAssistant)
-                        .fontWeight(.semibold)
-                        .frame(minHeight: 44)
                 }
             }
 

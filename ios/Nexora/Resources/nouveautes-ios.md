@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.92 — 16 novembre 2026 — Personnaliser plus simple
+
+- Amélioré : « Votre assistant » (nom, ce qu'il sait de vous) arrive juste sous l'aperçu.
+- Amélioré : le retour haptique se règle avec l'affichage, à côté des animations.
+- Amélioré : VoiceOver annonce « Style Plein » au lieu de lire le texte d'exemple.
+
 ## 3.0.91 — 16 novembre 2026 — Runs GitHub plus légers pour l'agent
 
 - Amélioré : quand l'agent consulte un run de workflow GitHub, la réponse lui est transmise sans les listes vides ni les champs répétés : environ 30 % de tokens en moins pour un run.
