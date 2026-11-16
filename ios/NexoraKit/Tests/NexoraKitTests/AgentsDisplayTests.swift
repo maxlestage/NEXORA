@@ -17,4 +17,16 @@ struct AgentsDisplayTests {
         #expect(AgentsDisplay.toolsSummary(["Read"]) == "1 outil")
         #expect(AgentsDisplay.toolsSummary(["Read", "Write", "Bash"]) == "3 outils")
     }
+
+    @Test func ajoutDeSkillsBienPlace() {
+        #expect(AgentsDisplay.addPlace(hasItems: false, query: "") == .top)
+        #expect(AgentsDisplay.addPlace(hasItems: false, query: "pdf") == .top)
+        #expect(AgentsDisplay.addPlace(hasItems: true, query: "  ") == .bottom)
+        #expect(AgentsDisplay.addPlace(hasItems: true, query: "pdf") == .hidden)
+    }
+
+    @Test func enTeteAvecNombre() {
+        #expect(AgentsDisplay.header("Skills", count: 0) == "Skills")
+        #expect(AgentsDisplay.header("Skills", count: 3) == "Skills (3)")
+    }
 }
