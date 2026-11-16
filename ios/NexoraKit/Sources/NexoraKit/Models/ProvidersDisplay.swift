@@ -187,6 +187,29 @@ public enum ModelPickerDisplay {
         return nil
     }
 
+    /// Section du haut (recherche vide) : le modèle actuel en tête s'il n'est pas déjà un
+    /// favori, puis les favoris. Ainsi le modèle en cours se retrouve sans faire défiler.
+    public static func top(selected: ModelRef?, favorites: [ModelRef]) -> [ModelRef] {
+        guard let selected, !favorites.contains(selected) else { return favorites }
+        return [selected] + favorites
+    }
+
+    /// Titre de cette section (nil si elle est vide).
+    public static func topTitle(selected: ModelRef?, favorites: [ModelRef]) -> String? {
+        let current = selected.map { !favorites.contains($0) } ?? false
+        switch (current, favorites.isEmpty) {
+        case (false, true): return nil
+        case (true, true): return "Modèle actuel"
+        case (true, false): return "Actuel et favoris"
+        case (false, false): return "⭐ Favoris"
+        }
+    }
+
+    /// Légende de la ligne « Chercher les nouveaux modèles », placée en bas (action rare).
+    public static func catalogNote(updated: String) -> String {
+        updated.isEmpty ? "Liste intégrée à l'app" : "Liste du \(updated)"
+    }
+
     /// Ce que lit VoiceOver pour une ligne : « gpt-4o, OpenAI, gratuit, modèle actuel ».
     public static func accessibility(model: String, provider: String, free: Bool, local: Bool, selected: Bool) -> String {
         var parts = [model, provider]

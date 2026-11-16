@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.106 — 16 novembre 2026 — Choix du modèle plus simple
+- Amélioré : le modèle en cours s'affiche tout en haut de « Choisir un modèle », avec les favoris : plus besoin de faire défiler.
+- Amélioré : « Chercher les nouveaux modèles » passe en bas de la liste, avec la date de la liste.
+- Amélioré : lignes plus nettes, l'emoji du fournisseur n'est plus répété sous son propre titre.
+
 ## 3.0.105 — 16 novembre 2026 — Dépôts plus légers pour l'agent
 - Amélioré : quand l'agent lit un dépôt GitHub ou une liste de dépôts, la réponse envoyée au modèle est environ 29 % plus courte.
 - Retirés : les compteurs en double et les champs vides ; rien d'utile n'est perdu.
