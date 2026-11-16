@@ -837,11 +837,18 @@ mémoire 32k tokens, consigne 3 000 car.
   Explications raccourcies (2 phrases → 1). Avant : il fallait faire défiler l'ajout pour voir
   ses skills. Tests : 504 → 506 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.100 : onglet Skills) → prochain passage : TOKENS.
-Tokens : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
-mesurer) ; commits d'une comparaison (message complet répété, `html_url` déductible du sha).
-Interface ensuite : Routines (RoutinesView, 2e passage) ou fiche d'un agent (AgentEditor).
+- 3.0.101 (tokens) : `slimCommit` retire `html_url` quand il vaut
+  `https://github.com/<dépôt>/commit/<sha>` (déduit, ≈ 25 tokens par commit ; un lien
+  inattendu reste). Bancs : `githubCommits` (5 commits) 476 → 365 tokens (−23 %),
+  `githubCompare` (3 commits) 425 → 358 (−16 %). Tests : 506 (attentes ajoutées aux bancs ;
+  mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.101 : liens des commits) → prochain passage : INTERFACE.
+Interface : Routines (RoutinesView, 2e passage) ou fiche d'un agent (AgentEditor).
+Tokens ensuite : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
+mesurer) ; message complet des commits d'une comparaison (garder ? l'agent le lit pour
+comprendre la branche : à juger avant de couper).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

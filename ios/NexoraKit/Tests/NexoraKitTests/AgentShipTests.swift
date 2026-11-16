@@ -506,6 +506,7 @@ struct AgentShipTests {
         let first = out?.first, c = first?["commit"] as? [String: Any]
         #expect(first?["committer"] == nil && (first?["author"] as? [String: Any])?["login"] as? String == "max")
         #expect(first?["parents"] as? [String] == [String(repeating: "1def", count: 10)])
+        #expect(first?["html_url"] == nil)
         #expect(c?["tree"] == nil && c?["committer"] == nil && c?["comment_count"] == nil && c?["verification"] == nil)
         #expect(c?["message"] as? String == "Correctif 1\n\nDétail du correctif 1.")
         let v = (out?[1]["commit"] as? [String: Any])?["verification"] as? [String: Any]
@@ -598,6 +599,11 @@ struct AgentShipTests {
         let b = out?["base_commit"] as? [String: Any]
         #expect(b?["sha"] as? String == base["sha"] as? String && b?["message"] as? String == "Étape 0 du travail …")
         #expect((out?["commits"] as? [Any])?.count == 3 && out?["files"] != nil)
+        // Lien d'un commit déduit du dépôt et du sha : retiré ; lien inattendu : gardé.
+        #expect((out?["commits"] as? [[String: Any]])?.first?["html_url"] == nil)
+        var odd = commit(4)
+        odd["html_url"] = "https://github.com/autre/depot/pull/7"
+        #expect((AgentRun.slimGitHub(odd) as? [String: Any])?["html_url"] as? String == "https://github.com/autre/depot/pull/7")
         // Base de fusion différente (branches divergées) : gardée, réduite à son sha.
         var diverged = compare
         diverged["merge_base_commit"] = commit(9)

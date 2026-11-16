@@ -246,12 +246,18 @@ extension AgentRun {
     /// il est identique à l'auteur ; parents réduits à leur sha ; sans `tree` (inutile
     /// à l'agent), `comment_count` à zéro, ni la signature et sa charge utile de
     /// `verification` (≈ 1 000 caractères par commit signé) : seuls `verified` et
-    /// `reason` restent, et rien du tout pour un commit non signé. Le message, les
-    /// fichiers et les statistiques sont gardés. Tout autre objet est rendu tel quel.
+    /// `reason` restent, et rien du tout pour un commit non signé. `html_url` retiré
+    /// quand il vaut `https://github.com/<dépôt>/commit/<sha>` (déduit du dépôt et du
+    /// sha, ≈ 25 tokens par commit). Le message, les fichiers et les statistiques sont
+    /// gardés. Tout autre objet est rendu tel quel.
     nonisolated static func slimCommit(_ d: [String: Any]) -> [String: Any] {
-        guard d["sha"] is String, var c = d["commit"] as? [String: Any], c["message"] != nil,
+        guard let sha = d["sha"] as? String, var c = d["commit"] as? [String: Any], c["message"] != nil,
               let parents = d["parents"] as? [Any] else { return d }
         var out = d
+        if let link = d["html_url"] as? String, link.hasPrefix("https://github.com/"),
+           link.hasSuffix("/commit/" + sha) {
+            out["html_url"] = nil
+        }
         if let a = d["author"] as? [String: Any], let k = d["committer"] as? [String: Any],
            NSDictionary(dictionary: a).isEqual(to: k) {
             out["committer"] = nil
