@@ -818,9 +818,16 @@ mémoire 32k tokens, consigne 3 000 car.
   1 750 → 1 331 tokens (−24 %), les 6 fichiers et `stats` visibles (avant : 1 seul).
   Tests : 501 → 502 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.97 : fichiers d'un commit) → prochain passage : INTERFACE, session de l'agent (2e passage).
-Tokens ensuite : comparaison de branches (GET …/compare : `commits` complets répétés, `base_commit`/`merge_base_commit` en double), ou fichiers d'une PR (déjà couverts par `slimFile`, à mesurer).
+- 3.0.98 (interface) : session de l'agent, 3e passage — `WorkspaceText.activity` : sous le
+  journal pendant le travail, « Lit App.swift… » (action en attente de résultat : verbe +
+  nom du fichier, 40 car. au plus) ou « Réfléchit… » (attente du modèle), à côté de la
+  roue, regroupés pour VoiceOver. Avant : une roue seule, sans texte ni libellé.
+  Tests : 502 → 503 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.98 : activité en direct de la session) → prochain passage : TOKENS.
+Tokens : comparaison de branches (GET …/compare : `commits` complets répétés, `base_commit`/`merge_base_commit` en double), ou fichiers d'une PR (déjà couverts par `slimFile`, à mesurer).
+Interface ensuite : écran Agents (AgentsView) ou Routines (RoutinesView).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
