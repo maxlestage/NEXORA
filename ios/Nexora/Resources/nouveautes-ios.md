@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.101 — 16 novembre 2026 — Historique des commits plus léger pour l'agent
+
+- Amélioré : quand l'agent lit des commits sur GitHub, il reçoit environ 23 % de tokens en moins (le lien de chaque commit, qui se déduit de son identifiant, n'est plus renvoyé).
+- Amélioré : une comparaison de branches coûte environ 16 % de tokens en moins.
+
 ## 3.0.100 — 16 novembre 2026 — Skills plus faciles à retrouver
 - Amélioré : dans l'onglet Skills, vos skills et commandes s'affichent en premier ; la zone « Ajouter » passe dessous.
 - Amélioré : pendant une recherche, seuls les résultats restent visibles.
