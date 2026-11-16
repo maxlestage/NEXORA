@@ -225,7 +225,7 @@ struct RoutineEditorView: View {
                 }
                 .pickerStyle(.segmented)
                 if r.runner == .app {
-                    Text("Une session de l'agent NEXORA, avec votre modèle. Elle tourne quand l'app est ouverte ou en arrière-plan ; un passage manqué est rattrapé au retour dans l'app.")
+                    Text(RoutinesDisplay.runnerHint(.app))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ModelEffortButton(
@@ -239,7 +239,7 @@ struct RoutineEditorView: View {
                         Toggle("Fusionner quand la CI est verte", isOn: $r.autoMerge)
                     }
                 } else {
-                    Text("Un workflow planifié est écrit dans chaque dépôt : il tourne sur les serveurs de GitHub, même téléphone éteint, et ouvre une pull request. Il faut la clé de l'agent en secret du dépôt.")
+                    Text(RoutinesDisplay.runnerHint(.github))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Picker("Agent cloud", selection: $r.cloudAgent) {
@@ -257,35 +257,36 @@ struct RoutineEditorView: View {
                 Text("Où")
             }
 
-            Section {
-                Button {
-                    Task { await save() }
-                } label: {
-                    HStack {
-                        if saving { ProgressView() } else { Image(systemName: "checkmark") }
-                        Text("Enregistrer")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(saving)
-                if routine != nil {
+            // « Enregistrer » est dans la barre du haut (toujours visible) ; ici,
+            // les actions d'une routine existante, la suppression en dernier.
+            if routine != nil {
+                Section {
                     Button {
                         Task { await runNow() }
                     } label: {
                         Label("Lancer maintenant", systemImage: "play.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        Label("Supprimer la routine", systemImage: "trash").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(minHeight: 44)
                 }
+                .listRowBackground(Color.clear)
             }
-            .listRowBackground(Color.clear)
         }
         .navigationTitle(routine == nil ? "Nouvelle routine" : "Routine")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if routine != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Supprimer", systemImage: "trash", role: .destructive) { confirmDelete = true }
+            ToolbarItem(placement: .confirmationAction) {
+                if saving {
+                    ProgressView()
+                } else {
+                    Button("Enregistrer") { Task { await save() } }
+                        .fontWeight(.semibold)
                 }
             }
         }

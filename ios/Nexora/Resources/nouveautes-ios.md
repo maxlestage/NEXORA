@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.102 — 16 novembre 2026 — Routines plus simples à régler
+- Amélioré : « Enregistrer » est en haut de la fiche d'une routine, toujours visible, sans faire défiler le formulaire.
+- Amélioré : « Supprimer la routine » passe en bas de la fiche, loin de l'action principale.
+- Amélioré : explications plus courtes sous le choix « Téléphone » ou « GitHub ».
+
 ## 3.0.101 — 16 novembre 2026 — Historique des commits plus léger pour l'agent
 
 - Amélioré : quand l'agent lit des commits sur GitHub, il reçoit environ 23 % de tokens en moins (le lien de chaque commit, qui se déduit de son identifiant, n'est plus renvoyé).
