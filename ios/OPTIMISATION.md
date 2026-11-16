@@ -787,8 +787,16 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubArtifacts` (3 artefacts) : 323 → 183 tokens (−43 %). Tests : 497 → 498
   (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens fait en 3.0.93 : artefacts d'un run) → prochain passage : INTERFACE : accueil.
+- 3.0.94 (interface) : fenêtre « Quoi de neuf » après une mise à jour (WhatsNewSheet, accueil
+  au lancement) — plusieurs versions manquées : une seule carte « Les points forts »
+  (`WhatsNewDisplay.highlights` : 5 points, nouveautés puis améliorations puis corrections,
+  récentes d'abord, sans doublon) + « et n autres changements » → liste complète (avant :
+  jusqu'à 10 cartes complètes, ≈ 30 points à faire défiler à chaque mise à jour horaire) ;
+  titre `sheetTitle` = version installée (avant : « depuis la 3.0.80 », ambigu) ; bouton
+  « Toutes les nouveautés » 44 pt. Tests : 498 → 499 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.94 : « Quoi de neuf ») → prochain passage : TOKENS ; interface ensuite : accueil du chat vide ou session de l'agent (2e passage).
 Tokens ensuite : autre réponse GitHub fréquente de l'agent (ex. liste des commits, `files` d'un commit).
 
 ## Pistes tokens à faire

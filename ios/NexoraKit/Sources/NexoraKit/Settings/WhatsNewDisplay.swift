@@ -81,4 +81,38 @@ public enum WhatsNewDisplay {
     }
 
     public static let emptyHint = "Essayez un seul mot, ou le filtre « Tout »."
+
+    // MARK: - Fenêtre « Quoi de neuf » après une mise à jour
+
+    /// Le nombre de points montrés dans la fenêtre quand plusieurs versions ont été
+    /// manquées (avant : jusqu'à 10 cartes complètes à faire défiler).
+    public static let highlightsLimit = 5
+
+    /// Le titre de la fenêtre : la version installée, même si plusieurs ont été
+    /// manquées (avant : « depuis la 3.0.80 », qui laissait croire qu'elle était exclue).
+    public static func sheetTitle(installed: String) -> String {
+        "Quoi de neuf dans NEXORA \(installed)"
+    }
+
+    /// Les points forts de plusieurs versions : d'abord les nouveautés, puis les
+    /// améliorations, puis les corrections, les plus récentes en premier dans chaque
+    /// groupe, sans doublon ; et le nombre de points laissés de côté.
+    public static func highlights(_ releases: [Release], limit: Int = WhatsNewDisplay.highlightsLimit) -> (points: [String], hidden: Int) {
+        var seen = Set<String>()
+        var unique: [String] = []
+        for p in releases.flatMap(\.points) {
+            let key = Changelog.withoutTag(p).lowercased()
+            if seen.insert(key).inserted { unique.append(p) }
+        }
+        let order = ChangeKind.allCases
+        let sorted = order.flatMap { k in unique.filter { Changelog.kind(of: $0) == k } }
+        let n = max(0, limit)
+        return (Array(sorted.prefix(n)), max(0, sorted.count - n))
+    }
+
+    /// Sous les points forts : « et 12 autres changements ».
+    public static func otherChanges(_ hidden: Int) -> String? {
+        guard hidden > 0 else { return nil }
+        return hidden == 1 ? "et 1 autre changement" : "et \(hidden) autres changements"
+    }
 }
