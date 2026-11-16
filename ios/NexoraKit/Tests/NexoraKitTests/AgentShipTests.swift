@@ -520,6 +520,47 @@ struct AgentShipTests {
         #expect((m?["commit"] as? [String: Any])?["committer"] != nil && m?["committer"] != nil)
     }
 
+    @Test("banc github : fichiers d'un commit sans sha de blob, patchs longs coupés")
+    func githubCommitFiles() throws {
+        func file(_ n: Int, lines: Int) -> [String: Any] {
+            let patch = "@@ -1,\(lines) +1,\(lines) @@\n" + (1...lines).map { "+ligne \($0) du fichier \(n) modifiée" }.joined(separator: "\n")
+            return ["sha": String(repeating: "b\(n)", count: 20), "filename": "Sources/Fichier\(n).swift", "status": "modified",
+                    "additions": lines, "deletions": 0, "changes": lines,
+                    "blob_url": "https://github.com/max/site/blob/x/Sources/Fichier\(n).swift",
+                    "raw_url": "https://github.com/max/site/raw/x/Sources/Fichier\(n).swift",
+                    "contents_url": "https://api.github.com/repos/max/site/contents/Sources/Fichier\(n).swift?ref=x",
+                    "patch": patch]
+        }
+        let sha = String(repeating: "1abc", count: 10)
+        let files: [Any] = [file(1, lines: 120), file(2, lines: 8), file(3, lines: 60), file(4, lines: 5), file(5, lines: 90), file(6, lines: 3)]
+        let detail: [String: Any] = ["sha": sha, "html_url": "https://github.com/max/site/commit/\(sha)",
+                                     "commit": ["message": "Refonte", "author": ["name": "Max", "email": "m@x.fr", "date": "2026-11-16T00:00:00Z"]],
+                                     "parents": [] as [Any], "stats": ["total": 286, "additions": 286, "deletions": 0], "files": files]
+        // Référence : mêmes fichiers, `status` renommé (même longueur) pour qu'ils restent entiers.
+        var plainDetail = detail
+        plainDetail["files"] = files.map { f -> Any in var r = f as! [String: Any]; r["statuX"] = r.removeValue(forKey: "status"); return r }
+        func shown(_ x: Any) -> String {
+            let t = AgentRun.githubText(AgentRun.slimGitHub(x))
+            return t.count > 7000 ? String(t.prefix(7000)) : t
+        }
+        let before = shown(plainDetail), after = shown(detail)
+        print("Banc github (commit de 6 fichiers) : \(before.count / 4) → \(after.count / 4) tokens")
+        #expect(after.count * 10 < before.count * 8)
+        // Avant : le 1er patch remplissait la réponse, les derniers fichiers et les statistiques étaient perdus.
+        #expect(!before.contains("Fichier6") && after.contains("Fichier6") && after.contains("\"stats\""))
+        let out = (AgentRun.slimGitHub(detail) as? [String: Any])?["files"] as? [[String: Any]]
+        #expect(out?.first?["sha"] == nil && out?.first?["changes"] == nil && out?.first?["blob_url"] == nil)
+        let p = out?.first?["patch"] as? String ?? ""
+        #expect(p.count < AgentRun.patchLimit + 80 && p.hasSuffix("lignes de plus : lis le fichier pour la suite)"))
+        #expect(p.contains("+ligne 1 du fichier 1"))
+        // Patch court : gardé tel quel.
+        #expect(out?[1]["patch"] as? String == (files[1] as! [String: Any])["patch"] as? String)
+        // `changes` différent de ajouts + retraits (fichier binaire, renommage) : gardé.
+        var odd = file(7, lines: 2)
+        odd["changes"] = 9
+        #expect((AgentRun.slimGitHub(odd) as? [String: Any])?["changes"] as? Int == 9)
+    }
+
     @Test("banc github : jobs d'un run avec les étapes réussies réduites à leur nom")
     func githubJobs() throws {
         func step(_ n: Int, _ name: String, _ end: String) -> [String: Any] {
