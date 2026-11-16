@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimArtifact(slimJob(slimRun(out)))
+            return personLogin(out) ?? slimCommit(slimArtifact(slimJob(slimRun(out))))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -238,6 +238,42 @@ extension AgentRun {
             w["head_repository_id"] = nil
             out["workflow_run"] = w
         }
+        return out
+    }
+
+    /// Un commit (`sha` + `commit` + `parents` : GET …/commits, liste ou détail)
+    /// allégé : `committer` (personne GitHub, et nom + courriel + date git) retiré quand
+    /// il est identique à l'auteur ; parents réduits à leur sha ; sans `tree` (inutile
+    /// à l'agent), `comment_count` à zéro, ni la signature et sa charge utile de
+    /// `verification` (≈ 1 000 caractères par commit signé) : seuls `verified` et
+    /// `reason` restent, et rien du tout pour un commit non signé. Le message, les
+    /// fichiers et les statistiques sont gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimCommit(_ d: [String: Any]) -> [String: Any] {
+        guard d["sha"] is String, var c = d["commit"] as? [String: Any], c["message"] != nil,
+              let parents = d["parents"] as? [Any] else { return d }
+        var out = d
+        if let a = d["author"] as? [String: Any], let k = d["committer"] as? [String: Any],
+           NSDictionary(dictionary: a).isEqual(to: k) {
+            out["committer"] = nil
+        }
+        out["parents"] = parents.map { p -> Any in
+            if let p = p as? [String: Any], let sha = p["sha"] as? String { return sha }
+            return p
+        }
+        c["tree"] = nil
+        if (c["comment_count"] as? Int) == 0 { c["comment_count"] = nil }
+        if let a = c["author"] as? [String: Any], let k = c["committer"] as? [String: Any],
+           NSDictionary(dictionary: a).isEqual(to: k) {
+            c["committer"] = nil
+        }
+        if let v = c["verification"] as? [String: Any] {
+            if (v["verified"] as? Bool) == false && (v["reason"] as? String) == "unsigned" {
+                c["verification"] = nil
+            } else {
+                c["verification"] = v.filter { $0.key == "verified" || $0.key == "reason" }
+            }
+        }
+        out["commit"] = c
         return out
     }
 
