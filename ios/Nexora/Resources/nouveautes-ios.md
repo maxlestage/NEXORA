@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.104 — 16 novembre 2026 — Fiche d'un agent plus claire
+- Amélioré : les outils de l'agent sont nommés en mots simples (« Lire un fichier ») et rangés dans une ligne repliable qui les résume (« Tous », « 3 sur 8 »).
+- Amélioré : quand « Enregistrer » est grisé, la fiche dit ce qui manque (le nom, la consigne ou les deux).
+- Corrigé : le nom à taper pour appeler l'agent (@…) n'apparaît plus vide et reste juste même avec des espaces en trop.
+
 ## 3.0.103 — 16 novembre 2026 — Pull requests plus légères pour l'agent
 - Amélioré : quand l'agent lit des pull requests sur GitHub, les branches source et cible ne répètent plus le propriétaire ni l'étiquette déjà connus (environ 22 % de tokens en moins sur ces informations).
 

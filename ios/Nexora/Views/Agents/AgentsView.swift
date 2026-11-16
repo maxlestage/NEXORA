@@ -646,6 +646,21 @@ struct AgentEditorView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var pickModel = false
+    @State private var showTools = false
+
+    /// Coche ou décoche un outil de l'agent.
+    private func toolBinding(_ t: String) -> Binding<Bool> {
+        Binding(
+            get: { agent.tools.contains(t) },
+            set: { on in
+                if on {
+                    if !agent.tools.contains(t) { agent.tools.append(t) }
+                } else {
+                    agent.tools.removeAll { $0 == t }
+                }
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -667,7 +682,11 @@ struct AgentEditorView: View {
                 } header: {
                     Text("Consigne (prompt système)")
                 } footer: {
-                    Text("Décrivez le rôle, le ton et les règles de l'agent. Appelez-le dans n'importe quelle conversation avec @\(agent.name.lowercased().replacingOccurrences(of: " ", with: "-")).")
+                    if let why = AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt) {
+                        Text(why).foregroundStyle(.orange)
+                    } else if let handle = AgentEditorDisplay.handle(agent.name) {
+                        Text("Le rôle, le ton et les règles de l'agent. Tapez \(handle) au début d'un message pour l'appeler.")
+                    }
                 }
                 Section("Préférences") {
                     Button {
@@ -684,24 +703,22 @@ struct AgentEditorView: View {
                     }
                 }
                 Section {
-                    ForEach(agentToolList.map { $0.name }.filter { $0 != "finish" }, id: \.self) { t in
-                        Toggle(isOn: Binding(
-                            get: { agent.tools.contains(t) },
-                            set: { on in
-                                if on {
-                                    if !agent.tools.contains(t) { agent.tools.append(t) }
-                                } else {
-                                    agent.tools.removeAll { $0 == t }
+                    DisclosureGroup(isExpanded: $showTools) {
+                        ForEach(AgentEditorDisplay.choosableTools(agentToolList.map(\.name)), id: \.self) { t in
+                            Toggle(isOn: toolBinding(t)) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(AgentEditorDisplay.toolLabel(t))
+                                    Text(t).font(.caption.monospaced()).foregroundStyle(.secondary)
                                 }
                             }
-                        )) {
-                            Text(t).font(.body.monospaced())
+                            .accessibilityLabel(AgentEditorDisplay.toolLabel(t))
                         }
+                    } label: {
+                        LabeledContent("Outils en mode autonome", value: AgentEditorDisplay.toolsValue(
+                            agent.tools, total: AgentEditorDisplay.choosableTools(agentToolList.map(\.name)).count))
                     }
-                } header: {
-                    Text("Outils en mode autonome")
                 } footer: {
-                    Text("Aucun outil coché : l'agent peut tous les utiliser. Les fichiers ne sont envoyés sur GitHub qu'après votre validation.")
+                    Text("Aucun coché : l'agent peut tous les utiliser. Rien n'est envoyé sur GitHub sans votre validation.")
                 }
             }
             .navigationTitle(agent.name.isEmpty ? "Nouvel agent" : agent.name)
@@ -714,7 +731,7 @@ struct AgentEditorView: View {
                         agents.save(agent)
                         dismiss()
                     }
-                    .disabled(agent.name.trimmingCharacters(in: .whitespaces).isEmpty || agent.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt) != nil)
                 }
             }
             .sheet(isPresented: $pickModel) {

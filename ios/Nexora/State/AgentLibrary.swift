@@ -62,6 +62,7 @@ final class AgentLibrary {
         let n = name.lowercased()
         return all.first { a in
             a.name.lowercased().replacingOccurrences(of: " ", with: "-") == n
+                || AgentEditorDisplay.handle(a.name) == "@" + n
                 || a.id.lowercased() == n
                 || a.id.lowercased().hasSuffix(":" + n)
         }
