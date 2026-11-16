@@ -93,3 +93,53 @@ public enum AgentPickerDisplay {
         return parts.joined(separator: ", ")
     }
 }
+
+/// La fiche d'un agent (AgentEditorView), rendue simple : outils en mots simples,
+/// raison du bouton Enregistrer grisé, et nom à taper (@…) pour appeler l'agent.
+public enum AgentEditorDisplay {
+    /// Le nom d'un outil en mots simples (le nom technique reste en légende).
+    public static func toolLabel(_ name: String) -> String {
+        switch name {
+        case "list_files": "Lister les fichiers"
+        case "read_file": "Lire un fichier"
+        case "find_in_file": "Chercher dans un fichier"
+        case "search_code": "Chercher dans le dépôt"
+        case "edit_file": "Modifier un passage"
+        case "write_file": "Écrire un fichier"
+        case "delete_file": "Supprimer un fichier"
+        case "github": "Utiliser GitHub (CI, pull requests)"
+        default: name
+        }
+    }
+
+    /// Les outils que l'on peut cocher (« finish » est toujours permis).
+    public static func choosableTools(_ all: [String]) -> [String] {
+        all.filter { $0 != "finish" }
+    }
+
+    /// Le résumé de la ligne Outils, repliée : « Tous » si aucun n'est coché
+    /// (l'agent peut alors tous les utiliser), sinon « 3 sur 8 ».
+    public static func toolsValue(_ tools: [String], total: Int) -> String {
+        let n = tools.filter { $0 != "finish" }.count
+        return n == 0 || n >= total ? "Tous" : "\(n) sur \(total)"
+    }
+
+    /// « @mon-agent » : ce que l'on tape au début d'un message pour appeler l'agent,
+    /// ou nil tant qu'il n'a pas de nom.
+    public static func handle(_ name: String) -> String? {
+        let words = name.split(whereSeparator: \.isWhitespace)
+        return words.isEmpty ? nil : "@" + words.joined(separator: "-").lowercased()
+    }
+
+    /// Pourquoi Enregistrer est grisé, ou nil si l'on peut enregistrer.
+    public static func missing(name: String, prompt: String) -> String? {
+        let noName = name.trimmingCharacters(in: .whitespaces).isEmpty
+        let noPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch (noName, noPrompt) {
+        case (true, true): return "Donnez un nom et une consigne pour enregistrer."
+        case (true, false): return "Donnez un nom pour enregistrer."
+        case (false, true): return "Écrivez une consigne pour enregistrer."
+        default: return nil
+        }
+    }
+}

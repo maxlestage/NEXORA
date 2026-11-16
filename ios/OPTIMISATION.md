@@ -856,9 +856,17 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubPullRefs` (3 PR, référence de même longueur non déductible) :
   307 → 240 tokens (−22 %). Tests : 507 → 508 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.103 : head/base des pull requests) → prochain passage : INTERFACE.
-Interface : fiche d'un agent (AgentEditor).
+- 3.0.104 (interface) : fiche d'un agent (AgentEditorView) — `AgentEditorDisplay` : outils
+  en mots simples (`toolLabel`, nom technique en légende), liste des 8 interrupteurs repliée
+  dans une ligne « Outils en mode autonome · Tous / 3 sur 8 » (`toolsValue`, réglage rare :
+  avant 8 lignes monospace toujours visibles) ; raison du bouton Enregistrer grisé (`missing`,
+  avant : grisé sans explication) ; `handle` (« @revue-de-code », rien tant que le nom est vide :
+  avant « @ » seul) aussi accepté par `AgentLibrary.named`. Tests : 508 → 510 (mêmes 2 échecs
+  Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.104 : fiche d'un agent) → prochain passage : TOKENS.
+Interface ensuite : écran Modèles, 2e passage, ou sélecteur de modèle (ModelPickerSheet).
 Tokens ensuite : message complet des commits d'une comparaison (garder ? l'agent le lit
 pour comprendre la branche : à juger avant de couper). Fichiers d'une PR (GET
 …/pulls/n/files) vérifiés en 3.0.103 : déjà légers (`blob_url`/`raw_url`/`contents_url`

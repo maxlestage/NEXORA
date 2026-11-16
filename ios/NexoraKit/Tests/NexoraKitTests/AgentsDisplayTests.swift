@@ -30,3 +30,29 @@ struct AgentsDisplayTests {
         #expect(AgentsDisplay.header("Skills", count: 3) == "Skills (3)")
     }
 }
+
+@Suite("Fiche d'un agent")
+struct AgentEditorDisplayTests {
+    @Test func outilsLisiblesEtResumes() {
+        let all = AgentEditorDisplay.choosableTools(agentToolList.map(\.name))
+        #expect(!all.contains("finish"))
+        // Chaque outil cochable a un libellé simple, différent de son nom technique.
+        for t in all { #expect(AgentEditorDisplay.toolLabel(t) != t) }
+        #expect(AgentEditorDisplay.toolsValue([], total: all.count) == "Tous")
+        #expect(AgentEditorDisplay.toolsValue(["finish"], total: all.count) == "Tous")
+        #expect(AgentEditorDisplay.toolsValue(["read_file", "github"], total: all.count) == "2 sur \(all.count)")
+        #expect(AgentEditorDisplay.toolsValue(all, total: all.count) == "Tous")
+    }
+
+    @Test func nomPourAppelerEtRaisonDuBoutonGrise() {
+        #expect(AgentEditorDisplay.handle("Revue de Code") == "@revue-de-code")
+        #expect(AgentEditorDisplay.handle("  Rédacteur  ") == "@rédacteur")
+        #expect(AgentEditorDisplay.handle("   ") == nil)
+        // Le nom affiché est bien reconnu au début d'un message.
+        #expect(ChatLogic.mention(in: "@revue-de-code relis") == "revue-de-code")
+        #expect(AgentEditorDisplay.missing(name: "", prompt: "") == "Donnez un nom et une consigne pour enregistrer.")
+        #expect(AgentEditorDisplay.missing(name: "A", prompt: " \n") == "Écrivez une consigne pour enregistrer.")
+        #expect(AgentEditorDisplay.missing(name: " ", prompt: "Rôle") == "Donnez un nom pour enregistrer.")
+        #expect(AgentEditorDisplay.missing(name: "A", prompt: "Rôle") == nil)
+    }
+}
