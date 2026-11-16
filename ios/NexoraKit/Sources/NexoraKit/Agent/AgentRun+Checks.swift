@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRef(slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -362,6 +362,36 @@ extension AgentRun {
         var out: [String: Any] = ["full_name": name]
         if let b = r["default_branch"] as? String { out["default_branch"] = b }
         for flag in ["fork", "private"] where (r[flag] as? Bool) == true { out[flag] = true }
+        return out
+    }
+
+    /// Un dépôt demandé pour lui-même (GET /repos/…, listes de dépôts : `full_name` +
+    /// `owner` + `forks_count`) allégé sans rien perdre : les anciens alias identiques
+    /// (`forks` = `forks_count`, `open_issues` = `open_issues_count`, `watchers` et
+    /// `watchers_count` = `stargazers_count`), `private` faux quand `visibility` le dit,
+    /// et les valeurs qui ne disent rien (`mirror_url`, `license`, `homepage` nuls ou
+    /// vides, `topics` vide, `archived`, `disabled`, `is_template`,
+    /// `web_commit_signoff_required`, `has_discussions`, `has_pages` faux : absent = faux).
+    /// Avant, une liste de dépôts remplissait vite la réponse et les derniers n'arrivaient
+    /// plus au modèle. Tout autre objet est rendu tel quel.
+    nonisolated static func slimRepo(_ d: [String: Any]) -> [String: Any] {
+        guard d["full_name"] is String, d["owner"] != nil, let forks = d["forks_count"] as? Int else { return d }
+        var out = d
+        func same(_ k: String, _ v: Int?) { if let v, (d[k] as? Int) == v { out[k] = nil } }
+        same("forks", forks)
+        same("open_issues", d["open_issues_count"] as? Int)
+        let stars = d["stargazers_count"] as? Int
+        same("watchers", stars)
+        same("watchers_count", stars)
+        if (d["private"] as? Bool) == false, (d["visibility"] as? String) == "public" { out["private"] = nil }
+        for k in ["mirror_url", "license", "homepage"] {
+            if d[k] is NSNull || (d[k] as? String) == "" { out[k] = nil }
+        }
+        if let t = d["topics"] as? [Any], t.isEmpty { out["topics"] = nil }
+        for k in ["archived", "disabled", "is_template", "web_commit_signoff_required", "has_discussions", "has_pages"]
+            where (d[k] as? Bool) == false {
+            out[k] = nil
+        }
         return out
     }
 
