@@ -809,9 +809,18 @@ mémoire 32k tokens, consigne 3 000 car.
   hors sujet (« Écris une app Flutter… », « Relis ce code » sans code). Test : chaque
   catégorie du catalogue a ses idées. Tests : 500 → 501 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.96 : idées du chat vide par agent) → prochain passage : TOKENS ; interface ensuite : session de l'agent (2e passage).
-Tokens ensuite : `files` d'un commit (GET …/commits/<sha> : `patch` long, `blob_url`/`raw_url`/`contents_url`), ou comparaison de branches.
+- 3.0.97 (tokens) : outil github de l'agent — `AgentRun.slimFile` (objet avec `filename` +
+  `status` + `additions` : `files` d'un commit, d'une comparaison ou d'une PR) retire le `sha`
+  de blob, `changes` égal à ajouts + retraits, et coupe un `patch` de plus de 1 200 car.
+  (`patchLimit`) en fin de ligne avec « … (n lignes de plus : lis le fichier pour la suite) ».
+  Avant, un seul gros patch remplissait les 7 000 car. de la réponse : fichiers suivants et
+  statistiques perdus. Banc `AgentShipTests.githubCommitFiles` (commit de 6 fichiers) :
+  1 750 → 1 331 tokens (−24 %), les 6 fichiers et `stats` visibles (avant : 1 seul).
+  Tests : 501 → 502 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.97 : fichiers d'un commit) → prochain passage : INTERFACE, session de l'agent (2e passage).
+Tokens ensuite : comparaison de branches (GET …/compare : `commits` complets répétés, `base_commit`/`merge_base_commit` en double), ou fichiers d'une PR (déjà couverts par `slimFile`, à mesurer).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

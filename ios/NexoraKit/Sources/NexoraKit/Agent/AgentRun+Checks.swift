@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimCommit(slimArtifact(slimJob(slimRun(out))))
+            return personLogin(out) ?? slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))
         case let a as [Any]:
             return a.map { slimGitHub($0) }
         default:
@@ -274,6 +274,30 @@ extension AgentRun {
             }
         }
         out["commit"] = c
+        return out
+    }
+
+    /// Longueur gardée du `patch` d'un fichier modifié (commit, comparaison, pull request).
+    nonisolated static let patchLimit = 1_200
+
+    /// Un fichier modifié (`filename` + `status` + `additions` : `files` d'un commit,
+    /// d'une comparaison de branches ou d'une pull request) allégé : sans son `sha` de
+    /// blob (inutile à l'agent), `changes` retiré quand il vaut ajouts + retraits, et un
+    /// `patch` long coupé en fin de ligne à `patchLimit` caractères avec le nombre de
+    /// lignes non montrées. Avant, un seul gros patch remplissait les 7 000 caractères de
+    /// la réponse : les fichiers suivants et les statistiques n'arrivaient plus au
+    /// modèle. Tout autre objet est rendu tel quel.
+    nonisolated static func slimFile(_ d: [String: Any]) -> [String: Any] {
+        guard d["filename"] is String, d["status"] is String, let add = d["additions"] as? Int else { return d }
+        var out = d
+        out["sha"] = nil
+        if let del = d["deletions"] as? Int, (d["changes"] as? Int) == add + del { out["changes"] = nil }
+        if let p = d["patch"] as? String, p.count > patchLimit {
+            var head = String(p.prefix(patchLimit))
+            if let nl = head.lastIndex(of: "\n") { head = String(head[..<nl]) }
+            let rest = p.dropFirst(head.count).split(separator: "\n", omittingEmptySubsequences: false).count - 1
+            out["patch"] = head + "\n… (\(max(rest, 1)) lignes de plus : lis le fichier pour la suite)"
+        }
         return out
     }
 
