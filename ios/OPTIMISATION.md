@@ -888,9 +888,14 @@ mémoire 32k tokens, consigne 3 000 car.
   désormais linéaire) : 358 → 312 tokens (−13 %) ; référence non allégée 491.
   Tests : 512 (banc enrichi ; mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.107 : comparaison de branches) → prochain passage : INTERFACE.
-Interface : écran Modèles (ProvidersView), 2e passage, ou AgentPickerSheet.
+- 3.0.108 (interface) : choix d'un agent (AgentPickerSheet) — `AgentPickerDisplay.current` :
+  l'agent actuel en tête (section « Agent actuel », sans recherche) avec « Sans agent »
+  juste dessous ; `groups(…, excluding:)` ne le montre pas une 2e fois dans sa catégorie
+  (avant : à chercher dans sa catégorie, parfois loin en bas). Tests : 512 → 513.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.108 : AgentPickerSheet) → prochain passage : TOKENS.
+Interface ensuite : écran Modèles (ProvidersView), 2e passage.
 Tokens ensuite : liste de commits (GET …/commits, plus récent d'abord) : même retrait des
 parents linéaires (parent = commit suivant de la liste) ; ou autre réponse GitHub lourde.
 

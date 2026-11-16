@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.108 — 16 novembre 2026 — L'agent actuel en tête du choix
+- Amélioré : en choisissant un agent, celui en cours apparaît tout en haut (« Agent actuel »), sans avoir à le chercher dans sa catégorie.
+- Amélioré : « Sans agent » est juste en dessous, pour le retirer d'un geste.
+
 ## 3.0.107 — 16 novembre 2026 — Comparaisons de branches plus légères
 
 - Amélioré : quand l'agent compare deux branches sur GitHub, la réponse qu'il lit compte environ 13 % de tokens en moins (parents des commits et total déduits de la liste).

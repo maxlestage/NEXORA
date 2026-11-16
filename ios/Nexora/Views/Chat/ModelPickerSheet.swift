@@ -221,10 +221,20 @@ struct AgentPickerSheet: View {
     @State private var query = ""
 
     var body: some View {
-        let groups = AgentPickerDisplay.groups(agents.all, query: query)
+        let current = AgentPickerDisplay.current(agents.all, selected: selected, query: query)
+        let groups = AgentPickerDisplay.groups(agents.all, query: query, excluding: current?.id)
         NavigationStack {
             List {
-                if AgentPickerDisplay.showsNone(query: query) {
+                if let current {
+                    Section("Agent actuel") {
+                        row(emoji: current.emoji, name: current.name, description: current.description, isSelected: true) {
+                            onPick(current)
+                        }
+                        row(emoji: "💬", name: "Sans agent", description: "Assistant personnel", isSelected: false) {
+                            onPick(nil)
+                        }
+                    }
+                } else if AgentPickerDisplay.showsNone(query: query) {
                     row(emoji: "💬", name: "Sans agent", description: "Assistant personnel", isSelected: selected == nil) {
                         onPick(nil)
                     }

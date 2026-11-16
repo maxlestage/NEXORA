@@ -40,4 +40,14 @@ import Testing
             == "Relecteur, Relit votre code, agent actuel")
         #expect(AgentPickerDisplay.accessibility(name: "Traducteur", description: " ", selected: false) == "Traducteur")
     }
+
+    @Test func agentActuelEnTeteSansDoublon() {
+        let actuel = AgentPickerDisplay.current(agents, selected: agents[2], query: "")
+        #expect(actuel?.id == agents[2].id)
+        #expect(AgentPickerDisplay.current(agents, selected: agents[2], query: "mail") == nil)
+        #expect(AgentPickerDisplay.current(agents, selected: nil, query: "") == nil)
+        let reste = AgentPickerDisplay.groups(agents, query: "", excluding: actuel?.id)
+        #expect(!reste.flatMap(\.agents).contains { $0.id == agents[2].id })
+        #expect(reste.flatMap(\.agents).count == agents.count - 1)
+    }
 }

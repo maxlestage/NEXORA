@@ -60,15 +60,24 @@ public enum AgentPickerDisplay {
     }
 
     /// Les agents qui correspondent à la recherche, rangés par catégorie dans l'ordre
-    /// reçu ; les catégories vides ne sont pas gardées.
-    public static func groups(_ agents: [Agent], query: String) -> [Group] {
+    /// reçu ; les catégories vides ne sont pas gardées. `excluding` : l'agent déjà montré
+    /// en tête (« Agent actuel »), pour ne pas l'afficher deux fois.
+    public static func groups(_ agents: [Agent], query: String, excluding: String? = nil) -> [Group] {
         var order: [String] = []
         var found: [String: [Agent]] = [:]
-        for a in agents where matches(query, a) {
+        for a in agents where a.id != excluding && matches(query, a) {
             if found[a.category] == nil { order.append(a.category) }
             found[a.category, default: []].append(a)
         }
         return order.map { Group(category: $0, agents: found[$0] ?? []) }
+    }
+
+    /// L'agent actuel, montré en tête (section « Agent actuel ») sans recherche, pour le
+    /// retrouver sans faire défiler ; nil sans agent, pendant une recherche, ou s'il n'est
+    /// plus dans la bibliothèque.
+    public static func current(_ agents: [Agent], selected: Agent?, query: String) -> Agent? {
+        guard let selected, query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return agents.first { $0.id == selected.id }
     }
 
     /// La ligne « Sans agent » est-elle montrée ? Oui sans recherche, ou si la recherche
