@@ -754,10 +754,16 @@ mémoire 32k tokens, consigne 3 000 car.
   VoiceOver : un seul élément « Modèle par défaut : m, Groq. 3 fournisseurs prêts » + indice.
   Tests : 492 → 493.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.88 : onglet Modèles) → prochain passage : TOKENS : jobs d'un run
-(`list_workflow_jobs` : `steps` réussies répétées, `labels`, `runner_*`) — réduire les étapes
-réussies à leur nom. Interface ensuite : fiche d'un fournisseur (ProviderDetailView) ou Personnaliser.
+- 3.0.89 (tokens) : outil github de l'agent — `AgentRun.slimJob` : un job de workflow
+  (`run_id` + `steps`) réduit chaque étape réussie à son nom, une étape ignorée à « nom
+  (ignorée) » ; étape en échec, annulée ou en cours : gardée entière. `runner_id` et
+  `runner_group_id` retirés (le nom de la machine reste). Banc `AgentShipTests.githubJobs`
+  (3 jobs de 8 étapes, dont 1 en échec) : 1 230 → 412 tokens (−66 %). Tests : 493 → 494.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.89 : jobs d'un run) → prochain passage : INTERFACE : fiche d'un
+fournisseur (ProviderDetailView) ou Personnaliser. Tokens ensuite : `get_workflow_run`
+seul (`referenced_workflows`, `pull_requests` vides) ou artefacts d'un run.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
