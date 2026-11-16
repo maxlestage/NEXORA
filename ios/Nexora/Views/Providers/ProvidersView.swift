@@ -236,6 +236,7 @@ struct ProviderDetailView: View {
     @State private var toast: Toast?
     @State private var modelQuery = ""
     @State private var showAddress = false
+    @State private var confirmDelete = false
 
     private static let ollamaSuggestions = ["llama3.2", "qwen2.5-coder:7b", "qwen3:8b", "gemma3:4b", "deepseek-r1:8b", "mistral", "phi4-mini", "gpt-oss:20b"]
 
@@ -287,7 +288,7 @@ struct ProviderDetailView: View {
                     } header: {
                         Text("Clé d'API")
                     } footer: {
-                        Text("Stockée dans le trousseau sécurisé de l'appareil.")
+                        Text("Stockée dans le trousseau sécurisé de l'appareil, et enregistrée dès que vous quittez cette page.")
                     }
                 }
                 Section {
@@ -425,9 +426,8 @@ struct ProviderDetailView: View {
             .toolbar {
                 if p.custom {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Supprimer", systemImage: "trash") {
-                            settings.deleteCustom(p.id)
-                            dismiss()
+                        Button("Supprimer", systemImage: "trash", role: .destructive) {
+                            confirmDelete = true
                         }
                     }
                 } else if settings.isModified(p.id) {
@@ -442,6 +442,22 @@ struct ProviderDetailView: View {
             .onAppear {
                 key = Keychain.get("key:\(p.id)") ?? ""
                 url = p.baseUrl
+            }
+            .onDisappear {
+                // Clé collée puis retour sans « Entrée » : on l'enregistre quand même.
+                guard let current = provider, ProviderDetailDisplay.unsaved(
+                    key: key, storedKey: Keychain.get("key:\(current.id)"), url: url, baseUrl: current.baseUrl
+                ) else { return }
+                save(current)
+            }
+            .confirmationDialog("Supprimer ce serveur ?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Supprimer", role: .destructive) {
+                    settings.deleteCustom(p.id)
+                    dismiss()
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text(ProviderDetailDisplay.deleteConfirmation(name: p.name, isDefault: def.providerId == p.id))
             }
             .toast($toast)
         } else {

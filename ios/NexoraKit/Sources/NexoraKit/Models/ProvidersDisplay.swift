@@ -109,6 +109,20 @@ public enum ProviderDetailDisplay {
         p.local || p.custom || modified
     }
 
+    /// Reste-t-il une clé ou une adresse tapée mais pas enregistrée ? (comparaison sans
+    /// espaces autour) Sert à enregistrer en quittant la fiche, pour ne rien perdre.
+    public static func unsaved(key: String, storedKey: String?, url: String, baseUrl: String) -> Bool {
+        let clean = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return clean(key) != clean(storedKey ?? "") || clean(url) != clean(baseUrl)
+    }
+
+    /// Message de confirmation avant de supprimer un serveur perso.
+    public static func deleteConfirmation(name: String, isDefault: Bool) -> String {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = "« \(n.isEmpty ? "Serveur perso" : n) » et sa clé seront supprimés."
+        return isDefault ? base + " C'est votre modèle par défaut : un autre sera utilisé à sa place." : base
+    }
+
     /// Durée lisible : « 850 ms », « 1,2 s ».
     public static func duration(ms: Int) -> String {
         guard ms >= 1000 else { return "\(max(ms, 0)) ms" }
