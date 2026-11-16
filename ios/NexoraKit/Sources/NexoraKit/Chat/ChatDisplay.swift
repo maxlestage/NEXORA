@@ -62,19 +62,57 @@ public enum ChatDisplay {
 
     public static func isLong(_ text: String) -> Bool { (text as NSString).length > longMessage }
 
-    /// Des idées pour commencer une conversation vide.
+    /// Des idées pour commencer une conversation vide, adaptées au métier de l'agent
+    /// (avant : un « Rédacteur » proposait d'écrire une app Flutter).
     public static func ideas(agent: Agent?) -> [String] {
-        if let agent, !agent.tools.isEmpty {
-            return [
-                "Relis ce code et propose des améliorations",
-                "Écris les tests de cette fonction",
-                "Explique cette erreur de compilation",
-            ]
+        guard let agent else {
+            // Les mêmes départs rapides que l'accueil : ils restent à portée quand
+            // l'accueil les range (voir `showStarters`).
+            return starters.prefix(4).map(\.text)
         }
-        // Les mêmes départs rapides que l'accueil : ils restent à portée quand
-        // l'accueil les range (voir `showStarters`).
+        if let byCategory = categoryIdeas[agent.category] { return byCategory }
+        if !agent.tools.isEmpty { return categoryIdeas["Code"] ?? [] }
         return starters.prefix(4).map(\.text)
     }
+
+    /// Trois idées par catégorie d'agent (celles du catalogue).
+    static let categoryIdeas: [String: [String]] = [
+        "Code": [
+            "Relis ce code et propose des améliorations",
+            "Écris les tests de cette fonction",
+            "Explique cette erreur de compilation",
+        ],
+        "Données": [
+            "Écris la requête SQL pour ce besoin",
+            "Analyse ces chiffres et dis-moi ce qui ressort",
+            "Propose un schéma de base de données pour mon app",
+        ],
+        "Qualité": [
+            "Trouve la cause de ce bug",
+            "Relis ce code et liste les risques",
+            "Comment rendre cet écran plus rapide ?",
+        ],
+        "Conception": [
+            "Découpe ce projet en étapes réalistes",
+            "Propose une API pour gérer des comptes",
+            "Quelles questions se poser avant de commencer ?",
+        ],
+        "Ops": [
+            "Écris un workflow GitHub Actions qui teste et déploie",
+            "Pourquoi ma CI échoue-t-elle ?",
+            "Écris un Dockerfile léger pour ce projet",
+        ],
+        "IA": [
+            "Améliore cette consigne pour une IA",
+            "Écris la consigne d'un agent de revue de code",
+            "Pourquoi l'IA ne suit-elle pas ma consigne ?",
+        ],
+        "Général": [
+            "Écris un e-mail clair et poli",
+            "Résume ce texte en 5 points",
+            "Rends ce paragraphe plus simple à lire",
+        ],
+    ]
 
     /// Au-delà de ce nombre de conversations, l'accueil range les départs rapides :
     /// la liste remonte (on les retrouve dans un nouveau chat vide).

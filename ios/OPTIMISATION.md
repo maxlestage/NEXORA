@@ -802,8 +802,15 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubCommits` (5 commits, 2 signés) : 1 443 → 476 tokens (−67 %).
   Tests : 499 → 500 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.95 : commits GitHub) → prochain passage : INTERFACE : accueil du chat vide ou session de l'agent (2e passage).
+- 3.0.96 (interface) : accueil d'un chat vide (ChatView.emptyState) — `ChatDisplay.ideas` suit
+  la catégorie de l'agent (`categoryIdeas` : Code, Données, Qualité, Conception, Ops, IA,
+  Général, 3 idées chacune) ; agent perso : outils → idées de code, sinon départs rapides.
+  Avant : les agents sans outils (ex. Rédacteur, Chef de projet) proposaient des idées
+  hors sujet (« Écris une app Flutter… », « Relis ce code » sans code). Test : chaque
+  catégorie du catalogue a ses idées. Tests : 500 → 501 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.96 : idées du chat vide par agent) → prochain passage : TOKENS ; interface ensuite : session de l'agent (2e passage).
 Tokens ensuite : `files` d'un commit (GET …/commits/<sha> : `patch` long, `blob_url`/`raw_url`/`contents_url`), ou comparaison de branches.
 
 ## Pistes tokens à faire
