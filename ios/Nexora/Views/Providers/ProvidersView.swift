@@ -9,6 +9,8 @@ struct ProvidersView: View {
     @State private var filter = "all"
     @State private var query = ""
     @State private var adding = false
+    @State private var pickModel = false
+    @State private var toast: Toast?
 
     private var list: [ProviderDef] {
         ProvidersDisplay.filter(settings.providers, filter: filter, query: query, isReady: { settings.isReady($0) })
@@ -16,29 +18,42 @@ struct ProvidersView: View {
 
     var body: some View {
         let def = settings.resolve(settings.defaultModel)
+        let card = ProvidersDisplay.defaultCard(model: def.model, provider: settings.provider(def.providerId)?.name ?? "",
+                                                readyCount: settings.readyProviders.count)
         let shown = list
         let byId = Dictionary(shown.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         NavigationStack(path: $path) {
             List {
                 Section {
-                    GlassCard(glow: Theme.violet) {
-                        HStack(spacing: 12) {
-                            Text("⭐").font(.system(size: 26)).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Modèle par défaut").font(.caption)
-                                Text(def.model).font(.callout.monospaced().weight(.bold)).lineLimit(1)
-                                Text(settings.provider(def.providerId)?.name ?? "").font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            VStack {
-                                Text("\(settings.readyProviders.count)")
-                                    .font(.title2.weight(.black))
-                                    .foregroundStyle(Theme.accent(settings.accent))
-                                Text("prêts").font(.caption2)
+                    Button { pickModel = true } label: {
+                        GlassCard(glow: Theme.violet) {
+                            HStack(spacing: 12) {
+                                Text("⭐").font(.system(size: 26)).accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Modèle par défaut").font(.caption)
+                                    Text(def.model).font(.callout.monospaced().weight(.bold)).lineLimit(1)
+                                    Text(card.note).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                VStack {
+                                    Text("\(settings.readyProviders.count)")
+                                        .font(.title2.weight(.black))
+                                        .foregroundStyle(Theme.accent(settings.accent))
+                                    Text("prêts").font(.caption2)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
                             }
                         }
-                        .accessibilityElement(children: .combine)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(card.accessibility)
+                    .accessibilityHint(card.hint)
+                    .accessibilityAddTraits(.isButton)
                     .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .listRowBackground(Color.clear)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -107,6 +122,13 @@ struct ProvidersView: View {
             .sheet(isPresented: $adding) {
                 AddServerSheet { id in path.append(id) }
             }
+            .sheet(isPresented: $pickModel) {
+                ModelPickerSheet(selected: def) { r in
+                    settings.defaultModel = r.key
+                    toast = Toast(text: "Modèle par défaut : \(r.model)")
+                }
+            }
+            .toast($toast)
         }
     }
 

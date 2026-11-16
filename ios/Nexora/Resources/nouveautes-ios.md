@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.88 — 16 novembre 2026 — Modèle par défaut en un geste
+
+- Amélioré : dans l'onglet Modèles, touchez la carte « Modèle par défaut » pour en changer directement (avant : il fallait passer par les Réglages).
+- Amélioré : une confirmation s'affiche avec le nouveau modèle choisi.
+- Amélioré : sans fournisseur prêt, la carte indique quoi faire (« Ajoutez une clé ci-dessous ») ; VoiceOver lit le modèle, son fournisseur et le nombre de fournisseurs prêts.
+
 ## 3.0.87 — 15 novembre 2026 — Agent plus économe sur la CI
 - Amélioré : quand l'agent consulte les runs de CI sur GitHub, il reçoit environ 40 % de tokens en moins.
 - Le message de chaque commit est réduit à son titre et la personne qui a lancé le run n'est plus répétée.
