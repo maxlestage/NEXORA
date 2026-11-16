@@ -830,11 +830,18 @@ mémoire 32k tokens, consigne 3 000 car.
   et fichiers gardés. Banc `AgentShipTests.githubCompare` (3 commits, 1 fichier) :
   602 → 425 tokens (−29 %). Tests : 503 → 504 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.99 : comparaison de branches) → prochain passage : INTERFACE.
-Interface : écran Agents (AgentsView) ou Routines (RoutinesView).
-Tokens ensuite : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
+- 3.0.100 (interface) : onglet Skills (AgentsView.skillList) — `AgentsDisplay.addPlace` : la
+  zone « Ajouter des skills » (champ + sources + longue explication) reste en haut seulement
+  quand la liste est vide, passe sous la liste dès qu'il y a des skills ou commandes, et se
+  masque pendant une recherche ; `AgentsDisplay.header` : « Skills (3) », « Commandes (2) ».
+  Explications raccourcies (2 phrases → 1). Avant : il fallait faire défiler l'ajout pour voir
+  ses skills. Tests : 504 → 506 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.100 : onglet Skills) → prochain passage : TOKENS.
+Tokens : fichiers d'une PR (GET …/pulls/n/files, déjà couverts par `slimFile`, à
 mesurer) ; commits d'une comparaison (message complet répété, `html_url` déductible du sha).
+Interface ensuite : Routines (RoutinesView, 2e passage) ou fiche d'un agent (AgentEditor).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

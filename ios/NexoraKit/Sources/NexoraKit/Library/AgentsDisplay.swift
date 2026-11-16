@@ -19,6 +19,22 @@ public enum AgentsDisplay {
         default: "\(tools.count) outils"
         }
     }
+
+    /// Où placer « Ajouter des skills » dans l'onglet Skills.
+    public enum AddPlace: Sendable, Equatable { case top, bottom, hidden }
+
+    /// En haut tant qu'il n'y a rien (c'est l'action principale), sous la liste dès qu'il y a
+    /// des skills ou des commandes (on vient d'abord pour les voir), masqué pendant une
+    /// recherche (il cacherait les résultats).
+    public static func addPlace(hasItems: Bool, query: String) -> AddPlace {
+        if !hasItems { return .top }
+        return query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .bottom : .hidden
+    }
+
+    /// « Skills (3) » : l'en-tête de section avec le nombre, sans nombre si 0.
+    public static func header(_ title: String, count: Int) -> String {
+        count > 0 ? "\(title) (\(count))" : title
+    }
 }
 
 /// Logique d'affichage du choix de l'agent d'une conversation (AgentPickerSheet),

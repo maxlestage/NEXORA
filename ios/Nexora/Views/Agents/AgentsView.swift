@@ -317,7 +317,7 @@ struct AgentsView: View {
         } header: {
             Text("Ajouter des skills depuis GitHub")
         } footer: {
-            Text("Collez l'adresse d'un dépôt (anthropics/skills), d'un dossier ou d'une page SKILL.md, ou ouvrez une source pour choisir. L'assistant et l'agent autonome chargent une skill quand elle sert.")
+            Text("Collez un dépôt (anthropics/skills), un dossier ou une page SKILL.md, ou touchez une source pour choisir.")
         }
     }
 
@@ -356,9 +356,10 @@ struct AgentsView: View {
 
     @ViewBuilder
     private var skillList: some View {
-        addSkillsSection
         let skills = agents.skills.filter { AgentsDisplay.matches(query, $0.name, $0.description) }
         let commands = agents.commands.filter { AgentsDisplay.matches(query, $0.name, $0.description) }
+        let addPlace = AgentsDisplay.addPlace(hasItems: !agents.skills.isEmpty || !agents.commands.isEmpty, query: query)
+        if addPlace == .top { addSkillsSection }
         if agents.skills.isEmpty && agents.commands.isEmpty {
             Section {
                 ContentUnavailableView {
@@ -412,9 +413,9 @@ struct AgentsView: View {
                         }
                     }
                 } header: {
-                    Text("Skills")
+                    Text(AgentsDisplay.header("Skills", count: skills.count))
                 } footer: {
-                    Text("L'assistant voit leur nom et leur description, et charge une skill quand elle sert. L'interrupteur (« Toujours ») l'ajoute à chaque conversation.")
+                    Text("Chargée seulement quand elle sert. « Toujours » l'ajoute à chaque conversation.")
                 }
             }
             if !commands.isEmpty {
@@ -444,11 +445,12 @@ struct AgentsView: View {
                         }
                     }
                 } header: {
-                    Text("Commandes")
+                    Text(AgentsDisplay.header("Commandes", count: commands.count))
                 } footer: {
                     Text("Tapez / dans le chat pour les lancer.")
                 }
             }
+            if addPlace == .bottom { addSkillsSection }
             Section {
                 if agents.skills.contains(where: { SkillImport.item(for: $0) != nil }) {
                     Button("Mettre à jour les skills", systemImage: "arrow.triangle.2.circlepath") { updateAllSkills() }

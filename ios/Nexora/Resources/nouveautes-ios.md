@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.100 — 16 novembre 2026 — Skills plus faciles à retrouver
+- Amélioré : dans l'onglet Skills, vos skills et commandes s'affichent en premier ; la zone « Ajouter » passe dessous.
+- Amélioré : pendant une recherche, seuls les résultats restent visibles.
+- Amélioré : le nombre de skills et de commandes apparaît dans les en-têtes, et les explications sont plus courtes.
+
 ## 3.0.99 — 16 novembre 2026 — Comparaisons de branches plus légères
 - Amélioré : quand l'agent compare deux branches sur GitHub, la réponse consomme environ 29 % de tokens en moins.
 - Le commit de base n'est plus envoyé deux fois : il est réduit à son titre et à son auteur, les commits et fichiers de la branche restent entiers.
