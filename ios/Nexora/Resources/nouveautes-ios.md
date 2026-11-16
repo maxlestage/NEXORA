@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.94 — 16 novembre 2026 — « Quoi de neuf » plus court
+
+- Amélioré : après plusieurs mises à jour, la fenêtre « Quoi de neuf » montre une seule carte avec les 5 points forts (nouveautés d'abord) au lieu de 10 cartes à faire défiler
+- Amélioré : « et 12 autres changements » ouvre la liste complète
+- Corrigé : le titre indique la version installée (avant : « depuis la … », qui semblait exclure cette version)
+
 ## 3.0.93 — 16 novembre 2026 — Artefacts GitHub plus légers pour l'agent
 - Amélioré : la liste des artefacts d'un run GitHub coûte environ 43 % de tokens en moins à l'agent.
 - Retirés : l'empreinte de chaque fichier, les identifiants internes du dépôt et les dates en double ; le nom, la taille, le run et l'expiration restent.

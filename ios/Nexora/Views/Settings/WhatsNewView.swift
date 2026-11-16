@@ -160,9 +160,7 @@ struct WhatsNewSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 10) {
-                    Text(releases.count > 1
-                        ? "Quoi de neuf depuis la \(releases.last?.version ?? "")"
-                        : "Quoi de neuf dans NEXORA \(SettingsStore.appVersion)")
+                    Text(WhatsNewDisplay.sheetTitle(installed: SettingsStore.appVersion))
                         .font(.title2.weight(.heavy))
                         .multilineTextAlignment(.center)
                     // Le résumé : combien de nouveautés, d'améliorations, de corrections.
@@ -170,8 +168,21 @@ struct WhatsNewSheet: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                    ForEach(Array(releases.enumerated()), id: \.element.id) { i, r in
-                        ReleaseCard(release: r, current: i == 0)
+                    if releases.count > 1, let latest = releases.first, let oldest = releases.last {
+                        // Plusieurs versions manquées : une seule carte avec les points
+                        // forts (avant : jusqu'à 10 cartes complètes à faire défiler).
+                        let h = WhatsNewDisplay.highlights(releases)
+                        ReleaseCard(
+                            release: Release("\(oldest.version) → \(latest.version)", latest.date, "Les points forts", h.points),
+                            current: true
+                        )
+                        if let more = WhatsNewDisplay.otherChanges(h.hidden) {
+                            Button(more) { showAll = true }
+                                .font(.subheadline)
+                                .frame(minHeight: 44)
+                        }
+                    } else {
+                        ForEach(releases) { r in ReleaseCard(release: r, current: true) }
                     }
                 }
                 .padding(16)
@@ -179,6 +190,7 @@ struct WhatsNewSheet: View {
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Button("Toutes les nouveautés") { showAll = true }
+                        .frame(minHeight: 44)
                     Spacer()
                     Button("Super !") { dismiss() }.buttonStyle(.borderedProminent)
                 }

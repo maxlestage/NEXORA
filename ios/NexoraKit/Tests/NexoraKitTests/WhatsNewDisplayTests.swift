@@ -47,4 +47,19 @@ struct WhatsNewDisplayTests {
         #expect(Changelog.summary(all) == "3 versions · 1 nouveau · 2 améliorés · 2 corrigés")
         #expect(Changelog.summary([Release("1", "", "", ["Nouveau : a", "Nouveau : b"])]) == "2 nouveaux")
     }
+
+    @Test func fenetreApresMiseAJour() {
+        #expect(WhatsNewDisplay.sheetTitle(installed: "3.0.94") == "Quoi de neuf dans NEXORA 3.0.94")
+        // Nouveautés d'abord, puis améliorations (récentes d'abord), puis corrections.
+        let h = WhatsNewDisplay.highlights(all, limit: 3)
+        #expect(h.points == ["Nouveau : budget par session", "Amélioré : la recherche de l'aide", "Amélioré : moins de tokens envoyés"])
+        #expect(h.hidden == 2)
+        #expect(WhatsNewDisplay.otherChanges(h.hidden) == "et 2 autres changements")
+        #expect(WhatsNewDisplay.otherChanges(1) == "et 1 autre changement")
+        #expect(WhatsNewDisplay.otherChanges(0) == nil)
+        // Tout tient : rien de caché ; un même point répété n'apparaît qu'une fois.
+        let twice = [Release("3.0.5", "", "", ["Corrigé : un texte coupé"])] + all
+        let full = WhatsNewDisplay.highlights(twice, limit: 10)
+        #expect(full.points.count == 5 && full.hidden == 0)
+    }
 }
