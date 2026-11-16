@@ -359,6 +359,33 @@ struct AgentShipTests {
         #expect(priv?.keys.sorted() == ["full_name", "private"])
     }
 
+    @Test("banc github : head/base d'une pull request sans label ni propriétaire déductibles")
+    func githubPullRefs() throws {
+        func side(_ owner: String, _ ref: String, label: String, login: String) -> [String: Any] {
+            ["label": label, "ref": ref, "sha": "a1b2c3d4e5f6", "user": ["login": login, "id": 1, "type": "User"],
+             "repo": Self.repoJSON(owner, fork: owner != "max")]
+        }
+        func pull(_ fake: Bool) -> [String: Any] {
+            // Référence : mêmes longueurs, mais label et propriétaire non déductibles (gardés).
+            let a = fake ? "amx" : "ami", m = fake ? "mxx" : "max"
+            return ["number": 7, "title": "Corrige le bouton", "state": "open", "html_url": "https://github.com/max/site/pull/7",
+                    "head": side("ami", "correctif", label: "\(a):correctif", login: a),
+                    "base": side("max", "main", label: "\(m):main", login: m)]
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub([pull(true), pull(true), pull(true)])).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub([pull(false), pull(false), pull(false)])).count
+        print("Banc github (head/base de 3 pull requests) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let shown = AgentRun.githubText(AgentRun.slimGitHub(pull(false)))
+        #expect(!shown.contains("\"label\"") && !shown.contains("\"user\""))
+        #expect(shown.contains(#""ref":"correctif""#) && shown.contains(#""full_name":"ami/site""#))
+        let kept = AgentRun.githubText(AgentRun.slimGitHub(pull(true)))
+        #expect(kept.contains(#""label":"amx:correctif""#) && kept.contains(#""login":"mxx""#))
+        // Dépôt supprimé (fork effacé) : label et propriétaire restent.
+        let gone = AgentRun.slimRef(["label": "ami:x", "ref": "x", "sha": "1", "user": ["login": "ami"], "repo": NSNull()])
+        #expect(gone["label"] as? String == "ami:x" && gone["user"] != nil)
+    }
+
     @Test("banc github : runs de workflow sans acteur répété ni message de commit complet")
     func githubRuns() throws {
         let who: [String: Any] = ["login": "max", "id": 56, "html_url": "https://github.com/max", "type": "User"]

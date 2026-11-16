@@ -5,6 +5,9 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.103 — 16 novembre 2026 — Pull requests plus légères pour l'agent
+- Amélioré : quand l'agent lit des pull requests sur GitHub, les branches source et cible ne répètent plus le propriétaire ni l'étiquette déjà connus (environ 22 % de tokens en moins sur ces informations).
+
 ## 3.0.102 — 16 novembre 2026 — Routines plus simples à régler
 - Amélioré : « Enregistrer » est en haut de la fiche d'une routine, toujours visible, sans faire défiler le formulaire.
 - Amélioré : « Supprimer la routine » passe en bas de la fiche, loin de l'action principale.
