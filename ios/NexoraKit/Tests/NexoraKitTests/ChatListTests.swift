@@ -70,4 +70,22 @@ struct ChatListTests {
         #expect(ideas.count == 4)
         #expect(ideas.allSatisfy { i in ChatDisplay.starters.contains { $0.text == i } })
     }
+
+    @Test("Les idées d'un chat vide suivent le métier de l'agent")
+    func ideasFollowAgent() {
+        let writer = Agent(id: "w", name: "Rédacteur", systemPrompt: "", category: "Général")
+        #expect(ChatDisplay.ideas(agent: writer).contains("Résume ce texte en 5 points"))
+        #expect(!ChatDisplay.ideas(agent: writer).contains { $0.contains("Flutter") })
+        let sql = Agent(id: "s", name: "SQL", systemPrompt: "", tools: ["read_file"], category: "Données")
+        #expect(ChatDisplay.ideas(agent: sql).first == "Écris la requête SQL pour ce besoin")
+        // Agent perso : outils → idées de code, sinon les départs rapides.
+        let mine = Agent(id: "m", name: "Moi", systemPrompt: "", tools: ["read_file"])
+        #expect(ChatDisplay.ideas(agent: mine) == ChatDisplay.categoryIdeas["Code"])
+        let plain = Agent(id: "p", name: "Moi", systemPrompt: "")
+        #expect(ChatDisplay.ideas(agent: plain) == ChatDisplay.ideas(agent: nil))
+        // Chaque catégorie du catalogue a ses idées.
+        for category in Set(Catalog.builtinAgents.map(\.category)) {
+            #expect(ChatDisplay.categoryIdeas[category]?.count == 3, "\(category)")
+        }
+    }
 }

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.96 — 16 novembre 2026 — Idées adaptées à chaque agent
+- Amélioré : dans un chat vide, les idées proposées suivent le métier de l'agent choisi (rédaction, données, qualité, projet, CI, consignes d'IA…) au lieu d'idées de code pour tout le monde.
+- Amélioré : le Rédacteur et le Résumeur proposent par exemple « Résume ce texte en 5 points » au lieu d'« Écris une app Flutter ».
+
 ## 3.0.95 — 16 novembre 2026 — Commits GitHub plus légers pour l'agent
 
 - Amélioré : quand l'agent lit des commits sur GitHub, il reçoit environ 67 % de tokens en moins (signature, arbre et auteur en double retirés).
