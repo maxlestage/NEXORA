@@ -82,7 +82,17 @@ struct SessionView: View {
                         }
                     }
                     if run.running {
-                        ProgressView().frame(maxWidth: .infinity).padding(16)
+                        // Ce que fait l'agent, en clair (et lu par VoiceOver).
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text(WorkspaceText.activity(run.steps))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(16)
+                        .accessibilityElement(children: .combine)
                     }
                     if run.interrupted && !run.running {
                         GlassCard(glow: Theme.amber, action: { sessions.continueSession(run.id, "") }) {

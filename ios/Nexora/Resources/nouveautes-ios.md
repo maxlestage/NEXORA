@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.98 — 16 novembre 2026 — Vous voyez ce que fait l'agent
+- Nouveau : pendant le travail, sous le journal, une ligne dit en clair ce que fait l'agent (« Lit App.swift… », « Réfléchit… ») au lieu d'une roue seule.
+- Amélioré : VoiceOver lit cette ligne, la roue n'est plus muette.
+
 ## 3.0.97 — 16 novembre 2026 — Commits GitHub lisibles en entier par l'agent
 - Amélioré : quand l'agent lit un commit sur GitHub, chaque fichier modifié montre le début de son patch (les longs sont coupés), si bien que tous les fichiers et les statistiques lui arrivent.
 - Amélioré : environ 24 % de tokens en moins sur la lecture d'un commit de plusieurs fichiers.

@@ -50,6 +50,20 @@ public enum WorkspaceText {
         }
     }
 
+    /// Ce que l'agent fait en ce moment, sous le journal pendant le travail : « Lit
+    /// App.swift… » quand une action attend son résultat, sinon « Réfléchit… » (il attend
+    /// la réponse du modèle). Avant : une roue seule, muette pour VoiceOver.
+    public static func activity(_ steps: [AgentStep]) -> String {
+        guard let last = steps.last, last.kind == .tool else { return "Réfléchit…" }
+        let line = last.text.split(separator: "\n").first.map(String.init) ?? ""
+        var target = line.trimmingCharacters(in: .whitespaces)
+        // Un chemin : seul le nom du fichier compte (le chemin entier est dans la carte).
+        if !target.contains(" "), let name = target.split(separator: "/").last { target = String(name) }
+        if target.count > 40 { target = String(target.prefix(39)) + "…" }
+        let verb = toolVerb(last.tool)
+        return target.isEmpty ? "\(verb)…" : "\(verb) \(target)…"
+    }
+
     /// Le texte d'une étape, sans la syntaxe Markdown la plus voyante (`_plain`).
     public static func plain(_ s: String) -> String {
         let a = DRegex("\\*\\*|__|`").replaceAll(s, "")

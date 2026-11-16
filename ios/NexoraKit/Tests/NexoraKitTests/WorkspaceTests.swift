@@ -789,6 +789,19 @@ struct DraftsTests {
         #expect(WorkspaceText.stepText(steps[1]) == "read_file a.txt")
     }
 
+    @Test("activité en direct : l'action en cours, sinon « Réfléchit… »")
+    func activity() {
+        #expect(WorkspaceText.activity([]) == "Réfléchit…")
+        #expect(WorkspaceText.activity([AgentStep(.tool, "Sources/App/App.swift", tool: "read_file")]) == "Lit App.swift…")
+        #expect(WorkspaceText.activity([
+            AgentStep(.tool, "a.txt", tool: "read_file"), AgentStep(.result, "x", tool: "read_file"),
+        ]) == "Réfléchit…")
+        #expect(WorkspaceText.activity([AgentStep(.tool, "TODO dans le code\nsuite", tool: "search_code")]) == "Cherche TODO dans le code…")
+        #expect(WorkspaceText.activity([AgentStep(.tool, "", tool: "github")]) == "GitHub…")
+        let long = WorkspaceText.activity([AgentStep(.tool, String(repeating: "mot ", count: 20), tool: "search_code")])
+        #expect(long.count == 49 && long.hasSuffix("……"))
+    }
+
     @Test("textes : Markdown retiré, langage NEXORA découpé, dates relatives")
     func texts() {
         #expect(WorkspaceText.plain("## Titre\n**gras** et `code`") == "Titre\ngras et code")
