@@ -893,11 +893,17 @@ mémoire 32k tokens, consigne 3 000 car.
   juste dessous ; `groups(…, excluding:)` ne le montre pas une 2e fois dans sa catégorie
   (avant : à chercher dans sa catégorie, parfois loin en bas). Tests : 512 → 513.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.108 : AgentPickerSheet) → prochain passage : TOKENS.
-Interface ensuite : écran Modèles (ProvidersView), 2e passage.
-Tokens ensuite : liste de commits (GET …/commits, plus récent d'abord) : même retrait des
-parents linéaires (parent = commit suivant de la liste) ; ou autre réponse GitHub lourde.
+- 3.0.109 (tokens) : `linearCommits` — dans une liste de commits (GET …/commits, plus
+  récent d'abord), `parents` retiré d'un commit dont le seul parent est le commit suivant
+  de la liste ; le dernier, une fusion ou un commit hors suite gardent leurs parents ;
+  toute autre liste est inchangée. Banc `AgentShipTests.githubCommitsLinear` (6 commits) :
+  369 → 300 tokens (−19 %). Tests : 513 → 514 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.109 : liste de commits linéaire) → prochain passage : INTERFACE,
+écran Modèles (ProvidersView), 2e passage.
+Tokens ensuite : autre réponse GitHub lourde (ex. GET …/pulls/<n>/files, reviews,
+comments de pull request : vérifier `user`/`author_association` répétés).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
