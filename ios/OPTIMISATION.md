@@ -1011,9 +1011,16 @@ mémoire 32k tokens, consigne 3 000 car.
   égale le nombre de statuts montrés. Banc `AgentShipTests.githubCommitStatus` (4 statuts) :
   205 → 142 tokens (−31 %). Tests : 529 → 530 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.125, statuts de commit) → prochain passage : INTERFACE (par ex. Modèles ou Réglages).
-Tokens ensuite : GET …/deployments et …/deployments/<id>/statuses.
+- 3.0.126 (interface) : onglet Réglages, 3e passage, section GitHub — non connecté : la ligne
+  « Non connecté » sans action devient « Se connecter à GitHub » (ouvre GitHubSignInView sur place,
+  refermé tout seul une fois connecté, toast `SettingsDisplay.signedIn` + vibration). Avant : aller
+  dans l'onglet Code ; après : 1 geste depuis les Réglages. Déconnexion (Réglages et menu du compte
+  de l'onglet Code) : confirmation `signOutTitle` / `signOutMessage` (avant : jeton retiré d'un
+  seul toucher). Tests : 530 (test `github` enrichi ; mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.126, Réglages › GitHub) → prochain passage : TOKENS,
+GET …/deployments et …/deployments/<id>/statuses. Interface ensuite : Modèles ou Aide.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

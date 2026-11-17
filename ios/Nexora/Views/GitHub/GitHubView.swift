@@ -123,6 +123,8 @@ struct ReposView: View {
     @State private var copied = 0
     @State private var query = ""
     @State private var creating = false
+    /// Confirmation avant de se déconnecter (le jeton serait à recoller).
+    @State private var confirmSignOut = false
 
     /// Les dépôts affichés (recherche sans accents ni casse, description et langage compris).
     private var shown: [Repo] { ReposDisplay.filter(github.repos, query: query) }
@@ -141,7 +143,7 @@ struct ReposView: View {
                         }
                         Spacer()
                         Menu {
-                            Button("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { github.signOut() }
+                            Button("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmSignOut = true }
                         } label: {
                             Image(systemName: "ellipsis.circle").font(.title3)
                                 .frame(width: 44, height: 44)
@@ -220,6 +222,12 @@ struct ReposView: View {
         .refreshable { await github.refresh() }
         .navigationDestination(for: Repo.self) { RepoView(repo: $0) }
         .sheet(isPresented: $creating) { CreateRepoSheet() }
+        .alert(SettingsDisplay.signOutTitle(login: github.user?.login), isPresented: $confirmSignOut) {
+            Button("Annuler", role: .cancel) {}
+            Button("Se déconnecter", role: .destructive) { github.signOut() }
+        } message: {
+            Text(SettingsDisplay.signOutMessage)
+        }
     }
 }
 

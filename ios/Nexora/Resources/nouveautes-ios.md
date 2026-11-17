@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.126 — 17 novembre 2026 — Connexion à GitHub plus simple depuis les Réglages
+
+- Nouveau : « Se connecter à GitHub » directement dans les Réglages quand vous n'êtes pas connecté ; l'écran se referme tout seul une fois connecté, avec un message.
+- Amélioré : se déconnecter de GitHub (Réglages ou onglet Code) demande d'abord une confirmation et dit ce qui est gardé.
+
 ## 3.0.125 — 17 novembre 2026 — Statuts de commit plus légers pour l'agent
 - Amélioré : quand l'agent lit le statut d'un commit sur GitHub, la réponse coûte environ 30 % de tokens en moins.
 - Identifiants internes, descriptions vides et dates répétées ne sont plus envoyés au modèle ; état, contexte et date restent.

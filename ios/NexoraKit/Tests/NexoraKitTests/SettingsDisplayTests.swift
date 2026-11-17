@@ -37,6 +37,12 @@ struct SettingsDisplayTests {
         #expect(SettingsDisplay.github(login: "max", connected: true) == "Connecté : @max")
         #expect(SettingsDisplay.github(login: nil, connected: true) == "Connecté : @…")
         #expect(SettingsDisplay.github(login: "max", connected: false) == "Non connecté")
+        #expect(SettingsDisplay.signOutTitle(login: "max") == "Se déconnecter de @max ?")
+        #expect(SettingsDisplay.signOutTitle(login: nil) == "Se déconnecter de GitHub ?")
+        #expect(SettingsDisplay.signOutTitle(login: "  ") == "Se déconnecter de GitHub ?")
+        #expect(SettingsDisplay.signedIn(login: "max") == "Connecté à GitHub : @max")
+        #expect(SettingsDisplay.signedIn(login: nil) == "Connecté à GitHub")
+        #expect(SettingsDisplay.signOutMessage.contains("gardées"))
         #expect(SettingsDisplay.clientIdDetail("  ") == "Non renseigné")
         #expect(SettingsDisplay.clientIdDetail(" Iv1.abc ") == "Iv1.abc")
     }
