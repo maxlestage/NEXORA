@@ -65,11 +65,34 @@ public enum SessionsDisplay {
     /// Ce qui sera perdu en supprimant une session, ou `nil` s'il n'y a rien à
     /// perdre (pas besoin de demander confirmation).
     public static func deleteWarning(drafts: Int) -> String? {
-        switch drafts {
+        deleteWarning(drafts: drafts, running: false)
+    }
+
+    /// Idem, en comptant le travail en cours : supprimer une session qui tourne
+    /// arrête l'agent, donc on demande toujours confirmation.
+    public static func deleteWarning(drafts: Int, running: Bool) -> String? {
+        let lost: String? = switch drafts {
         case ..<1: nil
         case 1: "Son brouillon non envoyé sera perdu."
         default: "Ses \(drafts) brouillons non envoyés seront perdus."
         }
+        guard running else { return lost }
+        return ["L'agent travaille encore : il sera arrêté.", lost].compactMap { $0 }.joined(separator: " ")
+    }
+
+    /// Les actions rapides d'une ligne (appui long), dans l'ordre du menu.
+    public enum QuickAction: Sendable, Hashable {
+        /// Arrêter l'agent (seulement pendant le travail).
+        case stop
+        /// Copier la mission, pour la relancer ailleurs ou la partager.
+        case copyTask
+        /// Supprimer la session.
+        case delete
+    }
+
+    /// Les actions de l'appui long sur une session.
+    public static func quickActions(_ status: SessionStatus) -> [QuickAction] {
+        status == .running ? [.stop, .copyTask, .delete] : [.copyTask, .delete]
     }
 
     /// Le bouton principal en bas d'une session finie qui a des brouillons :

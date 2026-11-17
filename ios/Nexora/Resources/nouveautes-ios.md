@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.114 — 17 novembre 2026 — Sessions plus pratiques
+
+- Nouveau : appui long sur une session de l'onglet Code pour l'arrêter, copier sa mission ou la supprimer.
+- Nouveau : balayez une session en cours vers la droite pour arrêter l'agent (ses brouillons sont gardés).
+- Corrigé : supprimer une session en cours demande maintenant confirmation, au lieu d'arrêter l'agent sans prévenir.
+
 ## 3.0.113 — 17 novembre 2026 — Discussions GitHub plus légères
 - Amélioré : les commentaires d'issue et les relectures de pull request lus par l'agent coûtent environ 36 % de tokens en moins.
 - Retirés de ce qu'il lit : dates de modification identiques, lien de chaque commentaire, texte vide d'une approbation.

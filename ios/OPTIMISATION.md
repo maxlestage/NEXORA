@@ -927,9 +927,15 @@ mémoire 32k tokens, consigne 3 000 car.
   2 relectures) : 372 → 237 tokens (−36 %) ; banc des commentaires de relecture :
   510 → 448. Tests : 517 → 518 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.113 : discussions GitHub) → prochain passage : INTERFACE, session de
-l'agent ou écran Code/GitHub (pas repassés depuis longtemps).
+- 3.0.114 (interface) : onglet Code, liste des sessions (2e passage, 1er en 3.0.13) —
+  `SessionsDisplay.quickActions` : appui long sur une session (Arrêter l'agent si elle
+  tourne, Copier la mission, Supprimer) ; balayage vers la droite « Arrêter » sur une
+  session en cours (retour toast + vibration) ; `deleteWarning(drafts:running:)` : le
+  balayage « Supprimer » d'une session EN COURS sans brouillon l'effaçait sans confirmation
+  (agent tué sans prévenir) → confirmation demandée. Tests : 518 → 519 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.114 : liste des sessions) → prochain passage : TOKENS.
 Tokens ensuite : GET …/pulls/<n>/files (vérifier `sha`/`blob_url` comme `slimFile`),
 …/issues/<n>/events ou …/timeline.
 
