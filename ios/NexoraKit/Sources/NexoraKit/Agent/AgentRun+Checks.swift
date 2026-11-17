@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(out)))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(out)))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -410,6 +410,43 @@ extension AgentRun {
     nonisolated static func slimStatus(_ d: [String: Any]) -> [String: Any] {
         guard d["context"] is String, d["state"] is String, d["created_at"] is String,
               d["name"] == nil, d["head_sha"] == nil else { return d }
+        var out = d
+        out["id"] = nil
+        if d["description"] is NSNull || (d["description"] as? String) == "" { out["description"] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        return out
+    }
+
+    /// Un déploiement (GET …/deployments : `sha` + `ref` + `task` + `environment`)
+    /// allégé : `task` par défaut (« deploy »), `payload` vide, `original_environment`
+    /// identique à `environment`, `description` nulle ou vide, drapeaux
+    /// `transient_environment` / `production_environment` à faux et `updated_at`
+    /// identique à `created_at` retirés. `id` (pour lire ses statuts) est gardé.
+    /// Tout autre objet est rendu tel quel.
+    nonisolated static func slimDeployment(_ d: [String: Any]) -> [String: Any] {
+        guard d["sha"] is String, d["ref"] is String, let task = d["task"] as? String,
+              let env = d["environment"] as? String else { return d }
+        var out = d
+        if task == "deploy" { out["task"] = nil }
+        if let p = d["payload"], (p as? [String: Any])?.isEmpty == true || (p as? String) == "" || p is NSNull {
+            out["payload"] = nil
+        }
+        if (d["original_environment"] as? String) == env { out["original_environment"] = nil }
+        if d["description"] is NSNull || (d["description"] as? String) == "" { out["description"] = nil }
+        for k in ["transient_environment", "production_environment"] where (d[k] as? Bool) == false {
+            out[k] = nil
+        }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        return out
+    }
+
+    /// Un statut de déploiement (GET …/deployments/<id>/statuses : `state` +
+    /// `environment` + `created_at`, sans `sha`, `task` ni `context`) allégé : `id`,
+    /// `description` nulle ou vide et `updated_at` identique à `created_at` retirés.
+    /// Tout autre objet est rendu tel quel.
+    nonisolated static func slimDeploymentStatus(_ d: [String: Any]) -> [String: Any] {
+        guard d["state"] is String, d["environment"] is String, d["created_at"] is String,
+              d["sha"] == nil, d["task"] == nil, d["context"] == nil else { return d }
         var out = d
         out["id"] = nil
         if d["description"] is NSNull || (d["description"] as? String) == "" { out["description"] = nil }

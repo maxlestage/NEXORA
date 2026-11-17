@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.127 — 17 novembre 2026 — Déploiements plus légers pour l'agent
+
+- Amélioré : quand l'agent consulte les déploiements d'un dépôt (Vercel, Netlify…), la réponse de GitHub lui est envoyée environ 35 % plus courte.
+- Les valeurs par défaut (tâche « deploy », environnement d'origine identique, description vide, dates répétées) ne sont plus renvoyées ; l'identifiant du déploiement, son environnement et son état restent.
+
 ## 3.0.126 — 17 novembre 2026 — Connexion à GitHub plus simple depuis les Réglages
 
 - Nouveau : « Se connecter à GitHub » directement dans les Réglages quand vous n'êtes pas connecté ; l'écran se referme tout seul une fois connecté, avec un message.

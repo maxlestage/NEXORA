@@ -1018,9 +1018,16 @@ mémoire 32k tokens, consigne 3 000 car.
   de l'onglet Code) : confirmation `signOutTitle` / `signOutMessage` (avant : jeton retiré d'un
   seul toucher). Tests : 530 (test `github` enrichi ; mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.126, Réglages › GitHub) → prochain passage : TOKENS,
-GET …/deployments et …/deployments/<id>/statuses. Interface ensuite : Modèles ou Aide.
+- 3.0.127 (tokens) : `slimDeployment` / `slimDeploymentStatus` — GET …/deployments : `task`
+  « deploy », `payload` vide, `original_environment` = `environment`, `description` nulle ou vide,
+  `transient_environment` / `production_environment` faux, `updated_at` = `created_at` retirés (`id`
+  gardé pour lire les statuts) ; GET …/deployments/<id>/statuses : `id`, `description` vide,
+  `updated_at` = `created_at` retirés. Banc `AgentShipTests.githubDeployments` (3 déploiements +
+  3 statuts) : 517 → 338 tokens (−35 %). Tests : 530 → 531 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.127, déploiements) → prochain passage : INTERFACE, écran Modèles ou Aide.
+Tokens ensuite : GET …/environments, …/actions/caches ou …/branches (protection résumée).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
