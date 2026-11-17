@@ -65,4 +65,14 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.draftsHint(running: true) == "L'agent travaille encore…")
         #expect(SessionsDisplay.draftsHint(running: false).count < 50)
     }
+
+    @Test func suppressionPendantLeTravailEtActionsRapides() {
+        #expect(SessionsDisplay.deleteWarning(drafts: 0, running: false) == nil)
+        #expect(SessionsDisplay.deleteWarning(drafts: 0, running: true) == "L'agent travaille encore : il sera arrêté.")
+        #expect(SessionsDisplay.deleteWarning(drafts: 2, running: true)
+            == "L'agent travaille encore : il sera arrêté. Ses 2 brouillons non envoyés seront perdus.")
+        #expect(SessionsDisplay.quickActions(.running) == [.stop, .copyTask, .delete])
+        #expect(SessionsDisplay.quickActions(.review) == [.copyTask, .delete])
+        #expect(SessionsDisplay.quickActions(.shipped) == [.copyTask, .delete])
+    }
 }

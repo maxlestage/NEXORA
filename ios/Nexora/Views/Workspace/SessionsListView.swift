@@ -1,5 +1,6 @@
 import NexoraKit
 import SwiftUI
+import UIKit
 
 /// L'onglet Code une fois connecté (`_CodeHome` de `ui/github/github_screen.dart`) :
 /// les sessions de l'agent (comme Claude Code) et les dépôts.
@@ -52,9 +53,11 @@ struct SessionsListView: View {
     var onNew: (() -> Void)?
 
     @Environment(SessionStore.self) private var sessions
+    @Environment(SettingsStore.self) private var settings
     @State private var removing: AgentRun?
     @State private var toast: Toast?
     @State private var query = ""
+    @State private var stopped = 0
 
     var body: some View {
         Group {
@@ -75,9 +78,10 @@ struct SessionsListView: View {
             Button("Supprimer", role: .destructive) { delete(run) }
             Button("Annuler", role: .cancel) {}
         } message: { run in
-            Text(SessionsDisplay.deleteWarning(drafts: run.changes.count) ?? "")
+            Text(SessionsDisplay.deleteWarning(drafts: run.changes.count, running: run.status == .running) ?? "")
         }
         .toast($toast)
+        .sensoryFeedback(.warning, trigger: stopped) { _, _ in settings.haptics }
     }
 
     /// Les sessions groupées : à relire, en cours, puis récentes ; avec une
@@ -115,16 +119,49 @@ struct SessionsListView: View {
             SessionTile(run: run)
         }
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                if run.changes.isEmpty {
-                    delete(run)
-                } else {
-                    removing = run
-                }
-            } label: {
+            Button(role: .destructive) { askDelete(run) } label: {
                 Label("Supprimer", systemImage: "trash")
             }
         }
+        .swipeActions(edge: .leading) {
+            if run.status == .running {
+                Button { stop(run) } label: {
+                    Label("Arrêter", systemImage: "stop.fill")
+                }
+                .tint(.orange)
+            }
+        }
+        .contextMenu {
+            ForEach(SessionsDisplay.quickActions(run.status), id: \.self) { action in
+                switch action {
+                case .stop:
+                    Button("Arrêter l'agent", systemImage: "stop.fill") { stop(run) }
+                case .copyTask:
+                    Button("Copier la mission", systemImage: "doc.on.doc") {
+                        UIPasteboard.general.string = run.task
+                        toast = Toast(text: "Mission copiée")
+                    }
+                case .delete:
+                    Button("Supprimer", systemImage: "trash", role: .destructive) { askDelete(run) }
+                }
+            }
+        }
+    }
+
+    /// Supprime tout de suite s'il n'y a rien à perdre, sinon demande confirmation
+    /// (brouillons non envoyés ou agent encore au travail).
+    private func askDelete(_ run: AgentRun) {
+        if SessionsDisplay.deleteWarning(drafts: run.changes.count, running: run.status == .running) == nil {
+            delete(run)
+        } else {
+            removing = run
+        }
+    }
+
+    private func stop(_ run: AgentRun) {
+        sessions.stop(run.id)
+        stopped += 1
+        toast = Toast(text: "Agent arrêté : brouillons gardés")
     }
 
     private func delete(_ run: AgentRun) {
