@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.122 — 17 novembre 2026 — Agents supprimés seulement si vous le confirmez
+- Corrigé : un balayage ou un toucher sur « Supprimer » effaçait aussitôt un agent personnalisé et sa consigne ; une confirmation le demande maintenant, comme pour les skills.
+- Amélioré : la confirmation dit ce que l'on supprime (« Supprimer l'agent « Relecteur » ? ») et que ses conversations restent.
+
 ## 3.0.121 — 17 novembre 2026 — Versions publiées plus légères
 - Amélioré : quand l'agent lit les versions publiées d'un dépôt GitHub, la réponse envoyée au modèle est environ 25 % plus courte.
 - Retirés : la personne qui a joint chaque fichier quand c'est l'auteur de la version, les états et options par défaut (brouillon, préversion, envoi terminé) ; noms, tailles et liens de téléchargement sont gardés.

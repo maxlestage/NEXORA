@@ -35,6 +35,28 @@ public enum AgentsDisplay {
     public static func header(_ title: String, count: Int) -> String {
         count > 0 ? "\(title) (\(count))" : title
     }
+
+    /// Ce que l'on supprime dans l'onglet (agent perso, skill ou commande).
+    public enum RemovalKind: Sendable, Equatable { case agent, skill, command }
+
+    /// Titre de la confirmation : « Supprimer l'agent « Relecteur » ? ».
+    public static func removalTitle(_ name: String, kind: RemovalKind) -> String {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let what = switch kind {
+        case .agent: "l'agent"
+        case .skill: "la skill"
+        case .command: "la commande"
+        }
+        return n.isEmpty ? "Supprimer \(what) ?" : "Supprimer \(what) « \(n) » ?"
+    }
+
+    /// Une phrase sous le titre : ce qui est perdu et ce qui reste.
+    public static func removalMessage(_ kind: RemovalKind) -> String {
+        switch kind {
+        case .agent: "Sa consigne est perdue ; ses conversations restent, sans elle."
+        case .skill, .command: "Vous pourrez la réinstaller depuis la bibliothèque."
+        }
+    }
 }
 
 /// Logique d'affichage du choix de l'agent d'une conversation (AgentPickerSheet),

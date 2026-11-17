@@ -4,6 +4,15 @@ import Testing
 
 @Suite("Écran Agents")
 struct AgentsDisplayTests {
+    @Test func confirmationDeSuppressionClaire() {
+        #expect(AgentsDisplay.removalTitle("Relecteur", kind: .agent) == "Supprimer l'agent « Relecteur » ?")
+        #expect(AgentsDisplay.removalTitle(" pdf ", kind: .skill) == "Supprimer la skill « pdf » ?")
+        #expect(AgentsDisplay.removalTitle("/revue", kind: .command) == "Supprimer la commande « /revue » ?")
+        #expect(AgentsDisplay.removalTitle("  ", kind: .agent) == "Supprimer l'agent ?")
+        #expect(AgentsDisplay.removalMessage(.agent).contains("conversations restent"))
+        #expect(AgentsDisplay.removalMessage(.skill) == AgentsDisplay.removalMessage(.command))
+    }
+
     @Test func rechercheSansAccentNiCasse() {
         #expect(AgentsDisplay.matches("", "Relecteur"))
         #expect(AgentsDisplay.matches("   ", "Relecteur"))
