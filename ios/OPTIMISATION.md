@@ -998,8 +998,15 @@ mémoire 32k tokens, consigne 3 000 car.
   réduit comme celui d'un run (`slimHeadCommit`, partagé avec `slimRun`). Banc
   `AgentShipTests.githubCheckSuites` (4 suites) : 653 → 531 tokens (−19 %). Tests : 527 → 528.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.123, check-suites) → prochain passage : INTERFACE, écran Modèles ou Personnaliser.
+- 3.0.124 (interface) : Nouvelle session (NewSessionView, 2e passage, 1er en 3.0.33) — la mission
+  tapée était perdue en quittant l'écran sans lancer (retour, balayage, autre onglet). Elle est
+  gardée en brouillon (`@AppStorage`, `NewSessionDisplay.draftToSave` / `draftToRestore`, 7 jours
+  au plus, jamais par-dessus une mission déjà tapée), reprise avec un message bref, effacée au
+  lancement ou quand le champ est vidé. Avant : mission à retaper ; après : 0 geste.
+  Tests : 528 → 529 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.124, Nouvelle session) → prochain passage : TOKENS.
 Tokens ensuite : GET …/deployments / statuses (GET …/commits/<ref>/status).
 
 ## Pistes tokens à faire

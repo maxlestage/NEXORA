@@ -38,6 +38,9 @@ struct NewSessionView: View {
     @State private var photos: [ChatPhotoDraft] = []
     @State private var loadingPhotos = false
     @FocusState private var missionFocused: Bool
+    /// Mission tapée mais pas lancée : reprise à la prochaine ouverture.
+    @AppStorage("newSession.missionDraft") private var missionDraft = ""
+    @AppStorage("newSession.missionDraftAt") private var missionDraftAt: Double = 0
 
     private var currentAgent: Agent? { chosenAgent ?? agent }
     private var picks: [Pick] { repos ?? repo.map { [Pick(repo: $0, branch: branch ?? $0.branch)] } ?? [] }
@@ -213,7 +216,25 @@ struct NewSessionView: View {
                 repos = list
             }
         }
+        .onChange(of: task) { _, text in
+            if let keep = NewSessionDisplay.draftToSave(text) {
+                missionDraft = keep
+                missionDraftAt = Date().timeIntervalSince1970
+            } else {
+                missionDraft = ""
+                missionDraftAt = 0
+            }
+        }
         .onAppear {
+            if let restored = NewSessionDisplay.draftToRestore(
+                saved: missionDraft,
+                savedAt: missionDraftAt > 0 ? Date(timeIntervalSince1970: missionDraftAt) : nil,
+                current: task,
+                now: Date()
+            ) {
+                task = restored
+                toast = Toast(text: NewSessionDisplay.draftRestoredToast)
+            }
             missionFocused = repo != nil
             if askRepoFirst && !askedFirst && picks.isEmpty && github.connected {
                 askedFirst = true
@@ -267,6 +288,10 @@ struct NewSessionView: View {
             images: photos.map { LLMImage(data: $0.data) }
         )
         starting = false
-        if let run { started = run.id }
+        if let run {
+            missionDraft = ""
+            missionDraftAt = 0
+            started = run.id
+        }
     }
 }
