@@ -32,5 +32,36 @@ public enum HelpDisplay {
         "Rien pour « \(query.trimmingCharacters(in: .whitespacesAndNewlines)) »"
     }
 
+    /// Le libellé de la pastille qui montre tous les thèmes.
+    public static let allThemes = "Tout"
+
+    /// Le thème choisi par sa pastille, s'il existe encore (un titre inconnu montre tout).
+    public static func theme(_ title: String?, in sections: [HelpSection] = Help.sections) -> String? {
+        guard let title, sections.contains(where: { $0.title == title }) else { return nil }
+        return title
+    }
+
+    /// Ce qui s'affiche : pendant une recherche, tout ce qui est trouvé (la recherche
+    /// porte sur tous les thèmes) ; sinon, le seul thème choisi par sa pastille, ou tout.
+    public static func visible(
+        _ found: [(section: HelpSection, topics: [HelpTopic])],
+        theme: String?,
+        searching: Bool
+    ) -> [(section: HelpSection, topics: [HelpTopic])] {
+        guard !searching, let theme else { return found }
+        let one = found.filter { $0.section.title == theme }
+        return one.isEmpty ? found : one
+    }
+
+    /// Vrai si les réponses montrées s'ouvrent seules : peu de réponses trouvées par une
+    /// recherche, ou un thème court choisi par sa pastille.
+    public static func autoExpand(
+        _ shown: [(section: HelpSection, topics: [HelpTopic])],
+        searching: Bool,
+        theme: String?
+    ) -> Bool {
+        autoExpand(shown, searching: searching || theme != nil)
+    }
+
     public static let emptyHint = "Essayez un seul mot : clé, crédit, agent, GitHub…"
 }

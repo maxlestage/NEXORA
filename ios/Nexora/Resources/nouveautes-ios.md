@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.128 — 17 novembre 2026 — Aide rangée par thème
+
+- Plus simple : en haut de l'aide, une pastille par thème (Clés et modèles, Agents, GitHub…) ne montre que ses questions, au lieu d'une longue liste de 32.
+- Les thèmes courts s'ouvrent d'un coup ; « Tout » revient à la liste complète, et la recherche porte toujours sur tous les thèmes.
+- Depuis l'onglet Modèles, l'aide s'ouvre directement sur « Clés et modèles ».
+
 ## 3.0.127 — 17 novembre 2026 — Déploiements plus légers pour l'agent
 
 - Amélioré : quand l'agent consulte les déploiements d'un dépôt (Vercel, Netlify…), la réponse de GitHub lui est envoyée environ 35 % plus courte.
