@@ -883,6 +883,65 @@ struct AgentShipTests {
         #expect(AgentRun.slimCombinedStatus(big)["total_count"] as? Int == 120)
     }
 
+    @Test("banc github : déploiements et leurs statuts sans champs par défaut")
+    func githubDeployments() throws {
+        let api = "https://api.github.com/repos/max/site"
+        let sha = String(repeating: "9e1a", count: 10)
+        let bot: [String: Any] = ["login": "vercel[bot]", "id": 35_613_825, "node_id": "MDM6Qm90",
+                                  "html_url": "https://github.com/apps/vercel", "type": "Bot", "site_admin": false]
+        func deployment(_ id: Int, _ env: String, prod: Bool) -> [String: Any] {
+            ["url": "\(api)/deployments/\(id)", "id": 3_000_000_000 + id, "node_id": "DE_kwDO\(id)",
+             "sha": sha, "ref": "master", "task": "deploy", "payload": [String: Any](),
+             "original_environment": env, "environment": env, "description": NSNull(), "creator": bot,
+             "created_at": "2026-11-16T10:0\(id):00Z", "updated_at": "2026-11-16T10:0\(id):00Z",
+             "statuses_url": "\(api)/deployments/\(id)/statuses", "repository_url": api,
+             "transient_environment": false, "production_environment": prod,
+             "performed_via_github_app": NSNull()]
+        }
+        func status(_ id: Int, _ state: String) -> [String: Any] {
+            ["url": "\(api)/deployments/1/statuses/\(id)", "id": 7_000_000_000 + id, "node_id": "DES_\(id)",
+             "state": state, "creator": bot, "description": "", "environment": "Production",
+             "target_url": "https://vercel.com/max/site/\(id)", "created_at": "2026-11-16T10:1\(id):00Z",
+             "updated_at": "2026-11-16T10:1\(id):00Z", "deployment_url": "\(api)/deployments/1",
+             "repository_url": api, "environment_url": "https://site.vercel.app", "log_url": "",
+             "performed_via_github_app": NSNull()]
+        }
+        let deployments: [Any] = [deployment(1, "Production", prod: true), deployment(2, "Preview", prod: false),
+                                  deployment(3, "Preview", prod: false)]
+        let statuses: [Any] = [status(1, "pending"), status(2, "in_progress"), status(3, "success")]
+        // Référence : sans les nouvelles règles (`task` et `environment` masqués).
+        func hide(_ x: Any, _ key: String) -> Any {
+            var r = x as! [String: Any]
+            r["_" + key] = r.removeValue(forKey: key)
+            return r
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(deployments.map { hide($0, "task") })).count
+            + AgentRun.githubText(AgentRun.slimGitHub(statuses.map { hide($0, "environment") })).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(deployments)).count
+            + AgentRun.githubText(AgentRun.slimGitHub(statuses)).count
+        print("Banc github (3 déploiements + 3 statuts) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let deps = try #require(AgentRun.slimGitHub(deployments) as? [[String: Any]])
+        #expect(deps.allSatisfy { $0["task"] == nil && $0["payload"] == nil && $0["original_environment"] == nil })
+        #expect(deps.allSatisfy { $0["description"] == nil && $0["updated_at"] == nil && $0["transient_environment"] == nil })
+        #expect(deps[0]["production_environment"] as? Bool == true && deps[1]["production_environment"] == nil)
+        #expect(deps[0]["id"] as? Int == 3_000_000_001 && deps[1]["environment"] as? String == "Preview")
+        #expect(deps[0]["sha"] as? String == sha && deps[0]["ref"] as? String == "master")
+        let sts = try #require(AgentRun.slimGitHub(statuses) as? [[String: Any]])
+        #expect(sts.allSatisfy { $0["id"] == nil && $0["description"] == nil && $0["updated_at"] == nil })
+        #expect(sts[2]["state"] as? String == "success" && sts[2]["environment"] as? String == "Production")
+        #expect(sts[2]["created_at"] != nil)
+        // Valeurs non par défaut : gardées.
+        var custom = deployment(4, "staging", prod: false)
+        custom["task"] = "deploy:migrations"
+        custom["original_environment"] = "Preview"
+        custom["payload"] = ["force": true]
+        custom["description"] = "Migration"
+        let kept = AgentRun.slimDeployment(custom)
+        #expect(kept["task"] as? String == "deploy:migrations" && kept["original_environment"] as? String == "Preview")
+        #expect(kept["payload"] != nil && kept["description"] as? String == "Migration")
+    }
+
     @Test("banc github : versions publiées sans uploader répété ni drapeaux faux")
     func githubReleases() throws {
         let api = "https://api.github.com/repos/max/site"
