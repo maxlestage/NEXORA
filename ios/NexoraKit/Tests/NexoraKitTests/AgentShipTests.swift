@@ -254,12 +254,13 @@ struct AgentShipTests {
         #expect(shown.split(separator: "\n").count == 7)
         let back = try JSONSerialization.jsonObject(with: Data(shown.utf8)) as? [[String: Any]]
         #expect(back?.count == 5 && back?[4]["number"] as? Int == 5)
-        #expect(shown.contains(#""closed_at":null"#) && shown.contains(#""html_url":"https://github.com/max/site/issues/5""#))
+        // Issue ouverte : `closed_at` nul retiré (`state` « open » le dit déjà).
+        #expect(!shown.contains("closed_at") && shown.contains(#""html_url":"https://github.com/max/site/issues/5""#))
         #expect(AgentRun.githubText(["a": 1]) == #"{"a":1}"# && AgentRun.githubText([Any]()) == "[]")
         #expect(slim.count * 2 < before)
         for keep in ["\"number\": 5", "\"title\": \"Le bouton Envoyer reste grisé 5\"", "\"login\": \"max\"",
                      "\"html_url\": \"https://github.com/max/site/issues/5\"", "\"state\": \"open\"",
-                     "\"bug\"", "\"body\":", "\"closed_at\": null"] {
+                     "\"bug\"", "\"body\":"] {
             #expect(slim.contains(keep), "\(keep)")
         }
         for gone in ["node_id", "followers_url", "comments_url", "api.github.com", "gravatar_id", "avatar_url"] {
@@ -373,7 +374,7 @@ struct AgentShipTests {
         let shown = AgentRun.githubText(AgentRun.slimGitHub(pull))
         #expect(shown.contains(#""repo":{"default_branch":"main","fork":true,"full_name":"ami/site"}"#))
         #expect(shown.contains(#""repo":{"default_branch":"main","full_name":"max/site"}"#))
-        #expect(shown.contains(#""ref":"correctif""#) && shown.contains(#""merged_at":null"#))
+        #expect(shown.contains(#""ref":"correctif""#) && !shown.contains("merged_at"))  // ouverte : `merged_at` nul retiré
         #expect(!shown.contains("stargazers_count") && !shown.contains("clone_url"))
         // Un dépôt demandé pour lui-même reste entier ; une valeur qui n'est pas un dépôt aussi.
         let alone = AgentRun.slimGitHub(Self.repoJSON("max", fork: false)) as? [String: Any]
@@ -693,6 +694,39 @@ struct AgentShipTests {
         var other = comment(8)
         other["html_url"] = "https://github.com/max/site/issues/3"
         #expect((AgentRun.slimGitHub(other) as? [String: Any])?["html_url"] as? String == "https://github.com/max/site/issues/3")
+    }
+
+    @Test("banc github : issues et pull requests ouvertes sans champs de fermeture nuls")
+    func githubOpenItems() throws {
+        let sha = String(repeating: "1abc", count: 10)
+        func pull(_ n: Int, state: String = "open", merged: Bool = false) -> [String: Any] {
+            ["number": n, "id": 2_000_000_000 + n, "title": "Correctif \(n)", "state": state, "user": ["login": "max"],
+             "html_url": "https://github.com/max/site/pull/\(n)", "body": "Corrige le bouton \(n).",
+             "created_at": "2026-11-1\(n)T00:00:00Z", "updated_at": "2026-11-16T00:00:00Z",
+             "closed_at": state == "open" ? NSNull() : "2026-11-16T00:00:00Z" as Any,
+             "merged_at": merged ? "2026-11-16T00:00:00Z" as Any : NSNull(), "merge_commit_sha": sha,
+             "draft": false, "author_association": "OWNER", "head": ["ref": "correctif-\(n)", "sha": sha],
+             "base": ["ref": "master", "sha": sha]]
+        }
+        let list: [Any] = (1...4).map { pull($0) } + [pull(5, state: "closed"), pull(6, state: "closed", merged: true)]
+        // Référence : sans la règle des éléments ouverts (clé `state` masquée).
+        let plain = list.map { x -> Any in var p = x as! [String: Any]; p["statX"] = p.removeValue(forKey: "state"); return p }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (4 pull requests ouvertes + 2 fermées) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        #expect(out?[0]["closed_at"] == nil && out?[0]["merged_at"] == nil && out?[0]["draft"] == nil)
+        #expect(out?[0]["state"] as? String == "open" && out?[0]["merge_commit_sha"] as? String == sha)
+        // Fermée sans fusion : `merged_at` nul reste (il distingue « fermée » de « fusionnée »).
+        #expect(out?[4]["merged_at"] is NSNull && out?[4]["closed_at"] as? String == "2026-11-16T00:00:00Z")
+        #expect(out?[5]["merged_at"] as? String == "2026-11-16T00:00:00Z")
+        // Brouillon ouvert : `draft` vrai gardé ; objet sans `number` : non touché.
+        var draft = pull(7)
+        draft["draft"] = true
+        #expect((AgentRun.slimGitHub(draft) as? [String: Any])?["draft"] as? Bool == true)
+        let free = AgentRun.slimGitHub(["state": "open", "title": "x", "closed_at": NSNull()]) as? [String: Any]
+        #expect(free?["closed_at"] is NSNull)
     }
 
     @Test("banc github : évènements d'issue sans id ni couleur d'étiquette")

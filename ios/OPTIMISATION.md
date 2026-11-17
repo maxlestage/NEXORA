@@ -948,9 +948,15 @@ mémoire 32k tokens, consigne 3 000 car.
   adresse ou un texte de moins de 8 caractères ; toast + vibration (`pasteToast`).
   Tests : 520 → 521.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.116 : onglet Modèles) → prochain passage : TOKENS
-(puis interface : Personnaliser ou accueil).
+- 3.0.117 (tokens) : `slimOpen` — issue ou pull request OUVERTE (`number` + `title` +
+  `state` « open ») : `closed_at`/`closed_by`/`merged_at`/`merged_by` nuls et
+  `draft`/`merged` faux retirés (une fermée les garde : `merged_at` nul y distingue
+  fermée/fusionnée). Banc `AgentShipTests.githubOpenItems` (4 PR ouvertes + 2 fermées) :
+  801 → 753 tokens (−6 %) ; banc des 5 tickets : 443 → 421 (−5 %).
+  Tests : 521 → 522 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.117) → prochain passage : INTERFACE (Personnaliser ou accueil).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

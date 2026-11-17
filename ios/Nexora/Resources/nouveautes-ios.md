@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.117 — 17 novembre 2026 — Issues et pull requests plus légères pour l'agent
+- Amélioré : quand l'agent lit des issues ou des pull requests ouvertes, les champs de fermeture vides (date de fermeture, de fusion, « brouillon : non ») ne lui sont plus envoyés : environ 6 % de tokens en moins sur une liste de pull requests.
+- Inchangé : une issue ou une pull request fermée garde tous ses champs, pour distinguer « fermée » de « fusionnée ».
+
 ## 3.0.116 — 17 novembre 2026 — Clés plus rapides à ajouter
 - Nouveau : dans Modèles, un appui long sur un fournisseur propose « Obtenir une clé », « Coller la clé » et « Documentation », sans ouvrir sa fiche.
 - Nouveau : « Coller la clé » enregistre la clé copiée et confirme d'un message et d'une vibration ; une phrase ou une adresse copiée par erreur n'est pas enregistrée.
