@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -216,6 +216,23 @@ extension AgentRun {
             let anchors = ["#issuecomment-\(id)", "#pullrequestreview-\(id)", "#discussion_r\(id)"]
             if anchors.contains(where: { link.hasSuffix($0) }) { out["html_url"] = nil }
         }
+        return out
+    }
+
+    /// Un évènement d'issue ou de pull request (GET …/issues/<n>/events ou …/timeline :
+    /// `event` + `actor` + `created_at`) allégé : `commit_id` nul (évènement sans commit)
+    /// retiré, `label` réduit à son nom (sa couleur ne sert pas à l'agent) et `id` retiré
+    /// (aucun appel de l'agent ne vise un évènement) — sauf pour un commentaire de la
+    /// chronologie (`body` présent), dont l'identifiant sert à y répondre ou à le
+    /// modifier. Un run de workflow n'est pas touché. Tout autre objet est rendu tel quel.
+    nonisolated static func slimEvent(_ d: [String: Any]) -> [String: Any] {
+        // Un run de workflow a aussi `event` (« push »…) et `actor` : il garde son `id`.
+        guard d["event"] is String, d["actor"] != nil, d["created_at"] is String,
+              d["head_sha"] == nil, d["workflow_id"] == nil, d["run_number"] == nil else { return d }
+        var out = d
+        if d["commit_id"] is NSNull { out["commit_id"] = nil }
+        if let l = d["label"] as? [String: Any], let name = l["name"] as? String { out["label"] = name }
+        if d["body"] == nil { out["id"] = nil }
         return out
     }
 

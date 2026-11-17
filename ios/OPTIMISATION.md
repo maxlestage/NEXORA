@@ -934,10 +934,16 @@ mémoire 32k tokens, consigne 3 000 car.
   balayage « Supprimer » d'une session EN COURS sans brouillon l'effaçait sans confirmation
   (agent tué sans prévenir) → confirmation demandée. Tests : 518 → 519 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.114 : liste des sessions) → prochain passage : TOKENS.
-Tokens ensuite : GET …/pulls/<n>/files (vérifier `sha`/`blob_url` comme `slimFile`),
-…/issues/<n>/events ou …/timeline.
+- 3.0.115 (tokens) : GET …/pulls/<n>/files vérifié — déjà couvert par `slimFile` (`sha`
+  retiré, `blob_url`/`raw_url`/`contents_url` retirés par la règle des `_url`). Nouveau
+  `slimEvent` (GET …/issues/<n>/events, …/timeline : `event` + `actor` + `created_at`, hors
+  runs de workflow) : `commit_id` nul retiré, `label` réduit à son nom, `id` retiré sauf
+  commentaire de chronologie (`body`). Banc `AgentShipTests.githubIssueEvents`
+  (6 évènements) : 211 → 157 tokens (−26 %). Tests : 519 → 520 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.115 : évènements d'issue) → prochain passage : INTERFACE
+(écran suivant à choisir : Modèles, Personnaliser ou accueil).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

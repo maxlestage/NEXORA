@@ -695,6 +695,42 @@ struct AgentShipTests {
         #expect((AgentRun.slimGitHub(other) as? [String: Any])?["html_url"] as? String == "https://github.com/max/site/issues/3")
     }
 
+    @Test("banc github : évènements d'issue sans id ni couleur d'étiquette")
+    func githubIssueEvents() throws {
+        let api = "https://api.github.com/repos/max/site"
+        func event(_ id: Int, _ kind: String, label: String? = nil, commit: String? = nil) -> [String: Any] {
+            var e: [String: Any] = ["id": 9_000_000_000 + id, "node_id": "LE_lADO\(id)", "url": "\(api)/issues/events/\(id)",
+                                    "actor": ["login": "max", "id": 7, "node_id": "U_kg", "html_url": "https://github.com/max",
+                                              "type": "User", "site_admin": false, "user_view_type": "public",
+                                              "avatar_url": "https://avatars/u/7"],
+                                    "event": kind, "commit_id": commit.map { $0 as Any } ?? NSNull(),
+                                    "commit_url": commit.map { "\(api)/commits/\($0)" as Any } ?? NSNull(),
+                                    "created_at": "2026-11-16T0\(id):00:00Z", "performed_via_github_app": NSNull()]
+            if let label { e["label"] = ["name": label, "color": "d73a4a"] }
+            return e
+        }
+        let sha = String(repeating: "1abc", count: 10)
+        let list: [Any] = [event(1, "labeled", label: "bug"), event(2, "assigned"), event(3, "referenced", commit: sha),
+                           event(4, "labeled", label: "ios"), event(5, "closed", commit: sha), event(6, "reopened")]
+        // Référence : sans la règle des évènements (clé `event` masquée).
+        let plain = list.map { x -> Any in var e = x as! [String: Any]; e["evenX"] = e.removeValue(forKey: "event"); return e }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (6 évènements d'issue) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 100 < before * 85)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        #expect(out?[0]["id"] == nil && out?[0]["label"] as? String == "bug" && out?[0]["commit_id"] == nil)
+        #expect(out?[2]["commit_id"] as? String == sha && out?[0]["created_at"] != nil)
+        // Un run de workflow (`event` + `actor`) garde son identifiant.
+        let run: [String: Any] = ["id": 42, "event": "push", "actor": ["login": "max"], "created_at": "2026-11-16T00:00:00Z",
+                                  "head_sha": sha, "run_number": 3]
+        #expect((AgentRun.slimGitHub(run) as? [String: Any])?["id"] as? Int == 42)
+        // Commentaire de la chronologie : l'id reste (pour y répondre).
+        var c = event(7, "commented")
+        c["body"] = "Ok"
+        #expect((AgentRun.slimGitHub(c) as? [String: Any])?["id"] != nil)
+    }
+
     @Test("banc github : fichiers d'un commit sans sha de blob, patchs longs coupés")
     func githubCommitFiles() throws {
         func file(_ n: Int, lines: Int) -> [String: Any] {

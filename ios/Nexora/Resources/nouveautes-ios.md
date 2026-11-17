@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.115 — 17 novembre 2026 — Historique des issues plus léger
+- Amélioré : quand l'agent relit l'historique d'une issue ou d'une pull request (étiquettes, assignations, fermetures), la réponse envoyée au modèle est environ 25 % plus courte.
+- Les commentaires de la chronologie gardent leur identifiant pour que l'agent puisse y répondre.
+
 ## 3.0.114 — 17 novembre 2026 — Sessions plus pratiques
 
 - Nouveau : appui long sur une session de l'onglet Code pour l'arrêter, copier sa mission ou la supprimer.
