@@ -134,13 +134,20 @@ extension AgentRun {
                     out[k] = names
                     continue
                 }
+                if k == "app", let a = v as? [String: Any], let slug = a["slug"] as? String,
+                   a["permissions"] != nil || a["events"] != nil {
+                    // L'application GitHub d'une vérification (≈ 30 champs : droits,
+                    // évènements…) réduite à son nom court (« github-actions »).
+                    out[k] = slug
+                    continue
+                }
                 if nestedRepoKeys.contains(k), let r = v as? [String: Any], let short = repoName(r) {
                     out[k] = short
                     continue
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -279,6 +286,24 @@ extension AgentRun {
               d.keys.allSatisfy({ ["login", "id", "html_url", "type"].contains($0) }) else { return nil }
         if let link = d["html_url"] as? String, link != "https://github.com/\(login)" { return nil }
         return type == "User" ? ["login": login] : ["login": login, "type": type]
+    }
+
+    /// Une vérification de commit (GET …/commits/<ref>/check-runs, …/check-runs/<id> :
+    /// `head_sha` + `check_suite` + `output`) allégée : la liste vide `pull_requests`,
+    /// `external_id` vide, et dans `output` les champs nuls ou vides (`title`, `summary`,
+    /// `text` d'une vérification sans rapport) et `annotations_count` à zéro ; `output`
+    /// disparaît s'il ne reste rien. Une vérification avec rapport ou annotations les
+    /// garde. Tout autre objet est rendu tel quel.
+    nonisolated static func slimCheckRun(_ d: [String: Any]) -> [String: Any] {
+        guard d["head_sha"] is String, d["check_suite"] != nil, let o = d["output"] as? [String: Any] else { return d }
+        var out = d
+        if (d["pull_requests"] as? [Any])?.isEmpty == true { out["pull_requests"] = nil }
+        if (d["external_id"] as? String) == "" || d["external_id"] is NSNull { out["external_id"] = nil }
+        let kept = o.filter { _, v in
+            !(v is NSNull) && (v as? String) != "" && (v as? Int) != 0
+        }
+        out["output"] = kept.isEmpty ? nil : kept
+        return out
     }
 
     /// Un run de workflow (`head_sha` + `head_commit`) allégé : `triggering_actor`
