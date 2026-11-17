@@ -44,7 +44,7 @@ struct SettingsView: View {
                                 .background(Theme.gradient(settings.accent), in: .circle)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Personnaliser").font(.subheadline.weight(.heavy))
-                                Text("Couleurs, thème, texte, animations, effort, messages, assistant, onglets…")
+                                Text("Couleurs, texte, assistant, onglets…")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -121,38 +121,20 @@ struct SettingsView: View {
                 }
 
                 Section("À propos") {
-                    VStack(spacing: 6) {
-                        NexusOrb(size: 120, satellites: 8, interactive: false)
-                        GradientText("NEXORA", font: .title.weight(.black), tracking: 6)
-                        Text("Version \(SettingsStore.appVersion)").font(.caption).foregroundStyle(.secondary)
-                        Text("Conçu et développé par \(Self.author)")
-                            .font(.subheadline.weight(.bold))
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 6)
-                        Text("Aucun serveur intermédiaire : l'app parle directement aux fournisseurs et à GitHub. Vos clés restent sur l'appareil.")
-                            .font(.footnote)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
                     NavigationLink {
                         WhatsNewView()
                     } label: {
                         Label("Nouveautés", systemImage: "sparkles")
                     }
                     NavigationLink {
-                        CreditsView()
+                        AboutNexoraView()
                     } label: {
-                        Label("Crédits", systemImage: "heart")
+                        LabeledContent {
+                            Text(SettingsDisplay.aboutDetail(version: SettingsStore.appVersion))
+                        } label: {
+                            Label("À propos de NEXORA", systemImage: "info.circle")
+                        }
                     }
-                    Link(destination: URL(string: "https://github.com/maxlestage/NEXORA")!) {
-                        Label("Code source", systemImage: "chevron.left.forwardslash.chevron.right")
-                    }
-                    Link(destination: URL(string: "https://maxlestage.github.io/NEXORA/")!) {
-                        Label("Le site de NEXORA", systemImage: "globe")
-                    }
-                    Button("Revoir la présentation", systemImage: "play.rectangle") { settings.onboarded = false }
                 }
 
                 // Actions irréversibles, rangées tout en bas (chacune demande confirmation).
@@ -257,5 +239,52 @@ struct SettingsView: View {
         github.signOut()
         settings.resetAll()
         toast = Toast(text: "Réinitialisé. Relancez l'app.")
+    }
+}
+
+/// Page « À propos de NEXORA » (ouverte depuis les Réglages) : l'orbe, l'auteur, la promesse
+/// de confidentialité, puis les liens rares (crédits, code source, site, présentation).
+/// Avant 3.0.112, tout cela occupait la moitié de l'onglet Réglages.
+private struct AboutNexoraView: View {
+    @Environment(SettingsStore.self) private var settings
+
+    var body: some View {
+        List {
+            Section {
+                VStack(spacing: 6) {
+                    NexusOrb(size: 120, satellites: 8, interactive: false)
+                    GradientText("NEXORA", font: .title.weight(.black), tracking: 6)
+                    Text(SettingsDisplay.aboutDetail(version: SettingsStore.appVersion))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("Conçu et développé par \(SettingsView.author)")
+                        .font(.subheadline.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 6)
+                    Text("Aucun serveur intermédiaire : l'app parle directement aux fournisseurs et à GitHub. Vos clés restent sur l'appareil.")
+                        .font(.footnote)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .accessibilityElement(children: .combine)
+            }
+            Section {
+                NavigationLink {
+                    CreditsView()
+                } label: {
+                    Label("Crédits", systemImage: "heart")
+                }
+                Link(destination: URL(string: "https://github.com/maxlestage/NEXORA")!) {
+                    Label("Code source", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                Link(destination: URL(string: "https://maxlestage.github.io/NEXORA/")!) {
+                    Label("Le site de NEXORA", systemImage: "globe")
+                }
+                Button("Revoir la présentation", systemImage: "play.rectangle") { settings.onboarded = false }
+            }
+        }
+        .navigationTitle("À propos")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

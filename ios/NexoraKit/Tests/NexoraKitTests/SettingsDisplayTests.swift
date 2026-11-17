@@ -40,4 +40,8 @@ struct SettingsDisplayTests {
         #expect(SettingsDisplay.clientIdDetail("  ") == "Non renseigné")
         #expect(SettingsDisplay.clientIdDetail(" Iv1.abc ") == "Iv1.abc")
     }
+
+    @Test func about() {
+        #expect(SettingsDisplay.aboutDetail(version: "3.0.112") == "Version 3.0.112")
+    }
 }

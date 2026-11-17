@@ -913,11 +913,17 @@ mémoire 32k tokens, consigne 3 000 car.
   commentaire d'origine. Banc `AgentShipTests.githubReviewComments` (4 commentaires dont
   2 réponses) : 1261 → 510 tokens (−60 %). Tests : 515 → 516 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.111 : commentaires de relecture) → prochain passage : INTERFACE,
-écran Réglages ou Personnaliser.
-Tokens ensuite : GET …/pulls/<n>/reviews et …/issues/<n>/comments (vérifier
-`author_association`, `body` vide d'une relecture « APPROVED »), ou …/pulls/<n>/files.
+- 3.0.112 (interface) : onglet Réglages, 2e passage — section « À propos » (orbe de 120 pt,
+  auteur, texte, 5 liens rares, ≈ moitié de l'écran) réduite à 2 lignes : « Nouveautés » et
+  « À propos de NEXORA » (`SettingsDisplay.aboutDetail` : « Version 3.0.112 ») qui ouvre une
+  page avec le reste (AboutNexoraView, privée à SettingsView.swift) ; sous-titre de
+  Personnaliser raccourci (8 → 4 mots). Rien retiré. Tests : 516 → 517 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.112 : Réglages › À propos) → prochain passage : TOKENS,
+GET …/pulls/<n>/reviews et …/issues/<n>/comments (vérifier `author_association`, `body`
+vide d'une relecture « APPROVED »), ou …/pulls/<n>/files.
+Interface ensuite : session de l'agent ou écran Code/GitHub (pas repassés depuis longtemps).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
