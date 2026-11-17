@@ -899,10 +899,17 @@ mémoire 32k tokens, consigne 3 000 car.
   toute autre liste est inchangée. Banc `AgentShipTests.githubCommitsLinear` (6 commits) :
   369 → 300 tokens (−19 %). Tests : 513 → 514 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.109 : liste de commits linéaire) → prochain passage : INTERFACE,
-écran Modèles (ProvidersView), 2e passage.
-Tokens ensuite : autre réponse GitHub lourde (ex. GET …/pulls/<n>/files, reviews,
+- 3.0.110 (interface) : fiche d'un fournisseur (ProviderDetailView) —
+  `ProviderDetailDisplay.helpFolded` : « Comment faire » replié (DisclosureGroup) une fois
+  la clé enregistrée ou le serveur local ayant donné ses modèles (avant : 5 à 8 lignes
+  d'étapes toujours ouvertes au-dessus de la clé et des modèles) ; champ « Ajouter un
+  modèle par son id » (rare) déplacé du haut vers le bas de la section Modèles, bouton +
+  porté à 44 pt. Tests : 514 → 515 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.110 : fiche d'un fournisseur) → prochain passage : TOKENS.
+Interface ensuite : écran Réglages ou Personnaliser.
+Tokens : autre réponse GitHub lourde (ex. GET …/pulls/<n>/files, reviews,
 comments de pull request : vérifier `user`/`author_association` répétés).
 
 ## Pistes tokens à faire

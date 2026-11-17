@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.110 — 17 novembre 2026 — Fiche d'un fournisseur plus directe
+- Amélioré : une fois la clé enregistrée, « Comment faire » se replie ; la liste des modèles arrive plus vite.
+- Amélioré : « Ajouter un modèle par son id » passe sous la liste des modèles, avec un bouton plus facile à toucher.
+
 ## 3.0.109 — 17 novembre 2026 — Historique des commits plus léger
 
 - Amélioré : quand l'agent lit la liste des commits d'un dépôt, les parents qui se déduisent de l'ordre de la liste ne sont plus renvoyés (environ 19 % de tokens en moins sur cette réponse).
