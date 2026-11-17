@@ -29,6 +29,13 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.pickerLabel(total: 5, running: 2, toReview: 1) == "Sessions · 1 à relire")
     }
 
+    @Test func pastilleDeLOngletCode() {
+        #expect(SessionsDisplay.tabBadge(toReview: 0) == 0)
+        #expect(SessionsDisplay.tabBadge(toReview: 3) == 3)
+        #expect(SessionsDisplay.tabBadge(toReview: 250) == 99)
+        #expect(SessionsDisplay.tabBadge(toReview: -1) == 0)
+    }
+
     /// Comme dans la vue : sessions réelles (sur le fil principal), recherche par
     /// mission ou dépôt, puis groupement.
     @MainActor @Test func sessionsReellesFiltreesEtGroupees() {

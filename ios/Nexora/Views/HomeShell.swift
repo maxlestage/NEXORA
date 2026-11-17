@@ -30,6 +30,8 @@ struct HomeShell: View {
                 Tab("Code", systemImage: "chevron.left.forwardslash.chevron.right", value: AppTab.github) {
                     GitHubView()
                 }
+                // Des brouillons attendent votre validation : visible depuis tous les onglets.
+                .badge(SessionsDisplay.tabBadge(toReview: sessions.reviewCount))
             }
             Tab("Modèles", systemImage: "cpu", value: AppTab.models) {
                 ProvidersView()

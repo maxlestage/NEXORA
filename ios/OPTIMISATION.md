@@ -970,9 +970,16 @@ mémoire 32k tokens, consigne 3 000 car.
   son `slug`. Banc `AgentShipTests.githubCheckRuns` (4 vérifications) : 1 132 → 355 tokens
   (−69 %). Tests : 523 → 524 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.119) → prochain passage : INTERFACE, accueil (HomeShell) ou Agents.
-Tokens ensuite : GET …/releases (`assets` avec `uploader` répété, `draft`/`prerelease` faux)
+- 3.0.120 (interface) : navigation principale (HomeShell) — pastille sur l'onglet Code
+  (`SessionsDisplay.tabBadge`, plafonnée à 99) = sessions dont les brouillons attendent votre
+  validation (`AgentSessions.reviewCount`, réutilisé par le sélecteur Sessions/Dépôts). Avant :
+  il fallait ouvrir l'onglet Code pour savoir qu'une session attendait ; après : visible depuis
+  tous les onglets, aucun geste. Les sessions en cours n'ont pas de pastille (rien à faire).
+  Tests : 524 → 525 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.120, HomeShell) → prochain passage : TOKENS. Interface ensuite : Agents.
+Tokens : GET …/releases (`assets` avec `uploader` répété, `draft`/`prerelease` faux)
 ou GET …/check-suites.
 
 ## Pistes tokens à faire

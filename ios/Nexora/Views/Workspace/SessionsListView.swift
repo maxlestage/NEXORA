@@ -26,7 +26,7 @@ struct CodeHomeView: View {
                 Text(SessionsDisplay.pickerLabel(
                     total: sessions.sessions.count,
                     running: sessions.runningCount,
-                    toReview: sessions.sessions.filter { $0.status == .review }.count
+                    toReview: sessions.reviewCount
                 ))
                 .tag(Part.sessions)
                 Text("Dépôts (\(github.repos.count))").tag(Part.repos)

@@ -129,6 +129,9 @@ public final class AgentSessions {
 
     public var runningCount: Int { list.filter(\.running).count }
 
+    /// Les sessions dont les brouillons attendent votre validation.
+    public var reviewCount: Int { list.filter { $0.status == .review }.count }
+
     /// La session fait toujours partie de la liste (pas supprimée).
     public func contains(_ run: AgentRun) -> Bool { list.contains { $0 === run } }
 

@@ -55,6 +55,13 @@ public enum SessionsDisplay {
         }
     }
 
+    /// La pastille de l'onglet Code : le nombre de sessions à relire (0 = pas de
+    /// pastille). Les sessions en cours n'en ont pas : elles n'attendent rien de
+    /// vous. Plafonnée à 99 pour rester lisible.
+    public static func tabBadge(toReview: Int) -> Int {
+        min(max(toReview, 0), 99)
+    }
+
     /// Le libellé du sélecteur Sessions / Dépôts : le travail qui attend d'abord.
     public static func pickerLabel(total: Int, running: Int, toReview: Int) -> String {
         if toReview > 0 { return "Sessions · \(toReview) à relire" }
