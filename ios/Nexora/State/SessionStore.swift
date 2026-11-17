@@ -105,6 +105,7 @@ final class SessionStore {
     var sessions: [AgentRun] { core.sessions }
     var loading: Bool { core.loading }
     var runningCount: Int { core.runningCount }
+    var reviewCount: Int { core.reviewCount }
 
     func byId(_ id: String) -> AgentRun? { core.byId(id) }
 
