@@ -977,10 +977,17 @@ mémoire 32k tokens, consigne 3 000 car.
   tous les onglets, aucun geste. Les sessions en cours n'ont pas de pastille (rien à faire).
   Tests : 524 → 525 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.120, HomeShell) → prochain passage : TOKENS. Interface ensuite : Agents.
-Tokens : GET …/releases (`assets` avec `uploader` répété, `draft`/`prerelease` faux)
-ou GET …/check-suites.
+- 3.0.121 (tokens) : `slimRelease` — version publiée (GET …/releases : `tag_name` +
+  `prerelease` + `assets`) : `draft`/`prerelease`/`immutable` faux, `body` nul, `assets` vide
+  retirés ; dans chaque fichier joint, `uploader` identique à l'auteur, `state` « uploaded »,
+  `label` nul/vide et `updated_at` = `created_at` retirés (`id`, nom, taille, lien gardés).
+  Banc `AgentShipTests.githubReleases` (4 versions, 8 fichiers) : 956 → 715 tokens (−25 %).
+  Tests : 525 → 526 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.121, releases) → prochain passage : INTERFACE, écran Agents.
+Tokens ensuite : GET …/check-suites (`app` déjà réduite ; `head_commit`, `latest_check_runs_count`)
+ou GET …/deployments / statuses.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

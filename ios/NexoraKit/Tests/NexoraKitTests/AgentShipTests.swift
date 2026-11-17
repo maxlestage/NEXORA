@@ -784,6 +784,58 @@ struct AgentShipTests {
         #expect((free?["app"] as? [String: Any])?["nom"] as? String == "y")
     }
 
+    @Test("banc github : versions publiées sans uploader répété ni drapeaux faux")
+    func githubReleases() throws {
+        let api = "https://api.github.com/repos/max/site"
+        let max: [String: Any] = ["login": "max", "id": 7, "node_id": "U_kg", "html_url": "https://github.com/max",
+                                  "type": "User", "site_admin": false, "user_view_type": "public",
+                                  "avatar_url": "https://avatars/u/7", "followers_url": "\(api)/f"]
+        func asset(_ id: Int, _ name: String) -> [String: Any] {
+            ["url": "\(api)/releases/assets/\(id)", "id": id, "node_id": "RA_kw\(id)", "name": name, "label": NSNull(),
+             "uploader": max, "content_type": "application/zip", "state": "uploaded", "size": 1_000 * id,
+             "download_count": id, "created_at": "2026-11-1\(id % 10)T10:00:00Z", "updated_at": "2026-11-1\(id % 10)T10:00:00Z",
+             "browser_download_url": "https://github.com/max/site/releases/download/v1.\(id)/\(name)"]
+        }
+        func release(_ n: Int, assets: Int, pre: Bool = false) -> [String: Any] {
+            ["url": "\(api)/releases/\(n)", "assets_url": "\(api)/releases/\(n)/assets",
+             "upload_url": "https://uploads.github.com/repos/max/site/releases/\(n)/assets{?name,label}",
+             "html_url": "https://github.com/max/site/releases/tag/v1.\(n)", "id": 100 + n, "author": max,
+             "node_id": "RE_kw\(n)", "tag_name": "v1.\(n)", "target_commitish": "master", "name": "Version 1.\(n)",
+             "draft": false, "prerelease": pre, "immutable": false, "created_at": "2026-11-1\(n)T09:00:00Z",
+             "published_at": "2026-11-1\(n)T09:05:00Z",
+             "assets": (0..<assets).map { asset(n * 10 + $0, "app-\($0).zip") },
+             "tarball_url": "\(api)/tarball/v1.\(n)", "zipball_url": "\(api)/zipball/v1.\(n)",
+             "body": n == 1 ? NSNull() as Any : "Corrections et améliorations."]
+        }
+        let reply: [Any] = [release(1, assets: 0), release(2, assets: 3), release(3, assets: 2, pre: true), release(4, assets: 3)]
+        // Référence : la règle masquée (clé `tag_name` renommée).
+        let plain: [Any] = reply.map { r -> Any in
+            var r = r as! [String: Any]
+            r["tagName"] = r.removeValue(forKey: "tag_name")
+            return r
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(reply)).count
+        print("Banc github (4 versions publiées, 8 fichiers joints) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let list = AgentRun.slimGitHub(reply) as? [[String: Any]]
+        #expect(list?[0]["assets"] == nil && list?[0]["body"] == nil && list?[0]["draft"] == nil)
+        #expect(list?[0]["prerelease"] == nil && list?[0]["immutable"] == nil)
+        #expect(list?[2]["prerelease"] as? Bool == true && list?[1]["body"] as? String == "Corrections et améliorations.")
+        let a = (list?[1]["assets"] as? [[String: Any]])?.first
+        #expect(a?["uploader"] == nil && a?["state"] == nil && a?["label"] == nil && a?["updated_at"] == nil)
+        #expect(a?["id"] as? Int == 20 && a?["size"] as? Int == 20_000 && a?["browser_download_url"] != nil)
+        #expect(a?["created_at"] != nil && a?["name"] as? String == "app-0.zip")
+        // Fichier joint par quelqu'un d'autre, ou en cours d'envoi : gardé.
+        var other = release(5, assets: 1)
+        var x = (other["assets"] as! [[String: Any]])[0]
+        x["uploader"] = ["login": "bot", "id": 9, "html_url": "https://github.com/bot", "type": "Bot"]
+        x["state"] = "starter"
+        other["assets"] = [x]
+        let o = ((AgentRun.slimGitHub(other) as? [String: Any])?["assets"] as? [[String: Any]])?.first
+        #expect(o?["uploader"] != nil && o?["state"] as? String == "starter")
+    }
+
     @Test("banc github : évènements d'issue sans id ni couleur d'étiquette")
     func githubIssueEvents() throws {
         let api = "https://api.github.com/repos/max/site"
