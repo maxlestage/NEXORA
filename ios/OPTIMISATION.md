@@ -1030,8 +1030,19 @@ mémoire 32k tokens, consigne 3 000 car.
   ou vide de GET /apps pour une fiche absente. Désormais 4 essais (10, 20, 30 s) puis, si Apple répond
   en erreur, message « App Store Connect indisponible » avec le code HTTP. Run relancé.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.127, déploiements) → prochain passage : INTERFACE, écran Modèles ou Aide.
+- (CI) TestFlight n°253 rouge : Apple répond HTTP 500 « UNEXPECTED_ERROR » aux 4 essais de
+  GET /apps (panne chez Apple, le message de 3.0.127+ l'a bien dit). Job relancé.
+
+- 3.0.128 (interface) : centre d'aide (HelpView, 2e passage, 1er en 3.0.45) — pastilles de
+  thèmes en tête (« Tout » + 8 thèmes, 44 pt, vibration de sélection) : `HelpDisplay.visible`
+  ne montre que le thème choisi (la recherche porte toujours sur tous), `theme(_:)` (titre
+  inconnu → tout), `autoExpand(_:searching:theme:)` ouvre un thème de 3 réponses au plus.
+  Ouverte depuis Modèles (`initialSection`), l'aide ne montre que « Clés et modèles ».
+  Avant : 32 questions à faire défiler ; après : 1 toucher, 3 à 7 questions.
+  Tests : 531 → 532 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.128, Aide) → prochain passage : TOKENS.
 Tokens ensuite : GET …/environments, …/actions/caches ou …/branches (protection résumée).
 
 ## Pistes tokens à faire

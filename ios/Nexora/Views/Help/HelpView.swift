@@ -10,11 +10,15 @@ struct HelpView: View {
     @State private var query = ""
     @State private var open: Set<String> = []
     @State private var closed: Set<String> = []
+    /// Le thème choisi par sa pastille (nil : tous).
+    @State private var theme: String?
+    /// Le thème demandé n'est appliqué qu'à la première apparition.
+    @State private var started = false
 
     var body: some View {
-        let found = Help.search(query)
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let expandAll = HelpDisplay.autoExpand(found, searching: searching)
+        let found = HelpDisplay.visible(Help.search(query), theme: theme, searching: searching)
+        let expandAll = HelpDisplay.autoExpand(found, searching: searching, theme: theme)
         List {
             if !searching {
                 Section {
@@ -24,6 +28,12 @@ struct HelpView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                // Un thème à la fois : une pastille au lieu de faire défiler 32 questions.
+                Section {
+                    themeChips
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             if searching && found.isEmpty {
                 ContentUnavailableView {
@@ -65,10 +75,40 @@ struct HelpView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // Le thème demandé s'ouvre sur sa première question.
+            guard !started else { return }
+            started = true
+            theme = HelpDisplay.theme(initialSection)
             if let s = initialSection, let first = Help.sections.first(where: { $0.title == s })?.topics.first {
                 open.insert(first.id)
             }
         }
+    }
+
+    /// Les pastilles « Tout » puis un thème chacune, sur une ligne qui défile.
+    private var themeChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(HelpDisplay.allThemes, selected: theme == nil) { theme = nil }
+                ForEach(Help.sections) { s in
+                    chip("\(s.emoji) \(s.title)", selected: theme == s.title) { theme = s.title }
+                }
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 16)
+        }
+        .sensoryFeedback(.selection, trigger: theme)
+    }
+
+    private func chip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(selected ? .bold : .regular))
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(selected ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemFill), in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     /// Ouverte quand une recherche trouve peu de réponses, ou quand vous l'avez touchée.
