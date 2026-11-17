@@ -729,6 +729,61 @@ struct AgentShipTests {
         #expect(free?["closed_at"] is NSNull)
     }
 
+    @Test("banc github : vérifications de commit sans l'application entière ni rapport vide")
+    func githubCheckRuns() throws {
+        let api = "https://api.github.com/repos/max/site"
+        let sha = String(repeating: "2def", count: 10)
+        let app: [String: Any] = [
+            "id": 15368, "client_id": "Iv1.05c79e9ad1f6bdfa", "slug": "github-actions", "node_id": "MDM6QXBwMTUzNjg=",
+            "owner": ["login": "github", "id": 9919, "node_id": "MDEyOk9y", "html_url": "https://github.com/github",
+                      "type": "Organization", "site_admin": false, "user_view_type": "public",
+                      "avatar_url": "https://avatars/u/9919"],
+            "name": "GitHub Actions", "description": "Automate your workflow from idea to production",
+            "external_url": "https://help.github.com/en/actions", "html_url": "https://github.com/apps/github-actions",
+            "created_at": "2018-07-30T09:30:17Z", "updated_at": "2024-04-10T20:33:16Z",
+            "permissions": ["actions": "write", "checks": "write", "contents": "write", "deployments": "write",
+                            "issues": "write", "metadata": "read", "packages": "write", "pages": "write",
+                            "pull_requests": "write", "statuses": "write"],
+            "events": ["check_run", "check_suite", "create", "delete", "deployment", "fork", "issues",
+                       "issue_comment", "pull_request", "push", "release", "status", "workflow_dispatch"]]
+        func run(_ id: Int, _ name: String, _ conclusion: String, report: Bool = false) -> [String: Any] {
+            ["id": 50_000_000_000 + id, "name": name, "head_sha": sha, "node_id": "CR_kwDO\(id)", "external_id": "",
+             "url": "\(api)/check-runs/\(id)", "html_url": "https://github.com/max/site/actions/runs/9/job/\(id)",
+             "details_url": "https://github.com/max/site/actions/runs/9/job/\(id)", "status": "completed",
+             "conclusion": conclusion, "started_at": "2026-11-16T10:00:00Z", "completed_at": "2026-11-16T10:0\(id):00Z",
+             "output": ["title": report ? "1 erreur" as Any : NSNull(), "summary": report ? "Échec de la compilation" as Any : NSNull(),
+                        "text": NSNull(), "annotations_count": report ? 1 : 0,
+                        "annotations_url": "\(api)/check-runs/\(id)/annotations"],
+             "check_suite": ["id": 30_000_000_000], "app": app, "pull_requests": [Any]()]
+        }
+        let reply: [String: Any] = ["total_count": 4, "check_runs": [run(1, "Tests", "success"), run(2, "iOS", "success"),
+                                                                     run(3, "Flutter", "success"),
+                                                                     run(4, "Lint", "failure", report: true)]]
+        // Référence : sans les deux règles (clés `app` et `check_suite` masquées).
+        func hide(_ r: [String: Any]) -> [String: Any] {
+            var r = r
+            r["checkSuite"] = r.removeValue(forKey: "check_suite")
+            r["applic"] = r.removeValue(forKey: "app")
+            return r
+        }
+        let plain: [String: Any] = ["total_count": 4, "check_runs": (reply["check_runs"] as! [[String: Any]]).map(hide)]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(reply)).count
+        print("Banc github (4 vérifications de commit) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let runs = (AgentRun.slimGitHub(reply) as? [String: Any])?["check_runs"] as? [[String: Any]]
+        #expect(runs?[0]["app"] as? String == "github-actions")
+        #expect(runs?[0]["output"] == nil && runs?[0]["pull_requests"] == nil && runs?[0]["external_id"] == nil)
+        #expect(runs?[0]["conclusion"] as? String == "success" && runs?[0]["check_suite"] != nil)
+        // Vérification avec rapport : titre, résumé et nombre d'annotations gardés, `text` nul retiré.
+        let o = runs?[3]["output"] as? [String: Any]
+        #expect(o?["summary"] as? String == "Échec de la compilation" && o?["annotations_count"] as? Int == 1)
+        #expect(o?["text"] == nil && o?["title"] as? String == "1 erreur")
+        // Une clé `app` qui n'est pas une application GitHub reste telle quelle.
+        let free = AgentRun.slimGitHub(["app": ["slug": "x", "nom": "y"]]) as? [String: Any]
+        #expect((free?["app"] as? [String: Any])?["nom"] as? String == "y")
+    }
+
     @Test("banc github : évènements d'issue sans id ni couleur d'étiquette")
     func githubIssueEvents() throws {
         let api = "https://api.github.com/repos/max/site"

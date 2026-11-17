@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.119 — 17 novembre 2026 — Vérifications de CI plus légères
+
+- Amélioré : quand l'agent consulte les vérifications d'un commit sur GitHub, la réponse envoyée au modèle est environ 70 % plus courte (l'application GitHub n'est plus répétée en entier pour chaque vérification).
+- Les vérifications en échec gardent leur rapport et leur nombre d'annotations.
+
 ## 3.0.118 — 17 novembre 2026 — Réglages plus faciles à importer
 - Amélioré : « Importer des réglages » reprend tout seul des réglages déjà copiés (ici ou dans l'app Flutter) ; il ne reste qu'à toucher « Importer ».
 - Corrigé : un texte JSON sans aucun réglage n'affiche plus « Réglages importés » alors que rien n'a changé.

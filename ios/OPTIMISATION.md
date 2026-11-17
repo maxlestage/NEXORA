@@ -963,8 +963,17 @@ mémoire 32k tokens, consigne 3 000 car.
   tout JSON sans clé connue et affichait « Réglages importés ✅ » sans rien changer → refusé.
   Tests : 522 → 523 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.118) → prochain passage : TOKENS. Interface ensuite : accueil (HomeShell) ou Agents.
+- 3.0.119 (tokens) : `slimCheckRun` — vérification de commit (GET …/commits/<ref>/check-runs :
+  `head_sha` + `check_suite` + `output`) : `pull_requests` vide, `external_id` vide et, dans
+  `output`, champs nuls/vides et `annotations_count` 0 retirés (`output` disparaît s'il ne reste
+  rien) ; partout, `app` (application GitHub avec `permissions`/`events`, ≈ 30 champs) réduit à
+  son `slug`. Banc `AgentShipTests.githubCheckRuns` (4 vérifications) : 1 132 → 355 tokens
+  (−69 %). Tests : 523 → 524 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.119) → prochain passage : INTERFACE, accueil (HomeShell) ou Agents.
+Tokens ensuite : GET …/releases (`assets` avec `uploader` répété, `draft`/`prerelease` faux)
+ou GET …/check-suites.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
