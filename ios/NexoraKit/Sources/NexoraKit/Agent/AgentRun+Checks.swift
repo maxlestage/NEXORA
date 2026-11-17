@@ -142,10 +142,31 @@ extension AgentRun {
             }
             return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))
         case let a as [Any]:
-            return a.map { slimGitHub($0) }
+            return linearCommits(a.map { slimGitHub($0) })
         default:
             return x
         }
+    }
+
+    /// Une liste de commits (GET …/commits, du plus récent au plus ancien) dont
+    /// l'historique est linéaire : `parents` est retiré d'un commit dont le seul parent
+    /// est le commit qui le suit dans la liste (même règle que `slimCompare`, dans
+    /// l'autre sens). Le dernier commit, une fusion ou un commit hors suite gardent
+    /// leurs parents. Toute autre liste est rendue telle quelle.
+    nonisolated static func linearCommits(_ a: [Any]) -> [Any] {
+        guard a.count > 1 else { return a }
+        var list: [[String: Any]] = []
+        for x in a {
+            guard let c = x as? [String: Any], c["sha"] is String, c["commit"] != nil,
+                  c["parents"] is [String] else { return a }
+            list.append(c)
+        }
+        for i in 0..<(list.count - 1) {
+            if let p = list[i]["parents"] as? [String], let next = list[i + 1]["sha"] as? String, p == [next] {
+                list[i]["parents"] = nil
+            }
+        }
+        return list
     }
 
     /// Une personne citée (auteur, assigné, relecteur…) réduite à son login : son

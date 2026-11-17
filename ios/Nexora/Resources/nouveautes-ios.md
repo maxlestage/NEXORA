@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.109 — 17 novembre 2026 — Historique des commits plus léger
+
+- Amélioré : quand l'agent lit la liste des commits d'un dépôt, les parents qui se déduisent de l'ordre de la liste ne sont plus renvoyés (environ 19 % de tokens en moins sur cette réponse).
+- Les commits de fusion et ceux hors suite gardent leurs parents : l'agent lit l'historique comme avant.
+
 ## 3.0.108 — 16 novembre 2026 — L'agent actuel en tête du choix
 - Amélioré : en choisissant un agent, celui en cours apparaît tout en haut (« Agent actuel »), sans avoir à le chercher dans sa catégorie.
 - Amélioré : « Sans agent » est juste en dessous, pour le retirer d'un geste.

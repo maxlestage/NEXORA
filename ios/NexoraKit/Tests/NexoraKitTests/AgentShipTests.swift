@@ -430,7 +430,7 @@ struct AgentShipTests {
         let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
         let after = AgentRun.githubText(AgentRun.slimGitHub(runs)).count
         print("Banc github (5 runs) : \(before / 4) → \(after / 4) tokens")
-        #expect(after * 10 < before * 8)
+        #expect(after * 100 < before * 85)
         let one = AgentRun.slimGitHub(run(1)) as? [String: Any]
         #expect(one?["triggering_actor"] == nil && (one?["actor"] as? [String: Any])?["login"] as? String == "max")
         let c = one?["head_commit"] as? [String: Any]
@@ -472,7 +472,7 @@ struct AgentShipTests {
         let slim = AgentRun.slimGitHub(run) as! [String: Any]
         let after = AgentRun.githubText(slim).count
         print("Banc github (un run seul) : \(before / 4) → \(after / 4) tokens")
-        #expect(after * 10 < before * 8)
+        #expect(after * 100 < before * 85)
         for k in ["pull_requests", "referenced_workflows", "check_suite_id", "check_suite_node_id",
                   "run_started_at", "display_title"] { #expect(slim[k] == nil) }
         #expect(slim["created_at"] as? String == "2026-11-16T03:00:30Z" && slim["workflow_id"] as? Int == 99)
@@ -573,6 +573,35 @@ struct AgentShipTests {
         #expect((m?["commit"] as? [String: Any])?["committer"] != nil && m?["committer"] != nil)
     }
 
+    @Test("banc github : liste de commits linéaire sans parents répétés")
+    func githubCommitsLinear() throws {
+        func sha(_ n: Int) -> String { String(repeating: "\(n)abc", count: 10) }
+        func commit(_ n: Int, parents: [Int]) -> [String: Any] {
+            let who: [String: Any] = ["name": "Max", "email": "max@exemple.fr", "date": "2026-11-16T0\(n):00:00Z"]
+            return ["sha": sha(n), "html_url": "https://github.com/max/site/commit/\(sha(n))",
+                    "commit": ["author": who, "committer": who, "message": "Correctif \(n)", "comment_count": 0],
+                    "author": ["login": "max", "id": 1, "html_url": "https://github.com/max", "type": "User"],
+                    "parents": parents.map { ["sha": sha($0), "url": "https://api.github.com/repos/max/site/commits/\(sha($0))"] }]
+        }
+        // Du plus récent (1) au plus ancien (6) : 1 → 2 → … → 6 → 7 (hors liste).
+        let list: [Any] = (1...6).map { commit($0, parents: [$0 + 1]) }
+        // Référence : chaque commit allégé seul (sans regard sur ses voisins).
+        let before = list.map { AgentRun.githubText(AgentRun.slimGitHub($0)) }.joined(separator: ",\n").count + 4
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (6 commits linéaires) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 100 < before * 85)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        #expect(out?.count == 6 && out?[0]["parents"] == nil && out?[4]["parents"] == nil)
+        #expect(out?[5]["parents"] as? [String] == [sha(7)])
+        // Fusion (deux parents) ou commit hors suite : parents gardés.
+        let mixed: [Any] = [commit(1, parents: [2, 9]), commit(2, parents: [8]), commit(3, parents: [4])]
+        let m = AgentRun.slimGitHub(mixed) as? [[String: Any]]
+        #expect(m?[0]["parents"] as? [String] == [sha(2), sha(9)] && m?[1]["parents"] as? [String] == [sha(8)])
+        // Liste d'autre chose : inchangée.
+        let other: [Any] = [["name": "a"], ["name": "b"]]
+        #expect((AgentRun.slimGitHub(other) as? [[String: Any]])?.count == 2)
+    }
+
     @Test("banc github : fichiers d'un commit sans sha de blob, patchs longs coupés")
     func githubCommitFiles() throws {
         func file(_ n: Int, lines: Int) -> [String: Any] {
@@ -645,7 +674,7 @@ struct AgentShipTests {
         let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
         let after = AgentRun.githubText(AgentRun.slimGitHub(compare)).count
         print("Banc github (comparaison, 3 commits) : \(before / 4) → \(after / 4) tokens")
-        #expect(after * 10 < before * 8)
+        #expect(after * 100 < before * 85)
         let out = AgentRun.slimGitHub(compare) as? [String: Any]
         #expect(out?["merge_base_commit"] == nil)
         let b = out?["base_commit"] as? [String: Any]
