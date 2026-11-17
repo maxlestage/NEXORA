@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.130 — 17 novembre 2026 — Crédits plus clairs
+- Nouveau : « Crédits et consommation » signale en tête les fournisseurs épuisés ou presque, sans parcourir la liste.
+- Nouveau : les tokens relus depuis le cache aujourd'hui s'affichent sous la dépense (ils coûtent 2 à 10 fois moins cher).
+- Amélioré : texte d'aide sous la liste plus court.
+
 ## 3.0.129 — 17 novembre 2026 — Branches GitHub plus légères
 
 - Amélioré : la liste des branches lue par l'agent coûte environ 48 % de tokens en moins (protection redite retirée).

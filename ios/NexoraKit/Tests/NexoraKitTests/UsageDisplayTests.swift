@@ -19,6 +19,25 @@ struct UsageDisplayTests {
             == "≈ 1,50 $ ce mois · OpenAI : solde 4 $ · Mistral : ok")
     }
 
+    @Test func cache() {
+        #expect(UsageDisplay.cacheLine(cached: 0, sent: 5000) == nil)
+        #expect(UsageDisplay.cacheLine(cached: 100, sent: 0) == nil)
+        #expect(UsageDisplay.cacheLine(cached: 32000, sent: 50000)
+            == "Relus depuis le cache : 32k tokens (64 % des envoyés)")
+        #expect(UsageDisplay.cacheLine(cached: 9, sent: 5)?.contains("100 %") == true)
+    }
+
+    @Test func alerte() {
+        #expect(UsageDisplay.alertLine([]) == nil)
+        #expect(UsageDisplay.alertLine([("OpenAI", .ok), ("Groq", .unknown)]) == nil)
+        #expect(UsageDisplay.alertLine([("OpenAI", .blocked), ("Groq", .ok)]) == "OpenAI épuisé")
+        #expect(UsageDisplay.alertLine([("A", .blocked), ("B", .blocked)]) == "A, B épuisés")
+        #expect(UsageDisplay.alertLine([("Mistral", .low), ("Groq", .low)]) == "À surveiller : Mistral, Groq")
+        #expect(UsageDisplay.alertLine([("Groq", .low), ("OpenAI", .blocked)])
+            == "OpenAI épuisé · à surveiller : Groq")
+        #expect(UsageDisplay.rowsFooter.count < 110)
+    }
+
     @Test func voiceOver() {
         #expect(UsageDisplay.rowAccessibility(name: "OpenAI", summary: "solde 4 $", month: 0)
             == "OpenAI, solde 4 $, aucune dépense ce mois")

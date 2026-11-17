@@ -1047,9 +1047,16 @@ mémoire 32k tokens, consigne 3 000 car.
   (avec `app_id`) retirés. Banc `AgentShipTests.githubBranches` (6 branches dont 1 protégée) :
   356 → 184 tokens (−48 %). Tests : 532 → 533 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.129, branches) → prochain passage : INTERFACE.
-Tokens ensuite : GET …/environments ou …/actions/caches.
+- 3.0.130 (interface) : Crédits et consommation (UsageView, 2e passage, 1er en 3.0.37) —
+  `UsageDisplay.alertLine` : fournisseurs épuisés puis presque épuisés en tête (avant : à
+  chercher ligne par ligne d'après la couleur) ; `cacheLine` : tokens relus depuis le cache
+  aujourd'hui, tous fournisseurs (l'économie du cache devient visible, avant seulement dans
+  la fiche de chaque fournisseur) ; `rowsFooter` : pied 151 → 105 caractères.
+  Tests : 533 → 535 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.130, Crédits) → prochain passage : TOKENS.
+Tokens : GET …/environments ou …/actions/caches.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
