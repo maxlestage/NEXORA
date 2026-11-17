@@ -63,6 +63,15 @@ struct ProviderDetailDisplayTests {
         ModelInfo("o3", detail: "Raisonnement poussé"), ModelInfo("llama-3.3-70b"),
     ]
 
+    @Test func aideRepliéeUneFoisConfiguré() {
+        let groq = ProviderDef(id: "groq", name: "Groq", baseUrl: "https://g", kind: .openai, description: "")
+        let ollama = ProviderDef(id: "ollama", name: "Ollama", baseUrl: "http://o", kind: .ollama, needsKey: false, local: true, description: "")
+        #expect(!ProviderDetailDisplay.helpFolded(groq, hasKey: false, modelCount: 20))
+        #expect(ProviderDetailDisplay.helpFolded(groq, hasKey: true, modelCount: 0))
+        #expect(!ProviderDetailDisplay.helpFolded(ollama, hasKey: false, modelCount: 0))
+        #expect(ProviderDetailDisplay.helpFolded(ollama, hasKey: false, modelCount: 3))
+    }
+
     @Test func rechercheEtDefautEnTete() {
         #expect(ProviderDetailDisplay.models(models, query: "", defaultId: "o3").map(\.id)
                 == ["o3", "gpt-4o", "gpt-4o-mini", "llama-3.3-70b"])

@@ -189,38 +189,50 @@ struct GettingStartedCard: View {
 /// « Comment faire » d'un fournisseur : les étapes, l'offre gratuite et les astuces.
 struct ProviderHelpSection: View {
     let provider: ProviderDef
+    /// Replié derrière « Comment faire » (fournisseur déjà configuré) ; ouvert sinon.
+    var folded = false
 
     @Environment(SettingsStore.self) private var settings
+    @State private var open = false
 
     var body: some View {
         if let help = ProviderHelp.of(provider) {
-            Section("Comment faire") {
-                ForEach(Array(help.steps.enumerated()), id: \.offset) { i, step in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text("\(i + 1)")
-                            .font(.caption.weight(.heavy))
-                            .foregroundStyle(.white)
-                            .frame(width: 24, height: 24)
-                            .background(Theme.gradient(settings.accent), in: .circle)
-                        Text(step).textSelection(.enabled)
-                    }
+            if folded {
+                Section {
+                    DisclosureGroup("Comment faire", isExpanded: $open) { content(help) }
                 }
-                Label {
-                    Text(help.freeTier)
-                } icon: {
-                    Image(systemName: provider.free ? "gift" : "creditcard").foregroundStyle(provider.free ? Theme.green : Theme.amber)
-                }
-                ForEach(help.tips, id: \.self) { tip in
-                    Label {
-                        Text(tip)
-                    } icon: {
-                        Image(systemName: "lightbulb").foregroundStyle(.tint)
-                    }
-                }
-                if let u = help.usageUrl.flatMap(URL.init(string:)) {
-                    Link(destination: u) { Label("Consommation chez \(provider.name)", systemImage: "chart.bar") }
-                }
+            } else {
+                Section("Comment faire") { content(help) }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ help: ProviderHelp) -> some View {
+        ForEach(Array(help.steps.enumerated()), id: \.offset) { i, step in
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(i + 1)")
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Theme.gradient(settings.accent), in: .circle)
+                Text(step).textSelection(.enabled)
+            }
+        }
+        Label {
+            Text(help.freeTier)
+        } icon: {
+            Image(systemName: provider.free ? "gift" : "creditcard").foregroundStyle(provider.free ? Theme.green : Theme.amber)
+        }
+        ForEach(help.tips, id: \.self) { tip in
+            Label {
+                Text(tip)
+            } icon: {
+                Image(systemName: "lightbulb").foregroundStyle(.tint)
+            }
+        }
+        if let u = help.usageUrl.flatMap(URL.init(string:)) {
+            Link(destination: u) { Label("Consommation chez \(provider.name)", systemImage: "chart.bar") }
         }
     }
 }

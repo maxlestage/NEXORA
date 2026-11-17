@@ -260,7 +260,7 @@ struct ProviderDetailView: View {
                         Link(destination: d) { Label("Documentation", systemImage: "book") }
                     }
                 }
-                ProviderHelpSection(provider: p)
+                ProviderHelpSection(provider: p, folded: ProviderDetailDisplay.helpFolded(p, hasKey: settings.hasKey(p.id), modelCount: models.count))
                 if p.custom { customSection(p) }
                 if p.needsKey || p.usesGitHubToken || p.id == "ollama-cloud" || p.custom {
                     Section {
@@ -352,21 +352,6 @@ struct ProviderDetailView: View {
                     }
                 }
                 Section {
-                    HStack {
-                        TextField("Ajouter un modèle par son id", text: $manual)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.callout.monospaced())
-                        Button {
-                            settings.addModel(manual, to: p.id)
-                            manual = ""
-                        } label: {
-                            Image(systemName: "plus.circle.fill").foregroundStyle(.tint)
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(manual.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .accessibilityLabel("Ajouter le modèle")
-                    }
                     if ProviderDetailDisplay.showsSearch(count: models.count) {
                         Label {
                             TextField("Rechercher un modèle", text: $modelQuery)
@@ -406,6 +391,23 @@ struct ProviderDetailView: View {
                                 }
                             }
                         }
+                    }
+                    // Action rare : en bas de la liste, sous les modèles.
+                    HStack {
+                        TextField("Ajouter un modèle par son id", text: $manual)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.callout.monospaced())
+                        Button {
+                            settings.addModel(manual, to: p.id)
+                            manual = ""
+                        } label: {
+                            Image(systemName: "plus.circle.fill").foregroundStyle(.tint)
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(manual.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .accessibilityLabel("Ajouter le modèle")
                     }
                 } header: {
                     HStack {

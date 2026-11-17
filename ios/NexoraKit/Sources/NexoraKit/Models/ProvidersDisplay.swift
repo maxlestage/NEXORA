@@ -87,6 +87,13 @@ public enum ProvidersDisplay {
 
 /// Logique d'affichage de la fiche d'un fournisseur (ProviderDetailView), testable sous Linux.
 public enum ProviderDetailDisplay {
+    /// « Comment faire » est-il replié ? Oui une fois le fournisseur configuré (clé
+    /// enregistrée, ou serveur local qui a déjà donné ses modèles) : les modèles, l'action
+    /// fréquente, remontent. Sinon les étapes restent ouvertes pour guider la mise en place.
+    public static func helpFolded(_ p: ProviderDef, hasKey: Bool, modelCount: Int) -> Bool {
+        hasKey || (p.local && modelCount > 0)
+    }
+
     /// Au-delà de ce nombre de modèles, un champ de recherche est proposé.
     public static let searchThreshold = 12
 
