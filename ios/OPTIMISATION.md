@@ -906,11 +906,18 @@ mémoire 32k tokens, consigne 3 000 car.
   modèle par son id » (rare) déplacé du haut vers le bas de la section Modèles, bouton +
   porté à 44 pt. Tests : 514 → 515 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.110 : fiche d'un fournisseur) → prochain passage : TOKENS.
-Interface ensuite : écran Réglages ou Personnaliser.
-Tokens : autre réponse GitHub lourde (ex. GET …/pulls/<n>/files, reviews,
-comments de pull request : vérifier `user`/`author_association` répétés).
+- 3.0.111 (tokens) : `slimReviewComment` + `replyHunks` — commentaires de relecture
+  (GET …/pulls/<n>/comments) : `original_*` identiques, champs nuls, `subject_type`
+  « line », `updated_at` = `created_at` retirés ; `diff_hunk` réduit à ses `hunkLines` = 8
+  dernières lignes ; une réponse (`in_reply_to_id`) perd le hunk identique à celui du
+  commentaire d'origine. Banc `AgentShipTests.githubReviewComments` (4 commentaires dont
+  2 réponses) : 1261 → 510 tokens (−60 %). Tests : 515 → 516 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.111 : commentaires de relecture) → prochain passage : INTERFACE,
+écran Réglages ou Personnaliser.
+Tokens ensuite : GET …/pulls/<n>/reviews et …/issues/<n>/comments (vérifier
+`author_association`, `body` vide d'une relecture « APPROVED »), ou …/pulls/<n>/files.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
