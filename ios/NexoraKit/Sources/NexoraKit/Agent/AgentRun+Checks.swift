@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -216,6 +216,22 @@ extension AgentRun {
             let anchors = ["#issuecomment-\(id)", "#pullrequestreview-\(id)", "#discussion_r\(id)"]
             if anchors.contains(where: { link.hasSuffix($0) }) { out["html_url"] = nil }
         }
+        return out
+    }
+
+    /// Champs de fermeture d'une issue ou d'une pull request, nuls tant qu'elle est ouverte.
+    nonisolated static let closingKeys = ["closed_at", "closed_by", "merged_at", "merged_by"]
+
+    /// Une issue ou une pull request OUVERTE (`number` + `title` + `state` « open ») allégée :
+    /// ses champs de fermeture nuls (`closed_at`, `closed_by`, `merged_at`, `merged_by`) et
+    /// `draft`/`merged` faux sont retirés — « ouverte » les dit déjà. Une issue fermée les
+    /// garde tous (un `merged_at` nul y distingue « fermée » de « fusionnée »). Tout autre
+    /// objet est rendu tel quel.
+    nonisolated static func slimOpen(_ d: [String: Any]) -> [String: Any] {
+        guard d["number"] is Int, d["title"] is String, (d["state"] as? String) == "open" else { return d }
+        var out = d
+        for k in closingKeys where d[k] is NSNull { out[k] = nil }
+        for k in ["draft", "merged"] where (d[k] as? Bool) == false { out[k] = nil }
         return out
     }
 
