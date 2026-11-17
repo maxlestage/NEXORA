@@ -54,6 +54,27 @@ struct ProvidersDisplayTests {
         #expect(ProvidersDisplay.accessibility(list[2], ready: false) == "OpenAI, clé requise")
         #expect(ProvidersDisplay.accessibility(list[0], ready: true) == "Groq, prêt, gratuit")
     }
+
+    @Test func actionsRapidesEtCleCollee() {
+        let groq = ProviderDef(id: "groq", name: "Groq", baseUrl: "https://g", kind: .openai, free: true,
+                               keyUrl: "https://console.groq.com/keys", docsUrl: "https://docs")
+        #expect(ProvidersDisplay.quickActions(groq, hasKey: false) == [.getKey, .pasteKey, .docs])
+        #expect(ProvidersDisplay.quickActions(groq, hasKey: true) == [.docs])
+        let bare = ProviderDef(id: "x", name: "X", baseUrl: "https://x", kind: .openai)
+        #expect(ProvidersDisplay.quickActions(bare, hasKey: false) == [.pasteKey])
+        let local = ProviderDef(id: "o", name: "Ollama", baseUrl: "http://o", kind: .ollama, needsKey: false, local: true)
+        #expect(ProvidersDisplay.quickActions(local, hasKey: false).isEmpty)
+        #expect(ProvidersDisplay.getKeyLabel(groq) == "Clé gratuite")
+        #expect(ProvidersDisplay.getKeyLabel(bare) == "Obtenir une clé")
+        #expect(ProvidersDisplay.pastedKey("  gsk_abc123XYZ\n") == "gsk_abc123XYZ")
+        #expect(ProvidersDisplay.pastedKey(nil) == nil)
+        #expect(ProvidersDisplay.pastedKey("court") == nil)
+        #expect(ProvidersDisplay.pastedKey("voici ma clé secrète") == nil)
+        #expect(ProvidersDisplay.pastedKey("https://console.groq.com/keys") == nil)
+        #expect(ProvidersDisplay.pastedKey(String(repeating: "a", count: 513)) == nil)
+        #expect(ProvidersDisplay.pasteToast(name: "Groq", saved: true) == "Clé enregistrée : Groq est prêt")
+        #expect(ProvidersDisplay.pasteToast(name: "Groq", saved: false) == "Copiez d'abord la clé de Groq, puis réessayez")
+    }
 }
 
 @Suite("Fiche d'un fournisseur")

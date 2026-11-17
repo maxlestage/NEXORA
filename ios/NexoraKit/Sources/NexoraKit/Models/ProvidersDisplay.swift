@@ -83,6 +83,49 @@ public enum ProvidersDisplay {
                            accessibility: "Modèle par défaut : \(who). \(ready.prefix(1).uppercased() + ready.dropFirst())",
                            hint: "Touchez pour changer de modèle")
     }
+
+    /// Les actions de l'appui long sur un fournisseur (sans ouvrir sa fiche).
+    public enum QuickAction: Sendable, Hashable {
+        /// Ouvrir la page où créer une clé (gratuite ou non).
+        case getKey
+        /// Enregistrer la clé copiée dans le presse-papiers.
+        case pasteKey
+        /// Ouvrir la documentation du fournisseur.
+        case docs
+    }
+
+    /// Les actions proposées : « Obtenir une clé » et « Coller la clé » tant qu'il en
+    /// manque une, puis la documentation. Rien pour un fournisseur sans clé ni lien.
+    public static func quickActions(_ p: ProviderDef, hasKey: Bool) -> [QuickAction] {
+        var a: [QuickAction] = []
+        let missing = p.needsKey && !hasKey
+        if missing, !(p.keyUrl ?? "").isEmpty { a.append(.getKey) }
+        if missing { a.append(.pasteKey) }
+        if !(p.docsUrl ?? "").isEmpty { a.append(.docs) }
+        return a
+    }
+
+    /// Libellé de « Obtenir une clé » (« Clé gratuite » pour un fournisseur gratuit).
+    public static func getKeyLabel(_ p: ProviderDef) -> String {
+        p.free ? "Clé gratuite" : "Obtenir une clé"
+    }
+
+    /// La clé lue dans le presse-papiers, si elle en a l'air : un seul mot de 8 à
+    /// 512 caractères, sans espace ni retour à la ligne (une phrase ou une adresse
+    /// copiée par erreur n'est pas enregistrée).
+    public static func pastedKey(_ text: String?) -> String? {
+        guard let k = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              (8...512).contains(k.count),
+              !k.contains(where: \.isWhitespace),
+              !k.hasPrefix("http://"), !k.hasPrefix("https://") else { return nil }
+        return k
+    }
+
+    /// Le retour après « Coller la clé » : réussite, ou ce qui ne va pas.
+    public static func pasteToast(name: String, saved: Bool) -> String {
+        saved ? "Clé enregistrée : \(name) est prêt"
+            : "Copiez d'abord la clé de \(name), puis réessayez"
+    }
 }
 
 /// Logique d'affichage de la fiche d'un fournisseur (ProviderDetailView), testable sous Linux.

@@ -1,5 +1,6 @@
 import NexoraKit
 import SwiftUI
+import UIKit
 
 /// L'onglet Modèles (`ui/providers/providers_screen.dart`) : tous les fournisseurs,
 /// leur état et leurs offres gratuites, avec des filtres et l'ajout d'un serveur perso.
@@ -11,6 +12,8 @@ struct ProvidersView: View {
     @State private var adding = false
     @State private var pickModel = false
     @State private var toast: Toast?
+    @State private var keySaved = 0
+    @Environment(\.openURL) private var openURL
 
     private var list: [ProviderDef] {
         ProvidersDisplay.filter(settings.providers, filter: filter, query: query, isReady: { settings.isReady($0) })
@@ -77,6 +80,7 @@ struct ProvidersView: View {
                         ForEach(Array(section.ids.enumerated()), id: \.element) { i, id in
                             if let p = byId[id] {
                                 NavigationLink(value: p.id) { row(p) }
+                                    .contextMenu { quickMenu(p) }
                                     .reveal(i)
                             }
                         }
@@ -129,6 +133,38 @@ struct ProvidersView: View {
                 }
             }
             .toast($toast)
+            .sensoryFeedback(.success, trigger: keySaved) { _, _ in settings.haptics }
+        }
+    }
+
+    /// Appui long sur un fournisseur : obtenir ou coller une clé, documentation,
+    /// sans ouvrir la fiche.
+    @ViewBuilder
+    private func quickMenu(_ p: ProviderDef) -> some View {
+        ForEach(ProvidersDisplay.quickActions(p, hasKey: settings.hasKey(p.id)), id: \.self) { action in
+            switch action {
+            case .getKey:
+                Button(ProvidersDisplay.getKeyLabel(p), systemImage: "key") {
+                    if let u = p.keyUrl.flatMap(URL.init(string:)) { openURL(u) }
+                }
+            case .pasteKey:
+                Button("Coller la clé", systemImage: "doc.on.clipboard") { pasteKey(p) }
+            case .docs:
+                Button("Documentation", systemImage: "book") {
+                    if let u = p.docsUrl.flatMap(URL.init(string:)) { openURL(u) }
+                }
+            }
+        }
+    }
+
+    /// Enregistre la clé du presse-papiers si elle en a l'air, avec un retour clair.
+    private func pasteKey(_ p: ProviderDef) {
+        if let k = ProvidersDisplay.pastedKey(UIPasteboard.general.string) {
+            settings.setKey(k, for: p.id)
+            keySaved += 1
+            toast = Toast(text: ProvidersDisplay.pasteToast(name: p.name, saved: true))
+        } else {
+            toast = Toast(text: ProvidersDisplay.pasteToast(name: p.name, saved: false))
         }
     }
 
