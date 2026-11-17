@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.123 — 17 novembre 2026 — Vérifications GitHub plus légères pour l'agent
+
+- Amélioré : quand l'agent consulte les suites de vérifications d'un commit, la réponse de GitHub lui coûte environ 19 % de tokens en moins.
+- Le commit de tête est réduit à son titre et à son auteur ; les valeurs répétées ou par défaut ne sont plus envoyées (état, conclusion et nombre de vérifications restent).
+
 ## 3.0.122 — 17 novembre 2026 — Agents supprimés seulement si vous le confirmez
 - Corrigé : un balayage ou un toucher sur « Supprimer » effaçait aussitôt un agent personnalisé et sa consigne ; une confirmation le demande maintenant, comme pour les skills.
 - Amélioré : la confirmation dit ce que l'on supprime (« Supprimer l'agent « Relecteur » ? ») et que ses conversations restent.
