@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(out)))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -399,6 +399,33 @@ extension AgentRun {
         for k in ["rerequestable", "runs_rerequestable"] where (d[k] as? Bool) == true { out[k] = nil }
         if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
         if let c = d["head_commit"] as? [String: Any] { out["head_commit"] = slimHeadCommit(c, sha: sha) }
+        return out
+    }
+
+    /// Un statut de commit (GET …/commits/<ref>/statuses, ou un élément de `statuses`
+    /// dans GET …/commits/<ref>/status : `context` + `state` + `created_at`, sans `name`
+    /// ni `head_sha`) allégé : `id` (aucune route ne le lit), `description` nulle ou vide
+    /// et `updated_at` identique à `created_at`. Contexte, état et date sont gardés. Tout
+    /// autre objet est rendu tel quel.
+    nonisolated static func slimStatus(_ d: [String: Any]) -> [String: Any] {
+        guard d["context"] is String, d["state"] is String, d["created_at"] is String,
+              d["name"] == nil, d["head_sha"] == nil else { return d }
+        var out = d
+        out["id"] = nil
+        if d["description"] is NSNull || (d["description"] as? String) == "" { out["description"] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        return out
+    }
+
+    /// Le statut combiné d'un commit (GET …/commits/<ref>/status : `state` + `sha` +
+    /// `statuses` + `total_count`) allégé : `total_count` retiré quand il est égal au
+    /// nombre de statuts montrés (le cas courant, moins de 100). Tout autre objet est
+    /// rendu tel quel.
+    nonisolated static func slimCombinedStatus(_ d: [String: Any]) -> [String: Any] {
+        guard d["state"] is String, d["sha"] is String, let list = d["statuses"] as? [Any],
+              let n = d["total_count"] as? Int, n == list.count else { return d }
+        var out = d
+        out["total_count"] = nil
         return out
     }
 
