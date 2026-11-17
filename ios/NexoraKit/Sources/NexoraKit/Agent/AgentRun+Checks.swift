@@ -140,7 +140,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -194,6 +194,27 @@ extension AgentRun {
         if lines.count > hunkLines + 1 {
             let hidden = lines.count - hunkLines
             out["diff_hunk"] = "… (\(hidden) lignes avant)\n" + lines.suffix(hunkLines).joined(separator: "\n")
+        }
+        return out
+    }
+
+    /// Un message d'une discussion (commentaire d'issue ou de pull request, relecture,
+    /// commentaire de relecture, issue : `author_association` + `body` + `user`) allégé :
+    /// `updated_at` identique à `created_at` (jamais modifié), `author_association`
+    /// « NONE » (aucun lien avec le dépôt, le cas par défaut), `body` vide (relecture
+    /// « APPROVED » sans texte) et `html_url` qui n'est que l'adresse de la page suivie de
+    /// l'ancre de l'identifiant déjà présent (`#issuecomment-<id>`,
+    /// `#pullrequestreview-<id>`, `#discussion_r<id>`). Tout autre objet est rendu tel quel.
+    nonisolated static func slimDiscussion(_ d: [String: Any]) -> [String: Any] {
+        guard d["author_association"] is String, d["body"] != nil, d["user"] != nil else { return d }
+        var out = d
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        if (d["author_association"] as? String) == "NONE" { out["author_association"] = nil }
+        if let b = d["body"] as? String, b.isEmpty { out["body"] = nil }
+        if d["body"] is NSNull { out["body"] = nil }
+        if let link = d["html_url"] as? String, let id = d["id"] {
+            let anchors = ["#issuecomment-\(id)", "#pullrequestreview-\(id)", "#discussion_r\(id)"]
+            if anchors.contains(where: { link.hasSuffix($0) }) { out["html_url"] = nil }
         }
         return out
     }

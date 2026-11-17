@@ -649,6 +649,52 @@ struct AgentShipTests {
         #expect((AgentRun.slimGitHub(short) as? [String: Any])?["diff_hunk"] as? String == "@@ -1,2 +1,2 @@\n-a\n+b")
     }
 
+    @Test("banc github : commentaires d'issue et relectures sans champs redondants")
+    func githubDiscussion() throws {
+        let sha = String(repeating: "1abc", count: 10)
+        let api = "https://api.github.com/repos/max/site"
+        func person(_ login: String) -> [String: Any] {
+            ["login": login, "id": 7, "node_id": "U_kg", "html_url": "https://github.com/\(login)", "type": "User",
+             "site_admin": false, "user_view_type": "public", "avatar_url": "https://avatars/u/7"]
+        }
+        func comment(_ id: Int, edited: Bool = false, who: String = "max", assoc: String = "OWNER") -> [String: Any] {
+            ["url": "\(api)/issues/comments/\(id)", "html_url": "https://github.com/max/site/issues/3#issuecomment-\(id)",
+             "issue_url": "\(api)/issues/3", "id": id, "node_id": "IC_kw\(id)", "user": person(who),
+             "created_at": "2026-11-16T0\(id):00:00Z", "updated_at": edited ? "2026-11-17T00:00:00Z" : "2026-11-16T0\(id):00:00Z",
+             "author_association": assoc, "body": "Avis \(id) : ça marche chez moi.", "performed_via_github_app": NSNull(),
+             "reactions": ["url": "\(api)/issues/comments/\(id)/reactions", "total_count": 0, "+1": 0, "-1": 0]]
+        }
+        func review(_ id: Int, state: String, body: String) -> [String: Any] {
+            ["id": id, "node_id": "PRR_kw\(id)", "user": person("ana"), "body": body, "state": state,
+             "html_url": "https://github.com/max/site/pull/3#pullrequestreview-\(id)",
+             "pull_request_url": "\(api)/pulls/3", "author_association": "COLLABORATOR",
+             "_links": ["html": ["href": "https://github.com/max/site/pull/3#pullrequestreview-\(id)"]],
+             "submitted_at": "2026-11-16T05:00:00Z", "commit_id": sha]
+        }
+        let list: [Any] = [comment(1), comment(2, edited: true), comment(3, who: "zoe", assoc: "NONE"), comment(4),
+                           review(5, state: "APPROVED", body: ""), review(6, state: "CHANGES_REQUESTED", body: "Renomme la vue.")]
+        // Référence : sans la règle des discussions (clé `author_association` masquée).
+        let plain = list.map { x -> Any in var c = x as! [String: Any]; c["author_associatioX"] = c.removeValue(forKey: "author_association"); return c }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (4 commentaires + 2 relectures) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 100 < before * 85)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        #expect(out?[0]["updated_at"] == nil && out?[0]["html_url"] == nil && out?[0]["author_association"] as? String == "OWNER")
+        #expect(out?[0]["body"] as? String == "Avis 1 : ça marche chez moi." && out?[0]["created_at"] != nil)
+        // Modifié depuis : la date de modification reste.
+        #expect(out?[1]["updated_at"] as? String == "2026-11-17T00:00:00Z")
+        // Personne sans lien avec le dépôt : « NONE » retiré.
+        #expect(out?[2]["author_association"] == nil && (out?[2]["user"] as? [String: Any])?["login"] as? String == "zoe")
+        // Relecture approuvée sans texte : corps vide retiré, état et commit gardés.
+        #expect(out?[4]["body"] == nil && out?[4]["state"] as? String == "APPROVED" && out?[4]["commit_id"] as? String == sha)
+        #expect(out?[5]["body"] as? String == "Renomme la vue." && out?[5]["html_url"] == nil)
+        // Lien qui ne finit pas par l'ancre de l'identifiant : gardé.
+        var other = comment(8)
+        other["html_url"] = "https://github.com/max/site/issues/3"
+        #expect((AgentRun.slimGitHub(other) as? [String: Any])?["html_url"] as? String == "https://github.com/max/site/issues/3")
+    }
+
     @Test("banc github : fichiers d'un commit sans sha de blob, patchs longs coupés")
     func githubCommitFiles() throws {
         func file(_ n: Int, lines: Int) -> [String: Any] {

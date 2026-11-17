@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.113 — 17 novembre 2026 — Discussions GitHub plus légères
+- Amélioré : les commentaires d'issue et les relectures de pull request lus par l'agent coûtent environ 36 % de tokens en moins.
+- Retirés de ce qu'il lit : dates de modification identiques, lien de chaque commentaire, texte vide d'une approbation.
+- Rien ne change dans ce que l'agent peut faire.
+
 ## 3.0.112 — 17 novembre 2026 — Réglages plus courts
 - Amélioré : la section « À propos » des Réglages tient sur deux lignes, « Nouveautés » et « À propos de NEXORA ».
 - Les crédits, le code source, le site et « Revoir la présentation » sont sur la page « À propos de NEXORA ».

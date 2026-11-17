@@ -919,11 +919,19 @@ mémoire 32k tokens, consigne 3 000 car.
   page avec le reste (AboutNexoraView, privée à SettingsView.swift) ; sous-titre de
   Personnaliser raccourci (8 → 4 mots). Rien retiré. Tests : 516 → 517 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.112 : Réglages › À propos) → prochain passage : TOKENS,
-GET …/pulls/<n>/reviews et …/issues/<n>/comments (vérifier `author_association`, `body`
-vide d'une relecture « APPROVED »), ou …/pulls/<n>/files.
-Interface ensuite : session de l'agent ou écran Code/GitHub (pas repassés depuis longtemps).
+- 3.0.113 (tokens) : `slimDiscussion` — tout message de discussion (`author_association`
+  + `body` + `user` : commentaire d'issue/PR, relecture, commentaire de relecture, issue) :
+  `updated_at` = `created_at`, `author_association` « NONE », `body` vide (APPROVED sans
+  texte) et `html_url` = page + ancre de l'id (`#issuecomment-`, `#pullrequestreview-`,
+  `#discussion_r`) retirés. Banc `AgentShipTests.githubDiscussion` (4 commentaires +
+  2 relectures) : 372 → 237 tokens (−36 %) ; banc des commentaires de relecture :
+  510 → 448. Tests : 517 → 518 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.113 : discussions GitHub) → prochain passage : INTERFACE, session de
+l'agent ou écran Code/GitHub (pas repassés depuis longtemps).
+Tokens ensuite : GET …/pulls/<n>/files (vérifier `sha`/`blob_url` comme `slimFile`),
+…/issues/<n>/events ou …/timeline.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
