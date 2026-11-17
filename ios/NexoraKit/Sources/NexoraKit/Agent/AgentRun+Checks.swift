@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -286,6 +286,32 @@ extension AgentRun {
               d.keys.allSatisfy({ ["login", "id", "html_url", "type"].contains($0) }) else { return nil }
         if let link = d["html_url"] as? String, link != "https://github.com/\(login)" { return nil }
         return type == "User" ? ["login": login] : ["login": login, "type": type]
+    }
+
+    /// Une version publiée (GET …/releases, …/releases/latest, …/releases/tags/<tag> :
+    /// `tag_name` + `prerelease` + `assets`) allégée : `draft`, `prerelease` et
+    /// `immutable` quand ils sont faux (gardés s'ils sont vrais), `body` nul, la liste
+    /// vide `assets` ; dans chaque fichier joint, `uploader` identique à l'auteur de la
+    /// version (presque toujours), `state` « uploaded » (le cas courant), `label` nul ou
+    /// vide et `updated_at` identique à `created_at`. Nom, taille, téléchargements, lien
+    /// de téléchargement et `id` (pour GET …/releases/assets/<id>) sont gardés. Tout autre
+    /// objet est rendu tel quel.
+    nonisolated static func slimRelease(_ d: [String: Any]) -> [String: Any] {
+        guard d["tag_name"] is String, d["prerelease"] != nil, let assets = d["assets"] as? [Any] else { return d }
+        var out = d
+        for k in ["draft", "prerelease", "immutable"] where (d[k] as? Bool) == false { out[k] = nil }
+        if d["body"] is NSNull { out["body"] = nil }
+        let author = (d["author"] as? [String: Any]).map { NSDictionary(dictionary: $0) }
+        let kept: [Any] = assets.map { x in
+            guard var a = x as? [String: Any], a["browser_download_url"] != nil else { return x }
+            if let u = a["uploader"] as? [String: Any], let author, author.isEqual(to: u) { a["uploader"] = nil }
+            if (a["state"] as? String) == "uploaded" { a["state"] = nil }
+            if a["label"] is NSNull || (a["label"] as? String) == "" { a["label"] = nil }
+            if let u = a["updated_at"] as? String, u == a["created_at"] as? String { a["updated_at"] = nil }
+            return a
+        }
+        out["assets"] = kept.isEmpty ? nil : kept
+        return out
     }
 
     /// Une vérification de commit (GET …/commits/<ref>/check-runs, …/check-runs/<id> :
