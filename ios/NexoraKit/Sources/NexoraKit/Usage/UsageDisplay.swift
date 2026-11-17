@@ -18,6 +18,33 @@ public enum UsageDisplay {
         return (["≈ \(UsageFormat.costLabel(month)) ce mois"] + names).joined(separator: " · ")
     }
 
+    /// La ligne « cache » sous le total : les tokens relus depuis le cache aujourd'hui
+    /// (facturés 2 à 10 fois moins cher), tous fournisseurs confondus ; `nil` sans relu.
+    public static func cacheLine(cached: Int, sent: Int) -> String? {
+        guard cached > 0, sent > 0 else { return nil }
+        let pct = min(100, Int((Double(cached) * 100 / Double(sent)).rounded()))
+        return "Relus depuis le cache : \(UsageFormat.compact(cached)) tokens (\(pct) % des envoyés)"
+    }
+
+    /// L'alerte en tête de l'écran : les fournisseurs épuisés d'abord, puis ceux presque
+    /// épuisés (`levels` dans l'ordre d'affichage) ; `nil` si tout va bien.
+    /// « OpenAI épuisé » · « À surveiller : Mistral, Groq » · « OpenAI épuisé · à surveiller : Groq ».
+    public static func alertLine(_ levels: [(name: String, level: UsageLevel)]) -> String? {
+        let blocked = levels.filter { $0.level == .blocked }.map(\.name)
+        let low = levels.filter { $0.level == .low }.map(\.name)
+        var parts: [String] = []
+        if !blocked.isEmpty {
+            parts.append("\(blocked.joined(separator: ", ")) \(blocked.count > 1 ? "épuisés" : "épuisé")")
+        }
+        if !low.isEmpty {
+            parts.append("\(parts.isEmpty ? "À" : "à") surveiller : \(low.joined(separator: ", "))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Le pied de la liste des fournisseurs, en une phrase.
+    public static let rowsFooter = "Touchez un fournisseur pour son solde et ses limites. Le coût de chaque réponse s'affiche sous le message."
+
     /// Ce que VoiceOver lit pour une ligne de fournisseur.
     public static func rowAccessibility(name: String, summary: String, month: Double) -> String {
         let spent = month > 0 ? "≈ \(UsageFormat.costLabel(month)) ce mois" : "aucune dépense ce mois"

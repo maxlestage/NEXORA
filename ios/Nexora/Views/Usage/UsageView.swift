@@ -11,13 +11,18 @@ struct UsageView: View {
 
     var body: some View {
         let list = usage.tracked(settings)
-        let totals = list.reduce(into: (month: 0.0, today: 0.0, requests: 0, tokens: 0)) { t, p in
+        let totals = list.reduce(into: (month: 0.0, today: 0.0, requests: 0, tokens: 0, sent: 0, cached: 0)) { t, p in
             let u = usage.of(p.id)
             t.month += u.costMonth
             t.today += u.costToday
             t.requests += u.requestsToday
             t.tokens += u.tokensToday
+            t.sent += u.tokensInToday
+            t.cached += u.tokensCachedToday
         }
+        let now = Date()
+        let alert = UsageDisplay.alertLine(list.map { (name: $0.name, level: usage.of($0.id).level(now)) })
+        let cacheLine = UsageDisplay.cacheLine(cached: totals.cached, sent: totals.sent)
         List {
             if list.isEmpty {
                 // État vide : une seule action, ajouter une clé dans Modèles.
@@ -42,9 +47,22 @@ struct UsageView: View {
                         Text(UsageDisplay.todayLine(cost: totals.today, requests: totals.requests, tokens: totals.tokens))
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if let cacheLine {
+                            // L'économie du cache de prompt, rendue visible.
+                            Label(cacheLine, systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
                     }
                     .padding(.vertical, 4)
                     .accessibilityElement(children: .combine)
+                    if let alert {
+                        // Ce qui demande une action, sans devoir parcourir la liste.
+                        Label(alert, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .frame(minHeight: 44, alignment: .leading)
+                    }
                 }
 
                 Section {
@@ -59,7 +77,7 @@ struct UsageView: View {
                 } header: {
                     Text("Par fournisseur")
                 } footer: {
-                    Text("Touchez un fournisseur pour son solde, ses limites et « Indiquer mon solde ». Le coût de chaque réponse s'affiche aussi sous le message.")
+                    Text(UsageDisplay.rowsFooter)
                 }
             }
         }
