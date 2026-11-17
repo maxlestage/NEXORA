@@ -278,6 +278,22 @@ struct PreferencesTests {
         #expect(!bad)
     }
 
+    @Test("import : un export copié est reconnu, un JSON quelconque refusé")
+    func exportDetected() {
+        #expect(Set(Preferences().export().keys) == Preferences.exportKeys)
+        #expect(Preferences.isExport(Preferences().exportText()))
+        #expect(Preferences.isExport("  {\"theme\":\"light\"}\n"))
+        #expect(!Preferences.isExport(nil))
+        #expect(!Preferences.isExport("sk-ant-1234567890"))
+        #expect(!Preferences.isExport("{}"))
+        #expect(!Preferences.isExport(#"{"name":"x","version":1}"#))
+        #expect(!Preferences.isExport(#"["theme"]"#))
+        var q = Preferences()
+        let empty = q.apply(text: "{}")
+        #expect(!empty)
+        #expect(q == Preferences())
+    }
+
     @Test("import : types vérifiés, valeurs bornées")
     func typed() {
         var p = Preferences()

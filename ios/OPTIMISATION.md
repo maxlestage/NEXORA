@@ -955,8 +955,16 @@ mémoire 32k tokens, consigne 3 000 car.
   801 → 753 tokens (−6 %) ; banc des 5 tickets : 443 → 421 (−5 %).
   Tests : 521 → 522 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.117) → prochain passage : INTERFACE (Personnaliser ou accueil).
+- 3.0.118 (interface) : Personnaliser, 3e passage — import des réglages : `Preferences.isExport`
+  (objet JSON portant au moins une clé d'export) ; à l'ouverture de « Importer des réglages »,
+  un export présent dans le presse-papiers remplit le champ (note « Réglages repris du
+  presse-papiers ») : avant, 4 gestes (ouvrir, toucher le champ, Coller, Importer) → 2 (ouvrir,
+  Importer). « Importer » grisé si le champ est vide. Bug : `apply(text:)` acceptait `{}` ou
+  tout JSON sans clé connue et affichait « Réglages importés ✅ » sans rien changer → refusé.
+  Tests : 522 → 523 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.118) → prochain passage : TOKENS. Interface ensuite : accueil (HomeShell) ou Agents.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

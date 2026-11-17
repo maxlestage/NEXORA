@@ -97,12 +97,33 @@ public struct Preferences: Sendable, Equatable {
         if let fav = j["favorite_models"] as? [Any] { favoriteModels = Self.unique(fav.compactMap { $0 as? String }) }
     }
 
-    /// Lit un texte collé ; `nil` s'il ne contient pas de réglages exportés.
+    /// Lit un texte collé ; faux s'il ne contient pas de réglages exportés (un JSON
+    /// sans aucune clé connue, comme `{}`, n'importait rien mais disait « importés »).
     public mutating func apply(text: String) -> Bool {
-        guard let data = text.data(using: .utf8),
-              let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        guard let j = Self.exportObject(text) else { return false }
         apply(j)
         return true
+    }
+
+    /// Vrai si le texte (par ex. le presse-papiers) contient des réglages exportés :
+    /// l'écran d'import le reprend alors tout seul, sans avoir à le coller.
+    public static func isExport(_ text: String?) -> Bool { exportObject(text) != nil }
+
+    /// Les clés d'un export (celles de `export()`).
+    static let exportKeys: Set<String> = [
+        "theme", "default_model", "temperature", "show_thinking", "haptics", "default_level",
+        "accent", "oled_black", "text_scale", "animations", "bubble_style", "send_on_enter",
+        "assistant_name", "context_tokens", "custom_instructions", "about_me", "response_style",
+        "hidden_tabs", "favorite_models",
+    ]
+
+    /// L'objet JSON du texte s'il porte au moins une clé d'export.
+    static func exportObject(_ text: String?) -> [String: Any]? {
+        guard let text, text.count < 200_000,
+              let data = text.trimmingCharacters(in: .whitespacesAndNewlines).data(using: .utf8),
+              let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              !exportKeys.isDisjoint(with: j.keys) else { return nil }
+        return j
     }
 
     /// Remet l'apparence et l'assistant par défaut (pas les clés ni les modèles).

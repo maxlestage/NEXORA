@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.118 — 17 novembre 2026 — Réglages plus faciles à importer
+- Amélioré : « Importer des réglages » reprend tout seul des réglages déjà copiés (ici ou dans l'app Flutter) ; il ne reste qu'à toucher « Importer ».
+- Corrigé : un texte JSON sans aucun réglage n'affiche plus « Réglages importés » alors que rien n'a changé.
+- Amélioré : le bouton « Importer » reste grisé tant que le champ est vide.
+
 ## 3.0.117 — 17 novembre 2026 — Issues et pull requests plus légères pour l'agent
 - Amélioré : quand l'agent lit des issues ou des pull requests ouvertes, les champs de fermeture vides (date de fermeture, de fusion, « brouillon : non ») ne lui sont plus envoyés : environ 6 % de tokens en moins sur une liste de pull requests.
 - Inchangé : une issue ou une pull request fermée garde tous ses champs, pour distinguer « fermée » de « fusionnée ».

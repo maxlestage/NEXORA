@@ -9,6 +9,7 @@ struct PersonalizeView: View {
     @State private var pickLevel = false
     @State private var importing = false
     @State private var importText = ""
+    @State private var importFromClipboard = false
     @State private var toast: Toast?
     @State private var name = ""
     @State private var about = ""
@@ -229,7 +230,11 @@ struct PersonalizeView: View {
                 Button("Exporter mes réglages", systemImage: "square.and.arrow.up") { export() }
                     .frame(minHeight: 44)
                 Button("Importer des réglages", systemImage: "square.and.arrow.down") {
-                    importText = ""
+                    // Un export déjà copié (ici ou dans l'app Flutter) est repris tout seul :
+                    // il ne reste qu'à toucher « Importer ».
+                    let clip = UIPasteboard.general.hasStrings ? UIPasteboard.general.string : nil
+                    importFromClipboard = Preferences.isExport(clip)
+                    importText = importFromClipboard ? (clip ?? "") : ""
                     importing = true
                 }
                 .frame(minHeight: 44)
@@ -312,6 +317,10 @@ struct PersonalizeView: View {
                         .lineLimit(6...12)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                } footer: {
+                    if importFromClipboard {
+                        Label("Réglages repris du presse-papiers", systemImage: "doc.on.clipboard")
+                    }
                 }
             }
             .navigationTitle("Importer des réglages")
@@ -329,6 +338,7 @@ struct PersonalizeView: View {
                             toast = Toast(text: "Texte invalide : collez des réglages exportés.", error: true)
                         }
                     }
+                    .disabled(importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
