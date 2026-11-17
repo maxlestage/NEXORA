@@ -22,6 +22,11 @@ on:
     paths: ["ios/**", ".github/workflows/testflight.yml"]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      nettoyer_builds:
+        description: "Expirer les anciens builds TestFlight (garde le plus récent)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -151,6 +156,12 @@ jobs:
             exit 1
           fi
           echo "KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: Expirer les anciens builds TestFlight
+        if: steps.secrets.outputs.ok == 'true' && inputs.nettoyer_builds == true
+        continue-on-error: true
+        working-directory: .
+        run: python3 .github/scripts/asc_builds.py "$KEY_PATH" "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$BUNDLE_ID" 1
 
       - name: Vérifier App Store Connect (clé, identifiant, fiche de l'app)
         if: steps.secrets.outputs.ok == 'true'

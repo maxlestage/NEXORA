@@ -152,6 +152,14 @@ def main() -> None:
         if attempt < 3:
             print(f"Fiche introuvable (HTTP {status}) : nouvel essai dans {10 * (attempt + 1)} s.")
             time.sleep(10 * (attempt + 1))
+    if status >= 500:
+        # Panne chez Apple : la clé et l'identifiant sont bons, la fiche a déjà servi.
+        # On compile quand même ; l'envoi dira clairement si la fiche manque vraiment.
+        print(
+            f"::warning title=App Store Connect en panne::La recherche de la fiche {bundle_id} "
+            f"répond HTTP {status} ; la compilation continue."
+        )
+        return
     if status != 200:
         error(
             "App Store Connect indisponible",
