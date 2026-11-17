@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(out)))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(out))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -463,6 +463,32 @@ extension AgentRun {
               let n = d["total_count"] as? Int, n == list.count else { return d }
         var out = d
         out["total_count"] = nil
+        return out
+    }
+
+    /// Une branche (GET …/branches, …/branches/<nom> : `name` + `commit` + `protected`)
+    /// allégée : une branche non protégée perd `protection` (désactivée, contrôles
+    /// vides) ; une branche protégée perd `protection.enabled` (redit par `protected`)
+    /// et `required_status_checks.checks` quand il ne fait que répéter `contexts`
+    /// (même liste de contextes, `app_id` seul en plus). Nom, commit, contextes exigés
+    /// et niveau d'application sont gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimBranch(_ d: [String: Any]) -> [String: Any] {
+        guard d["name"] is String, d["commit"] is [String: Any], let isProtected = d["protected"] as? Bool,
+              var protection = d["protection"] as? [String: Any] else { return d }
+        var out = d
+        if !isProtected {
+            if (protection["enabled"] as? Bool) != true { out["protection"] = nil }
+            return out
+        }
+        if (protection["enabled"] as? Bool) == true { protection["enabled"] = nil }
+        if var rsc = protection["required_status_checks"] as? [String: Any],
+           let contexts = rsc["contexts"] as? [String], let checks = rsc["checks"] as? [[String: Any]],
+           checks.compactMap({ $0["context"] as? String }) == contexts,
+           checks.allSatisfy({ Set($0.keys).isSubset(of: ["context", "app_id"]) }) {
+            rsc["checks"] = nil
+            protection["required_status_checks"] = rsc
+        }
+        out["protection"] = protection
         return out
     }
 

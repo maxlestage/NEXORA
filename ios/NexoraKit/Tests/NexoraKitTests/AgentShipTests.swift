@@ -883,6 +883,46 @@ struct AgentShipTests {
         #expect(AgentRun.slimCombinedStatus(big)["total_count"] as? Int == 120)
     }
 
+    @Test("banc github : branches sans protection redite")
+    func githubBranches() throws {
+        let api = "https://api.github.com/repos/max/site"
+        func branch(_ name: String, _ prot: Bool) -> [String: Any] {
+            let ctx = ["ios", "flutter", "heroku"]
+            let rsc: [String: Any] = prot
+                ? ["enforcement_level": "non_admins", "contexts": ctx,
+                   "checks": ctx.map { ["context": $0, "app_id": 15_368] as [String: Any] }]
+                : ["enforcement_level": "off", "contexts": [String](), "checks": [[String: Any]]()]
+            return ["name": name, "commit": ["sha": String(repeating: "ab12", count: 10), "url": "\(api)/commits/x"],
+                    "protected": prot, "protection": ["enabled": prot, "required_status_checks": rsc],
+                    "protection_url": "\(api)/branches/\(name)/protection"]
+        }
+        let branches: [Any] = [branch("master", true)] + (1...5).map { branch("claude/essai-\($0)", false) }
+        // Référence : sans la nouvelle règle (`protected` masqué).
+        let before = AgentRun.githubText(AgentRun.slimGitHub(branches.map { x -> Any in
+            var r = x as! [String: Any]
+            r["_protected"] = r.removeValue(forKey: "protected")
+            return r
+        })).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(branches)).count
+        print("Banc github (6 branches dont 1 protégée) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let out = try #require(AgentRun.slimGitHub(branches) as? [[String: Any]])
+        #expect(out.dropFirst().allSatisfy { $0["protection"] == nil && $0["protected"] as? Bool == false })
+        let p = try #require(out[0]["protection"] as? [String: Any])
+        #expect(p["enabled"] == nil && out[0]["protected"] as? Bool == true)
+        let rsc = try #require(p["required_status_checks"] as? [String: Any])
+        #expect(rsc["checks"] == nil && rsc["contexts"] as? [String] == ["ios", "flutter", "heroku"])
+        #expect(rsc["enforcement_level"] as? String == "non_admins")
+        // Contrôles qui ne répètent pas les contextes : gardés.
+        var odd = branch("main", true)
+        var prot = odd["protection"] as! [String: Any]
+        prot["required_status_checks"] = ["enforcement_level": "everyone", "contexts": ["ci"],
+                                          "checks": [["context": "ci", "app_id": 1], ["context": "lint", "app_id": 2]]]
+        odd["protection"] = prot
+        let kept = try #require(AgentRun.slimBranch(odd)["protection"] as? [String: Any])
+        #expect((kept["required_status_checks"] as? [String: Any])?["checks"] != nil)
+    }
+
     @Test("banc github : déploiements et leurs statuts sans champs par défaut")
     func githubDeployments() throws {
         let api = "https://api.github.com/repos/max/site"
