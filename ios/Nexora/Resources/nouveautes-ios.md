@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.129 — 17 novembre 2026 — Branches GitHub plus légères
+
+- Amélioré : la liste des branches lue par l'agent coûte environ 48 % de tokens en moins (protection redite retirée).
+- Inchangé : nom, commit et contrôles exigés de chaque branche restent visibles.
+
 ## 3.0.128 — 17 novembre 2026 — Aide rangée par thème
 
 - Plus simple : en haut de l'aide, une pastille par thème (Clés et modèles, Agents, GitHub…) ne montre que ses questions, au lieu d'une longue liste de 32.

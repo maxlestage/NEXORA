@@ -1041,9 +1041,15 @@ mémoire 32k tokens, consigne 3 000 car.
   Avant : 32 questions à faire défiler ; après : 1 toucher, 3 à 7 questions.
   Tests : 531 → 532 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.128, Aide) → prochain passage : TOKENS.
-Tokens ensuite : GET …/environments, …/actions/caches ou …/branches (protection résumée).
+- 3.0.129 (tokens) : `slimBranch` — GET …/branches et …/branches/<nom> : branche non protégée →
+  `protection` (désactivée, contrôles vides) retirée ; branche protégée → `protection.enabled`
+  (redit par `protected`) et `required_status_checks.checks` qui ne fait que répéter `contexts`
+  (avec `app_id`) retirés. Banc `AgentShipTests.githubBranches` (6 branches dont 1 protégée) :
+  356 → 184 tokens (−48 %). Tests : 532 → 533 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.129, branches) → prochain passage : INTERFACE.
+Tokens ensuite : GET …/environments ou …/actions/caches.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
