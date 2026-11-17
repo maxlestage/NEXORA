@@ -60,6 +60,26 @@ public enum SettingsDisplay {
         connected ? "Connecté : @\(login ?? "…")" : "Non connecté"
     }
 
+    /// Titre de la confirmation avant de se déconnecter de GitHub : « Se déconnecter de @max ? ».
+    public static func signOutTitle(login: String?) -> String {
+        guard let l = login?.trimmingCharacters(in: .whitespacesAndNewlines), !l.isEmpty else {
+            return "Se déconnecter de GitHub ?"
+        }
+        return "Se déconnecter de @\(l) ?"
+    }
+
+    /// Ce que fait la déconnexion, en mots simples (ce qui est perdu, ce qui est gardé).
+    public static let signOutMessage =
+        "Le jeton est retiré de cet appareil : il faudra vous reconnecter pour les dépôts et l'agent. Vos sessions et conversations sont gardées."
+
+    /// Retour après la connexion : « Connecté à GitHub : @max ».
+    public static func signedIn(login: String?) -> String {
+        guard let l = login?.trimmingCharacters(in: .whitespacesAndNewlines), !l.isEmpty else {
+            return "Connecté à GitHub"
+        }
+        return "Connecté à GitHub : @\(l)"
+    }
+
     /// Résumé du Client ID OAuth (réglage rare, rangé dans « Avancé »).
     public static func clientIdDetail(_ clientId: String) -> String {
         let id = clientId.trimmingCharacters(in: .whitespacesAndNewlines)

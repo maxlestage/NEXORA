@@ -16,6 +16,10 @@ struct SettingsView: View {
     /// Choix du ménage calculés à l'ouverture : durée et nombre de conversations supprimées.
     @State private var cleanChoices: [(days: Int, count: Int)] = []
     @State private var editingClientId = false
+    /// Confirmation avant de se déconnecter de GitHub (le jeton serait à recoller).
+    @State private var confirmSignOut = false
+    /// Écran de connexion à GitHub ouvert depuis les Réglages (refermé une fois connecté).
+    @State private var signingIn = false
     @State private var clientId = ""
     @State private var size: Int?
     @State private var toast: Toast?
@@ -66,14 +70,28 @@ struct SettingsView: View {
                 }
 
                 Section("GitHub") {
-                    HStack {
-                        Label(SettingsDisplay.github(login: github.user?.login, connected: github.connected), systemImage: "person.crop.circle")
-                        Spacer()
-                        if github.connected {
-                            Button("Déconnexion") { github.signOut() }
+                    if github.connected {
+                        HStack {
+                            Label(SettingsDisplay.github(login: github.user?.login, connected: true), systemImage: "person.crop.circle")
+                            Spacer()
+                            Button("Déconnexion") { confirmSignOut = true }
                                 .buttonStyle(.borderless)
                                 .frame(minHeight: 44)
                         }
+                    } else {
+                        // Action principale quand on n'est pas connecté : se connecter, ici même.
+                        Button {
+                            signingIn = true
+                        } label: {
+                            LabeledContent {
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            } label: {
+                                Label("Se connecter à GitHub", systemImage: "person.crop.circle.badge.plus")
+                            }
+                        }
+                        .frame(minHeight: 44)
                     }
                     DisclosureGroup("Avancé") {
                         Button {
@@ -165,6 +183,21 @@ struct SettingsView: View {
                 Button(cleanChoices.isEmpty ? "OK" : "Annuler", role: .cancel) {}
             } message: {
                 Text(SettingsDisplay.cleanMessage(hasChoices: !cleanChoices.isEmpty))
+            }
+            .navigationDestination(isPresented: $signingIn) {
+                GitHubSignInView().navigationTitle("GitHub")
+            }
+            .onChange(of: github.connected) { _, connected in
+                guard connected, signingIn else { return }
+                signingIn = false
+                done += 1
+                toast = Toast(text: SettingsDisplay.signedIn(login: github.user?.login))
+            }
+            .alert(SettingsDisplay.signOutTitle(login: github.user?.login), isPresented: $confirmSignOut) {
+                Button("Annuler", role: .cancel) {}
+                Button("Se déconnecter", role: .destructive) { github.signOut() }
+            } message: {
+                Text(SettingsDisplay.signOutMessage)
             }
             .alert("Effacer toutes les conversations ?", isPresented: $confirmDelete) {
                 Button("Annuler", role: .cancel) {}
