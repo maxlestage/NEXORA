@@ -1025,6 +1025,11 @@ mémoire 32k tokens, consigne 3 000 car.
   `updated_at` = `created_at` retirés. Banc `AgentShipTests.githubDeployments` (3 déploiements +
   3 statuts) : 517 → 338 tokens (−35 %). Tests : 530 → 531 (mêmes 2 échecs Linux du catalogue).
 
+- (fiabilité, sans version) : TestFlight n°252 (3.0.127) rouge en 20 s — « fiche de l'app à créer »
+  alors que le n°251, une heure avant, l'avait trouvée : `asc_check.py` prenait toute réponse non 200
+  ou vide de GET /apps pour une fiche absente. Désormais 4 essais (10, 20, 30 s) puis, si Apple répond
+  en erreur, message « App Store Connect indisponible » avec le code HTTP. Run relancé.
+
 ## Prochain passage : INTERFACE
 (tokens faits en 3.0.127, déploiements) → prochain passage : INTERFACE, écran Modèles ou Aide.
 Tokens ensuite : GET …/environments, …/actions/caches ou …/branches (protection résumée).

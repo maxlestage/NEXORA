@@ -141,11 +141,23 @@ def main() -> None:
             )
         print(f"Identifiant {bundle_id} : enregistré.")
 
-    status, data = call(token, "GET", f"/apps?filter[bundleId]={q}")
-    if status == 200 and data.get("data"):
-        app = data["data"][0]["attributes"]
-        print(f"Fiche App Store Connect : « {app.get('name')} » trouvée.")
-        return
+    # Apple répond parfois vide ou en erreur passagère (5xx, 429) alors que la fiche
+    # existe : on réessaie avant de demander de la créer.
+    for attempt in range(4):
+        status, data = call(token, "GET", f"/apps?filter[bundleId]={q}")
+        if status == 200 and data.get("data"):
+            app = data["data"][0]["attributes"]
+            print(f"Fiche App Store Connect : « {app.get('name')} » trouvée.")
+            return
+        if attempt < 3:
+            print(f"Fiche introuvable (HTTP {status}) : nouvel essai dans {10 * (attempt + 1)} s.")
+            time.sleep(10 * (attempt + 1))
+    if status != 200:
+        error(
+            "App Store Connect indisponible",
+            f"La recherche de la fiche {bundle_id} répond HTTP {status} : "
+            f"{json.dumps(data.get('errors', data))[:300]}. Relancez ce workflow plus tard.",
+        )
     error(
         "Fiche de l'app à créer",
         f"L'identifiant {bundle_id} est prêt. Créez maintenant la fiche : App Store Connect → "
