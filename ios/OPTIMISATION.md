@@ -941,9 +941,16 @@ mémoire 32k tokens, consigne 3 000 car.
   commentaire de chronologie (`body`). Banc `AgentShipTests.githubIssueEvents`
   (6 évènements) : 211 → 157 tokens (−26 %). Tests : 519 → 520 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.115 : évènements d'issue) → prochain passage : INTERFACE
-(écran suivant à choisir : Modèles, Personnaliser ou accueil).
+- 3.0.116 (interface) : onglet Modèles, 3e passage — `ProvidersDisplay.quickActions` :
+  appui long sur un fournisseur (« Obtenir une clé »/« Clé gratuite » et « Coller la clé »
+  tant qu'il manque une clé, « Documentation ») : avant, 3 gestes (ouvrir la fiche, toucher
+  le champ, coller, revenir) → 2 (appui long, Coller). `pastedKey` refuse une phrase, une
+  adresse ou un texte de moins de 8 caractères ; toast + vibration (`pasteToast`).
+  Tests : 520 → 521.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.116 : onglet Modèles) → prochain passage : TOKENS
+(puis interface : Personnaliser ou accueil).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

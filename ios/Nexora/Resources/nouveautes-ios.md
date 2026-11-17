@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.116 — 17 novembre 2026 — Clés plus rapides à ajouter
+- Nouveau : dans Modèles, un appui long sur un fournisseur propose « Obtenir une clé », « Coller la clé » et « Documentation », sans ouvrir sa fiche.
+- Nouveau : « Coller la clé » enregistre la clé copiée et confirme d'un message et d'une vibration ; une phrase ou une adresse copiée par erreur n'est pas enregistrée.
+
 ## 3.0.115 — 17 novembre 2026 — Historique des issues plus léger
 - Amélioré : quand l'agent relit l'historique d'une issue ou d'une pull request (étiquettes, assignations, fermetures), la réponse envoyée au modèle est environ 25 % plus courte.
 - Les commentaires de la chronologie gardent leur identifiant pour que l'agent puisse y répondre.
