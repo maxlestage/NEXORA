@@ -784,6 +784,58 @@ struct AgentShipTests {
         #expect((free?["app"] as? [String: Any])?["nom"] as? String == "y")
     }
 
+    @Test("banc github : suites de vérifications sans commit de tête complet ni drapeaux courants")
+    func githubCheckSuites() throws {
+        let api = "https://api.github.com/repos/max/site"
+        let repo: [String: Any] = ["id": 1, "full_name": "max/site", "name": "site", "private": false,
+                                   "default_branch": "master", "fork": false, "url": api]
+        func suite(_ id: Int, _ app: String, _ conclusion: String) -> [String: Any] {
+            let sha = String(repeating: "\(id)abc", count: 10)
+            let who: [String: Any] = ["name": "Max", "email": "max@example.com"]
+            return ["id": 30_000_000_000 + id, "node_id": "CS_kwDO\(id)", "head_branch": "master", "head_sha": sha,
+                    "status": "completed", "conclusion": conclusion, "url": "\(api)/check-suites/\(id)",
+                    "before": String(repeating: "9f1e", count: 10), "after": sha, "pull_requests": [Any](),
+                    "app": ["slug": app, "permissions": ["checks": "write"], "events": ["push"]],
+                    "repository": repo, "created_at": "2026-11-16T10:00:00Z", "updated_at": "2026-11-16T10:00:00Z",
+                    "rerequestable": true, "runs_rerequestable": true, "latest_check_runs_count": 3,
+                    "check_runs_url": "\(api)/check-suites/\(id)/check-runs",
+                    "head_commit": ["id": sha, "tree_id": String(repeating: "7e7e", count: 10),
+                                    "message": "Corrige le menu\n\nLe menu se fermait trop tôt sur iPad.",
+                                    "timestamp": "2026-11-16T09:59:00Z", "author": who, "committer": who]]
+        }
+        let reply: [String: Any] = ["total_count": 4, "check_suites": [suite(1, "github-actions", "success"),
+                                                                       suite(2, "github-actions", "failure"),
+                                                                       suite(3, "vercel", "success"),
+                                                                       suite(4, "dependabot", "neutral")]]
+        // Référence : sans la nouvelle règle (`latest_check_runs_count` masqué).
+        func hide(_ r: [String: Any]) -> [String: Any] {
+            var r = r
+            r["latestCount"] = r.removeValue(forKey: "latest_check_runs_count")
+            return r
+        }
+        let plain: [String: Any] = ["total_count": 4, "check_suites": (reply["check_suites"] as! [[String: Any]]).map(hide)]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(reply)).count
+        print("Banc github (4 suites de vérifications) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let suites = (AgentRun.slimGitHub(reply) as? [String: Any])?["check_suites"] as? [[String: Any]]
+        let s = try #require(suites?[1])
+        #expect(s["after"] == nil && s["pull_requests"] == nil && s["rerequestable"] == nil && s["updated_at"] == nil)
+        #expect(s["conclusion"] as? String == "failure" && s["latest_check_runs_count"] as? Int == 3)
+        #expect(s["id"] as? Int == 30_000_000_002 && s["before"] as? String != nil && s["app"] as? String == "github-actions")
+        let c = try #require(s["head_commit"] as? [String: Any])
+        #expect(c["id"] == nil && c["tree_id"] == nil && c["committer"] == nil)
+        #expect(c["message"] as? String == "Corrige le menu …" && c["author"] != nil)
+        // Drapeaux faux, `before` fait de zéros et `after` différent : faux gardés, zéros retirés.
+        var odd = suite(5, "x", "success")
+        odd["rerequestable"] = false
+        odd["before"] = String(repeating: "0", count: 40)
+        odd["after"] = "autre"
+        let o = try #require(AgentRun.slimCheckSuite(odd) as [String: Any]?)
+        #expect(o["rerequestable"] as? Bool == false && o["runs_rerequestable"] == nil)
+        #expect(o["before"] == nil && o["after"] as? String == "autre")
+    }
+
     @Test("banc github : versions publiées sans uploader répété ni drapeaux faux")
     func githubReleases() throws {
         let api = "https://api.github.com/repos/max/site"

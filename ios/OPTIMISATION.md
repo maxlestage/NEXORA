@@ -992,11 +992,15 @@ mémoire 32k tokens, consigne 3 000 car.
   aussi. Avant : 1 geste et la consigne perdue sans retour ; après : 2 gestes, aucune perte
   par erreur. Tests : 526 → 527 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.122, Agents) → prochain passage : TOKENS.
-Interface ensuite : écran Modèles ou Personnaliser.
-Tokens ensuite : GET …/check-suites (`app` déjà réduite ; `head_commit`, `latest_check_runs_count`)
-ou GET …/deployments / statuses.
+- 3.0.123 (tokens) : `slimCheckSuite` — suite de vérifications (GET …/check-suites : `head_sha`
+  + `latest_check_runs_count`) : `pull_requests` vide, `after` = `head_sha`, `before` nul ou zéros,
+  `rerequestable`/`runs_rerequestable` vrais, `updated_at` = `created_at` retirés ; commit de tête
+  réduit comme celui d'un run (`slimHeadCommit`, partagé avec `slimRun`). Banc
+  `AgentShipTests.githubCheckSuites` (4 suites) : 653 → 531 tokens (−19 %). Tests : 527 → 528.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.123, check-suites) → prochain passage : INTERFACE, écran Modèles ou Personnaliser.
+Tokens ensuite : GET …/deployments / statuses (GET …/commits/<ref>/status).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

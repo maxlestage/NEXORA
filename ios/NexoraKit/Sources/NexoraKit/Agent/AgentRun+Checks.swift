@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -343,7 +343,7 @@ extension AgentRun {
     /// identique à `created_at`, et `display_title` identique au nom du workflow ou au
     /// titre du commit. Tout autre objet est rendu tel quel.
     nonisolated static func slimRun(_ d: [String: Any]) -> [String: Any] {
-        guard let sha = d["head_sha"] as? String, var c = d["head_commit"] as? [String: Any] else { return d }
+        guard let sha = d["head_sha"] as? String, let c = d["head_commit"] as? [String: Any] else { return d }
         var out = d
         for k in ["pull_requests", "referenced_workflows"] where (d[k] as? [Any])?.isEmpty == true {
             out[k] = nil
@@ -359,6 +359,15 @@ extension AgentRun {
            NSDictionary(dictionary: a).isEqual(to: t) {
             out["triggering_actor"] = nil
         }
+        out["head_commit"] = slimHeadCommit(c, sha: sha)
+        return out
+    }
+
+    /// Le commit de tête d'un run ou d'une suite de vérifications réduit au titre de son
+    /// message (1re ligne, suivie de « … » si coupé) et à son auteur : sans `id` (= le
+    /// `head_sha` de l'objet), `tree_id` ni `committer` identique à l'auteur.
+    nonisolated static func slimHeadCommit(_ c: [String: Any], sha: String) -> [String: Any] {
+        var c = c
         if (c["id"] as? String) == sha { c["id"] = nil }
         c["tree_id"] = nil
         if let m = c["message"] as? String, let nl = m.firstIndex(of: "\n") {
@@ -368,7 +377,28 @@ extension AgentRun {
            NSDictionary(dictionary: a).isEqual(to: k) {
             c["committer"] = nil
         }
-        out["head_commit"] = c
+        return c
+    }
+
+    /// Une suite de vérifications (GET …/commits/<ref>/check-suites, …/check-suites/<id> :
+    /// `head_sha` + `latest_check_runs_count`) allégée : la liste vide `pull_requests`,
+    /// `after` identique à `head_sha`, `before` nul ou fait de zéros (premier envoi),
+    /// `rerequestable` et `runs_rerequestable` vrais (le cas courant ; gardés s'ils sont
+    /// faux), `updated_at` identique à `created_at`, et le commit de tête réduit comme
+    /// celui d'un run (`slimHeadCommit`). État, conclusion, branche, nombre de
+    /// vérifications et `id` (pour GET …/check-suites/<id>/check-runs) sont gardés. Tout
+    /// autre objet est rendu tel quel.
+    nonisolated static func slimCheckSuite(_ d: [String: Any]) -> [String: Any] {
+        guard let sha = d["head_sha"] as? String, d["latest_check_runs_count"] != nil else { return d }
+        var out = d
+        if (d["pull_requests"] as? [Any])?.isEmpty == true { out["pull_requests"] = nil }
+        if (d["after"] as? String) == sha { out["after"] = nil }
+        if d["before"] is NSNull || (d["before"] as? String).map({ !$0.isEmpty && $0.allSatisfy { $0 == "0" } }) == true {
+            out["before"] = nil
+        }
+        for k in ["rerequestable", "runs_rerequestable"] where (d[k] as? Bool) == true { out[k] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        if let c = d["head_commit"] as? [String: Any] { out["head_commit"] = slimHeadCommit(c, sha: sha) }
         return out
     }
 
