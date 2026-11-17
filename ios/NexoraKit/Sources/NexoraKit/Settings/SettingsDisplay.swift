@@ -65,4 +65,10 @@ public enum SettingsDisplay {
         let id = clientId.trimmingCharacters(in: .whitespacesAndNewlines)
         return id.isEmpty ? "Non renseigné" : id
     }
+
+    /// Ligne « À propos de NEXORA » des Réglages : la version seule (le reste, rare — auteur,
+    /// crédits, liens, présentation —, est sur la page qu'elle ouvre).
+    public static func aboutDetail(version: String) -> String {
+        "Version \(version)"
+    }
 }

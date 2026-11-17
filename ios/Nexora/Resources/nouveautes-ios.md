@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.112 — 17 novembre 2026 — Réglages plus courts
+- Amélioré : la section « À propos » des Réglages tient sur deux lignes, « Nouveautés » et « À propos de NEXORA ».
+- Les crédits, le code source, le site et « Revoir la présentation » sont sur la page « À propos de NEXORA ».
+- La description de « Personnaliser » est plus courte.
+
 ## 3.0.111 — 17 novembre 2026 — Commentaires de relecture plus légers
 - Amélioré : quand l'agent lit les commentaires de relecture d'une pull request, il envoie environ 60 % de tokens en moins.
 - Les réponses ne répètent plus l'extrait de code du commentaire d'origine, et seules les dernières lignes de cet extrait sont gardées.
