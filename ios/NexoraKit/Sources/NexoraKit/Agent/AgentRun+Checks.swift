@@ -140,9 +140,9 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(out)))))))))
         case let a as [Any]:
-            return linearCommits(a.map { slimGitHub($0) })
+            return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
             return x
         }
@@ -167,6 +167,52 @@ extension AgentRun {
             }
         }
         return list
+    }
+
+    /// Lignes de `diff_hunk` gardées pour un commentaire de relecture : la dernière est
+    /// la ligne commentée, les précédentes la situent.
+    nonisolated static let hunkLines = 8
+
+    /// Un commentaire de relecture de pull request (GET …/pulls/<n>/comments :
+    /// `diff_hunk` + `path` + `commit_id`) allégé : les champs `original_*` identiques à
+    /// leur valeur actuelle (`original_commit_id`, `original_line`, `original_position`,
+    /// `original_start_line`), les champs nuls (`start_line`, `start_side`…),
+    /// `subject_type` « line » (le cas courant), `updated_at` identique à `created_at` ;
+    /// `diff_hunk` réduit à ses `hunkLines` dernières lignes (la ligne commentée est la
+    /// dernière) avec le nombre de lignes non montrées. Tout autre objet est rendu tel quel.
+    nonisolated static func slimReviewComment(_ d: [String: Any]) -> [String: Any] {
+        guard let hunk = d["diff_hunk"] as? String, d["path"] is String, d["commit_id"] is String else { return d }
+        var out = d
+        for k in ["commit_id", "line", "position", "start_line"] {
+            let o = "original_" + k
+            if let v = d[o], let w = d[k], "\(v)" == "\(w)" { out[o] = nil }
+        }
+        for (k, v) in out where v is NSNull { out[k] = nil }
+        if (d["subject_type"] as? String) == "line" { out["subject_type"] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        let lines = hunk.split(separator: "\n", omittingEmptySubsequences: false)
+        if lines.count > hunkLines + 1 {
+            let hidden = lines.count - hunkLines
+            out["diff_hunk"] = "… (\(hidden) lignes avant)\n" + lines.suffix(hunkLines).joined(separator: "\n")
+        }
+        return out
+    }
+
+    /// Dans une liste de commentaires de relecture, la réponse (`in_reply_to_id`) dont le
+    /// `diff_hunk` est celui du commentaire auquel elle répond (présent dans la liste) le
+    /// perd : il serait répété mot pour mot. Toute autre liste est rendue telle quelle.
+    nonisolated static func replyHunks(_ a: [Any]) -> [Any] {
+        var hunks: [String: String] = [:]
+        for x in a {
+            if let c = x as? [String: Any], let h = c["diff_hunk"] as? String, let id = c["id"] { hunks["\(id)"] = h }
+        }
+        guard !hunks.isEmpty else { return a }
+        return a.map { x in
+            guard var c = x as? [String: Any], let to = c["in_reply_to_id"], let h = c["diff_hunk"] as? String,
+                  hunks["\(to)"] == h else { return x }
+            c["diff_hunk"] = nil
+            return c
+        }
     }
 
     /// Une personne citée (auteur, assigné, relecteur…) réduite à son login : son

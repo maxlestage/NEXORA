@@ -602,6 +602,53 @@ struct AgentShipTests {
         #expect((AgentRun.slimGitHub(other) as? [[String: Any]])?.count == 2)
     }
 
+    @Test("banc github : commentaires de relecture sans champs répétés ni hunk entier")
+    func githubReviewComments() throws {
+        let sha = String(repeating: "1abc", count: 10)
+        let hunk = "@@ -10,20 +10,24 @@ struct Vue {\n" + (1...20).map { "+    let valeur\($0) = calcul(\($0))" }.joined(separator: "\n")
+        func comment(_ id: Int, reply: Int? = nil) -> [String: Any] {
+            var c: [String: Any] = [
+                "id": id, "node_id": "PRRC_kwDO\(id)", "pull_request_review_id": 900 + id, "diff_hunk": hunk,
+                "path": "Sources/Vue.swift", "commit_id": sha, "original_commit_id": sha,
+                "user": ["login": "max", "id": 1, "html_url": "https://github.com/max", "type": "User"],
+                "body": "Remarque \(id) : renommer cette valeur.", "created_at": "2026-11-16T0\(id):00:00Z",
+                "updated_at": "2026-11-16T0\(id):00:00Z", "html_url": "https://github.com/max/site/pull/3#discussion_r\(id)",
+                "author_association": "OWNER", "start_line": NSNull(), "original_start_line": NSNull(),
+                "start_side": NSNull(), "line": 33, "original_line": 33, "side": "RIGHT",
+                "original_position": 21, "position": 21, "subject_type": "line",
+                "url": "https://api.github.com/repos/max/site/pulls/comments/\(id)",
+                "pull_request_url": "https://api.github.com/repos/max/site/pulls/3"]
+            if let reply { c["in_reply_to_id"] = reply }
+            return c
+        }
+        let list: [Any] = [comment(1), comment(2, reply: 1), comment(3, reply: 1), comment(4)]
+        // Référence : allègement d'avant (liens, node_id, personnes) sans la règle des commentaires.
+        let plain = list.map { x -> Any in var c = x as! [String: Any]; c["diff_hunX"] = c.removeValue(forKey: "diff_hunk"); return c }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (4 commentaires de relecture) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 100 < before * 60)
+        let out = AgentRun.slimGitHub(list) as? [[String: Any]]
+        let first = out?.first
+        #expect(first?["original_commit_id"] == nil && first?["original_line"] == nil && first?["original_position"] == nil)
+        #expect(first?["start_line"] == nil && first?["start_side"] == nil && first?["subject_type"] == nil && first?["updated_at"] == nil)
+        #expect(first?["line"] as? Int == 33 && first?["side"] as? String == "RIGHT" && first?["body"] != nil)
+        let h = first?["diff_hunk"] as? String ?? ""
+        #expect(h.hasPrefix("… (13 lignes avant)") && h.hasSuffix("+    let valeur20 = calcul(20)"))
+        // Réponses au commentaire 1 : hunk retiré ; commentaire 4 (sans réponse) : gardé.
+        #expect(out?[1]["diff_hunk"] == nil && out?[2]["diff_hunk"] == nil && out?[3]["diff_hunk"] != nil)
+        // Ligne déplacée depuis (nouveau commit) : valeurs d'origine gardées.
+        var moved = comment(5)
+        moved["original_line"] = 30
+        moved["original_commit_id"] = String(repeating: "2def", count: 10)
+        let m = AgentRun.slimGitHub(moved) as? [String: Any]
+        #expect(m?["original_line"] as? Int == 30 && m?["original_commit_id"] != nil)
+        // Hunk court : gardé tel quel.
+        var short = comment(6)
+        short["diff_hunk"] = "@@ -1,2 +1,2 @@\n-a\n+b"
+        #expect((AgentRun.slimGitHub(short) as? [String: Any])?["diff_hunk"] as? String == "@@ -1,2 +1,2 @@\n-a\n+b")
+    }
+
     @Test("banc github : fichiers d'un commit sans sha de blob, patchs longs coupés")
     func githubCommitFiles() throws {
         func file(_ n: Int, lines: Int) -> [String: Any] {

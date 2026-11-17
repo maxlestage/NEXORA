@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.111 — 17 novembre 2026 — Commentaires de relecture plus légers
+- Amélioré : quand l'agent lit les commentaires de relecture d'une pull request, il envoie environ 60 % de tokens en moins.
+- Les réponses ne répètent plus l'extrait de code du commentaire d'origine, et seules les dernières lignes de cet extrait sont gardées.
+
 ## 3.0.110 — 17 novembre 2026 — Fiche d'un fournisseur plus directe
 - Amélioré : une fois la clé enregistrée, « Comment faire » se replie ; la liste des modèles arrive plus vite.
 - Amélioré : « Ajouter un modèle par son id » passe sous la liste des modèles, avec un bouton plus facile à toucher.
