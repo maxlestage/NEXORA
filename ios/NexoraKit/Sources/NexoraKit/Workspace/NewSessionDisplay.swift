@@ -35,4 +35,25 @@ public enum NewSessionDisplay {
         if repoCount == 0 { return "Ajoutez au moins un dépôt." }
         return nil
     }
+
+    /// Âge maximal d'un brouillon de mission repris à l'ouverture (7 jours).
+    public static let draftMaxAge: TimeInterval = 7 * 24 * 3600
+
+    /// La mission à garder en brouillon si l'on quitte sans lancer, ou `nil`
+    /// (vide : rien à garder, le brouillon est effacé).
+    public static func draftToSave(_ mission: String) -> String? {
+        mission.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : mission
+    }
+
+    /// Le brouillon à reprendre dans un champ encore vide, ou `nil` (rien
+    /// d'enregistré, trop ancien, ou le champ contient déjà une mission).
+    public static func draftToRestore(saved: String?, savedAt: Date?, current: String, now: Date) -> String? {
+        guard current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let saved, let text = draftToSave(saved),
+              let savedAt, now.timeIntervalSince(savedAt) <= draftMaxAge else { return nil }
+        return text
+    }
+
+    /// Le message bref affiché quand un brouillon est repris.
+    public static let draftRestoredToast = "Mission non lancée reprise."
 }

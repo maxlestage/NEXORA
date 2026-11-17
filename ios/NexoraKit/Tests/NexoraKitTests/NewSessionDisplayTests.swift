@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import NexoraKit
 
@@ -25,4 +26,22 @@ struct NewSessionDisplayTests {
         #expect(NewSessionDisplay.startProblem(mission: "Corrige", repoCount: 0) == "Ajoutez au moins un dépôt.")
         #expect(NewSessionDisplay.startProblem(mission: "Corrige", repoCount: 1) == nil)
     }
+
+    @Test func brouillonDeMission() {
+        #expect(NewSessionDisplay.draftToSave("  \n") == nil)
+        #expect(NewSessionDisplay.draftToSave("Corrige le bug") == "Corrige le bug")
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let hier = now.addingTimeInterval(-24 * 3600)
+        // Repris dans un champ vide s'il est récent.
+        #expect(NewSessionDisplay.draftToRestore(saved: "Corrige", savedAt: hier, current: "", now: now) == "Corrige")
+        // Jamais par-dessus une mission déjà tapée.
+        #expect(NewSessionDisplay.draftToRestore(saved: "Corrige", savedAt: hier, current: "Autre", now: now) == nil)
+        // Trop ancien, vide ou sans date : rien.
+        let vieux = now.addingTimeInterval(-NewSessionDisplay.draftMaxAge - 1)
+        #expect(NewSessionDisplay.draftToRestore(saved: "Corrige", savedAt: vieux, current: "", now: now) == nil)
+        #expect(NewSessionDisplay.draftToRestore(saved: " ", savedAt: hier, current: "", now: now) == nil)
+        #expect(NewSessionDisplay.draftToRestore(saved: "Corrige", savedAt: nil, current: "", now: now) == nil)
+        #expect(NewSessionDisplay.draftToRestore(saved: nil, savedAt: hier, current: "", now: now) == nil)
+    }
 }
+

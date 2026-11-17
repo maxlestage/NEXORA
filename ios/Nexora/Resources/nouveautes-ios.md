@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.124 — 17 novembre 2026 — La mission d'une nouvelle session n'est plus perdue
+- Amélioré : si vous quittez « Nouvelle session » sans lancer, la mission tapée est gardée et reprise à la prochaine ouverture (pendant 7 jours).
+- Un message bref indique qu'une mission a été reprise ; elle s'efface dès que la session est lancée ou que vous videz le champ.
+
 ## 3.0.123 — 17 novembre 2026 — Vérifications GitHub plus légères pour l'agent
 
 - Amélioré : quand l'agent consulte les suites de vérifications d'un commit, la réponse de GitHub lui coûte environ 19 % de tokens en moins.
