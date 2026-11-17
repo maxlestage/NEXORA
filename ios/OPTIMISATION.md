@@ -1054,9 +1054,15 @@ mémoire 32k tokens, consigne 3 000 car.
   la fiche de chaque fournisseur) ; `rowsFooter` : pied 151 → 105 caractères.
   Tests : 533 → 535 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.130, Crédits) → prochain passage : TOKENS.
-Tokens : GET …/environments ou …/actions/caches.
+- 3.0.131 (tokens) : `slimCache` — GET …/actions/caches : chaque cache perd `version`
+  (empreinte de 64 caractères, inutile : un cache se retrouve par sa clé ou son id) et
+  `last_accessed_at` identique à `created_at` ; la liste perd `total_count` égal au nombre
+  montré (gardé si la liste est tronquée). Banc `AgentShipTests.githubCaches` (10 caches) :
+  711 → 440 tokens (−38 %). Tests : 535 → 536 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.131, caches d'Actions) → prochain passage : INTERFACE.
+Tokens ensuite : GET …/environments (id des règles, `html_url` déduit, `can_admins_bypass` vrai).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

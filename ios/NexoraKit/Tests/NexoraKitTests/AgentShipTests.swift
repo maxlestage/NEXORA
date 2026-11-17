@@ -923,6 +923,38 @@ struct AgentShipTests {
         #expect((kept["required_status_checks"] as? [String: Any])?["checks"] != nil)
     }
 
+    @Test("banc github : caches d'Actions sans empreinte ni dates redites")
+    func githubCaches() throws {
+        func cache(_ i: Int) -> [String: Any] {
+            let date = "2026-11-1\(i % 10)T08:00:00Z"
+            return ["id": 500 + i, "ref": "refs/heads/master", "key": "Linux-swift-\(String(repeating: "9f", count: 20))-\(i)",
+                    "version": String(repeating: "73a8", count: 16), "size_in_bytes": 1_048_576 * i,
+                    "created_at": date, "last_accessed_at": i % 3 == 0 ? "2026-11-17T09:00:00Z" : date]
+        }
+        let caches = (1...10).map(cache)
+        let list: [String: Any] = ["total_count": 10, "actions_caches": caches]
+        // Référence : sans la nouvelle règle (`version` masqué sous un autre nom).
+        let before = AgentRun.githubText(AgentRun.slimGitHub([
+            "total": 10, "actions_caches": caches.map { c -> Any in
+                var r = c
+                r["_version"] = r.removeValue(forKey: "version")
+                return r
+            },
+        ] as [String: Any])).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (10 caches d'Actions) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let out = try #require(AgentRun.slimGitHub(list) as? [String: Any])
+        #expect(out["total_count"] == nil)
+        let items = try #require(out["actions_caches"] as? [[String: Any]])
+        #expect(items.count == 10 && items.allSatisfy { $0["version"] == nil && $0["key"] is String })
+        #expect(items[2]["last_accessed_at"] as? String == "2026-11-17T09:00:00Z")
+        #expect(items[0]["last_accessed_at"] == nil && items[0]["created_at"] != nil)
+        // Liste tronquée (plus de caches que montrés) : le total reste.
+        let partial = try #require(AgentRun.slimGitHub(["total_count": 42, "actions_caches": caches] as [String: Any]) as? [String: Any])
+        #expect(partial["total_count"] as? Int == 42)
+    }
+
     @Test("banc github : déploiements et leurs statuts sans champs par défaut")
     func githubDeployments() throws {
         let api = "https://api.github.com/repos/max/site"

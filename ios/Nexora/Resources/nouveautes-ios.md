@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.131 — 17 novembre 2026 — Caches d'Actions allégés pour l'agent
+- Amélioré : quand l'agent consulte les caches GitHub Actions, la réponse envoyée au modèle coûte environ 38 % de tokens en moins (empreinte interne et dates redites retirées).
+- Rien ne change pour vous : clé, branche, taille et dates utiles de chaque cache restent visibles par l'agent.
+
 ## 3.0.130 — 17 novembre 2026 — Crédits plus clairs
 - Nouveau : « Crédits et consommation » signale en tête les fournisseurs épuisés ou presque, sans parcourir la liste.
 - Nouveau : les tokens relus depuis le cache aujourd'hui s'affichent sous la dépense (ils coûtent 2 à 10 fois moins cher).
