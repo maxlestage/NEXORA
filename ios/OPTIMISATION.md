@@ -984,8 +984,17 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubReleases` (4 versions, 8 fichiers) : 956 → 715 tokens (−25 %).
   Tests : 525 → 526 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.121, releases) → prochain passage : INTERFACE, écran Agents.
+- 3.0.122 (interface) : écran Agents — un agent perso était supprimé sans confirmation
+  (balayage complet, menu contextuel, bouton de la fiche) alors que skills et commandes en
+  demandaient une. Même dialogue pour les trois (`Removal.kind`), titre clair
+  `AgentsDisplay.removalTitle` (« Supprimer l'agent « X » ? ») et phrase
+  `removalMessage` (ce qui est perdu, ce qui reste) ; la fiche (AgentDetailSheet) confirme
+  aussi. Avant : 1 geste et la consigne perdue sans retour ; après : 2 gestes, aucune perte
+  par erreur. Tests : 526 → 527 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.122, Agents) → prochain passage : TOKENS.
+Interface ensuite : écran Modèles ou Personnaliser.
 Tokens ensuite : GET …/check-suites (`app` déjà réduite ; `head_commit`, `latest_check_runs_count`)
 ou GET …/deployments / statuses.
 

@@ -22,11 +22,11 @@ struct AgentsView: View {
         var id: String { title }
     }
 
-    /// Une skill ou une commande à supprimer, après confirmation.
+    /// Un agent perso, une skill ou une commande à supprimer, après confirmation.
     struct Removal: Identifiable {
         let id: String
         let name: String
-        let skill: Bool
+        let kind: AgentsDisplay.RemovalKind
     }
 
     @Environment(AgentLibrary.self) private var agents
@@ -135,15 +135,21 @@ struct AgentsView: View {
                 CloudAgentSheet(agent: a)
             }
             .confirmationDialog(
-                "Supprimer \(removing?.name ?? "") ?",
+                AgentsDisplay.removalTitle(removing?.name ?? "", kind: removing?.kind ?? .agent),
                 isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
                 titleVisibility: .visible,
                 presenting: removing
             ) { r in
                 Button("Supprimer", role: .destructive) {
-                    if r.skill { agents.removeSkill(r.id) } else { agents.removeCommand(r.id) }
+                    switch r.kind {
+                    case .agent: agents.delete(r.id)
+                    case .skill: agents.removeSkill(r.id)
+                    case .command: agents.removeCommand(r.id)
+                    }
                 }
                 Button("Annuler", role: .cancel) {}
+            } message: { r in
+                Text(AgentsDisplay.removalMessage(r.kind))
             }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.plainText, UTType(filenameExtension: "md") ?? .plainText], allowsMultipleSelection: true) { result in
                 guard case let .success(urls) = result else { return }
@@ -252,7 +258,7 @@ struct AgentsView: View {
                 Button("Dupliquer pour modifier", systemImage: "plus.square.on.square") { editing = agents.duplicate(a) }
             } else {
                 Button("Modifier", systemImage: "pencil") { editing = a }
-                Button("Supprimer", systemImage: "trash", role: .destructive) { agents.delete(a.id) }
+                Button("Supprimer", systemImage: "trash", role: .destructive) { removing = Removal(id: a.id, name: a.name, kind: .agent) }
             }
             ShareLink(item: a.toMarkdown(), preview: SharePreview("\(a.name).md")) {
                 Label("Partager (.md)", systemImage: "square.and.arrow.up")
@@ -264,7 +270,7 @@ struct AgentsView: View {
         }
         .swipeActions {
             if !a.builtin {
-                Button(role: .destructive) { agents.delete(a.id) } label: { Label("Supprimer", systemImage: "trash") }
+                Button(role: .destructive) { removing = Removal(id: a.id, name: a.name, kind: .agent) } label: { Label("Supprimer", systemImage: "trash") }
                 Button { editing = a } label: { Label("Modifier", systemImage: "pencil") }
             }
         }
@@ -403,12 +409,12 @@ struct AgentsView: View {
                         }
                         .contextMenu {
                             Button("Supprimer", systemImage: "trash", role: .destructive) {
-                                removing = Removal(id: sk.id, name: sk.name, skill: true)
+                                removing = Removal(id: sk.id, name: sk.name, kind: .skill)
                             }
                         }
                         .swipeActions {
                             Button(role: .destructive) {
-                                removing = Removal(id: sk.id, name: sk.name, skill: true)
+                                removing = Removal(id: sk.id, name: sk.name, kind: .skill)
                             } label: { Label("Supprimer", systemImage: "trash") }
                         }
                     }
@@ -435,12 +441,12 @@ struct AgentsView: View {
                         }
                         .contextMenu {
                             Button("Supprimer", systemImage: "trash", role: .destructive) {
-                                removing = Removal(id: c.id, name: "/\(c.name)", skill: false)
+                                removing = Removal(id: c.id, name: "/\(c.name)", kind: .command)
                             }
                         }
                         .swipeActions {
                             Button(role: .destructive) {
-                                removing = Removal(id: c.id, name: "/\(c.name)", skill: false)
+                                removing = Removal(id: c.id, name: "/\(c.name)", kind: .command)
                             } label: { Label("Supprimer", systemImage: "trash") }
                         }
                     }
@@ -515,6 +521,8 @@ struct AgentDetailSheet: View {
 
     @Environment(AgentLibrary.self) private var agents
     @Environment(\.dismiss) private var dismiss
+    /// Confirmation avant de supprimer l'agent (sa consigne serait perdue).
+    @State private var confirmingDelete = false
 
     var body: some View {
         NavigationStack {
@@ -555,10 +563,22 @@ struct AgentDetailSheet: View {
                                 Button("Modifier", systemImage: "pencil") { onEdit(agent) }
                                     .buttonStyle(.bordered)
                                 Button("Supprimer", systemImage: "trash", role: .destructive) {
-                                    agents.delete(agent.id)
-                                    dismiss()
+                                    confirmingDelete = true
                                 }
                                 .buttonStyle(.bordered)
+                                .confirmationDialog(
+                                    AgentsDisplay.removalTitle(agent.name, kind: .agent),
+                                    isPresented: $confirmingDelete,
+                                    titleVisibility: .visible
+                                ) {
+                                    Button("Supprimer", role: .destructive) {
+                                        agents.delete(agent.id)
+                                        dismiss()
+                                    }
+                                    Button("Annuler", role: .cancel) {}
+                                } message: {
+                                    Text(AgentsDisplay.removalMessage(.agent))
+                                }
                             }
                         }
                     }
