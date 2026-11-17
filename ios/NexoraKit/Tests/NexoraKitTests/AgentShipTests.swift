@@ -836,6 +836,53 @@ struct AgentShipTests {
         #expect(o["before"] == nil && o["after"] as? String == "autre")
     }
 
+    @Test("banc github : statut combiné d'un commit sans identifiants ni dates répétées")
+    func githubCommitStatus() throws {
+        let api = "https://api.github.com/repos/max/site"
+        let sha = String(repeating: "4c2f", count: 10)
+        let repo: [String: Any] = ["id": 1, "full_name": "max/site", "name": "site", "private": false,
+                                   "default_branch": "master", "fork": false, "url": api]
+        func status(_ id: Int, _ ctx: String, _ state: String, _ desc: Any) -> [String: Any] {
+            ["url": "\(api)/statuses/\(sha)", "avatar_url": "https://avatars.githubusercontent.com/u/\(id)",
+             "id": 40_000_000_000 + id, "node_id": "SC_kwDO\(id)", "state": state, "description": desc,
+             "target_url": "https://ci.example.com/\(id)", "context": ctx,
+             "created_at": "2026-11-16T10:0\(id):00Z", "updated_at": "2026-11-16T10:0\(id):00Z"]
+        }
+        let reply: [String: Any] = ["state": "failure", "sha": sha, "total_count": 4,
+                                    "statuses": [status(1, "ci/build", "success", "Build réussi"),
+                                                 status(2, "ci/tests", "failure", NSNull()),
+                                                 status(3, "vercel", "success", "Déployé"),
+                                                 status(4, "codecov/patch", "pending", "")],
+                                    "repository": repo, "commit_url": "\(api)/commits/\(sha)", "url": "\(api)/commits/\(sha)/status"]
+        // Référence : sans les nouvelles règles (`context` et `sha` masqués).
+        func hide(_ r: [String: Any]) -> [String: Any] {
+            var r = r
+            r["ctx"] = r.removeValue(forKey: "context")
+            return r
+        }
+        var plain = reply
+        plain["statuses"] = (reply["statuses"] as! [[String: Any]]).map(hide)
+        plain["commit"] = plain.removeValue(forKey: "sha")
+        let before = AgentRun.githubText(AgentRun.slimGitHub(plain)).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(reply)).count
+        print("Banc github (statut combiné, 4 statuts) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let out = try #require(AgentRun.slimGitHub(reply) as? [String: Any])
+        #expect(out["total_count"] == nil && out["state"] as? String == "failure" && out["sha"] as? String == sha)
+        let list = try #require(out["statuses"] as? [[String: Any]])
+        #expect(list.count == 4 && list.allSatisfy { $0["id"] == nil && $0["updated_at"] == nil })
+        #expect(list[1]["description"] == nil && list[3]["description"] == nil)
+        #expect(list[0]["description"] as? String == "Build réussi" && list[1]["context"] as? String == "ci/tests")
+        #expect(list[1]["state"] as? String == "failure" && list[1]["created_at"] != nil)
+        // Statut modifié depuis sa création : `updated_at` gardé ; total plus grand que la liste : gardé.
+        var late = status(5, "ci/lint", "success", "ok")
+        late["updated_at"] = "2026-11-16T11:00:00Z"
+        #expect(AgentRun.slimStatus(late)["updated_at"] as? String == "2026-11-16T11:00:00Z")
+        var big = reply
+        big["total_count"] = 120
+        #expect(AgentRun.slimCombinedStatus(big)["total_count"] as? Int == 120)
+    }
+
     @Test("banc github : versions publiées sans uploader répété ni drapeaux faux")
     func githubReleases() throws {
         let api = "https://api.github.com/repos/max/site"

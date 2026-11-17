@@ -1005,9 +1005,15 @@ mémoire 32k tokens, consigne 3 000 car.
   lancement ou quand le champ est vidé. Avant : mission à retaper ; après : 0 geste.
   Tests : 528 → 529 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.124, Nouvelle session) → prochain passage : TOKENS.
-Tokens ensuite : GET …/deployments / statuses (GET …/commits/<ref>/status).
+- 3.0.125 (tokens) : `slimStatus` / `slimCombinedStatus` — statut de commit (GET …/commits/<ref>/status
+  et …/statuses : `context` + `state` + `created_at`) : `id` (aucune route ne le lit), `description`
+  nulle ou vide, `updated_at` = `created_at` retirés ; `total_count` du statut combiné retiré quand il
+  égale le nombre de statuts montrés. Banc `AgentShipTests.githubCommitStatus` (4 statuts) :
+  205 → 142 tokens (−31 %). Tests : 529 → 530 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.125, statuts de commit) → prochain passage : INTERFACE (par ex. Modèles ou Réglages).
+Tokens ensuite : GET …/deployments et …/deployments/<id>/statuses.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
