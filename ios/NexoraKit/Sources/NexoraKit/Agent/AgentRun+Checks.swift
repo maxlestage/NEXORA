@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(out))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(out)))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -489,6 +489,24 @@ extension AgentRun {
             protection["required_status_checks"] = rsc
         }
         out["protection"] = protection
+        return out
+    }
+
+    /// Un cache d'Actions (GET …/actions/caches : `key` + `version` + `size_in_bytes`)
+    /// allégé : l'empreinte `version` (64 caractères hexadécimaux, inutile à l'agent :
+    /// un cache se retrouve et se supprime par sa clé ou son id) et `last_accessed_at`
+    /// identique à `created_at` retirés. La liste (`actions_caches` + `total_count`)
+    /// perd `total_count` quand il est égal au nombre de caches montrés. Clé, branche,
+    /// taille et dates utiles sont gardées. Tout autre objet est rendu tel quel.
+    nonisolated static func slimCache(_ d: [String: Any]) -> [String: Any] {
+        var out = d
+        if let list = d["actions_caches"] as? [Any], let n = d["total_count"] as? Int, n == list.count {
+            out["total_count"] = nil
+            return out
+        }
+        guard d["key"] is String, d["version"] is String, d["size_in_bytes"] != nil else { return d }
+        out["version"] = nil
+        if let a = d["last_accessed_at"] as? String, a == d["created_at"] as? String { out["last_accessed_at"] = nil }
         return out
     }
 
