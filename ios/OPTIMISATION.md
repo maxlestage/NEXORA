@@ -1155,10 +1155,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `SessionsDisplay.recoverButton` / `recoverToast`. Rien retiré. Tests : 549 → 550 (mêmes
   2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.144, session de l'agent) → prochain passage : TOKENS.
-Interface ensuite : menu « Options de la session » à un seul élément (Supprimer) ; DraftReviewView (2e passage).
-Tokens ensuite : GET …/search/code (`text_matches`, dépôt répété dans chaque résultat).
+- 3.0.145 (tokens) : `slimSearch` — GET /search/… : `incomplete_results` à faux et
+  `total_count` égal au nombre montré retirés ; dépôt (déjà réduit à son nom) donné une fois
+  en tête quand tous les résultats viennent du même dépôt. Résultat de code : `name`,
+  `html_url` (déduits du chemin) et `score` retirés, `text_matches` réduits à leurs
+  `fragment`. Banc `AgentShipTests.githubSearchCode` (20 résultats) : 2 291 → 820 tokens
+  (−64 %). Tests : 550 → 551 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.145, recherche de code) → prochain passage : INTERFACE.
+Interface : menu « Options de la session » à un seul élément (Supprimer) ; DraftReviewView (2e passage).
+Tokens ensuite : GET /search/issues (`score`, champs de pull request répétés), /search/commits.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

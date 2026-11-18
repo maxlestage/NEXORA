@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.145 — 18 novembre 2026 — Recherche de code plus légère pour l'agent
+- Amélioré : quand l'agent cherche du code sur GitHub, la réponse qu'il relit est près de 3 fois plus courte (dépôt donné une seule fois, liens et scores déduits retirés, extraits gardés en clair).
+- Les résultats et le nombre total restent annoncés quand la recherche en trouve davantage.
+
 ## 3.0.144 — 18 novembre 2026 — Ouverture de pull request plus claire
 - Amélioré : dans une session, le bouton « Ouvrir la pull request » (travail resté sur une branche) affiche « Ouverture de la pull request… » avec une roue pendant l'envoi.
 - Corrigé : un deuxième toucher pendant l'envoi ne peut plus ouvrir la pull request en double.

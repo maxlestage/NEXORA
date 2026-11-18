@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(slimTree(out)))))))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(slimTree(slimSearch(out))))))))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -570,6 +570,48 @@ extension AgentRun {
             out[k] = nil
         }
         if (d["status_code"] as? Int) == 200, (d["status"] as? String) == "OK" { out["status"] = nil }
+        return out
+    }
+
+    /// Une recherche (GET /search/… : `total_count` + `incomplete_results` + `items`)
+    /// allégée : `incomplete_results` à faux retiré, `total_count` retiré quand il est égal
+    /// au nombre de résultats montrés, et le dépôt (déjà réduit à son nom) donné une seule
+    /// fois en tête quand tous les résultats viennent du même dépôt (avant : répété dans
+    /// chacun). Un résultat de code (GET /search/code : `path` + `sha` + `score` + `name`)
+    /// perd `name` (fin du chemin), `html_url` (déduit du chemin) et `score` (l'ordre des
+    /// résultats le dit déjà) ; ses `text_matches` sont réduits à leurs extraits
+    /// (`fragment`), sans `object_type`, `property` ni positions. Tout autre objet est
+    /// rendu tel quel.
+    nonisolated static func slimSearch(_ d: [String: Any]) -> [String: Any] {
+        if let items = d["items"] as? [Any], d["total_count"] is Int, d["incomplete_results"] is Bool {
+            var out = d
+            if (d["incomplete_results"] as? Bool) == false { out["incomplete_results"] = nil }
+            if (d["total_count"] as? Int) == items.count { out["total_count"] = nil }
+            let repos = items.compactMap { ($0 as? [String: Any])?["repository"] as? [String: Any] }
+            if items.count > 1, repos.count == items.count, let first = repos.first,
+               let name = first["full_name"] as? String,
+               repos.allSatisfy({ ($0["full_name"] as? String) == name && $0.count == first.count }) {
+                out["repository"] = first
+                out["items"] = items.map { x -> Any in
+                    guard var i = x as? [String: Any] else { return x }
+                    i["repository"] = nil
+                    return i
+                }
+            }
+            return out
+        }
+        guard let path = d["path"] as? String, d["sha"] is String, d["score"] != nil,
+              let name = d["name"] as? String, d["number"] == nil else { return d }
+        var out = d
+        if path == name || path.hasSuffix("/" + name) { out["name"] = nil }
+        if let h = d["html_url"] as? String, h.hasPrefix("https://github.com/"), h.hasSuffix(path) {
+            out["html_url"] = nil
+        }
+        out["score"] = nil
+        if let tm = d["text_matches"] as? [Any] {
+            let frags = tm.compactMap { ($0 as? [String: Any])?["fragment"] as? String }
+            if frags.count == tm.count { out["text_matches"] = frags }
+        }
         return out
     }
 
