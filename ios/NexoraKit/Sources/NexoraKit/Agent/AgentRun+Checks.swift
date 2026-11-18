@@ -130,6 +130,10 @@ extension AgentRun {
                     if !some.isEmpty { out[k] = some }
                     continue
                 }
+                if k == "body", let text = v as? String {
+                    out[k] = dropHTMLComments(text)
+                    continue
+                }
                 if k == "labels", let names = labelNames(v) {
                     out[k] = names
                     continue
@@ -1291,5 +1295,56 @@ extension AgentRun {
         return "\n\nATTENTION : \(path) ne compilera pas, \(error). Corrige ce passage "
             + "maintenant avec edit_file (recopie la ligne exacte dans \"old\"), sans "
             + "rien changer d'autre."
+    }
+
+    /// Le texte d'une issue, d'une pull request, d'un commentaire ou d'une version
+    /// (`body`) sans ses commentaires HTML `<!-- … -->` : consignes des modèles d'issue
+    /// et de pull request, marques des robots (Dependabot, Renovate…). GitHub ne les
+    /// affiche pas ; l'agent n'en a pas besoin. Rien n'est retiré dans un bloc de code
+    /// (```, ~~~) ni sur une ligne qui contient du code en ligne (`) : le commentaire y
+    /// fait partie du sujet. Les lignes vides laissées en trop sont regroupées.
+    nonisolated static func dropHTMLComments(_ text: String) -> String {
+        guard text.contains("<!--") else { return text }
+        func blank(_ l: Substring) -> Bool { l.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        var out: [Substring] = []
+        var fence: String?
+        var inComment = false
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !inComment, let f = ["```", "~~~"].first(where: { trimmed.hasPrefix($0) }) {
+                if fence == nil { fence = f } else if fence == f { fence = nil }
+                out.append(raw)
+                continue
+            }
+            if fence != nil || (!inComment && (raw.contains("`") || !raw.contains("<!--"))) {
+                // Hors bloc de code, une ligne vide qui en suit une autre est de trop.
+                if fence == nil, blank(raw), let prev = out.last, blank(prev) { continue }
+                out.append(raw)
+                continue
+            }
+            var line = raw
+            var kept = ""
+            while !line.isEmpty {
+                if inComment {
+                    guard let end = line.range(of: "-->") else { break }
+                    line = line[end.upperBound...]
+                    inComment = false
+                } else if let start = line.range(of: "<!--") {
+                    kept += line[..<start.lowerBound]
+                    line = line[start.upperBound...]
+                    inComment = true
+                } else {
+                    kept += line
+                    break
+                }
+            }
+            // Une ligne qui ne tenait que du commentaire disparaît ; un commentaire jamais
+            // fermé masque la suite, comme sur GitHub.
+            let rest = Substring(kept.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression))
+            if !blank(rest) { out.append(rest) }
+        }
+        while let first = out.first, blank(first) { out.removeFirst() }
+        while let last = out.last, blank(last) { out.removeLast() }
+        return out.joined(separator: "\n")
     }
 }
