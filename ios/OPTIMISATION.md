@@ -1123,13 +1123,22 @@ mémoire 32k tokens, consigne 3 000 car.
   `.toast(_, bottom: 84)` au-dessus du bouton flottant ; vibration légère. Rien retiré.
   Tests : 545 → 546 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.140, suppression annulable du Chat) → prochain passage : TOKENS.
-Tokens : GET …/actions/permissions (petit gain : `selected_actions_url` déduit),
-…/actions/permissions/workflow.
-Interface ensuite : le double « Nouveau chat » de l'accueil (barre du haut + bouton
-flottant) : garder le flottant, laisser à la barre « Avec un agent… » seulement ; ou
-Personnaliser (3 passages déjà).
+- 3.0.141 (tokens) : `slimContent` — GET …/contents/{chemin} : `content` en base64 décodé
+  en texte UTF-8 (`encoding` retiré ; binaire → courte mention), `download_url` (lien brut
+  inaccessible à l'agent), `html_url` (déduit du chemin) et `name` (fin du chemin) retirés ;
+  chemin, type, taille et `sha` gardés. Banc `AgentShipTests.githubContents` : fichier de 60
+  lignes 959 → 684 tokens (−29 % en car./4 ; davantage en vrais tokens, le base64 se découpe
+  très mal) ; dossier de 12 entrées 843 → 339 (−60 %). La piste GET …/actions/permissions
+  était déjà couverte (`selected_actions_url` retiré par la règle des `*_url`) ; …/workflow :
+  2 champs, rien à gagner. Tests : 546 → 547 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.141, contenu GitHub décodé) → prochain passage : INTERFACE.
+Interface : le double « Nouveau chat » de l'accueil (barre du haut + bouton flottant) :
+garder le flottant, laisser à la barre « Avec un agent… » seulement ; ou Personnaliser
+(3 passages déjà).
+Tokens ensuite : GET …/git/trees?recursive=1 (`url` par entrée déjà retiré ; `mode`
+100644 par défaut, `type` déduit ?), GET …/search/code (`text_matches`, dépôt répété).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

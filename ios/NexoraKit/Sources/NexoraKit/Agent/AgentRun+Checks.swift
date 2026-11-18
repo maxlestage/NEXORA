@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(out)))))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(out))))))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -570,6 +570,35 @@ extension AgentRun {
             out[k] = nil
         }
         if (d["status_code"] as? Int) == 200, (d["status"] as? String) == "OK" { out["status"] = nil }
+        return out
+    }
+
+    /// Un fichier ou une entrée de dossier (GET …/contents/{chemin}) allégé : le
+    /// `content` en base64 (illisible pour le modèle, ≈ 1,3 fois plus long et très
+    /// coûteux en tokens) est décodé en texte UTF-8 et `encoding` retiré ; un fichier
+    /// binaire est remplacé par une courte mention. `download_url` (lien brut que
+    /// l'agent ne peut pas ouvrir), `html_url` (déduit du chemin) et `name` (fin du
+    /// chemin) sont retirés. Chemin, type, taille et `sha` (pour une mise à jour) sont
+    /// gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimContent(_ d: [String: Any]) -> [String: Any] {
+        guard let path = d["path"] as? String, d["sha"] is String, d["size"] is Int,
+              let type = d["type"] as? String, ["file", "dir", "symlink", "submodule"].contains(type),
+              d["download_url"] != nil || d["content"] != nil else { return d }
+        var out = d
+        out["download_url"] = nil
+        if let h = d["html_url"] as? String, h.hasPrefix("https://github.com/"), h.hasSuffix(path) {
+            out["html_url"] = nil
+        }
+        if let n = d["name"] as? String, path == n || path.hasSuffix("/" + n) { out["name"] = nil }
+        if (d["encoding"] as? String) == "base64", let b = d["content"] as? String {
+            let clean = b.filter { !$0.isWhitespace }
+            if let data = Data(base64Encoded: clean), let text = String(data: data, encoding: .utf8) {
+                out["content"] = text
+            } else {
+                out["content"] = "(fichier binaire, \(d["size"] as? Int ?? 0) octets : non affiché)"
+            }
+            out["encoding"] = nil
+        }
         return out
     }
 
