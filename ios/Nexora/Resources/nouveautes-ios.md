@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.133 — 18 novembre 2026 — Environnements GitHub allégés pour l'agent
+
+- Amélioré : quand l'agent consulte les environnements de déploiement d'un dépôt, la réponse de GitHub lui coûte environ 40 % de tokens en moins (liens déduits, identifiants internes et valeurs par défaut retirés).
+- Inchangé : nom, règles de protection (délai, relecteurs) et branches autorisées restent visibles.
+
 ## 3.0.132 — 18 novembre 2026 — Routines plus faciles à suivre
 
 - Amélioré : la routine qui passe ensuite est en tête de liste, les routines désactivées en bas.

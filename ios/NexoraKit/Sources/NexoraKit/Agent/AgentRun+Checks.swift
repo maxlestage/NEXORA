@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(out)))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(out))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -507,6 +507,33 @@ extension AgentRun {
         guard d["key"] is String, d["version"] is String, d["size_in_bytes"] != nil else { return d }
         out["version"] = nil
         if let a = d["last_accessed_at"] as? String, a == d["created_at"] as? String { out["last_accessed_at"] = nil }
+        return out
+    }
+
+    /// Un environnement de déploiement (GET …/environments : `name` + `protection_rules`)
+    /// allégé : `html_url` (déduit du nom : page « activity_log?environments_filter= »),
+    /// `can_admins_bypass` à vrai (valeur par défaut), `updated_at` identique à
+    /// `created_at`, et dans chaque règle l'`id` interne (aucune route ne s'en sert) et
+    /// `prevent_self_review` à faux retirés. La liste (`environments` + `total_count`)
+    /// perd `total_count` quand il est égal au nombre montré. Nom, règles (type,
+    /// délai, relecteurs) et branches autorisées sont gardés. Tout autre objet est
+    /// rendu tel quel.
+    nonisolated static func slimEnvironment(_ d: [String: Any]) -> [String: Any] {
+        var out = d
+        if let list = d["environments"] as? [Any], let n = d["total_count"] as? Int, n == list.count {
+            out["total_count"] = nil
+            return out
+        }
+        guard d["name"] is String, let rules = d["protection_rules"] as? [Any] else { return d }
+        if let h = d["html_url"] as? String, h.contains("environments_filter=") { out["html_url"] = nil }
+        if (d["can_admins_bypass"] as? Bool) == true { out["can_admins_bypass"] = nil }
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        out["protection_rules"] = rules.map { r -> Any in
+            guard var rule = r as? [String: Any], rule["type"] is String else { return r }
+            rule["id"] = nil
+            if (rule["prevent_self_review"] as? Bool) == false { rule["prevent_self_review"] = nil }
+            return rule
+        }
         return out
     }
 

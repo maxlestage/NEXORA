@@ -955,6 +955,58 @@ struct AgentShipTests {
         #expect(partial["total_count"] as? Int == 42)
     }
 
+    @Test("banc github : environnements sans lien déduit ni valeurs par défaut")
+    func githubEnvironments() throws {
+        let page = "https://github.com/max/site/deployments/activity_log?environments_filter="
+        func env(_ i: Int, _ name: String, protected: Bool) -> [String: Any] {
+            let date = "2026-11-0\(i)T10:00:00Z"
+            var rules: [Any] = []
+            if protected {
+                rules = [
+                    ["id": 9_000 + i, "node_id": "GA_kwDO\(i)", "type": "wait_timer", "wait_timer": 30],
+                    ["id": 9_100 + i, "node_id": "GA_kwDP\(i)", "type": "required_reviewers", "prevent_self_review": false,
+                     "reviewers": [["type": "User", "reviewer": ["login": "max", "id": 1, "type": "User", "site_admin": false]]]],
+                    ["id": 9_200 + i, "node_id": "GA_kwDQ\(i)", "type": "branch_policy"],
+                ]
+            }
+            return ["id": 1_000_000 + i, "node_id": "EN_kwDO\(i)", "name": name,
+                    "url": "https://api.github.com/repos/max/site/environments/\(name)",
+                    "html_url": page + name, "created_at": date, "updated_at": i == 3 ? "2026-11-17T08:00:00Z" : date,
+                    "can_admins_bypass": true, "protection_rules": rules,
+                    "deployment_branch_policy": protected ? ["protected_branches": true, "custom_branch_policies": false] as Any : NSNull()]
+        }
+        let envs = [env(1, "production", protected: true), env(2, "staging", protected: false),
+                    env(3, "preview", protected: false), env(4, "github-pages", protected: true)]
+        let list: [String: Any] = ["total_count": 4, "environments": envs]
+        // Référence : sans la nouvelle règle (`protection_rules` masqué sous un autre nom).
+        let before = AgentRun.githubText(AgentRun.slimGitHub([
+            "total": 4, "environments": envs.map { e -> Any in
+                var r = e
+                r["_rules"] = r.removeValue(forKey: "protection_rules")
+                return r
+            },
+        ] as [String: Any])).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(list)).count
+        print("Banc github (4 environnements) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let out = try #require(AgentRun.slimGitHub(list) as? [String: Any])
+        #expect(out["total_count"] == nil)
+        let items = try #require(out["environments"] as? [[String: Any]])
+        #expect(items.count == 4 && items.allSatisfy { $0["html_url"] == nil && $0["can_admins_bypass"] == nil && $0["name"] is String })
+        #expect(items[0]["updated_at"] == nil && items[2]["updated_at"] as? String == "2026-11-17T08:00:00Z")
+        let rules = try #require(items[0]["protection_rules"] as? [[String: Any]])
+        #expect(rules.count == 3 && rules.allSatisfy { $0["id"] == nil && $0["type"] is String })
+        #expect(rules[0]["wait_timer"] as? Int == 30 && rules[1]["prevent_self_review"] == nil && rules[1]["reviewers"] != nil)
+        // Admins sans contournement : l'information reste.
+        var strict = env(5, "prod", protected: true)
+        strict["can_admins_bypass"] = false
+        let s = try #require(AgentRun.slimGitHub(strict) as? [String: Any])
+        #expect(s["can_admins_bypass"] as? Bool == false)
+        // Liste tronquée : le total reste.
+        let partial = try #require(AgentRun.slimGitHub(["total_count": 9, "environments": envs] as [String: Any]) as? [String: Any])
+        #expect(partial["total_count"] as? Int == 9)
+    }
+
     @Test("banc github : déploiements et leurs statuts sans champs par défaut")
     func githubDeployments() throws {
         let api = "https://api.github.com/repos/max/site"
