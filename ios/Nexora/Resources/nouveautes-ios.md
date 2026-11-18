@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.136 — 18 novembre 2026 — Agent lancé depuis la liste des dépôts
+- Nouveau : balayez un dépôt vers la droite (ou appui long) pour lancer l'agent dessus, sans ouvrir sa fiche.
+- Amélioré : VoiceOver annonce « Lancer l'agent sur nexora ».
+
 ## 3.0.135 — 18 novembre 2026 — Réglages d'Actions allégés pour l'agent
 
 - Amélioré : quand l'agent liste les machines, secrets ou variables d'Actions de GitHub, la réponse qu'il relit est environ 25 % plus courte (total redit, dates répétées et valeurs par défaut retirés).

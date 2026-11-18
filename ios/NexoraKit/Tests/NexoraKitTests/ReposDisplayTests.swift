@@ -46,6 +46,13 @@ struct ReposDisplayTests {
         #expect(ReposDisplay.title(r, login: nil) == "max/nexora")
     }
 
+    @Test func lancerAgentDepuisLaListe() throws {
+        let r = try repo("nexora")
+        #expect(ReposDisplay.agentAction == "Agent")
+        #expect(ReposDisplay.agentLabel(r, login: "max") == "Lancer l'agent sur nexora")
+        #expect(ReposDisplay.agentLabel(r, login: "autre") == "Lancer l'agent sur max/nexora")
+    }
+
     @Test func enTeteAvecCompte() {
         #expect(ReposDisplay.header(shown: 12, total: 12) == "12 dépôts")
         #expect(ReposDisplay.header(shown: 1, total: 1) == "1 dépôt")

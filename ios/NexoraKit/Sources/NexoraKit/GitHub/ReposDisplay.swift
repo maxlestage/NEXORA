@@ -27,6 +27,14 @@ public enum ReposDisplay {
         return repo.name
     }
 
+    /// Le bouton du balayage vers la droite : lancer l'agent sur ce dépôt.
+    public static let agentAction = "Agent"
+
+    /// Le libellé complet (appui long, VoiceOver) : « Lancer l'agent sur nexora ».
+    public static func agentLabel(_ repo: Repo, login: String?) -> String {
+        "Lancer l'agent sur \(title(repo, login: login))"
+    }
+
     /// L'en-tête de la liste : « 12 dépôts », « 1 dépôt », ou « 3 sur 12 » pendant une recherche.
     public static func header(shown: Int, total: Int) -> String {
         if shown < total { return "\(shown) sur \(total)" }

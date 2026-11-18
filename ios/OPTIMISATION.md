@@ -1088,9 +1088,15 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubActionsLists` (3 machines + 6 secrets) : 248 → 184 tokens (−26 %).
   Tests : 539 → 540 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.135, runners/secrets) → prochain passage : INTERFACE — Personnaliser ou
-accueil (non repris récemment).
+- 3.0.136 (interface) : liste des dépôts (ReposView, GitHubView.swift, 1er passage) — lancer
+  l'agent sur un dépôt demandait d'ouvrir sa fiche puis ✨ (2 appuis + chargement) ; désormais
+  balayage vers la droite « Agent » ou appui long « Lancer l'agent sur nexora »
+  (`ReposDisplay.agentAction`, `agentLabel`), ouvre NewSessionView directement. Rien retiré.
+  Tests : 540 → 541 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.136, liste des dépôts) → prochain passage : TOKENS.
+Interface ensuite : Personnaliser ou accueil (non repris récemment), CloudAgentsView.
 Tokens ensuite : GET …/actions/permissions, …/hooks (webhooks : `config`, `last_response`).
 
 ## Pistes tokens à faire
