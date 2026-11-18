@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.155 — 18 novembre 2026 — Listes d'issues plus légères pour l'agent
+
+- Amélioré : dans une liste d'issues ou de pull requests, les longs textes sont raccourcis à leurs premières lignes, avec le chemin pour les lire en entier.
+- Amélioré : l'agent voit environ 19 issues longues d'un coup au lieu de 2, et consomme environ 85 % de tokens en moins pour parcourir la liste.
+- Inchangé : une issue ouverte seule et les commentaires restent entiers.
+
 ## 3.0.154 — 18 novembre 2026 — Joindre un fichier sans quitter la conversation
 
 - Amélioré : « Joindre un fichier » sans compte GitHub propose « Se connecter à GitHub » sur place, au lieu de vous envoyer dans l'onglet Code ; une fois connecté, la liste de vos dépôts s'affiche, avec un message et une vibration.

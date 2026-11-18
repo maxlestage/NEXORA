@@ -1175,6 +1175,40 @@ struct AgentShipTests {
         #expect((c["pull_request"] as? [String: Any])?["merged_at"] is NSNull)
     }
 
+    @Test("banc github : longs textes d'une liste d'issues raccourcis")
+    func githubListBodies() throws {
+        // 30 issues ouvertes, chacune avec un long rapport de bug (≈ 2 500 caractères).
+        let para = "Étapes pour reproduire : ouvrir l'écran, toucher le bouton, attendre.\n"
+        let report = "Le calcul est faux sur iPhone.\n\n" + String(repeating: para, count: 35)
+        func items(_ key: String) -> [Any] {
+            (1...30).map { i -> Any in
+                ["number": i, "title": "Bug \(i)", "state": "open", "comments": 2,
+                 "html_url": "https://github.com/o/r/issues/\(i)", "user": ["login": "o"],
+                 key: report]
+            }
+        }
+        // Avant : même liste, texte sous une clé que la réduction ignore (« Body »).
+        let raw = AgentRun.githubText(AgentRun.slimGitHub(items("Body")))
+        let slim = AgentRun.githubText(AgentRun.slimGitHub(items("body")))
+        func visible(_ t: String) -> Int { t.prefix(7000).components(separatedBy: "\"title\":").count - 1 }
+        // Tokens pour voir les 30 titres : réponse coupée à 7 000 car., autant d'appels que nécessaire.
+        func cost(_ t: String) -> Int { let v = max(1, visible(t)); return ((30 + v - 1) / v) * min(t.count, 7000) / 4 }
+        print("Banc github (liste de 30 issues longues) : \(visible(raw)) → \(visible(slim)) issues visibles, \(cost(raw)) → \(cost(slim)) tokens pour les voir toutes")
+        #expect(visible(slim) >= 8 * visible(raw) && cost(slim) * 4 < cost(raw))
+        let list = try #require(AgentRun.slimGitHub(items("body")) as? [[String: Any]])
+        let body = try #require(list[4]["body"] as? String)
+        #expect(body.hasPrefix("Le calcul est faux sur iPhone.\n\nÉtapes"))
+        #expect(body.hasSuffix("car. de plus : GET /repos/o/r/issues/5)"))
+        #expect(body.count < 300)
+        // Un élément seul, un texte court et une liste de commentaires restent entiers.
+        let one = try #require(AgentRun.slimGitHub((items("body")[0])) as? [String: Any])
+        #expect(one["body"] as? String == report)
+        let short = try #require(AgentRun.slimGitHub([["number": 1, "title": "a", "body": "court"], ["number": 2, "title": "b", "body": "bref"]]) as? [[String: Any]])
+        #expect(short[0]["body"] as? String == "court")
+        let comments = try #require(AgentRun.slimGitHub([["id": 1, "body": report], ["id": 2, "body": report]]) as? [[String: Any]])
+        #expect(comments[1]["body"] as? String == report)
+    }
+
     @Test("banc github : commentaires HTML des modèles retirés des textes")
     func githubBodyComments() throws {
         // Un modèle de pull request courant : consignes en commentaires HTML, invisibles sur GitHub.

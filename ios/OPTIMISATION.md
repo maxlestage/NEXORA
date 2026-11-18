@@ -1228,11 +1228,19 @@ mémoire 32k tokens, consigne 3 000 car.
   Compte sans dépôt : phrase `noRepoText` + « Recharger » (44 pt). Rien retiré.
   Tests : 558 → 559 (mêmes 2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.154, Joindre un fichier) → prochain passage : TOKENS.
-Piste : longs `body` d'une LISTE d'issues (30 issues de plusieurs milliers de car.) —
-les raccourcir à N lignes avec « (suite : GET …/issues/N) » ? à peser (l'agent relirait).
-Interface ensuite : QuotaSheet, ModelSheet ou InstallAgentsView (peu ou pas traités).
+- 3.0.155 (tokens) : longs `body` d'une LISTE d'issues/PR (≥ 2 éléments avec `number` +
+  `title`) réduits à leurs premières lignes (≤ 200 car., coupé en fin de ligne) au-delà de
+  300 car., suivis de « (N car. de plus : GET /repos/o/r/issues/N) » (`AgentRun.listBodies`).
+  Élément seul et listes de commentaires inchangés. Banc `AgentShipTests.githubListBodies`
+  (30 issues de ≈ 2 500 car., réponse coupée à 7 000 car.) : 2 → 19 issues visibles par
+  réponse, 26 250 → 3 500 tokens pour voir les 30 (−87 %). Tests : 559 → 560 (mêmes 2
+  échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.155, listes d'issues) → prochain passage : INTERFACE.
+Écran : QuotaSheet, ModelSheet ou InstallAgentsView (peu ou pas traités).
+Piste tokens suivante : `body` des listes de versions (GET …/releases, notes longues) —
+même réduction avec `tag_name` ? à mesurer.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
