@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(out))))))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(slimTree(out)))))))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -570,6 +570,25 @@ extension AgentRun {
             out[k] = nil
         }
         if (d["status_code"] as? Int) == 200, (d["status"] as? String) == "OK" { out["status"] = nil }
+        return out
+    }
+
+    /// Un arbre Git (GET …/git/trees/{sha}, `recursive=1` : `sha` + `tree` + `truncated`)
+    /// ou l'une de ses entrées (`path` + `mode` + `type` + `sha`) allégé : `mode` retiré
+    /// quand il vaut la valeur ordinaire de son type (« 100644 » pour un fichier, « 040000 »
+    /// pour un dossier) ; un exécutable (100755), un lien (120000) ou un sous-module
+    /// (160000) le gardent. `truncated` à faux (le cas courant) est retiré. Chemin, type,
+    /// taille et `sha` sont gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimTree(_ d: [String: Any]) -> [String: Any] {
+        if d["tree"] is [Any], d["sha"] is String, let t = d["truncated"] as? Bool {
+            var out = d
+            if !t { out["truncated"] = nil }
+            return out
+        }
+        guard d["path"] is String, d["sha"] is String, let mode = d["mode"] as? String,
+              let type = d["type"] as? String else { return d }
+        var out = d
+        if (type == "blob" && mode == "100644") || (type == "tree" && mode == "040000") { out["mode"] = nil }
         return out
     }
 
