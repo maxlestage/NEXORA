@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.137 — 18 novembre 2026 — Webhooks lus plus légers par l'agent
+- Amélioré : quand l'agent consulte les webhooks d'un dépôt, la réponse de GitHub lui coûte environ 40 % de tokens en moins (valeurs par défaut et réponse « jamais appelé » retirées).
+- Inchangé : adresse, évènements, état actif et code de la dernière réponse restent visibles.
+
 ## 3.0.136 — 18 novembre 2026 — Agent lancé depuis la liste des dépôts
 - Nouveau : balayez un dépôt vers la droite (ou appui long) pour lancer l'agent dessus, sans ouvrir sa fiche.
 - Amélioré : VoiceOver annonce « Lancer l'agent sur nexora ».

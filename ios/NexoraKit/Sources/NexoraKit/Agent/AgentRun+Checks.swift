@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(out)))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(out))))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -528,6 +528,29 @@ extension AgentRun {
             if let u = item["updated_at"] as? String, u == item["created_at"] as? String { item["updated_at"] = nil }
             if key == "runners", (item["ephemeral"] as? Bool) == false { item["ephemeral"] = nil }
             return item
+        }
+        return out
+    }
+
+    /// Un webhook (GET …/hooks, …/hooks/{id}, et ceux d'une organisation) allégé :
+    /// `name` (toujours « web »), `type` « Repository » (déduit du chemin),
+    /// `config.insecure_ssl` à « 0 » (valeur par défaut), `updated_at` identique à
+    /// `created_at` et `last_response` d'un webhook jamais appelé (« unused ») retirés ;
+    /// une dernière réponse réelle perd ses champs nuls. Adresse, type de contenu,
+    /// évènements, état actif et code de la dernière réponse sont gardés. Tout autre
+    /// objet est rendu tel quel.
+    nonisolated static func slimHook(_ d: [String: Any]) -> [String: Any] {
+        guard d["events"] is [Any], var config = d["config"] as? [String: Any],
+              d["last_response"] != nil || (d["name"] as? String) == "web" else { return d }
+        var out = d
+        if (d["name"] as? String) == "web" { out["name"] = nil }
+        if (d["type"] as? String) == "Repository" { out["type"] = nil }
+        if (config["insecure_ssl"] as? String) == "0" { config["insecure_ssl"] = nil }
+        out["config"] = config
+        if let u = d["updated_at"] as? String, u == d["created_at"] as? String { out["updated_at"] = nil }
+        if let r = d["last_response"] as? [String: Any] {
+            let real = r.filter { !($0.value is NSNull) }
+            out["last_response"] = (r["status"] as? String) == "unused" ? nil : real
         }
         return out
     }
