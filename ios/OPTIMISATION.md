@@ -1067,9 +1067,17 @@ mémoire 32k tokens, consigne 3 000 car.
   routines) ; appui long = « Lancer maintenant » / « Activer » (le balayage ne se devine
   pas) ; vibration à l'activation. Tests : 536 → 537.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.132, Routines) → prochain passage : TOKENS.
-Tokens ensuite : GET …/environments (id des règles, `html_url` déduit, `can_admins_bypass` vrai).
+- 3.0.133 (tokens) : `slimEnvironment` — GET …/environments : chaque environnement perd
+  `html_url` (déduit du nom), `can_admins_bypass` à vrai (défaut), `updated_at` identique à
+  `created_at` ; chaque règle perd son `id` interne et `prevent_self_review` à faux ; la liste
+  perd `total_count` égal au nombre montré. Banc `AgentShipTests.githubEnvironments`
+  (4 environnements, 2 protégés) : 410 → 240 tokens (−41 %). Tests : 537 → 538 (mêmes 2
+  échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.133, environnements) → prochain passage : INTERFACE (écran pas encore
+repris récemment, par ex. Personnaliser ou accueil).
+Tokens ensuite : GET …/actions/runners ou …/actions/secrets (listes : champs par défaut, total redit).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
