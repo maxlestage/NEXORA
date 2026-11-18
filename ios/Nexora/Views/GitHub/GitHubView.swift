@@ -125,6 +125,8 @@ struct ReposView: View {
     @State private var creating = false
     /// Confirmation avant de se déconnecter (le jeton serait à recoller).
     @State private var confirmSignOut = false
+    /// Dépôt sur lequel lancer l'agent (balayage ou appui long), sans ouvrir sa fiche.
+    @State private var agentRepo: Repo?
 
     /// Les dépôts affichés (recherche sans accents ni casse, description et langage compris).
     private var shown: [Repo] { ReposDisplay.filter(github.repos, query: query) }
@@ -180,7 +182,14 @@ struct ReposView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(ReposDisplay.accessibility(r, login: github.user?.login))
                     }
+                    // L'action la plus fréquente sur un dépôt, à portée de doigt dans la liste.
+                    .swipeActions(edge: .leading) {
+                        Button { agentRepo = r } label: { Label(ReposDisplay.agentAction, systemImage: "sparkles") }
+                            .tint(.accentColor)
+                            .accessibilityLabel(ReposDisplay.agentLabel(r, login: github.user?.login))
+                    }
                     .contextMenu {
+                        Button(ReposDisplay.agentLabel(r, login: github.user?.login), systemImage: "sparkles") { agentRepo = r }
                         if let url = URL(string: r.htmlUrl) {
                             Button("Ouvrir sur GitHub", systemImage: "safari") { openURL(url) }
                             Button("Copier le lien", systemImage: "link") {
@@ -221,6 +230,7 @@ struct ReposView: View {
         .searchable(text: $query, prompt: "Nom, description ou langage")
         .refreshable { await github.refresh() }
         .navigationDestination(for: Repo.self) { RepoView(repo: $0) }
+        .navigationDestination(item: $agentRepo) { NewSessionView(repo: $0) }
         .sheet(isPresented: $creating) { CreateRepoSheet() }
         .alert(SettingsDisplay.signOutTitle(login: github.user?.login), isPresented: $confirmSignOut) {
             Button("Annuler", role: .cancel) {}
