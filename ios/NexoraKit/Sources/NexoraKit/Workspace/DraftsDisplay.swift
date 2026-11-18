@@ -43,4 +43,17 @@ public enum DraftsDisplay {
         parts.append(accepted ? "coché" : "décoché")
         return parts.joined(separator: ", ")
     }
+
+    /// Le brouillon suivant dans l'ordre de la liste, pour relire sans revenir en
+    /// arrière ; revient au premier après le dernier, `nil` s'il n'y en a qu'un.
+    public static func next(after path: String, in paths: [String]) -> String? {
+        guard paths.count > 1, let i = paths.firstIndex(of: path) else { return nil }
+        return paths[(i + 1) % paths.count]
+    }
+
+    /// La place du brouillon dans la liste (« 2 sur 5 »), `nil` s'il est seul.
+    public static func position(of path: String, in paths: [String]) -> String? {
+        guard paths.count > 1, let i = paths.firstIndex(of: path) else { return nil }
+        return "\(i + 1) sur \(paths.count)"
+    }
 }

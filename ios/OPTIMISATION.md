@@ -1176,9 +1176,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubSearchIssues` (20 résultats, moitié PR) : 1 463 → 1 269 tokens
   (−13 %). Tests : 552 → 553 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.147, recherche d'issues) → prochain passage : INTERFACE.
-Interface : DraftReviewView (2e passage).
+- 3.0.148 (interface) : Valider les brouillons, 2e passage — DraftDiffView : pour relire
+  5 brouillons il fallait 5 allers-retours liste ↔ comparaison. Bouton « › » (Brouillon
+  suivant, en bas à côté de Refuser/Accepter, revient au premier après le dernier) et place
+  « 2 sur 5 » dans l'en-tête ; `DraftsDisplay.next` / `position`. `path` devient un `@State`
+  ; la tâche de comparaison suit (chemin, contenu) pour ne pas garder l'ancien diff si deux
+  fichiers ont le même contenu. Rien retiré. Tests : 553 → 554 (mêmes 2 échecs Linux du
+  catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.148, brouillons) → prochain passage : TOKENS.
+Interface ensuite : ShipSheet (feuille d'envoi : texte « Un commit par dépôt » long).
 Tokens ensuite : GET /search/commits (`score`, commit répété), `author_association` des issues.
 
 ## Pistes tokens à faire

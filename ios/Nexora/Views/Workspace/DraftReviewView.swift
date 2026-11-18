@@ -279,10 +279,13 @@ struct DraftRow: View {
     }
 }
 
-/// La comparaison d'un brouillon, avec Accepter / Refuser / Modifier.
+/// La comparaison d'un brouillon, avec Accepter / Refuser / Modifier, et
+/// « Suivant » pour relire tous les brouillons sans revenir à la liste.
 struct DraftDiffView: View {
     let run: AgentRun
-    let path: String
+
+    /// Le brouillon montré (change avec « Suivant »).
+    @State private var path: String
 
     @Environment(\.colorScheme) private var scheme
     @State private var whole = false
@@ -294,10 +297,17 @@ struct DraftDiffView: View {
     @ScaledMetric(relativeTo: .caption2) private var numberWidth: CGFloat = 34
     @ScaledMetric(relativeTo: .caption) private var signWidth: CGFloat = 16
 
+    init(run: AgentRun, path: String) {
+        self.run = run
+        _path = State(initialValue: path)
+    }
+
     var body: some View {
         let ok = !run.rejected.contains(path)
         let content = run.changes.get(path) ?? nil
         let deleted = content == nil
+        let paths = run.changes.keys.sorted()
+        let next = DraftsDisplay.next(after: path, in: paths)
         Group {
             if let error {
                 ContentUnavailableView("Version d'origine illisible : \(error)", systemImage: "exclamationmark.triangle")
@@ -310,6 +320,12 @@ struct DraftDiffView: View {
                         if !ok { Pill(text: "refusé", color: .gray) }
                         if d.truncated { Pill(text: "comparaison simplifiée", color: Theme.amber) }
                         Spacer(minLength: 0)
+                        if let place = DraftsDisplay.position(of: path, in: paths) {
+                            Text(place)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -358,12 +374,25 @@ struct DraftDiffView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+                if let next {
+                    Button {
+                        diff = nil
+                        error = nil
+                        path = next
+                    } label: {
+                        Image(systemName: "chevron.forward")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Brouillon suivant")
+                    .accessibilityHint(next)
+                }
             }
             .controlSize(.large)
             .padding(12)
             .background(.bar)
         }
-        .task(id: content) { await load() }
+        // Relancée quand le brouillon change ou qu'on passe au suivant.
+        .task(id: DraftKey(path: path, content: content)) { await load() }
         .sheet(isPresented: $editing) {
             DraftEditor(text: content ?? "") { saved in
                 run.editDraft(path, saved.hasSuffix("\n") ? saved : saved + "\n")
@@ -371,6 +400,11 @@ struct DraftDiffView: View {
             }
         }
         .toast($toast)
+    }
+
+    private struct DraftKey: Hashable {
+        let path: String
+        let content: String?
     }
 
     private func load() async {

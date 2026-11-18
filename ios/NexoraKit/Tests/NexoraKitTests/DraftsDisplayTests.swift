@@ -24,4 +24,15 @@ struct DraftsDisplayTests {
         #expect(DraftsDisplay.rowAccessibility(path: "c", kind: .deleted, added: nil, removed: nil, accepted: true)
             == "c, Supprimé, coché")
     }
+
+    @Test func brouillonSuivantEtPlace() {
+        let paths = ["a", "b", "c"]
+        #expect(DraftsDisplay.next(after: "a", in: paths) == "b")
+        #expect(DraftsDisplay.next(after: "c", in: paths) == "a")
+        #expect(DraftsDisplay.next(after: "a", in: ["a"]) == nil)
+        #expect(DraftsDisplay.next(after: "z", in: paths) == nil)
+        #expect(DraftsDisplay.position(of: "b", in: paths) == "2 sur 3")
+        #expect(DraftsDisplay.position(of: "a", in: ["a"]) == nil)
+        #expect(DraftsDisplay.position(of: "z", in: paths) == nil)
+    }
 }
