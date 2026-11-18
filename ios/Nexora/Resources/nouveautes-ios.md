@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.151 — 18 novembre 2026 — Listes d'issues plus légères pour l'agent
+- Amélioré : quand l'agent liste les issues d'un dépôt, chaque pull request n'y porte plus qu'une simple marque au lieu de quatre liens (environ 10 % de tokens en moins sur une liste de 20).
+- Inchangé : une pull request fermée indique toujours si elle a été fusionnée.
+
 ## 3.0.150 — 18 novembre 2026 — Envoi des brouillons plus clair
 
 - Amélioré : un nom de branche invalide (vide, avec espace…) est signalé tout de suite, le bouton reste grisé au lieu d'un refus de GitHub après l'envoi.

@@ -1198,9 +1198,15 @@ mémoire 32k tokens, consigne 3 000 car.
   existait mais ne se voyait pas), 1 à 6 lignes ; bouton principal en grande taille. Rien
   retiré. Tests : 555 (assertions ajoutées dans `ship`, mêmes échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.150, feuille d'envoi) → prochain passage : TOKENS.
-Interface ensuite : écran Modèles ou Personnaliser (pas encore repassés récemment).
+- 3.0.151 (tokens) : `slimSearch` — le bloc `pull_request` d'une issue est aussi réduit
+  hors recherche (GET …/issues, où les pull requests apparaissent) : `html_url` répété
+  retiré, marque `true` pour une pull request ouverte non fusionnée, `merged_at` gardé si
+  fermée. Banc `AgentShipTests.githubIssueList` (20 éléments, moitié de pull requests) :
+  1 410 → 1 266 tokens (−10,2 %). Tests : 555 → 556 (mêmes 2 échecs Linux).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.151, liste d'issues) → prochain passage : INTERFACE.
+Interface : écran Modèles ou Personnaliser (pas encore repassés récemment).
 Tokens : `author_association` des issues (à peser : utile pour savoir qui écrit),
 NSDictionary.isEqual sous Linux avec des Int (committer gardé si `id` sans `type`).
 
