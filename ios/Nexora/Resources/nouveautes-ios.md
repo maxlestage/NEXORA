@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.141 — 18 novembre 2026 — Fichiers GitHub lus en clair par l'agent
+
+- Amélioré : quand l'agent lit un fichier par l'API GitHub, il reçoit le texte en clair au lieu du codage base64 : environ 30 % de tokens en moins, et un contenu qu'il comprend vraiment.
+- Amélioré : la liste d'un dossier GitHub perd les liens inutiles à l'agent : environ 60 % de tokens en moins.
+
 ## 3.0.140 — 18 novembre 2026 — Suppression annulable dans le Chat
 - Amélioré : supprimer une conversation (glissement ou menu « … ») affiche « Annuler » pendant 5 secondes ; rien n'est effacé avant.
 - Amélioré : l'avis donne le titre de la conversation supprimée et ne cache plus le bouton « Nouveau chat ».

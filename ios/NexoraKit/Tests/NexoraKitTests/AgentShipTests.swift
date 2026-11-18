@@ -992,6 +992,62 @@ struct AgentShipTests {
         #expect((p["runners"] as? [[String: Any]])?.first?["ephemeral"] as? Bool == true)
     }
 
+    @Test("banc github : contenu de fichier décodé, dossier sans liens")
+    func githubContents() throws {
+        let source = (1...60).map { "    let valeur\($0) = calcule(\($0)) // ligne \($0)" }.joined(separator: "\n") + "\n"
+        // GitHub coupe le base64 toutes les 60 colonnes.
+        let b64 = Data(source.utf8).base64EncodedString()
+        let wrapped = stride(from: 0, to: b64.count, by: 60).map { i -> String in
+            let a = b64.index(b64.startIndex, offsetBy: i)
+            return String(b64[a..<(b64.index(a, offsetBy: 60, limitedBy: b64.endIndex) ?? b64.endIndex)])
+        }.joined(separator: "\n") + "\n"
+        func entry(_ path: String, _ type: String, size: Int) -> [String: Any] {
+            let name = String(path.split(separator: "/").last!)
+            return ["name": name, "path": path, "sha": "3d21ec53a331a6f037a91c368710b99387d012c1", "size": size,
+                    "type": type,
+                    "url": "https://api.github.com/repos/o/r/contents/\(path)?ref=main",
+                    "html_url": "https://github.com/o/r/blob/main/\(path)",
+                    "git_url": "https://api.github.com/repos/o/r/git/blobs/3d21ec53",
+                    "download_url": type == "file" ? "https://raw.githubusercontent.com/o/r/main/\(path)" : NSNull(),
+                    "_links": ["self": "https://api.github.com/repos/o/r/contents/\(path)"]]
+        }
+        var file = entry("Sources/App/Calcul.swift", "file", size: source.utf8.count)
+        file["content"] = wrapped
+        file["encoding"] = "base64"
+        let listing: [Any] = (1...12).map { entry("Sources/App/Fichier\($0).swift", $0 % 4 == 0 ? "dir" : "file", size: 900 + $0) }
+        // Avant : mêmes réponses sans `slimContent` (clé « Path », de même longueur, qui l'écarte).
+        func unslimmed(_ x: Any) -> Any {
+            if var d = x as? [String: Any] { d["Path"] = d.removeValue(forKey: "path"); return d }
+            return (x as! [Any]).map(unslimmed)
+        }
+        let beforeFile = AgentRun.githubText(AgentRun.slimGitHub(unslimmed(file))).count
+        let beforeList = AgentRun.githubText(AgentRun.slimGitHub(unslimmed(listing))).count
+        let f = try #require(AgentRun.slimGitHub(file) as? [String: Any])
+        let l = try #require(AgentRun.slimGitHub(listing) as? [[String: Any]])
+        let afterFile = AgentRun.githubText(f).count
+        let afterList = AgentRun.githubText(l).count
+        print("Banc github (fichier de 60 lignes) : \(beforeFile / 4) → \(afterFile / 4) tokens ; "
+            + "dossier de 12 entrées : \(beforeList / 4) → \(afterList / 4) tokens")
+        #expect(afterFile < beforeFile && afterList < beforeList)
+        // Le texte est rendu tel quel, lisible ; chemin, type, taille et sha restent.
+        #expect(f["content"] as? String == source && f["encoding"] == nil)
+        #expect(f["path"] as? String == "Sources/App/Calcul.swift" && f["sha"] is String && f["size"] as? Int == source.utf8.count)
+        #expect(f["download_url"] == nil && f["html_url"] == nil && f["name"] == nil)
+        #expect(l.allSatisfy { $0["path"] is String && $0["type"] is String && $0["sha"] is String && $0["size"] is Int
+            && $0["download_url"] == nil && $0["html_url"] == nil && $0["name"] == nil })
+        // Fichier binaire : une mention courte au lieu du base64.
+        var bin = entry("logo.png", "file", size: 4)
+        bin["content"] = Data([0xFF, 0xD8, 0xFF, 0xE0]).base64EncodedString()
+        bin["encoding"] = "base64"
+        let b = try #require(AgentRun.slimGitHub(bin) as? [String: Any])
+        #expect((b["content"] as? String)?.contains("binaire") == true && b["encoding"] == nil)
+        // Un objet qui n'est pas du contenu (fichier d'un commit) n'est pas touché.
+        let other: [String: Any] = ["filename": "a.swift", "status": "modified", "additions": 1, "deletions": 0,
+                                    "changes": 1, "blob_url": "https://github.com/o/r/blob/x/a.swift"]
+        let o = try #require(AgentRun.slimGitHub(other) as? [String: Any])
+        #expect(o["filename"] as? String == "a.swift")
+    }
+
     @Test("banc github : livraisons de webhook sans valeurs par défaut")
     func githubHookDeliveries() throws {
         let deliveries: [Any] = (1...6).map { (i: Int) -> Any in
