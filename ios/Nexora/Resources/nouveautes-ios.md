@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.154 — 18 novembre 2026 — Joindre un fichier sans quitter la conversation
+
+- Amélioré : « Joindre un fichier » sans compte GitHub propose « Se connecter à GitHub » sur place, au lieu de vous envoyer dans l'onglet Code ; une fois connecté, la liste de vos dépôts s'affiche, avec un message et une vibration.
+- Amélioré : un compte sans dépôt le dit clairement, avec un bouton « Recharger ».
+
 ## 3.0.153 — 18 novembre 2026 — Issues et pull requests plus légères pour l'agent
 
 - Amélioré : quand l'agent lit des issues ou des pull requests, les consignes cachées des modèles (commentaires `<!-- … -->`, invisibles sur GitHub) ne lui sont plus envoyées : environ 60 % de tokens en moins sur une liste de pull requests remplies avec un modèle.

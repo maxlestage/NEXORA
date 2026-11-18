@@ -1220,12 +1220,19 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `AgentShipTests.githubBodyComments` (10 PR avec un modèle courant) : 1 969 → 776
   tokens (−61 %). Tests : 557 → 558 (mêmes 2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.153, commentaires HTML des textes GitHub) → prochain passage : INTERFACE,
-Personnaliser (4e passage) ou Réglages.
-Tokens ensuite : longs `body` d'une LISTE d'issues (30 issues de plusieurs milliers de car.) —
-les raccourcir à N lignes avec « (suite : GET …/issues/N) » ? à peser (l'agent relirait) ;
-`author_association` déjà retiré si « NONE ».
+- 3.0.154 (interface) : « Joindre un fichier » du chat, 2e passage (RepoFilePickerSheet) — sans
+  compte GitHub : `AttachDisplay.signInTitle/signInText/signInButton`, bouton « Se connecter à
+  GitHub » qui ouvre GitHubSignInView dans la feuille ; connecté : retour à la liste, dépôts
+  chargés, toast `SettingsDisplay.signedIn` + vibration. Avant : fermer la feuille, onglet Code,
+  se connecter, revenir au chat, rouvrir la feuille (≈ 5 gestes) ; après : 1 appui + la connexion.
+  Compte sans dépôt : phrase `noRepoText` + « Recharger » (44 pt). Rien retiré.
+  Tests : 558 → 559 (mêmes 2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.154, Joindre un fichier) → prochain passage : TOKENS.
+Piste : longs `body` d'une LISTE d'issues (30 issues de plusieurs milliers de car.) —
+les raccourcir à N lignes avec « (suite : GET …/issues/N) » ? à peser (l'agent relirait).
+Interface ensuite : QuotaSheet, ModelSheet ou InstallAgentsView (peu ou pas traités).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

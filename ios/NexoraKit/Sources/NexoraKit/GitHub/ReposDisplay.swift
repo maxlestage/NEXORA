@@ -146,6 +146,15 @@ public enum AttachDisplay {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return q.isEmpty ? "Dossier vide" : "Aucun résultat pour « \(q) »"
     }
+
+    /// Feuille ouverte sans compte GitHub : la connexion se fait sur place (avant : « dans
+    /// l'onglet Code », il fallait fermer la feuille, changer d'onglet, puis revenir).
+    public static let signInTitle = "Connectez GitHub"
+    public static let signInText = "Pour joindre un fichier d'un de vos dépôts. La connexion se fait ici, sans quitter la conversation."
+    public static let signInButton = "Se connecter à GitHub"
+
+    /// Aucun dépôt sur le compte : dire que la liste a bien été chargée.
+    public static let noRepoText = "Votre compte GitHub n'a encore aucun dépôt."
 }
 
 /// Logique d'affichage de l'éditeur de fichier (fiche d'un dépôt), testable sous Linux.

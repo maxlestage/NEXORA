@@ -9,8 +9,13 @@ struct RepoFilePickerSheet: View {
     let onPick: (ChatAttachment) -> Void
 
     @Environment(GitHubSession.self) private var github
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
+    /// Connexion à GitHub ouverte sur place (sans quitter la feuille ni la conversation).
+    @State private var signingIn = false
+    @State private var toast: Toast?
+    @State private var connectedCount = 0
 
     var body: some View {
         NavigationStack {
@@ -49,11 +54,19 @@ struct RepoFilePickerSheet: View {
         }
         .overlay {
             if !github.connected {
-                ContentUnavailableView(
-                    "GitHub n'est pas connecté",
-                    systemImage: "person.crop.circle.badge.questionmark",
-                    description: Text("Connectez votre compte dans l'onglet Code pour joindre un fichier d'un dépôt.")
-                )
+                ContentUnavailableView {
+                    Label(AttachDisplay.signInTitle, systemImage: "person.crop.circle.badge.questionmark")
+                } description: {
+                    Text(AttachDisplay.signInText)
+                } actions: {
+                    Button {
+                        signingIn = true
+                    } label: {
+                        Label(AttachDisplay.signInButton, systemImage: "person.crop.circle.badge.plus")
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             } else if github.loading && github.repos.isEmpty {
                 ProgressView()
             } else if let e = github.error, github.repos.isEmpty {
@@ -67,7 +80,14 @@ struct RepoFilePickerSheet: View {
                 }
             } else if repos.isEmpty {
                 if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    ContentUnavailableView("Aucun dépôt", systemImage: "folder")
+                    ContentUnavailableView {
+                        Label("Aucun dépôt", systemImage: "folder")
+                    } description: {
+                        Text(AttachDisplay.noRepoText)
+                    } actions: {
+                        Button("Recharger") { Task { await github.loadRepos() } }
+                            .frame(minHeight: 44)
+                    }
                 } else {
                     ContentUnavailableView {
                         Label(AttachDisplay.emptyTitle(query: query), systemImage: "magnifyingglass")
@@ -81,6 +101,19 @@ struct RepoFilePickerSheet: View {
         .navigationTitle("Joindre un fichier")
         .navigationBarTitleDisplayMode(.inline)
         .task { if github.connected && github.repos.isEmpty { await github.loadRepos() } }
+        .navigationDestination(isPresented: $signingIn) {
+            GitHubSignInView().navigationTitle("GitHub")
+        }
+        .onChange(of: github.connected) { _, connected in
+            // Une fois connecté : retour à la liste, qui se remplit, avec un avis.
+            guard connected else { return }
+            signingIn = false
+            connectedCount += 1
+            toast = Toast(text: SettingsDisplay.signedIn(login: github.user?.login))
+            if github.repos.isEmpty { Task { await github.loadRepos() } }
+        }
+        .toast($toast)
+        .sensoryFeedback(.success, trigger: connectedCount) { _, _ in settings.haptics }
     }
 
     private func pick(_ file: ChatAttachment) {

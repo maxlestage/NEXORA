@@ -28,6 +28,13 @@ struct AttachDisplayTests {
         #expect(FilesDisplay.filter(items, query: "zzz").isEmpty)
     }
 
+    @Test func connexionSurPlace() {
+        // La feuille ne renvoie plus vers un autre onglet : la connexion se fait ici.
+        #expect(!AttachDisplay.signInText.contains("onglet"))
+        #expect(AttachDisplay.signInButton == "Se connecter à GitHub")
+        #expect(!AttachDisplay.signInTitle.isEmpty && !AttachDisplay.noRepoText.isEmpty)
+    }
+
     @Test func coutAnnonceAvantDeJoindre() throws {
         #expect(AttachDisplay.detail(try item("a.swift", size: 12_000)) == "12 Ko · ≈ 3,0k tokens")
         #expect(AttachDisplay.detail(try item("a.swift", size: 400)) == "400 o · ≈ 100 tokens")
