@@ -102,4 +102,12 @@ struct ChatListTests {
         #expect(ChatDisplay.hiding(metas, ["b"]).map(\.id) == ["a", "c"])
         #expect(ChatDisplay.undoSeconds >= 4)
     }
+
+    @Test func boutonsNouveauChatSansDoublon() {
+        #expect(!ChatDisplay.showsFloatingNewChat(isEmpty: true, searching: false))
+        #expect(ChatDisplay.showsFloatingNewChat(isEmpty: true, searching: true))
+        #expect(ChatDisplay.showsFloatingNewChat(isEmpty: false, searching: false))
+        #expect(ChatDisplay.agentChatLabel.contains("agent"))
+        #expect(ChatDisplay.newChatHint.contains("agent"))
+    }
 }

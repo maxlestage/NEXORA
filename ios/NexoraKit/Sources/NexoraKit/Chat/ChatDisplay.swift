@@ -123,6 +123,17 @@ public enum ChatDisplay {
         conversations < startersUntil
     }
 
+    /// Le bouton flottant « Nouveau chat » : caché quand la liste est vide hors
+    /// recherche (le bouton est alors dans le contenu et ne cache rien).
+    public static func showsFloatingNewChat(isEmpty: Bool, searching: Bool) -> Bool {
+        !(isEmpty && !searching)
+    }
+
+    /// La barre du haut ne double plus « Nouveau chat » (bouton flottant) : elle
+    /// garde seulement le départ avec un agent, aussi offert par appui long.
+    public static let agentChatLabel = "Nouveau chat avec un agent"
+    public static let newChatHint = "Appui long : choisir un agent"
+
     /// Le temps laissé pour annuler la suppression d'une conversation : l'avis
     /// « Annuler » reste affiché, et rien n'est effacé avant.
     public static let undoSeconds = 5

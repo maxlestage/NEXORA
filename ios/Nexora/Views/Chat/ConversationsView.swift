@@ -120,21 +120,18 @@ struct ConversationsView: View {
                         Image(systemName: "questionmark.circle")
                     }
                     .accessibilityLabel("Aide et guides")
-                    Menu {
-                        Button("Nouveau chat", systemImage: "square.and.pencil") { newChat() }
-                        Button("Avec un agent…", systemImage: "person.crop.circle.badge.plus") { pickAgent = true }
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                    } primaryAction: {
-                        newChat()
+                    // « Nouveau chat » est le bouton flottant : la barre ne le double
+                    // plus et garde seulement le départ avec un agent.
+                    Button { pickAgent = true } label: {
+                        Image(systemName: "person.crop.circle.badge.plus")
                     }
-                    .accessibilityLabel("Nouveau chat")
+                    .accessibilityLabel(ChatDisplay.agentChatLabel)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .bottomTrailing) {
                 // Liste vide : le bouton est dans le contenu (il ne cache rien).
-                if !(list.isEmpty && query.isEmpty) {
+                if ChatDisplay.showsFloatingNewChat(isEmpty: list.isEmpty, searching: !query.isEmpty) {
                     Button { newChat() } label: {
                         Label("Nouveau chat", systemImage: "plus.bubble.fill")
                             .font(.headline)
@@ -144,6 +141,11 @@ struct ConversationsView: View {
                             .background(Theme.gradient(settings.accent), in: .capsule)
                             .shadow(color: Theme.violet.opacity(0.3), radius: 12, y: 6)
                     }
+                    .contextMenu {
+                        Button("Nouveau chat", systemImage: "plus.bubble") { newChat() }
+                        Button("Avec un agent…", systemImage: "person.crop.circle.badge.plus") { pickAgent = true }
+                    }
+                    .accessibilityHint(ChatDisplay.newChatHint)
                     .padding(20)
                 }
             }
