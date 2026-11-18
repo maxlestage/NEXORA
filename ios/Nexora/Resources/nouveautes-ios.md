@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.153 — 18 novembre 2026 — Issues et pull requests plus légères pour l'agent
+
+- Amélioré : quand l'agent lit des issues ou des pull requests, les consignes cachées des modèles (commentaires `<!-- … -->`, invisibles sur GitHub) ne lui sont plus envoyées : environ 60 % de tokens en moins sur une liste de pull requests remplies avec un modèle.
+- Rien ne change dans les blocs de code : un commentaire HTML qui fait partie du sujet reste.
+
 ## 3.0.152 — 18 novembre 2026 — Clé d'un fournisseur collée en un appui
 - Nouveau : dans la fiche d'un fournisseur, un bouton « Coller » apparaît dans le champ de la clé quand il est vide ; la clé copiée est vérifiée, enregistrée, avec un avis et une vibration.
 - Amélioré : une liste de modèles vide dit quoi faire (coller la clé ou charger la liste) et propose un grand bouton « Charger la liste ».

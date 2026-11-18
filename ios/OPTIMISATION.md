@@ -1212,11 +1212,20 @@ mémoire 32k tokens, consigne 3 000 car.
   « Charger la liste » de 44 pt dans la liste (celui de l'en-tête, en petit, reste). Rien
   retiré. Tests : 556 → 557 (mêmes 2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.152, fiche d'un fournisseur) → prochain passage : TOKENS.
-Interface ensuite : Personnaliser (4e passage) ou Réglages.
-Tokens : `author_association` des issues (à peser : utile pour savoir qui écrit),
-NSDictionary.isEqual sous Linux avec des Int (committer gardé si `id` sans `type`).
+- 3.0.153 (tokens) : `dropHTMLComments` — le `body` d'une issue, d'une pull request, d'un
+  commentaire ou d'une version perd ses commentaires HTML `<!-- … -->` (consignes des modèles
+  d'issue/PR, marques Reviewable/Dependabot : invisibles sur GitHub). Rien retiré dans un bloc
+  de code (```, ~~~) ni sur une ligne avec du code en ligne ; commentaire jamais fermé : la
+  suite est masquée comme sur GitHub ; lignes vides en trop regroupées (hors blocs de code).
+  Banc `AgentShipTests.githubBodyComments` (10 PR avec un modèle courant) : 1 969 → 776
+  tokens (−61 %). Tests : 557 → 558 (mêmes 2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.153, commentaires HTML des textes GitHub) → prochain passage : INTERFACE,
+Personnaliser (4e passage) ou Réglages.
+Tokens ensuite : longs `body` d'une LISTE d'issues (30 issues de plusieurs milliers de car.) —
+les raccourcir à N lignes avec « (suite : GET …/issues/N) » ? à peser (l'agent relirait) ;
+`author_association` déjà retiré si « NONE ».
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -1175,6 +1175,61 @@ struct AgentShipTests {
         #expect((c["pull_request"] as? [String: Any])?["merged_at"] is NSNull)
     }
 
+    @Test("banc github : commentaires HTML des modèles retirés des textes")
+    func githubBodyComments() throws {
+        // Un modèle de pull request courant : consignes en commentaires HTML, invisibles sur GitHub.
+        let template = """
+        ## Description\r
+        <!-- Décrivez vos changements en détail. Pourquoi ce changement est-il nécessaire ? Quel problème résout-il ? Ajoutez le lien de l'issue liée si elle existe. -->\r
+        Corrige le calcul NUM.\r
+        \r
+        ## Type de changement\r
+        <!--\r
+        Cochez les cases qui conviennent.\r
+        Supprimez les options qui ne s'appliquent pas.\r
+        -->\r
+        - [x] Correction de bug\r
+        - [ ] Nouvelle fonction\r
+        \r
+        ## Tests\r
+        <!-- Décrivez les tests que vous avez lancés pour vérifier vos changements, avec les instructions pour les reproduire. Indiquez la configuration utilisée. -->\r
+        Tests unitaires passés.\r
+        \r
+        <!-- Reviewable:start -->\r
+        <!-- Reviewable:end -->
+        """
+        let items: [Any] = (1...10).map { i -> Any in
+            ["number": i, "title": "Corriger le calcul \(i)", "state": "open",
+             "html_url": "https://github.com/o/r/pull/\(i)", "user": ["login": "o"],
+             "body": template.replacingOccurrences(of: "NUM", with: "\(i)")]
+        }
+        // Avant : même liste, texte sous une clé de même longueur que le retrait ignore.
+        let raw: [Any] = items.map { x -> Any in
+            var d = x as! [String: Any]
+            d["Body"] = d.removeValue(forKey: "body")
+            return d
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(raw)).count
+        let list = try #require(AgentRun.slimGitHub(items) as? [[String: Any]])
+        let after = AgentRun.githubText(list).count
+        print("Banc github (10 pull requests avec modèle) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let body = try #require(list[2]["body"] as? String)
+        #expect(!body.contains("<!--") && !body.contains("Cochez"))
+        #expect(body.contains("Corrige le calcul 3.") && body.contains("- [x] Correction de bug") && body.contains("Tests unitaires passés."))
+        #expect(!body.contains("\n\r\n\r\n") && !body.hasSuffix("\n"))
+        // Rien ne change dans un bloc de code ou sur une ligne de code en ligne.
+        let code = "Voici le gabarit :\n```html\n<!-- en-tête -->\n<div></div>\n\n\n```\nLe `<!-- x -->` reste. <!-- caché -->"
+        #expect(AgentRun.dropHTMLComments(code) == code)
+        #expect(AgentRun.dropHTMLComments("Texte <!-- caché --> suite") == "Texte  suite")
+        #expect(AgentRun.dropHTMLComments("Début\n<!-- jamais fermé\nfin") == "Début")
+        #expect(AgentRun.dropHTMLComments("Aucun commentaire\n\n\nici") == "Aucun commentaire\n\n\nici")
+        // Un texte qui n'était qu'un commentaire disparaît (comme un texte vide).
+        let only = try #require(AgentRun.slimGitHub(["id": 5, "body": "<!-- rien -->", "user": ["login": "o"],
+                                                    "author_association": "OWNER"] as [String: Any]) as? [String: Any])
+        #expect(only["body"] == nil)
+    }
+
     @Test("banc github : recherche de commits sans score")
     func githubSearchCommits() throws {
         func item(_ i: Int) -> [String: Any] {
