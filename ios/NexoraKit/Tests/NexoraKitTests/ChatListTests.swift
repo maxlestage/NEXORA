@@ -88,4 +88,18 @@ struct ChatListTests {
             #expect(ChatDisplay.categoryIdeas[category]?.count == 3, "\(category)")
         }
     }
+
+    @Test("Supprimer une conversation s'annule : avis court, conversation cachée")
+    func suppressionAnnulable() {
+        #expect(ChatDisplay.deletedToast(title: "Idées de vacances") == "« Idées de vacances » supprimée")
+        #expect(ChatDisplay.deletedToast(title: "  ") == "Conversation supprimée")
+        let long = ChatDisplay.deletedToast(title: String(repeating: "a", count: 40))
+        #expect(long == "« " + String(repeating: "a", count: 27) + "… » supprimée")
+        let metas = ["a", "b", "c"].map {
+            ConversationStore.Meta(id: $0, title: $0, updated: now)
+        }
+        #expect(ChatDisplay.hiding(metas, []).map(\.id) == ["a", "b", "c"])
+        #expect(ChatDisplay.hiding(metas, ["b"]).map(\.id) == ["a", "c"])
+        #expect(ChatDisplay.undoSeconds >= 4)
+    }
 }

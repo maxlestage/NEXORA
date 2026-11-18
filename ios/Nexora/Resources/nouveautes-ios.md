@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.140 — 18 novembre 2026 — Suppression annulable dans le Chat
+- Amélioré : supprimer une conversation (glissement ou menu « … ») affiche « Annuler » pendant 5 secondes ; rien n'est effacé avant.
+- Amélioré : l'avis donne le titre de la conversation supprimée et ne cache plus le bouton « Nouveau chat ».
+- Amélioré : une légère vibration confirme la suppression.
+
 ## 3.0.139 — 18 novembre 2026 — Livraisons de webhook plus légères
 - Amélioré : quand l'agent consulte les livraisons d'un webhook, la réponse de GitHub lui est envoyée environ 40 % plus courte (valeurs par défaut et champs vides retirés).
 - Les échecs, relivraisons et identifiants restent visibles.
