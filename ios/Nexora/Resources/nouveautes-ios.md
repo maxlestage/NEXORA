@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.135 — 18 novembre 2026 — Réglages d'Actions allégés pour l'agent
+
+- Amélioré : quand l'agent liste les machines, secrets ou variables d'Actions de GitHub, la réponse qu'il relit est environ 25 % plus courte (total redit, dates répétées et valeurs par défaut retirés).
+- Rien ne change pour vous : noms, état des machines et valeurs des variables restent.
+
 ## 3.0.134 — 18 novembre 2026 — Bibliothèque plus claire
 - Amélioré : « Tout sélectionner » ne coche plus que les éléments pas encore installés (« Sélectionner les 3 nouveaux ») : plus de téléchargements en double.
 - Nouveau : l'en-tête de la liste indique combien d'éléments sont déjà installés.

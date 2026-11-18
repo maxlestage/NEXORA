@@ -955,6 +955,43 @@ struct AgentShipTests {
         #expect(partial["total_count"] as? Int == 42)
     }
 
+    @Test("banc github : machines, secrets et variables sans total redit ni valeurs par défaut")
+    func githubActionsLists() throws {
+        let labels: [Any] = [["id": 1, "name": "self-hosted", "type": "read-only"],
+                             ["id": 2, "name": "Linux", "type": "read-only"],
+                             ["id": 3, "name": "X64", "type": "read-only"]]
+        let runners: [Any] = (1...3).map { i in
+            ["id": 20 + i, "name": "mac-\(i)", "os": "macOS", "status": i == 3 ? "offline" : "online",
+             "busy": i == 1, "ephemeral": false, "labels": labels] as [String: Any]
+        }
+        let secrets: [Any] = (1...6).map { i in
+            let d = "2026-10-0\(i)T09:00:00Z"
+            return ["name": "SECRET_\(i)", "created_at": d, "updated_at": i == 2 ? "2026-11-10T09:00:00Z" : d] as [String: Any]
+        }
+        let r: [String: Any] = ["total_count": 3, "runners": runners]
+        let s: [String: Any] = ["total_count": 6, "secrets": secrets]
+        let before = AgentRun.githubText(AgentRun.slimGitHub(["total": 3, "_runners": runners] as [String: Any])).count
+            + AgentRun.githubText(AgentRun.slimGitHub(["total": 6, "_secrets": secrets] as [String: Any])).count
+        let after = AgentRun.githubText(AgentRun.slimGitHub(r)).count + AgentRun.githubText(AgentRun.slimGitHub(s)).count
+        print("Banc github (3 machines + 6 secrets) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let ro = try #require(AgentRun.slimGitHub(r) as? [String: Any])
+        #expect(ro["total_count"] == nil)
+        let ri = try #require(ro["runners"] as? [[String: Any]])
+        #expect(ri.count == 3 && ri.allSatisfy { $0["ephemeral"] == nil && $0["labels"] as? [String] == ["self-hosted", "Linux", "X64"] })
+        #expect(ri[0]["busy"] as? Bool == true && ri[2]["status"] as? String == "offline")
+        let so = try #require(AgentRun.slimGitHub(s) as? [String: Any])
+        let si = try #require(so["secrets"] as? [[String: Any]])
+        #expect(so["total_count"] == nil && si.count == 6)
+        #expect(si[0]["updated_at"] == nil && si[1]["updated_at"] as? String == "2026-11-10T09:00:00Z")
+        // Machine éphémère et liste tronquée : l'information reste.
+        var eph = runners[0] as! [String: Any]
+        eph["ephemeral"] = true
+        let p = try #require(AgentRun.slimGitHub(["total_count": 9, "runners": [eph]] as [String: Any]) as? [String: Any])
+        #expect(p["total_count"] as? Int == 9)
+        #expect((p["runners"] as? [[String: Any]])?.first?["ephemeral"] as? Bool == true)
+    }
+
     @Test("banc github : environnements sans lien déduit ni valeurs par défaut")
     func githubEnvironments() throws {
         let page = "https://github.com/max/site/deployments/activity_log?environments_filter="

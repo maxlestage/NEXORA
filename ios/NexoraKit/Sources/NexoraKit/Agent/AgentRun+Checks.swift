@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(out))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(out)))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -507,6 +507,28 @@ extension AgentRun {
         guard d["key"] is String, d["version"] is String, d["size_in_bytes"] != nil else { return d }
         out["version"] = nil
         if let a = d["last_accessed_at"] as? String, a == d["created_at"] as? String { out["last_accessed_at"] = nil }
+        return out
+    }
+
+    /// Les listes de réglages d'Actions (GET …/actions/runners, …/actions/secrets,
+    /// …/actions/variables, et leurs équivalents d'organisation) allégées : la liste
+    /// perd `total_count` quand il est égal au nombre montré (gardé si elle est
+    /// tronquée) ; chaque secret ou variable perd `updated_at` identique à
+    /// `created_at` ; chaque machine perd `ephemeral` à faux (valeur par défaut).
+    /// Noms, valeurs des variables, état, occupation et étiquettes (déjà réduites à
+    /// leur nom) sont gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimActionsList(_ d: [String: Any]) -> [String: Any] {
+        guard let key = ["runners", "secrets", "variables"].first(where: { d[$0] is [Any] }),
+              let list = d[key] as? [Any], d["total_count"] is Int,
+              list.allSatisfy({ ($0 as? [String: Any])?["name"] is String }) else { return d }
+        var out = d
+        if (d["total_count"] as? Int) == list.count { out["total_count"] = nil }
+        out[key] = list.map { e -> Any in
+            guard var item = e as? [String: Any] else { return e }
+            if let u = item["updated_at"] as? String, u == item["created_at"] as? String { item["updated_at"] = nil }
+            if key == "runners", (item["ephemeral"] as? Bool) == false { item["ephemeral"] = nil }
+            return item
+        }
         return out
     }
 
