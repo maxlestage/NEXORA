@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.139 — 18 novembre 2026 — Livraisons de webhook plus légères
+- Amélioré : quand l'agent consulte les livraisons d'un webhook, la réponse de GitHub lui est envoyée environ 40 % plus courte (valeurs par défaut et champs vides retirés).
+- Les échecs, relivraisons et identifiants restent visibles.
+
 ## 3.0.138 — 18 novembre 2026 — Agents cloud plus guidés
 
 - Amélioré : chaque agent cloud indique si sa clé est déjà ajoutée au dépôt (« Clé ajoutée ») ou encore manquante.

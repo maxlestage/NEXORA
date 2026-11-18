@@ -1107,11 +1107,18 @@ mémoire 32k tokens, consigne 3 000 car.
   présente → « Secret » passe dans « … » (« Changer la clé ») ; `ordered` : agents installés en
   tête ; vibration au lancement. Rien retiré. Tests : 542 → 544 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.138, Agents cloud) → prochain passage : TOKENS.
-Tokens : GET …/actions/permissions, …/hooks/{id}/deliveries.
-Interface ensuite : Personnaliser ou accueil (non repris récemment).
-Tokens ensuite : GET …/actions/permissions, …/hooks/{id}/deliveries.
+- 3.0.139 (tokens) : `slimDelivery` — GET …/hooks/{id}/deliveries (et …/deliveries/{id},
+  organisations) : retire `redelivery` à faux, `installation_id`/`action`/`repository_id`/
+  `throttled_at` nuls, `status` « OK » quand le code vaut 200 ; `id`, `guid`, échecs,
+  relivraisons et dépôt d'un webhook d'organisation gardés. Banc
+  `AgentShipTests.githubHookDeliveries` (6 livraisons) : 391 → 233 tokens (−40 %).
+  Tests : 544 → 545 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.139, livraisons de webhook) → prochain passage : INTERFACE.
+Interface : Personnaliser ou accueil (non repris récemment).
+Tokens ensuite : GET …/actions/permissions (petit gain : `selected_actions_url` déduit),
+…/actions/permissions/workflow.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

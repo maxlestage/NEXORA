@@ -147,7 +147,7 @@ extension AgentRun {
                 }
                 out[k] = slimGitHub(v)
             }
-            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(out))))))))))))))))))))))))
+            return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(out)))))))))))))))))))))))))
         case let a as [Any]:
             return replyHunks(linearCommits(a.map { slimGitHub($0) }))
         default:
@@ -552,6 +552,24 @@ extension AgentRun {
             let real = r.filter { !($0.value is NSNull) }
             out["last_response"] = (r["status"] as? String) == "unused" ? nil : real
         }
+        return out
+    }
+
+    /// Une livraison de webhook (GET …/hooks/{id}/deliveries, …/deliveries/{id}, et
+    /// celles d'une organisation, ≈ 30 par page) allégée : `redelivery` à faux (valeur
+    /// par défaut), `installation_id`, `action`, `repository_id` et `throttled_at` nuls,
+    /// et `status` « OK » quand `status_code` vaut 200 (redit le code) retirés. `id`
+    /// (pour relivrer), `guid`, date, durée, évènement, code et message d'erreur réel
+    /// sont gardés. Tout autre objet est rendu tel quel.
+    nonisolated static func slimDelivery(_ d: [String: Any]) -> [String: Any] {
+        guard d["guid"] is String, d["delivered_at"] is String, d["status_code"] != nil,
+              d["redelivery"] is Bool else { return d }
+        var out = d
+        if (d["redelivery"] as? Bool) == false { out["redelivery"] = nil }
+        for k in ["installation_id", "action", "repository_id", "throttled_at"] where d[k] is NSNull {
+            out[k] = nil
+        }
+        if (d["status_code"] as? Int) == 200, (d["status"] as? String) == "OK" { out["status"] = nil }
         return out
     }
 
