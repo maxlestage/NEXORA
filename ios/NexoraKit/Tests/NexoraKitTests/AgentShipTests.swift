@@ -992,6 +992,44 @@ struct AgentShipTests {
         #expect((p["runners"] as? [[String: Any]])?.first?["ephemeral"] as? Bool == true)
     }
 
+    @Test("banc github : livraisons de webhook sans valeurs par défaut")
+    func githubHookDeliveries() throws {
+        let deliveries: [Any] = (1...6).map { (i: Int) -> Any in
+            let failed = i == 3
+            var d: [String: Any] = ["id": 9000 + i, "guid": "\(i)b989ba4-242f-11e5-81e1-c7b6966d2516"]
+            d["delivered_at"] = "2026-11-1\(i)T09:00:00Z"
+            d["redelivery"] = i == 6
+            d["duration"] = 0.27
+            d["status"] = failed ? "Invalid HTTP Response: 500" : "OK"
+            d["status_code"] = failed ? 500 : 200
+            d["event"] = "push"
+            for k in ["action", "installation_id", "repository_id", "throttled_at"] { d[k] = NSNull() }
+            return d
+        }
+        // Avant : même texte sans `slimDelivery` (clé « Guid », de même longueur, qui l'écarte).
+        let unslimmed: [Any] = deliveries.map { e -> Any in
+            var d = e as! [String: Any]
+            d["Guid"] = d.removeValue(forKey: "guid")
+            return d
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(unslimmed)).count
+        let slim = try #require(AgentRun.slimGitHub(deliveries) as? [[String: Any]])
+        let after = AgentRun.githubText(slim).count
+        print("Banc github (6 livraisons de webhook) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        #expect(slim.allSatisfy { $0["installation_id"] == nil && $0["throttled_at"] == nil && $0["action"] == nil
+            && $0["id"] is Int && $0["guid"] is String && $0["event"] as? String == "push" })
+        #expect(slim[0]["status"] == nil && slim[0]["status_code"] as? Int == 200 && slim[0]["redelivery"] == nil)
+        // Échec et relivraison : l'information reste.
+        #expect(slim[2]["status"] as? String == "Invalid HTTP Response: 500" && slim[2]["status_code"] as? Int == 500)
+        #expect(slim[5]["redelivery"] as? Bool == true)
+        // Webhook d'organisation : le dépôt concerné reste.
+        var org = deliveries[0] as! [String: Any]
+        org["repository_id"] = 42
+        let o = try #require(AgentRun.slimGitHub(org) as? [String: Any])
+        #expect(o["repository_id"] as? Int == 42)
+    }
+
     @Test("banc github : webhooks sans valeurs par défaut ni réponse vide")
     func githubHooks() throws {
         let api = "https://api.github.com/repos/max/site/hooks"
