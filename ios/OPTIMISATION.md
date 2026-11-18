@@ -1060,8 +1060,15 @@ mémoire 32k tokens, consigne 3 000 car.
   montré (gardé si la liste est tronquée). Banc `AgentShipTests.githubCaches` (10 caches) :
   711 → 440 tokens (−38 %). Tests : 535 → 536 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.131, caches d'Actions) → prochain passage : INTERFACE.
+- 3.0.132 (interface) : liste des Routines (RoutinesView, 3e passage, liste en 3.0.31) —
+  `RoutinesDisplay.sorted` : actives d'abord, la prochaine à passer en tête, désactivées en
+  bas par nom (avant : ordre de création, la prochaine à chercher ligne par ligne) ;
+  `summary` : « 2 actives sur 4 · ensuite « Bugs » aujourd'hui à 23:00 » en en-tête (dès 2
+  routines) ; appui long = « Lancer maintenant » / « Activer » (le balayage ne se devine
+  pas) ; vibration à l'activation. Tests : 536 → 537.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.132, Routines) → prochain passage : TOKENS.
 Tokens ensuite : GET …/environments (id des règles, `html_url` déduit, `can_admins_bypass` vrai).
 
 ## Pistes tokens à faire

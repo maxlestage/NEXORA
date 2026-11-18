@@ -18,6 +18,33 @@ public enum RoutinesDisplay {
         return "\(r.scheduleLabel) · \(state)"
     }
 
+    /// L'ordre de la liste : les routines actives d'abord, la prochaine à passer en
+    /// tête ; puis les désactivées, par nom. (Avant : l'ordre de création.)
+    public static func sorted(_ list: [Routine], calendar: Calendar = .current) -> [Routine] {
+        func byName(_ a: Routine, _ b: Routine) -> Bool {
+            a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+        let timed: [(routine: Routine, next: Date)] = list.filter(\.enabled).map { ($0, $0.nextRun(calendar: calendar)) }
+        let on: [Routine] = timed.sorted { a, b in
+            a.next != b.next ? a.next < b.next : byName(a.routine, b.routine)
+        }.map(\.routine)
+        let off: [Routine] = list.filter { !$0.enabled }.sorted(by: byName)
+        return on + off
+    }
+
+    /// Une ligne en tête de la liste : combien tournent et laquelle passe ensuite.
+    /// `nil` sous deux routines (la ligne de la routine le dit déjà).
+    public static func summary(_ list: [Routine], now: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard list.count > 1 else { return nil }
+        let active = list.filter(\.enabled)
+        guard let next = sorted(active, calendar: calendar).first else { return "Toutes les routines sont désactivées" }
+        let count = "\(active.count) active\(active.count > 1 ? "s" : "") sur \(list.count)"
+        let when = next.isDue(now, calendar: calendar)
+            ? "dès que possible"
+            : WorkspaceText.when(next.nextRun(calendar: calendar), now: now, calendar: calendar)
+        return "\(count) · ensuite « \(next.name) » \(when)"
+    }
+
     /// Le nom donné quand le champ Nom reste vide : la première ligne non vide de
     /// la mission, coupée à un mot près au-delà de `nameLimit` caractères.
     public static func defaultName(_ task: String) -> String {

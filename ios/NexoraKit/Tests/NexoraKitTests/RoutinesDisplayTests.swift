@@ -46,4 +46,28 @@ struct RoutinesDisplayTests {
         #expect(RoutinesDisplay.runnerHint(.app).contains("rattrapé"))
         #expect(RoutinesDisplay.runnerHint(.github).contains("téléphone éteint"))
     }
+
+    @Test func prochaineEnTeteEtResume() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000) // 22:13 UTC
+        func routine(_ id: String, _ name: String, start: Int, on: Bool) -> Routine {
+            var r = Routine(id: id, name: name, task: "x", repos: ["a/b@main"], startMinute: start)
+            r.everyMinutes = 1440
+            r.lastRun = now
+            r.enabled = on
+            return r
+        }
+        let tard = routine("1", "Tard", start: 23 * 60, on: true)
+        let tot = routine("2", "Tôt", start: 6 * 60, on: true)
+        let zeta = routine("3", "zeta", start: 60, on: false)
+        let alpha = routine("4", "Alpha", start: 60, on: false)
+        let list = [zeta, tot, alpha, tard]
+        #expect(RoutinesDisplay.sorted(list, calendar: utc).map(\.name) == ["Tard", "Tôt", "Alpha", "zeta"])
+        #expect(RoutinesDisplay.summary(list, now: now, calendar: utc) == "2 actives sur 4 · ensuite « Tard » aujourd'hui à 23:00")
+        #expect(RoutinesDisplay.summary([zeta, alpha], now: now, calendar: utc) == "Toutes les routines sont désactivées")
+        #expect(RoutinesDisplay.summary([tard], now: now, calendar: utc) == nil)
+        #expect(RoutinesDisplay.summary([], now: now, calendar: utc) == nil)
+        var due = tot
+        due.lastRun = now.addingTimeInterval(-3 * 86_400)
+        #expect(RoutinesDisplay.summary([due, zeta], now: now, calendar: utc) == "1 active sur 2 · ensuite « Tôt » dès que possible")
+    }
 }
