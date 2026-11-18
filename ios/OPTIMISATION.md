@@ -1169,10 +1169,17 @@ mémoire 32k tokens, consigne 3 000 car.
   (déjà en bas) ni Supprimer ; cible 44 pt. Rien retiré. Tests : 551 → 552 (mêmes 2 échecs
   Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.146, menu de la session) → prochain passage : TOKENS.
-Tokens : GET /search/issues (`score`, champs de pull request répétés), /search/commits.
-Interface ensuite : DraftReviewView (2e passage).
+- 3.0.147 (tokens) : `slimSearch` — résultat de GET /search/issues (`number` + `title` +
+  `state` + `score`) : `score` retiré ; `pull_request` perd son `html_url` (celui de
+  l'issue) et, pour une pull request ouverte non fusionnée, devient `true`. Fermée : garde
+  `merged_at` (fusionnée ou non). Issue hors recherche (sans `score`) intacte. Banc
+  `AgentShipTests.githubSearchIssues` (20 résultats, moitié PR) : 1 463 → 1 269 tokens
+  (−13 %). Tests : 552 → 553 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.147, recherche d'issues) → prochain passage : INTERFACE.
+Interface : DraftReviewView (2e passage).
+Tokens ensuite : GET /search/commits (`score`, commit répété), `author_association` des issues.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
