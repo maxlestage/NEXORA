@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.146 — 18 novembre 2026 — Menu de la session plus utile
+
+- Amélioré : le menu « … » d'une session propose « Copier la mission », comme l'appui long dans la liste.
+- Amélioré : ce menu reste là pendant que l'agent travaille (Arrêter reste en bas, à portée du pouce).
+
 ## 3.0.145 — 18 novembre 2026 — Recherche de code plus légère pour l'agent
 - Amélioré : quand l'agent cherche du code sur GitHub, la réponse qu'il relit est près de 3 fois plus courte (dépôt donné une seule fois, liens et scores déduits retirés, extraits gardés en clair).
 - Les résultats et le nombre total restent annoncés quand la recherche en trouve davantage.

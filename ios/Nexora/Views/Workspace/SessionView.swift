@@ -179,17 +179,28 @@ struct SessionView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 // Pendant le travail, Arrêter est en bas, à portée du pouce.
-                if !busy {
-                    Menu {
-                        // Des brouillons non envoyés : on demande avant de les perdre.
-                        Button("Supprimer la session", systemImage: "trash", role: .destructive) {
-                            if run.changes.isEmpty { deleteSession(run) } else { confirmDelete = true }
+                Menu {
+                    ForEach(SessionsDisplay.sessionMenu(busy: busy), id: \.self) { action in
+                        switch action {
+                        case .copyTask:
+                            Button("Copier la mission", systemImage: "doc.on.doc") {
+                                UIPasteboard.general.string = run.task
+                                toast = Toast(text: "Mission copiée")
+                            }
+                        case .delete:
+                            // Des brouillons non envoyés : on demande avant de les perdre.
+                            Button("Supprimer la session", systemImage: "trash", role: .destructive) {
+                                if run.changes.isEmpty { deleteSession(run) } else { confirmDelete = true }
+                            }
+                        case .stop:
+                            EmptyView()
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
                     }
-                    .accessibilityLabel("Options de la session")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .frame(minWidth: 44, minHeight: 44)
                 }
+                .accessibilityLabel("Options de la session")
             }
         }
         .sheet(item: $full) { f in FullTextView(title: f.title, text: f.text) }

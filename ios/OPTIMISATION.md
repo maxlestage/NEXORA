@@ -1162,10 +1162,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `fragment`. Banc `AgentShipTests.githubSearchCode` (20 résultats) : 2 291 → 820 tokens
   (−64 %). Tests : 550 → 551 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.145, recherche de code) → prochain passage : INTERFACE.
-Interface : menu « Options de la session » à un seul élément (Supprimer) ; DraftReviewView (2e passage).
-Tokens ensuite : GET /search/issues (`score`, champs de pull request répétés), /search/commits.
+- 3.0.146 (interface) : session de l'agent, 5e passage — le menu « Options de la session »
+  n'avait qu'un élément (Supprimer) et disparaissait pendant le travail. `SessionsDisplay.sessionMenu`
+  (busy → [copier la mission], sinon [copier, supprimer]) : « Copier la mission » (avis « Mission
+  copiée ») comme dans l'appui long de la liste ; menu visible pendant le travail, sans Arrêter
+  (déjà en bas) ni Supprimer ; cible 44 pt. Rien retiré. Tests : 551 → 552 (mêmes 2 échecs
+  Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.146, menu de la session) → prochain passage : TOKENS.
+Tokens : GET /search/issues (`score`, champs de pull request répétés), /search/commits.
+Interface ensuite : DraftReviewView (2e passage).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

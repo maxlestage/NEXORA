@@ -92,4 +92,10 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.quickActions(.review) == [.copyTask, .delete])
         #expect(SessionsDisplay.quickActions(.shipped) == [.copyTask, .delete])
     }
+
+    @Test func menuDeLaSessionOuverte() {
+        // Arrêter reste en bas : jamais en double dans le menu du haut.
+        #expect(SessionsDisplay.sessionMenu(busy: true) == [.copyTask])
+        #expect(SessionsDisplay.sessionMenu(busy: false) == [.copyTask, .delete])
+    }
 }

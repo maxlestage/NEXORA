@@ -102,6 +102,12 @@ public enum SessionsDisplay {
         status == .running ? [.stop, .copyTask, .delete] : [.copyTask, .delete]
     }
 
+    /// Le menu « … » en haut d'une session ouverte. Arrêter est déjà en bas, à portée du
+    /// pouce ; pendant le travail on ne supprime pas, mais on peut copier la mission.
+    public static func sessionMenu(busy: Bool) -> [QuickAction] {
+        busy ? [.copyTask] : [.copyTask, .delete]
+    }
+
     /// Le bouton principal en bas d'une session finie qui a des brouillons :
     /// « Relire les 3 fichiers modifiés ». `nil` pendant le travail ou sans brouillon.
     public static func reviewButton(files: Int, busy: Bool) -> String? {
