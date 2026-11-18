@@ -65,4 +65,32 @@ public enum CloudAgentsDisplay {
     public static func canLaunch(_ instruction: String) -> Bool {
         !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    /// Les agents installés d'abord (ceux qu'on lance), sinon l'ordre du catalogue.
+    public static func ordered(_ agents: [CloudAgent], installed: Set<String>?) -> [CloudAgent] {
+        guard let installed else { return agents }
+        return agents.filter { installed.contains($0.workflowFile) }
+            + agents.filter { !installed.contains($0.workflowFile) }
+    }
+
+    /// Les clés encore à ajouter ; `nil` si les secrets du dépôt n'ont pas pu être lus.
+    public static func missingSecrets(_ required: [String], present: Set<String>?) -> [String]? {
+        present.map { p in required.filter { !p.contains($0) } }
+    }
+
+    /// La ligne des clés, en mots simples : ajoutée, manquante, ou à ajouter (inconnu).
+    public static func secretLine(_ required: [String], present: Set<String>?) -> String {
+        let all = required.joined(separator: " · ")
+        guard let missing = missingSecrets(required, present: present) else { return "Clé à ajouter : \(all)" }
+        if missing.isEmpty { return required.count > 1 ? "Clés ajoutées : \(all)" : "Clé ajoutée : \(all)" }
+        let list = missing.joined(separator: " · ")
+        return missing.count > 1 ? "Clés manquantes : \(list)" : "Clé manquante : \(list)"
+    }
+
+    /// Le bouton « Secret » reste en vue tant que la clé n'est pas sûre d'être ajoutée ;
+    /// ensuite il passe dans le menu « … » (rien n'est retiré).
+    public static func showsSecretButton(_ required: [String], present: Set<String>?) -> Bool {
+        guard !required.isEmpty else { return false }
+        return missingSecrets(required, present: present)?.isEmpty != true
+    }
 }

@@ -10,6 +10,7 @@ struct CloudAgentsView: View {
 
     @Environment(GitHubSession.self) private var github
     @Environment(\.openURL) private var openURL
+    @Environment(SettingsStore.self) private var settings
     @State private var installed: Set<String>?
     @State private var runs: [WorkflowRun] = []
     @State private var busy: String?
@@ -17,6 +18,9 @@ struct CloudAgentsView: View {
     @State private var yaml: CloudAgent?
     @State private var toast: Toast?
     @State private var loadError: String?
+    /// Les secrets du dépôt (noms seulement) ; `nil` si le jeton ne peut pas les lire.
+    @State private var secrets: Set<String>?
+    @State private var launched = 0
 
     private var api: GitHubAPI { github.api }
 
@@ -37,7 +41,8 @@ struct CloudAgentsView: View {
                     }
                 }
             }
-            ForEach(Catalog.cloudAgents) { a in
+            // Les agents installés d'abord : ce sont ceux qu'on lance.
+            ForEach(CloudAgentsDisplay.ordered(Catalog.cloudAgents, installed: installed)) { a in
                 Section {
                     card(a, installed: installed?.contains(a.workflowFile) ?? false)
                 }
@@ -97,6 +102,11 @@ struct CloudAgentsView: View {
             }
         }
         .toast($toast)
+        .sensoryFeedback(.success, trigger: launched) { _, _ in settings.haptics }
+    }
+
+    private func openSecretPage() {
+        if let u = URL(string: "https://github.com/\(repo.fullName)/settings/secrets/actions/new") { openURL(u) }
     }
 
     private func runIcon(_ r: WorkflowRun) -> some View {
@@ -129,9 +139,14 @@ struct CloudAgentsView: View {
                 }
             }
             Text(a.description).font(.caption).foregroundStyle(.secondary)
-            Text("Secrets : \(a.secrets.joined(separator: " · "))")
-                .font(.caption2.monospaced())
-                .foregroundStyle(Color.accentColor)
+            if !a.secrets.isEmpty {
+                let missing = CloudAgentsDisplay.missingSecrets(a.secrets, present: secrets)
+                Label(CloudAgentsDisplay.secretLine(a.secrets, present: secrets),
+                      systemImage: missing?.isEmpty == true ? "checkmark.seal.fill" : "key")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(missing?.isEmpty == true ? Theme.green
+                                     : (missing == nil ? Color.accentColor : Theme.amber))
+            }
             // L'action principale en évidence (installer, puis lancer) ; « Secret » reste
             // visible (étape 2) ; les actions rares passent dans le menu « … ».
             HStack(spacing: 8) {
@@ -147,10 +162,11 @@ struct CloudAgentsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(busy == a.id)
-                Button("Secret", systemImage: "key") {
-                    if let u = URL(string: "https://github.com/\(repo.fullName)/settings/secrets/actions/new") { openURL(u) }
+                // Visible tant que la clé n'est pas sûre d'être ajoutée, puis dans « … ».
+                if CloudAgentsDisplay.showsSecretButton(a.secrets, present: secrets) {
+                    Button("Secret", systemImage: "key", action: openSecretPage)
+                        .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
                 Spacer(minLength: 0)
                 Menu {
                     if installed {
@@ -161,6 +177,9 @@ struct CloudAgentsView: View {
                     }
                     if let help = a.secretHelpUrl, let u = URL(string: help) {
                         Button("Obtenir la clé", systemImage: "safari") { openURL(u) }
+                    }
+                    if !CloudAgentsDisplay.showsSecretButton(a.secrets, present: secrets), !a.secrets.isEmpty {
+                        Button("Changer la clé", systemImage: "key", action: openSecretPage)
                     }
                     Button("Voir le YAML", systemImage: "doc.text") { yaml = a }
                 } label: {
@@ -185,6 +204,8 @@ struct CloudAgentsView: View {
             installed = Set(items.map(\.name))
             runs = Array(all.filter { ($0.name ?? "").hasPrefix("NEXORA") }.prefix(10))
             loadError = nil
+            // Facultatif : sans le droit de lire les secrets, l'écran reste comme avant.
+            secrets = (try? await api.secretNames(repo.owner.login, repo.name)).map { Set($0) }
         } catch {
             if installed == nil { installed = [] }
             loadError = CloudAgentsDisplay.loadProblem(error.localizedDescription)
@@ -215,6 +236,7 @@ struct CloudAgentsView: View {
             if a.id == "aider-free" { inputs["model"] = model.trimmingCharacters(in: .whitespacesAndNewlines) }
             try await api.dispatch(repo.owner.login, repo.name, workflowFile: a.workflowFile, ref: repo.branch, inputs: inputs)
             toast = Toast(text: "\(a.name) est au travail 🚀")
+            launched += 1
             try? await Task.sleep(for: .seconds(4))
             await load()
         } catch {

@@ -27,4 +27,32 @@ struct CloudAgentsDisplayTests {
         #expect(CloudAgentsDisplay.canLaunch("ajoute un README"))
         #expect(CloudAgentsDisplay.intro.count < 120)
     }
+
+    @Test func clesEtOrdre() {
+        let keys = ["ANTHROPIC_API_KEY"]
+        #expect(CloudAgentsDisplay.secretLine(keys, present: nil) == "Clé à ajouter : ANTHROPIC_API_KEY")
+        #expect(CloudAgentsDisplay.secretLine(keys, present: ["ANTHROPIC_API_KEY"]) == "Clé ajoutée : ANTHROPIC_API_KEY")
+        #expect(CloudAgentsDisplay.secretLine(keys, present: []) == "Clé manquante : ANTHROPIC_API_KEY")
+        #expect(CloudAgentsDisplay.secretLine(["A", "B"], present: ["A"]) == "Clé manquante : B")
+        #expect(CloudAgentsDisplay.secretLine(["A", "B"], present: []) == "Clés manquantes : A · B")
+        #expect(CloudAgentsDisplay.showsSecretButton(keys, present: nil))
+        #expect(CloudAgentsDisplay.showsSecretButton(keys, present: []))
+        #expect(!CloudAgentsDisplay.showsSecretButton(keys, present: ["ANTHROPIC_API_KEY"]))
+        #expect(!CloudAgentsDisplay.showsSecretButton([], present: nil))
+        let agents = Catalog.cloudAgents
+        #expect(CloudAgentsDisplay.ordered(agents, installed: nil).map(\.id) == agents.map(\.id))
+        if let last = agents.last, agents.count > 1 {
+            let sorted = CloudAgentsDisplay.ordered(agents, installed: [last.workflowFile])
+            #expect(sorted.first?.id == last.id)
+            #expect(sorted.count == agents.count)
+        }
+    }
+
+    @Test func nomsDesSecrets() async throws {
+        let t = FakeTransport([.init(headers: ["content-type": "application/json"],
+            body: #"{"total_count":2,"secrets":[{"name":"ANTHROPIC_API_KEY","created_at":"x"},{"name":"GEMINI_API_KEY"}]}"#)])
+        let names = try await GitHubAPI(token: "t", transport: t).secretNames("max", "site")
+        #expect(names == ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"])
+        #expect(t.requests.first?.url?.path == "/repos/max/site/actions/secrets")
+    }
 }
