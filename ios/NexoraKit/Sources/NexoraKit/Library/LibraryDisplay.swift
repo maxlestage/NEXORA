@@ -41,8 +41,33 @@ public enum LibraryDisplay {
     /// « 1 élément », « 12 éléments ».
     public static func itemsCount(_ n: Int) -> String { count(n, "élément") }
 
-    /// Le bouton du bas : « Installer 3 éléments ».
-    public static func installLabel(_ n: Int) -> String { "Installer \(itemsCount(n))" }
+    /// L'en-tête de la liste : « 12 éléments · 3 installés » (rien sur les installés
+    /// s'il n'y en a aucun).
+    public static func itemsHeader(_ n: Int, installed: Int) -> String {
+        installed > 0 ? "\(itemsCount(n)) · \(installed) installé\(installed > 1 ? "s" : "")" : itemsCount(n)
+    }
+
+    /// Ce que coche « Tout sélectionner » : les éléments pas encore installés (les
+    /// réinstaller ne ferait que les retélécharger) ; s'ils le sont tous, tous (pour les
+    /// mettre à jour).
+    public static func selectable(_ shown: [LibraryItem], isInstalled: (LibraryItem) -> Bool) -> [LibraryItem] {
+        let fresh = shown.filter { !isInstalled($0) }
+        return fresh.isEmpty ? shown : fresh
+    }
+
+    /// Le bouton d'en-tête : « Tout décocher » quand la cible est cochée, « Tout
+    /// sélectionner » quand rien n'est installé, sinon « Sélectionner les 3 nouveaux ».
+    public static func selectAllLabel(target: Int, shown: Int, allSelected: Bool) -> String {
+        if allSelected { return "Tout décocher" }
+        if target == shown { return "Tout sélectionner" }
+        return target == 1 ? "Sélectionner le nouveau" : "Sélectionner les \(target) nouveaux"
+    }
+
+    /// Le bouton du bas : « Installer 3 éléments », ou « Mettre à jour 2 éléments »
+    /// quand tous les éléments cochés sont déjà installés.
+    public static func installLabel(_ n: Int, updates: Int = 0) -> String {
+        (n > 0 && updates == n ? "Mettre à jour " : "Installer ") + itemsCount(n)
+    }
 
     /// Le retour après une installation.
     public static func installed(_ ok: Int, of total: Int) -> String {

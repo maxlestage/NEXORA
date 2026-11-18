@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.134 — 18 novembre 2026 — Bibliothèque plus claire
+- Amélioré : « Tout sélectionner » ne coche plus que les éléments pas encore installés (« Sélectionner les 3 nouveaux ») : plus de téléchargements en double.
+- Nouveau : l'en-tête de la liste indique combien d'éléments sont déjà installés.
+- Amélioré : le bouton du bas dit « Mettre à jour » quand tous les éléments cochés sont déjà installés.
+
 ## 3.0.133 — 18 novembre 2026 — Environnements GitHub allégés pour l'agent
 
 - Amélioré : quand l'agent consulte les environnements de déploiement d'un dépôt, la réponse de GitHub lui coûte environ 40 % de tokens en moins (liens déduits, identifiants internes et valeurs par défaut retirés).
