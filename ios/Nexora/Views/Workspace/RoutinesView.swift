@@ -5,32 +5,44 @@ import SwiftUI
 /// activer, désactiver et configurer.
 struct RoutinesView: View {
     @Environment(RoutineBook.self) private var routines
+    @Environment(SettingsStore.self) private var settings
     @State private var toast: Toast?
     @State private var creating = false
     @State private var started: String?
+    /// Change à chaque routine activée ou désactivée : une vibration le confirme.
+    @State private var toggled = 0
 
     var body: some View {
         List {
-            ForEach(routines.routines) { r in
-                NavigationLink {
-                    RoutineEditorView(routine: r)
-                } label: {
-                    RoutineRow(routine: r, error: routines.errors[r.id]) { on in
-                        Task {
-                            let err = await routines.setEnabled(r.id, on)
-                            toast = Toast(
-                                text: err ?? (on ? "Routine « \(r.name) » activée" : "Routine désactivée"),
-                                error: err != nil
-                            )
+            Section {
+                // La prochaine à passer en tête, les désactivées en bas.
+                ForEach(RoutinesDisplay.sorted(routines.routines)) { r in
+                    NavigationLink {
+                        RoutineEditorView(routine: r)
+                    } label: {
+                        RoutineRow(routine: r, error: routines.errors[r.id]) { on in setEnabled(r, on) }
+                    }
+                    // Action fréquente, avant seulement dans la fiche de la routine.
+                    .swipeActions(edge: .leading) {
+                        Button("Lancer", systemImage: "play.fill") {
+                            Task { await runNow(r) }
                         }
+                        .tint(Color.accentColor)
+                    }
+                    // Le balayage ne se devine pas : l'appui long montre les mêmes actions.
+                    .contextMenu {
+                        Button("Lancer maintenant", systemImage: "play.fill") {
+                            Task { await runNow(r) }
+                        }
+                        Button(
+                            r.enabled ? "Désactiver" : "Activer",
+                            systemImage: r.enabled ? "pause.circle" : "checkmark.circle"
+                        ) { setEnabled(r, !r.enabled) }
                     }
                 }
-                // Action fréquente, avant seulement dans la fiche de la routine.
-                .swipeActions(edge: .leading) {
-                    Button("Lancer", systemImage: "play.fill") {
-                        Task { await runNow(r) }
-                    }
-                    .tint(Color.accentColor)
+            } header: {
+                if let summary = RoutinesDisplay.summary(routines.routines) {
+                    Text(summary).textCase(nil)
                 }
             }
         }
@@ -55,6 +67,18 @@ struct RoutinesView: View {
         .navigationDestination(isPresented: $creating) { RoutineEditorView(routine: nil) }
         .navigationDestination(item: $started) { id in SessionView(sessionId: id) }
         .toast($toast)
+        .sensoryFeedback(.selection, trigger: toggled) { _, _ in settings.haptics }
+    }
+
+    private func setEnabled(_ r: Routine, _ on: Bool) {
+        Task {
+            let err = await routines.setEnabled(r.id, on)
+            if err == nil { toggled += 1 }
+            toast = Toast(
+                text: err ?? (on ? "Routine « \(r.name) » activée" : "Routine désactivée"),
+                error: err != nil
+            )
+        }
     }
 
     private func runNow(_ r: Routine) async {

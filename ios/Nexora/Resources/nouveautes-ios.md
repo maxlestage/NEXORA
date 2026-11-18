@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.132 — 18 novembre 2026 — Routines plus faciles à suivre
+
+- Amélioré : la routine qui passe ensuite est en tête de liste, les routines désactivées en bas.
+- Nouveau : une ligne en haut dit combien de routines sont actives et laquelle passe ensuite.
+- Nouveau : un appui long sur une routine la lance ou l'active / la désactive tout de suite.
+- Amélioré : une vibration confirme l'activation ou la désactivation d'une routine.
+
 ## 3.0.131 — 17 novembre 2026 — Caches d'Actions allégés pour l'agent
 - Amélioré : quand l'agent consulte les caches GitHub Actions, la réponse envoyée au modèle coûte environ 38 % de tokens en moins (empreinte interne et dates redites retirées).
 - Rien ne change pour vous : clé, branche, taille et dates utiles de chaque cache restent visibles par l'agent.
