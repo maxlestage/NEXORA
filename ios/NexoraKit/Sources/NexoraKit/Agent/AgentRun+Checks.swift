@@ -756,12 +756,14 @@ extension AgentRun {
     /// `verification` (≈ 1 000 caractères par commit signé) : seuls `verified` et
     /// `reason` restent, et rien du tout pour un commit non signé. `html_url` retiré
     /// quand il vaut `https://github.com/<dépôt>/commit/<sha>` (déduit du dépôt et du
-    /// sha, ≈ 25 tokens par commit). Le message, les fichiers et les statistiques sont
-    /// gardés. Tout autre objet est rendu tel quel.
+    /// sha, ≈ 25 tokens par commit). Un résultat de GET /search/commits perd aussi son
+    /// `score` (l'ordre des résultats le dit déjà). Le message, les fichiers et les
+    /// statistiques sont gardés. Tout autre objet est rendu tel quel.
     nonisolated static func slimCommit(_ d: [String: Any]) -> [String: Any] {
         guard let sha = d["sha"] as? String, var c = d["commit"] as? [String: Any], c["message"] != nil,
               let parents = d["parents"] as? [Any] else { return d }
         var out = d
+        if d["score"] is Double || d["score"] is Int || d["score"] is NSNumber { out["score"] = nil }
         if let link = d["html_url"] as? String, link.hasPrefix("https://github.com/"),
            link.hasSuffix("/commit/" + sha) {
             out["html_url"] = nil

@@ -1135,6 +1135,39 @@ struct AgentShipTests {
         #expect(p["pull_request"] is [String: Any])
     }
 
+    @Test("banc github : recherche de commits sans score")
+    func githubSearchCommits() throws {
+        func item(_ i: Int) -> [String: Any] {
+            let sha = String(repeating: String(i % 10), count: 40)
+            let who: [String: Any] = ["name": "o", "email": "o@exemple.fr", "date": "2026-11-0\(i % 9 + 1)T10:00:00Z"]
+            return ["sha": sha, "html_url": "https://github.com/o/r/commit/\(sha)",
+                    "commit": ["message": "Corriger le calcul \(i)", "author": who, "committer": who,
+                               "comment_count": 0],
+                    "author": ["login": "o", "id": 2, "type": "User"], "committer": ["login": "o", "id": 2, "type": "User"],
+                    "parents": [["sha": String(repeating: "f", count: 40)]],
+                    "repository": ["full_name": "o/r", "name": "r", "id": 9, "private": false],
+                    "score": 1.0]
+        }
+        let items = (1...20).map(item)
+        let reply: [String: Any] = ["total_count": 20, "incomplete_results": false, "items": items]
+        // Avant : même réponse, `score` sous une clé de même longueur que slimCommit ignore.
+        var raw = reply
+        raw["items"] = items.map { i -> [String: Any] in
+            var d = i
+            d["Score"] = d.removeValue(forKey: "score")
+            return d
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(raw)).count
+        let r = try #require(AgentRun.slimGitHub(reply) as? [String: Any])
+        let after = AgentRun.githubText(r).count
+        print("Banc github (recherche de commits, 20 résultats) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        let list = try #require(r["items"] as? [[String: Any]])
+        #expect(list.count == 20 && list.allSatisfy { $0["score"] == nil && $0["sha"] is String })
+        // Un commit hors recherche garde tout le reste (message, sha).
+        #expect(((list[0]["commit"] as? [String: Any])?["message"] as? String) == "Corriger le calcul 1")
+    }
+
     @Test("banc github : contenu de fichier décodé, dossier sans liens")
     func githubContents() throws {
         let source = (1...60).map { "    let valeur\($0) = calcule(\($0)) // ligne \($0)" }.joined(separator: "\n") + "\n"

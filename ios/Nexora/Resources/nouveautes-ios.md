@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.149 — 18 novembre 2026 — Recherche de commits plus légère pour l'agent
+- Amélioré : quand l'agent cherche des commits sur GitHub, il reçoit environ 4 % de tokens en moins (la note de pertinence, inutile, n'est plus envoyée).
+- Les messages, auteurs et identifiants des commits trouvés restent tous là.
+
 ## 3.0.148 — 18 novembre 2026 — Relire les brouillons d'un trait
 - Nouveau : dans la comparaison d'un brouillon, le bouton « › » passe au brouillon suivant, sans revenir à la liste.
 - Amélioré : la place du brouillon (« 2 sur 5 ») s'affiche en haut de la comparaison.

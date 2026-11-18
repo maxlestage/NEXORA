@@ -1184,10 +1184,16 @@ mémoire 32k tokens, consigne 3 000 car.
   fichiers ont le même contenu. Rien retiré. Tests : 553 → 554 (mêmes 2 échecs Linux du
   catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.148, brouillons) → prochain passage : TOKENS.
-Interface ensuite : ShipSheet (feuille d'envoi : texte « Un commit par dépôt » long).
-Tokens ensuite : GET /search/commits (`score`, commit répété), `author_association` des issues.
+- 3.0.149 (tokens) : `slimCommit` — un résultat de GET /search/commits perd son `score`
+  (l'ordre le dit ; le reste était déjà allégé : html_url, committer identique, parents,
+  dépôt en tête). Banc `AgentShipTests.githubSearchCommits` (20 résultats) : 1 318 → 1 268
+  tokens (−3,8 %). Tests : 554 → 555 (mêmes 2 échecs Linux du catalogue + prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.149, recherche de commits) → prochain passage : INTERFACE.
+Interface : ShipSheet (feuille d'envoi : texte « Un commit par dépôt » long).
+Tokens ensuite : `author_association` des issues (à peser : utile pour savoir qui écrit),
+NSDictionary.isEqual sous Linux avec des Int (committer gardé si `id` sans `type`).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
