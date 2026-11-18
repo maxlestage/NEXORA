@@ -1128,11 +1128,51 @@ struct AgentShipTests {
         let c = try #require(AgentRun.slimGitHub(item(6, pr: true, state: "closed")) as? [String: Any])
         let cp = try #require(c["pull_request"] as? [String: Any])
         #expect(cp["merged_at"] is NSNull && cp["html_url"] == nil)
-        // Une issue hors recherche (sans `score`) n'est pas touchée.
-        var plain = item(8, pr: true)
-        plain["score"] = nil
-        let p = try #require(AgentRun.slimGitHub(plain) as? [String: Any])
-        #expect(p["pull_request"] is [String: Any])
+        // Une issue hors recherche (sans `score`) sans bloc `pull_request` n'est pas touchée.
+        var plainIssue = item(7, pr: false)
+        plainIssue["score"] = nil
+        let pi = try #require(AgentRun.slimGitHub(plainIssue) as? [String: Any])
+        #expect(pi["pull_request"] == nil && pi["number"] as? Int == 7 && pi["state"] as? String == "open")
+    }
+
+    @Test("banc github : liste d'issues avec marque de pull request réduite")
+    func githubIssueList() throws {
+        func item(_ i: Int, pr: Bool, state: String = "open", merged: Any = NSNull()) -> [String: Any] {
+            let kind = pr ? "pull" : "issues"
+            var d: [String: Any] = ["number": i, "title": "Corriger le calcul \(i)", "state": state,
+                                    "html_url": "https://github.com/o/r/\(kind)/\(i)",
+                                    "user": ["login": "o", "id": 2], "comments": i % 3,
+                                    "created_at": "2026-11-0\(i % 9 + 1)T10:00:00Z",
+                                    "author_association": "OWNER", "body": "Le calcul \(i) est faux."]
+            if pr {
+                d["draft"] = false
+                d["pull_request"] = ["url": "https://api.github.com/repos/o/r/pulls/\(i)",
+                                     "html_url": "https://github.com/o/r/pull/\(i)",
+                                     "diff_url": "https://github.com/o/r/pull/\(i).diff",
+                                     "patch_url": "https://github.com/o/r/pull/\(i).patch", "merged_at": merged]
+            }
+            return d
+        }
+        let items: [Any] = (1...20).map { item($0, pr: $0 % 2 == 0) }
+        // Avant : même liste, `pull_request` sous une clé de même longueur que slimSearch ignore.
+        let raw: [Any] = items.map { x -> Any in
+            var d = x as! [String: Any]
+            if let p = d.removeValue(forKey: "pull_request") { d["Pull_request"] = p }
+            return d
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(raw)).count
+        let list = try #require(AgentRun.slimGitHub(items) as? [[String: Any]])
+        let after = AgentRun.githubText(list).count
+        print("Banc github (liste d'issues, 20 éléments) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        #expect(list.count == 20 && list.allSatisfy { $0["html_url"] is String && $0["number"] is Int })
+        #expect(list[0]["pull_request"] == nil)
+        #expect(list[1]["pull_request"] as? Bool == true)
+        // Fermée : fusionnée ou non, se distingue toujours.
+        let m = try #require(AgentRun.slimGitHub(item(4, pr: true, state: "closed", merged: "2026-11-02T10:00:00Z")) as? [String: Any])
+        #expect((m["pull_request"] as? [String: Any])?["merged_at"] as? String == "2026-11-02T10:00:00Z")
+        let c = try #require(AgentRun.slimGitHub(item(6, pr: true, state: "closed")) as? [String: Any])
+        #expect((c["pull_request"] as? [String: Any])?["merged_at"] is NSNull)
     }
 
     @Test("banc github : recherche de commits sans score")

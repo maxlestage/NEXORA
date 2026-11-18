@@ -581,7 +581,7 @@ extension AgentRun {
     /// perd `name` (fin du chemin), `html_url` (déduit du chemin) et `score` (l'ordre des
     /// résultats le dit déjà) ; ses `text_matches` sont réduits à leurs extraits
     /// (`fragment`), sans `object_type`, `property` ni positions. Un résultat d'issue
-    /// (GET /search/issues) perd `score` et son bloc `pull_request` répété. Tout autre
+    /// (GET /search/issues, ou d'une liste d'issues) perd `score` et son bloc `pull_request` répété. Tout autre
     /// objet est rendu tel quel.
     nonisolated static func slimSearch(_ d: [String: Any]) -> [String: Any] {
         if let items = d["items"] as? [Any], d["total_count"] is Int, d["incomplete_results"] is Bool {
@@ -601,10 +601,13 @@ extension AgentRun {
             }
             return out
         }
-        if d["number"] is Int, d["title"] is String, d["score"] != nil, d["state"] is String {
-            // Un résultat de GET /search/issues : `score` retiré (l'ordre le dit) ; le
-            // bloc `pull_request` perd son `html_url` (celui de l'issue) et, pour une pull
-            // request ouverte non fusionnée, se réduit à `true` (marque « pull request »).
+        if d["number"] is Int, d["title"] is String, d["state"] is String,
+           d["score"] != nil || d["pull_request"] is [String: Any] {
+            // Un résultat de GET /search/issues : `score` retiré (l'ordre le dit). Là comme
+            // dans une liste d'issues (GET …/issues, où les pull requests apparaissent
+            // aussi), le bloc `pull_request` perd son `html_url` (celui de l'issue) et, pour
+            // une pull request ouverte non fusionnée, se réduit à `true` (marque « pull
+            // request »). Fermée, il garde `merged_at` : fusionnée ou non se lit toujours.
             var out = d
             out["score"] = nil
             if var pr = d["pull_request"] as? [String: Any] {
