@@ -93,6 +93,15 @@ struct ProviderDetailDisplayTests {
         #expect(ProviderDetailDisplay.helpFolded(ollama, hasKey: false, modelCount: 3))
     }
 
+    @Test func collerLaCleEtListeVide() {
+        #expect(ProviderDetailDisplay.showsPaste(key: ""))
+        #expect(ProviderDetailDisplay.showsPaste(key: "  \n"))
+        #expect(!ProviderDetailDisplay.showsPaste(key: "sk-abc"))
+        #expect(ProviderDetailDisplay.emptyModels(needsKey: true, hasKey: false).contains("collez d'abord la clé"))
+        #expect(ProviderDetailDisplay.emptyModels(needsKey: true, hasKey: true).contains("chargez la liste"))
+        #expect(ProviderDetailDisplay.emptyModels(needsKey: false, hasKey: false) == ProviderDetailDisplay.emptyModels(needsKey: true, hasKey: true))
+    }
+
     @Test func rechercheEtDefautEnTete() {
         #expect(ProviderDetailDisplay.models(models, query: "", defaultId: "o3").map(\.id)
                 == ["o3", "gpt-4o", "gpt-4o-mini", "llama-3.3-70b"])
