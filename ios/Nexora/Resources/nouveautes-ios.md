@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.138 — 18 novembre 2026 — Agents cloud plus guidés
+
+- Amélioré : chaque agent cloud indique si sa clé est déjà ajoutée au dépôt (« Clé ajoutée ») ou encore manquante.
+- Plus simple : une fois la clé ajoutée, le bouton « Secret » passe dans le menu « … » (« Changer la clé »).
+- Plus pratique : les agents installés s'affichent en premier, et une petite vibration confirme le lancement.
+
 ## 3.0.137 — 18 novembre 2026 — Webhooks lus plus légers par l'agent
 - Amélioré : quand l'agent consulte les webhooks d'un dépôt, la réponse de GitHub lui coûte environ 40 % de tokens en moins (valeurs par défaut et réponse « jamais appelé » retirées).
 - Inchangé : adresse, évènements, état actif et code de la dernière réponse restent visibles.

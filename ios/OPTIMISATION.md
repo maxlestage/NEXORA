@@ -1100,9 +1100,17 @@ mémoire 32k tokens, consigne 3 000 car.
   vraie dernière réponse perd ses champs nuls. Banc `AgentShipTests.githubHooks`
   (4 webhooks) : 309 → 183 tokens (−41 %). Tests : 541 → 542 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.137, webhooks) → prochain passage : INTERFACE.
-Interface : Personnaliser ou accueil (non repris récemment), CloudAgentsView.
+- 3.0.138 (interface) : Agents cloud (CloudAgentsView, 2e passage, 1er en 3.0.38) — on ne
+  savait jamais si la clé de l'agent était ajoutée : `GitHubAPI.secretNames` (noms seuls,
+  GET …/actions/secrets, facultatif : sans droit, écran inchangé) ; `CloudAgentsDisplay.secretLine`
+  « Clé ajoutée / manquante / à ajouter » (vert / ambre / accent) ; `showsSecretButton` : clé
+  présente → « Secret » passe dans « … » (« Changer la clé ») ; `ordered` : agents installés en
+  tête ; vibration au lancement. Rien retiré. Tests : 542 → 544 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.138, Agents cloud) → prochain passage : TOKENS.
+Tokens : GET …/actions/permissions, …/hooks/{id}/deliveries.
+Interface ensuite : Personnaliser ou accueil (non repris récemment).
 Tokens ensuite : GET …/actions/permissions, …/hooks/{id}/deliveries.
 
 ## Pistes tokens à faire

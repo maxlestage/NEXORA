@@ -252,6 +252,17 @@ extension GitHubAPI {
         try await req("POST", "/repos/\(owner)/\(repo)/actions/workflows/\(file)/dispatches", body: ["ref": ref, "inputs": inputs])
     }
 
+    /// Les noms des secrets d'Actions du dépôt (jamais leurs valeurs) : savoir si la clé
+    /// d'un agent cloud est déjà ajoutée. Échoue si le jeton n'a pas le droit de les lire.
+    public func secretNames(_ owner: String, _ repo: String) async throws -> [String] {
+        struct Page: Decodable {
+            struct Secret: Decodable { let name: String }
+            let secrets: [Secret]?
+        }
+        let data = try await req("GET", "/repos/\(owner)/\(repo)/actions/secrets", query: ["per_page": "100"])
+        return (try JSONDecoder().decode(Page.self, from: data ?? Data())).secrets?.map(\.name) ?? []
+    }
+
     /// Active ou désactive un workflow (une routine planifiée sur GitHub).
     public func setWorkflowEnabled(_ owner: String, _ repo: String, workflowFile: String, enabled: Bool) async throws {
         let file = workflowFile.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? workflowFile
