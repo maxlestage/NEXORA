@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.147 — 18 novembre 2026 — Recherche d'issues plus légère pour l'agent
+
+- Amélioré : quand l'agent cherche des issues ou des pull requests sur GitHub, le résultat lui coûte environ 13 % de tokens en moins.
+- Les liens de pull request répétés et les scores de recherche ne lui sont plus envoyés ; l'état (ouverte, fermée, fusionnée) reste visible.
+
 ## 3.0.146 — 18 novembre 2026 — Menu de la session plus utile
 
 - Amélioré : le menu « … » d'une session propose « Copier la mission », comme l'appui long dans la liste.
