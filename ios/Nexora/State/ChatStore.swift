@@ -8,7 +8,13 @@ import Observation
 @MainActor
 @Observable
 final class ChatStore {
-    private(set) var index: [ConversationStore.Meta] = []
+    /// La liste, sans les conversations en attente de suppression.
+    var index: [ConversationStore.Meta] { ChatDisplay.hiding(storedIndex, pendingDeletes) }
+    private var storedIndex: [ConversationStore.Meta] = []
+    /// Les conversations supprimées il y a moins de `ChatDisplay.undoSeconds` :
+    /// cachées, mais pas encore effacées (« Annuler » les ramène).
+    private(set) var pendingDeletes: Set<String> = []
+    @ObservationIgnored private var deleteTasks: [String: Task<Void, Never>] = [:]
     /// Les conversations ouvertes (messages chargés).
     private(set) var open: [String: Conversation] = [:]
     private(set) var running: Set<String> = []
@@ -44,7 +50,7 @@ final class ChatStore {
     }
 
     func reloadIndex() async {
-        index = await store.index()
+        storedIndex = await store.index()
     }
 
     func isRunning(_ id: String) -> Bool { running.contains(id) }
@@ -89,7 +95,7 @@ final class ChatStore {
             saveTasks.removeValue(forKey: id)?.cancel()
             open[id] = nil
         }
-        index.removeAll { old.contains($0.id) }
+        storedIndex.removeAll { old.contains($0.id) }
         let files = imageFiles
         Task {
             for id in old {
@@ -138,6 +144,8 @@ final class ChatStore {
 
     func delete(_ id: String) {
         stop(id)
+        // Retirée de la liste tout de suite : elle ne réapparaît pas le temps d'effacer.
+        storedIndex.removeAll { $0.id == id }
         let loaded = open[id]
         open[id] = nil
         let files = imageFiles
@@ -151,7 +159,31 @@ final class ChatStore {
         }
     }
 
+    /// Cache la conversation tout de suite et ne l'efface qu'après
+    /// `ChatDisplay.undoSeconds` : `undoDelete` la ramène telle quelle.
+    func deleteLater(_ id: String) {
+        pendingDeletes.insert(id)
+        deleteTasks[id]?.cancel()
+        deleteTasks[id] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(ChatDisplay.undoSeconds))
+            guard !Task.isCancelled, let self else { return }
+            self.deleteTasks[id] = nil
+            self.pendingDeletes.remove(id)
+            self.delete(id)
+        }
+    }
+
+    /// Annule une suppression encore en attente.
+    func undoDelete(_ id: String) {
+        deleteTasks[id]?.cancel()
+        deleteTasks[id] = nil
+        pendingDeletes.remove(id)
+    }
+
     func deleteAll() {
+        for task in deleteTasks.values { task.cancel() }
+        deleteTasks.removeAll()
+        pendingDeletes.removeAll()
         for id in running { stop(id) }
         open.removeAll()
         let files = imageFiles

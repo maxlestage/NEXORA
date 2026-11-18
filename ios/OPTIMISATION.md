@@ -1114,11 +1114,22 @@ mémoire 32k tokens, consigne 3 000 car.
   `AgentShipTests.githubHookDeliveries` (6 livraisons) : 391 → 233 tokens (−40 %).
   Tests : 544 → 545 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.139, livraisons de webhook) → prochain passage : INTERFACE.
-Interface : Personnaliser ou accueil (non repris récemment).
-Tokens ensuite : GET …/actions/permissions (petit gain : `selected_actions_url` déduit),
+- 3.0.140 (interface) : accueil du Chat (ConversationsView, liste) — la suppression d'une
+  conversation était définitive en un glissement, avec un avis anonyme qui cachait le bouton
+  « Nouveau chat ». Désormais `ChatStore.deleteLater` la cache (`ChatDisplay.hiding`, même
+  dans les résultats de recherche) et ne l'efface qu'après `ChatDisplay.undoSeconds` = 5 s ;
+  l'avis (`Toast` gagne `actionTitle`/`action`, reste 5 s s'il a un bouton) dit
+  « « Titre » supprimée » (`ChatDisplay.deletedToast`, titre coupé à 28 car.) avec « Annuler » ;
+  `.toast(_, bottom: 84)` au-dessus du bouton flottant ; vibration légère. Rien retiré.
+  Tests : 545 → 546 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.140, suppression annulable du Chat) → prochain passage : TOKENS.
+Tokens : GET …/actions/permissions (petit gain : `selected_actions_url` déduit),
 …/actions/permissions/workflow.
+Interface ensuite : le double « Nouveau chat » de l'accueil (barre du haut + bouton
+flottant) : garder le flottant, laisser à la barre « Avec un agent… » seulement ; ou
+Personnaliser (3 passages déjà).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

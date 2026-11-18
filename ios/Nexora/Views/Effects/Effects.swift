@@ -1,3 +1,4 @@
+import NexoraKit
 import SwiftUI
 
 // Les effets visuels de NEXORA (`ui/widgets/fx.dart`) : fond animé, verre dépoli,
@@ -248,28 +249,58 @@ extension SectionTitle where Trailing == EmptyView {
 struct Toast: Equatable {
     var text: String
     var error = false
+    /// Un bouton dans l'avis (ex. « Annuler ») : l'avis reste alors plus longtemps.
+    var actionTitle: String?
+    var action: (@MainActor () -> Void)?
+    /// Chaque avis est neuf : le même texte deux fois de suite relance son minuteur.
+    private var stamp = UUID()
+
+    init(text: String, error: Bool = false, actionTitle: String? = nil, action: (@MainActor () -> Void)? = nil) {
+        self.text = text
+        self.error = error
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
+    static func == (a: Toast, b: Toast) -> Bool { a.stamp == b.stamp }
 }
 
 private struct ToastModifier: ViewModifier {
     @Binding var toast: Toast?
+    var bottom: CGFloat = 24
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
             if let toast {
-                Text(toast.text)
+                // Avec un bouton, l'avis reste le temps de l'utiliser.
+                let seconds = toast.action == nil ? 2.2 : Double(ChatDisplay.undoSeconds)
+                HStack(spacing: 12) {
+                    Text(toast.text)
+                        .lineLimit(2)
+                    if let title = toast.actionTitle, let action = toast.action {
+                        Button(title) {
+                            action()
+                            withAnimation { self.toast = nil }
+                        }
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.accentColor)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                    }
+                }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(toast.error ? Theme.red.opacity(0.95) : Color.black.opacity(0.85), in: .rect(cornerRadius: 14))
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, bottom)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: toast) {
-                        try? await Task.sleep(for: .seconds(2.2))
+                        try? await Task.sleep(for: .seconds(seconds))
                         withAnimation { self.toast = nil }
                     }
-                    .accessibilityAddTraits(.isStaticText)
+                    .accessibilityAddTraits(toast.action == nil ? .isStaticText : [])
             }
         }
         .animation(.easeOut(duration: 0.2), value: toast)
@@ -277,6 +308,9 @@ private struct ToastModifier: ViewModifier {
 }
 
 extension View {
-    /// Affiche `toast` quelques secondes en bas de la vue.
-    func toast(_ toast: Binding<Toast?>) -> some View { modifier(ToastModifier(toast: toast)) }
+    /// Affiche `toast` quelques secondes en bas de la vue, à `bottom` points du bas
+    /// (plus haut au-dessus d'un bouton flottant, pour ne pas le cacher).
+    func toast(_ toast: Binding<Toast?>, bottom: CGFloat = 24) -> some View {
+        modifier(ToastModifier(toast: toast, bottom: bottom))
+    }
 }

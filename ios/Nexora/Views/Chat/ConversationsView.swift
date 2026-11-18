@@ -22,8 +22,13 @@ struct ConversationsView: View {
     @State private var newTitle = ""
     @State private var pickAgent = false
     @State private var toast: Toast?
+    @State private var deleted = 0
 
-    private var list: [ConversationStore.Meta] { results ?? chats.index }
+    /// Les conversations en attente de suppression sont cachées, même dans les
+    /// résultats d'une recherche (« Annuler » les fait revenir).
+    private var list: [ConversationStore.Meta] {
+        results.map { ChatDisplay.hiding($0, chats.pendingDeletes) } ?? chats.index
+    }
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
@@ -161,7 +166,9 @@ struct ConversationsView: View {
                     if let r = renaming, !t.isEmpty { chats.rename(r.id, t) }
                 }
             }
-            .toast($toast)
+            // Au-dessus du bouton « Nouveau chat » flottant : l'avis ne le cache pas.
+            .toast($toast, bottom: 84)
+            .sensoryFeedback(.impact(weight: .light), trigger: deleted) { _, _ in settings.haptics }
         }
     }
 
@@ -313,9 +320,13 @@ struct ConversationsView: View {
         path.append(ChatRoute(id: c.id, prompt: prompt))
     }
 
+    /// Supprime avec « Annuler » quelques secondes : rien n'est effacé avant.
     private func delete(_ meta: ConversationStore.Meta) {
-        chats.delete(meta.id)
-        results?.removeAll { $0.id == meta.id }
-        toast = Toast(text: "Conversation supprimée")
+        let id = meta.id
+        chats.deleteLater(id)
+        deleted += 1
+        toast = Toast(text: ChatDisplay.deletedToast(title: meta.title), actionTitle: "Annuler") { [chats] in
+            chats.undoDelete(id)
+        }
     }
 }

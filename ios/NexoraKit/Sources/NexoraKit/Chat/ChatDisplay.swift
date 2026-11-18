@@ -123,6 +123,25 @@ public enum ChatDisplay {
         conversations < startersUntil
     }
 
+    /// Le temps laissé pour annuler la suppression d'une conversation : l'avis
+    /// « Annuler » reste affiché, et rien n'est effacé avant.
+    public static let undoSeconds = 5
+
+    /// L'avis après une suppression : « « Idées de vacances » supprimée », le titre
+    /// coupé au-delà de 28 caractères (l'avis tient sur une ligne avec « Annuler »).
+    public static func deletedToast(title: String) -> String {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return "Conversation supprimée" }
+        let short = t.count > 28 ? String(t.prefix(27)) + "…" : t
+        return "« \(short) » supprimée"
+    }
+
+    /// La liste sans les conversations en attente de suppression (cachées tout de
+    /// suite, effacées après `undoSeconds`).
+    public static func hiding(_ list: [ConversationStore.Meta], _ ids: Set<String>) -> [ConversationStore.Meta] {
+        ids.isEmpty ? list : list.filter { !ids.contains($0.id) }
+    }
+
     /// La ligne sous le titre de l'accueil : « 🌸 Pollinations · 3 fournisseurs prêts »,
     /// au singulier pour un seul, et une invitation claire quand aucun n'est prêt.
     public static func homeSubtitle(emoji: String, model: String, ready: Int) -> String {
