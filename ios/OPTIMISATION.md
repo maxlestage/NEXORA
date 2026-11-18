@@ -1147,9 +1147,17 @@ mémoire 32k tokens, consigne 3 000 car.
   (80 entrées) : 2 728 → 2 427 tokens (−11 %). Tests : 548 → 549 (mêmes 2 échecs Linux
   du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.143, arbre Git) → prochain passage : INTERFACE (session de l'agent,
-ou Personnaliser qui a déjà eu 3 passages).
+- 3.0.144 (interface) : session de l'agent, 4e passage — carte « travail resté sur une
+  branche » : le bouton n'avait aucun retour pendant l'ouverture de la PR et pouvait être
+  touché deux fois (`AgentRun.recover` ne passe `shipping` à vrai qu'après `reopenPulls`,
+  donc 2e appel possible → PR en double ou erreur). `@State recovering` : roue + libellé
+  « Ouverture de la pull request… », bouton désactivé, 44 pt ; libellé et avis dans
+  `SessionsDisplay.recoverButton` / `recoverToast`. Rien retiré. Tests : 549 → 550 (mêmes
+  2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.144, session de l'agent) → prochain passage : TOKENS.
+Interface ensuite : menu « Options de la session » à un seul élément (Supprimer) ; DraftReviewView (2e passage).
 Tokens ensuite : GET …/search/code (`text_matches`, dépôt répété dans chaque résultat).
 
 ## Pistes tokens à faire

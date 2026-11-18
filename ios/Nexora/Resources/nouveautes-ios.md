@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.144 — 18 novembre 2026 — Ouverture de pull request plus claire
+- Amélioré : dans une session, le bouton « Ouvrir la pull request » (travail resté sur une branche) affiche « Ouverture de la pull request… » avec une roue pendant l'envoi.
+- Corrigé : un deuxième toucher pendant l'envoi ne peut plus ouvrir la pull request en double.
+
 ## 3.0.143 — 18 novembre 2026 — Arbre d'un dépôt plus léger pour l'agent
 - Amélioré : quand l'agent lit l'arborescence complète d'un dépôt GitHub, la réponse coûte environ 11 % de tokens en moins.
 - Les droits ordinaires des fichiers et dossiers ne sont plus répétés ; un fichier exécutable, un lien ou un sous-module reste signalé.
