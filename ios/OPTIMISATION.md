@@ -1132,13 +1132,19 @@ mémoire 32k tokens, consigne 3 000 car.
   était déjà couverte (`selected_actions_url` retiré par la règle des `*_url`) ; …/workflow :
   2 champs, rien à gagner. Tests : 546 → 547 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.141, contenu GitHub décodé) → prochain passage : INTERFACE.
-Interface : le double « Nouveau chat » de l'accueil (barre du haut + bouton flottant) :
-garder le flottant, laisser à la barre « Avec un agent… » seulement ; ou Personnaliser
-(3 passages déjà).
-Tokens ensuite : GET …/git/trees?recursive=1 (`url` par entrée déjà retiré ; `mode`
-100644 par défaut, `type` déduit ?), GET …/search/code (`text_matches`, dépôt répété).
+- 3.0.142 (interface) : accueil du Chat (ConversationsView, 2e passage) — « Nouveau chat »
+  était en double (menu ✎ de la barre + bouton flottant). La barre garde un seul bouton
+  « Nouveau chat avec un agent » (`ChatDisplay.agentChatLabel`, ouvre le choix d'agent en un
+  appui au lieu de deux) ; le bouton flottant gagne un appui long « Nouveau chat / Avec un
+  agent… » (`newChatHint` pour VoiceOver) ; sa condition d'affichage passe dans
+  `ChatDisplay.showsFloatingNewChat`. Rien retiré. Tests : 547 → 548 (mêmes 2 échecs Linux
+  du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.142, double « Nouveau chat ») → prochain passage : TOKENS.
+Tokens : GET …/git/trees?recursive=1 (`url` par entrée déjà retiré ; `mode` 100644 par
+défaut, `type` déduit ?), GET …/search/code (`text_matches`, dépôt répété).
+Interface ensuite : Personnaliser (3 passages déjà) ou session de l'agent.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

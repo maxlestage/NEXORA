@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.142 — 18 novembre 2026 — Un seul bouton « Nouveau chat »
+- Simplifié : l'accueil du Chat n'affiche plus deux boutons « Nouveau chat » ; le bouton flottant en bas reste.
+- Amélioré : en haut, le bouton à silhouette lance directement un chat avec un agent.
+- Pratique : appui long sur « Nouveau chat » pour choisir un agent.
+
 ## 3.0.141 — 18 novembre 2026 — Fichiers GitHub lus en clair par l'agent
 
 - Amélioré : quand l'agent lit un fichier par l'API GitHub, il reçoit le texte en clair au lieu du codage base64 : environ 30 % de tokens en moins, et un contenu qu'il comprend vraiment.
