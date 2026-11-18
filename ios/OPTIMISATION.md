@@ -1081,10 +1081,17 @@ mémoire 32k tokens, consigne 3 000 car.
   3 installés » ; `installLabel(_:updates:)` « Mettre à jour 2 éléments ». Tests : 538 → 539
   (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.134, Bibliothèque) → prochain passage : TOKENS — GET …/actions/runners
-ou …/actions/secrets (listes : champs par défaut, total redit).
-Interface ensuite : Personnaliser ou accueil (non repris récemment).
+- 3.0.135 (tokens) : `slimActionsList` — GET …/actions/runners, …/actions/secrets,
+  …/actions/variables : la liste perd `total_count` égal au nombre montré (gardé si
+  tronquée) ; secret/variable perd `updated_at` identique à `created_at` ; machine perd
+  `ephemeral` à faux (étiquettes déjà réduites à leur nom par `labelNames`). Banc
+  `AgentShipTests.githubActionsLists` (3 machines + 6 secrets) : 248 → 184 tokens (−26 %).
+  Tests : 539 → 540 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.135, runners/secrets) → prochain passage : INTERFACE — Personnaliser ou
+accueil (non repris récemment).
+Tokens ensuite : GET …/actions/permissions, …/hooks (webhooks : `config`, `last_response`).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
