@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.150 — 18 novembre 2026 — Envoi des brouillons plus clair
+
+- Amélioré : un nom de branche invalide (vide, avec espace…) est signalé tout de suite, le bouton reste grisé au lieu d'un refus de GitHub après l'envoi.
+- Amélioré : boutons « Envoyer le commit » / « Envoyer 3 commits » au lieu de « Commit » / « Commits ».
+- Amélioré : avec plusieurs dépôts, une ligne par dépôt (« site · 3 fichiers ») sous le message, au lieu d'une longue phrase ; le champ indique que la mission sert de message s'il reste vide.
+
 ## 3.0.149 — 18 novembre 2026 — Recherche de commits plus légère pour l'agent
 - Amélioré : quand l'agent cherche des commits sur GitHub, il reçoit environ 4 % de tokens en moins (la note de pertinence, inutile, n'est plus envoyée).
 - Les messages, auteurs et identifiants des commits trouvés restent tous là.

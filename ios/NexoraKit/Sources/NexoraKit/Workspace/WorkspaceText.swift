@@ -199,8 +199,31 @@ public enum WorkspaceText {
     /// Le bouton d'envoi des brouillons validés.
     public static func shipButton(hasPull: Bool, repos: Int, pr: Bool) -> String {
         if hasPull { return "Mettre à jour la pull request" }
-        if repos > 1 { return pr ? "Ouvrir les pull requests" : "Commits" }
-        return pr ? "Ouvrir la pull request" : "Commit"
+        if repos > 1 { return pr ? "Ouvrir les pull requests" : "Envoyer \(repos) commits" }
+        return pr ? "Ouvrir la pull request" : "Envoyer le commit"
+    }
+
+    /// Une ligne par dépôt dans la feuille d'envoi : « site · 3 fichiers ».
+    public static func shipRepo(_ fullName: String, files: Int) -> String {
+        let name = fullName.split(separator: "/").last.map(String.init) ?? fullName
+        return "\(name) · \(files) fichier\(files > 1 ? "s" : "")"
+    }
+
+    /// Ce qui empêche d'utiliser ce nom de branche (`nil` : il convient). Évite un
+    /// refus de GitHub après l'appui sur « Ouvrir la pull request ».
+    public static func branchProblem(_ branch: String) -> String? {
+        let b = branch.trimmingCharacters(in: .whitespacesAndNewlines)
+        if b.isEmpty { return "Donnez un nom à la branche" }
+        if b.contains(where: { $0.isWhitespace }) { return "Sans espace dans le nom" }
+        let forbidden: Set<Character> = ["~", "^", ":", "?", "*", "[", "\\"]
+        if b.contains(where: { forbidden.contains($0) }) || b.contains("..") || b.contains("@{") {
+            return "Lettres, chiffres, « - », « _ », « / » et « . » seulement"
+        }
+        if b.hasPrefix("/") || b.hasPrefix("-") || b.hasSuffix("/") || b.hasSuffix(".")
+            || b.hasSuffix(".lock") || b.contains("//") {
+            return "Le nom ne peut ni commencer ni finir ainsi"
+        }
+        return nil
     }
 
     /// Le message après l'envoi (`nil` : rien d'envoyé).

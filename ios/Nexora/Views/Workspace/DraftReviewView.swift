@@ -135,6 +135,9 @@ struct ShipSheet: View {
     @State private var pr = true
     @State private var ready = false
 
+    /// Ce qui empêche d'ouvrir la pull request sur ce nom de branche (`nil` : il convient).
+    private var branchProblem: String? { WorkspaceText.branchProblem(branch) }
+
     var body: some View {
         let groups = run.acceptedByRepo
         // Chaque dépôt modifié a-t-il déjà sa pull request ? Sinon on demande comment
@@ -142,15 +145,13 @@ struct ShipSheet: View {
         let hasPull = !groups.isEmpty && groups.allSatisfy { run.pulls[$0.0.fullName] != nil }
         NavigationStack {
             Form {
-                if groups.count > 1 {
-                    Section {
-                        Text("Un commit par dépôt : " + groups.map { "\($0.0.fullName) (\($0.1.count))" }.joined(separator: ", "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
                 Section {
-                    TextField("Message de commit", text: $message, axis: .vertical)
+                    TextField("Message de commit", text: $message, prompt: Text("Message (sinon : la mission)"), axis: .vertical)
+                        .lineLimit(1...6)
+                } footer: {
+                    if groups.count > 1 {
+                        Text("Un commit par dépôt\n" + groups.map { WorkspaceText.shipRepo($0.0.fullName, files: $0.1.count) }.joined(separator: "\n"))
+                    }
                 }
                 if hasPull {
                     Section {
@@ -172,6 +173,11 @@ struct ShipSheet: View {
                                 .font(.body.monospaced())
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
+                                .accessibilityLabel("Nom de la branche")
+                        }
+                    } footer: {
+                        if pr, let problem = branchProblem {
+                            Text(problem).foregroundStyle(.red)
                         }
                     }
                 }
@@ -186,6 +192,8 @@ struct ShipSheet: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!hasPull && pr && branchProblem != nil)
                     .listRowBackground(Color.clear)
                 }
             }

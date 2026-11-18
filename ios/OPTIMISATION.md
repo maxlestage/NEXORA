@@ -1189,10 +1189,19 @@ mémoire 32k tokens, consigne 3 000 car.
   dépôt en tête). Banc `AgentShipTests.githubSearchCommits` (20 résultats) : 1 318 → 1 268
   tokens (−3,8 %). Tests : 554 → 555 (mêmes 2 échecs Linux du catalogue + prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.149, recherche de commits) → prochain passage : INTERFACE.
-Interface : ShipSheet (feuille d'envoi : texte « Un commit par dépôt » long).
-Tokens ensuite : `author_association` des issues (à peser : utile pour savoir qui écrit),
+- 3.0.150 (interface) : feuille d'envoi (ShipSheet) — `WorkspaceText.branchProblem` : nom de
+  branche vide, avec espace, « .. », « : », « ~ », fin en « / » ou « .lock »… signalé sous le
+  champ et bouton grisé (avant : refus de GitHub après l'appui). `shipButton` : « Envoyer le
+  commit » / « Envoyer N commits » (avant « Commit » / « Commits »). Plusieurs dépôts :
+  `shipRepo` (« site · 3 fichiers », une ligne par dépôt, en pied de section) au lieu d'une
+  phrase « owner/repo (3), … ». Invite du message « Message (sinon : la mission) » (le repli
+  existait mais ne se voyait pas), 1 à 6 lignes ; bouton principal en grande taille. Rien
+  retiré. Tests : 555 (assertions ajoutées dans `ship`, mêmes échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.150, feuille d'envoi) → prochain passage : TOKENS.
+Interface ensuite : écran Modèles ou Personnaliser (pas encore repassés récemment).
+Tokens : `author_association` des issues (à peser : utile pour savoir qui écrit),
 NSDictionary.isEqual sous Linux avec des Int (committer gardé si `id` sans `type`).
 
 ## Pistes tokens à faire
