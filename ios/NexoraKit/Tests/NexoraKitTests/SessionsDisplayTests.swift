@@ -73,6 +73,16 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.draftsHint(running: false).count < 50)
     }
 
+    @Test func boutonPullRequestDuTravailResteSurUneBranche() {
+        #expect(SessionsDisplay.recoverButton(autoCi: true, autoMerge: true, working: false)
+            == "Ouvrir la PR, faire passer la CI et fusionner")
+        #expect(SessionsDisplay.recoverButton(autoCi: true, autoMerge: false, working: false) == "Ouvrir la pull request")
+        #expect(SessionsDisplay.recoverButton(autoCi: true, autoMerge: true, working: true) == "Ouverture de la pull request…")
+        #expect(SessionsDisplay.recoverToast(error: nil, autoCi: true) == "Pull request ouverte : CI puis fusion en cours")
+        #expect(SessionsDisplay.recoverToast(error: nil, autoCi: false) == "Pull request ouverte")
+        #expect(SessionsDisplay.recoverToast(error: "Refusé", autoCi: true) == "Refusé")
+    }
+
     @Test func suppressionPendantLeTravailEtActionsRapides() {
         #expect(SessionsDisplay.deleteWarning(drafts: 0, running: false) == nil)
         #expect(SessionsDisplay.deleteWarning(drafts: 0, running: true) == "L'agent travaille encore : il sera arrêté.")

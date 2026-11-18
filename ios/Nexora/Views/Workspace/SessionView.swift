@@ -26,6 +26,8 @@ struct SessionView: View {
     @State private var toast: Toast?
     @State private var full: FullTextItem?
     @State private var reviewing = false
+    /// La pull request du travail resté sur une branche est en train de s'ouvrir.
+    @State private var recovering = false
     @State private var showDown = false
     /// Le haut est loin : la flèche pour remonter s'affiche.
     @State private var showUp = false
@@ -284,19 +286,24 @@ struct SessionView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(WorkspaceText.strandedNote(run))
                 Button {
+                    recovering = true
                     Task {
                         let err = await sessions.recover(run)
-                        toast = Toast(
-                            text: err ?? (run.autoCi ? "Pull request ouverte : CI puis fusion en cours" : "Pull request ouverte"),
-                            error: err != nil
-                        )
+                        recovering = false
+                        toast = Toast(text: SessionsDisplay.recoverToast(error: err, autoCi: run.autoCi), error: err != nil)
                     }
                 } label: {
-                    Label(
-                        run.autoCi && run.autoMerge ? "Ouvrir la PR, faire passer la CI et fusionner" : "Ouvrir la pull request",
-                        systemImage: "arrow.triangle.merge"
-                    )
+                    HStack(spacing: 8) {
+                        if recovering { ProgressView().controlSize(.small) }
+                        Label(
+                            SessionsDisplay.recoverButton(autoCi: run.autoCi, autoMerge: run.autoMerge, working: recovering),
+                            systemImage: "arrow.triangle.merge"
+                        )
+                    }
+                    .frame(minHeight: 44)
                 }
+                // Un seul envoi à la fois : un 2e toucher ouvrirait la PR en double.
+                .disabled(recovering)
                 .buttonStyle(.borderedProminent)
             }
         }

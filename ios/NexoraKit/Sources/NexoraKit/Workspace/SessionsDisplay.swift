@@ -109,6 +109,18 @@ public enum SessionsDisplay {
         return files == 1 ? "Relire le fichier modifié" : "Relire les \(files) fichiers modifiés"
     }
 
+    /// Le bouton de la carte « travail resté sur une branche » : pendant l'ouverture
+    /// de la pull request, il le dit (et ne se touche plus, pour ne pas l'ouvrir deux fois).
+    public static func recoverButton(autoCi: Bool, autoMerge: Bool, working: Bool) -> String {
+        if working { return "Ouverture de la pull request…" }
+        return autoCi && autoMerge ? "Ouvrir la PR, faire passer la CI et fusionner" : "Ouvrir la pull request"
+    }
+
+    /// L'avis après ce bouton : l'erreur telle quelle, sinon ce qui suit.
+    public static func recoverToast(error: String?, autoCi: Bool) -> String {
+        error ?? (autoCi ? "Pull request ouverte : CI puis fusion en cours" : "Pull request ouverte")
+    }
+
     /// La phrase sous le résumé des brouillons (courte : le bouton dit déjà quoi faire).
     public static func draftsHint(running: Bool) -> String {
         running ? "L'agent travaille encore…" : "Relisez, puis validez : rien ne part sans vous."
