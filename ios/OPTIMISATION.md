@@ -1094,10 +1094,16 @@ mémoire 32k tokens, consigne 3 000 car.
   (`ReposDisplay.agentAction`, `agentLabel`), ouvre NewSessionView directement. Rien retiré.
   Tests : 540 → 541 (mêmes 2 échecs Linux du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.136, liste des dépôts) → prochain passage : TOKENS.
-Interface ensuite : Personnaliser ou accueil (non repris récemment), CloudAgentsView.
-Tokens ensuite : GET …/actions/permissions, …/hooks (webhooks : `config`, `last_response`).
+- 3.0.137 (tokens) : `slimHook` — GET …/hooks (et …/hooks/{id}, webhooks d'organisation) :
+  retire `name` « web », `type` « Repository », `config.insecure_ssl` « 0 », `updated_at`
+  identique à `created_at`, `last_response` d'un webhook jamais appelé (« unused ») ; une
+  vraie dernière réponse perd ses champs nuls. Banc `AgentShipTests.githubHooks`
+  (4 webhooks) : 309 → 183 tokens (−41 %). Tests : 541 → 542 (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.137, webhooks) → prochain passage : INTERFACE.
+Interface : Personnaliser ou accueil (non repris récemment), CloudAgentsView.
+Tokens ensuite : GET …/actions/permissions, …/hooks/{id}/deliveries.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

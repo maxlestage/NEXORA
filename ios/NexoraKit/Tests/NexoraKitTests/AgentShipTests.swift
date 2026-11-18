@@ -992,6 +992,48 @@ struct AgentShipTests {
         #expect((p["runners"] as? [[String: Any]])?.first?["ephemeral"] as? Bool == true)
     }
 
+    @Test("banc github : webhooks sans valeurs par défaut ni réponse vide")
+    func githubHooks() throws {
+        let api = "https://api.github.com/repos/max/site/hooks"
+        let hooks: [Any] = (1...4).map { i in
+            let date = "2026-10-0\(i)T09:00:00Z"
+            let last: [String: Any] = i == 1
+                ? ["code": 200, "status": "active", "message": "OK"]
+                : ["code": NSNull(), "status": "unused", "message": NSNull()]
+            return ["type": "Repository", "id": 400 + i, "name": "web", "active": i != 4,
+                    "events": ["push", "pull_request"],
+                    "config": ["content_type": "json", "insecure_ssl": "0", "url": "https://exemple.fr/h\(i)"],
+                    "updated_at": i == 1 ? "2026-11-01T09:00:00Z" : date, "created_at": date,
+                    "url": "\(api)/\(400 + i)", "test_url": "\(api)/\(400 + i)/test",
+                    "ping_url": "\(api)/\(400 + i)/pings", "deliveries_url": "\(api)/\(400 + i)/deliveries",
+                    "last_response": last] as [String: Any]
+        }
+        // Avant : même texte sans `slimHook` (clé « Events », de même longueur, qui l'écarte).
+        let unslimmed: [Any] = hooks.map { h -> Any in
+            var d = h as! [String: Any]
+            d["Events"] = d.removeValue(forKey: "events")
+            return d
+        }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(unslimmed)).count
+        let slim = try #require(AgentRun.slimGitHub(hooks) as? [[String: Any]])
+        let after = AgentRun.githubText(slim).count
+        print("Banc github (4 webhooks) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        #expect(slim.allSatisfy { $0["name"] == nil && $0["type"] == nil && $0["events"] as? [String] == ["push", "pull_request"] })
+        let c = try #require(slim[1]["config"] as? [String: Any])
+        #expect(c["insecure_ssl"] == nil && c["url"] as? String == "https://exemple.fr/h2" && c["content_type"] as? String == "json")
+        #expect(slim[0]["last_response"] as? [String: Any] != nil && slim[1]["last_response"] == nil)
+        #expect(slim[0]["updated_at"] as? String == "2026-11-01T09:00:00Z" && slim[1]["updated_at"] == nil)
+        #expect(slim[3]["active"] as? Bool == false && slim[0]["id"] as? Int == 401)
+        // TLS désactivé et webhook d'organisation : l'information reste.
+        var org = hooks[0] as! [String: Any]
+        org["type"] = "Organization"
+        org["config"] = ["url": "https://exemple.fr/o", "insecure_ssl": "1"]
+        let o = try #require(AgentRun.slimGitHub(org) as? [String: Any])
+        #expect(o["type"] as? String == "Organization")
+        #expect((o["config"] as? [String: Any])?["insecure_ssl"] as? String == "1")
+    }
+
     @Test("banc github : environnements sans lien déduit ni valeurs par défaut")
     func githubEnvironments() throws {
         let page = "https://github.com/max/site/deployments/activity_log?environments_filter="
