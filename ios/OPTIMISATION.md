@@ -1204,9 +1204,17 @@ mémoire 32k tokens, consigne 3 000 car.
   fermée. Banc `AgentShipTests.githubIssueList` (20 éléments, moitié de pull requests) :
   1 410 → 1 266 tokens (−10,2 %). Tests : 555 → 556 (mêmes 2 échecs Linux).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.151, liste d'issues) → prochain passage : INTERFACE.
-Interface : écran Modèles ou Personnaliser (pas encore repassés récemment).
+- 3.0.152 (interface) : onglet Modèles, 4e passage (fiche d'un fournisseur, ProviderDetailView)
+  — champ de clé vide : bouton « Coller » (`ProviderDetailDisplay.showsPaste`, réutilise
+  `ProvidersDisplay.pastedKey`/`pasteToast`), clé vérifiée, enregistrée, avis + vibration :
+  avant 3 gestes (toucher le champ, appui long, Coller) → 1. Liste de modèles vide : phrase
+  qui dit quoi faire (`emptyModels` : clé manquante → « collez d'abord la clé ») et bouton
+  « Charger la liste » de 44 pt dans la liste (celui de l'en-tête, en petit, reste). Rien
+  retiré. Tests : 556 → 557 (mêmes 2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.152, fiche d'un fournisseur) → prochain passage : TOKENS.
+Interface ensuite : Personnaliser (4e passage) ou Réglages.
 Tokens : `author_association` des issues (à peser : utile pour savoir qui écrit),
 NSDictionary.isEqual sous Linux avec des Int (committer gardé si `id` sans `type`).
 

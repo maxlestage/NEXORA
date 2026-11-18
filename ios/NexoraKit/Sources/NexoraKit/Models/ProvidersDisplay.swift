@@ -173,6 +173,19 @@ public enum ProviderDetailDisplay {
         return isDefault ? base + " C'est votre modèle par défaut : un autre sera utilisé à sa place." : base
     }
 
+    /// Le bouton « Coller » s'affiche-t-il dans le champ de la clé ? Seulement quand le
+    /// champ est vide : coller la clé copiée devient un seul appui.
+    public static func showsPaste(key: String) -> Bool {
+        key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Phrase de la liste de modèles vide, qui dit quoi faire ensuite.
+    public static func emptyModels(needsKey: Bool, hasKey: Bool) -> String {
+        needsKey && !hasKey
+            ? "Aucun modèle : collez d'abord la clé, puis chargez la liste."
+            : "Aucun modèle pour l'instant : chargez la liste du serveur."
+    }
+
     /// Durée lisible : « 850 ms », « 1,2 s ».
     public static func duration(ms: Int) -> String {
         guard ms >= 1000 else { return "\(max(ms, 0)) ms" }

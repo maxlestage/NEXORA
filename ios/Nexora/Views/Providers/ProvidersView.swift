@@ -273,6 +273,7 @@ struct ProviderDetailView: View {
     @State private var modelQuery = ""
     @State private var showAddress = false
     @State private var confirmDelete = false
+    @State private var pasteFeedback = 0
 
     private static let ollamaSuggestions = ["llama3.2", "qwen2.5-coder:7b", "qwen3:8b", "gemma3:4b", "deepseek-r1:8b", "mistral", "phi4-mini", "gpt-oss:20b"]
 
@@ -312,6 +313,12 @@ struct ProviderDetailView: View {
                             .autocorrectionDisabled()
                             .font(.callout.monospaced())
                             .onSubmit { save(p) }
+                            if ProviderDetailDisplay.showsPaste(key: key) {
+                                Button("Coller") { pasteKey(p) }
+                                    .buttonStyle(.borderless)
+                                    .frame(minHeight: 44)
+                                    .accessibilityLabel("Coller la clé")
+                            }
                             Button {
                                 showKey.toggle()
                             } label: {
@@ -398,6 +405,21 @@ struct ProviderDetailView: View {
                         }
                     }
                     let shown = ProviderDetailDisplay.models(models, query: modelQuery, defaultId: def.providerId == p.id ? def.model : nil)
+                    if models.isEmpty {
+                        Text(ProviderDetailDisplay.emptyModels(needsKey: p.needsKey, hasKey: settings.hasKey(p.id)))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            Task { await loadModels(p) }
+                        } label: {
+                            HStack {
+                                Label("Charger la liste", systemImage: "arrow.clockwise")
+                                if loadingModels { Spacer(); ProgressView() }
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .disabled(loadingModels)
+                    }
                     if shown.isEmpty && !models.isEmpty {
                         Text("Aucun modèle ne correspond à « \(modelQuery) ».")
                             .font(.callout)
@@ -498,8 +520,21 @@ struct ProviderDetailView: View {
                 Text(ProviderDetailDisplay.deleteConfirmation(name: p.name, isDefault: def.providerId == p.id))
             }
             .toast($toast)
+            .sensoryFeedback(.success, trigger: pasteFeedback) { _, _ in settings.haptics }
         } else {
             ContentUnavailableView("Introuvable", systemImage: "questionmark.circle")
+        }
+    }
+
+    /// Colle la clé copiée (refusée si ce n'est visiblement pas une clé), l'enregistre.
+    private func pasteKey(_ p: ProviderDef) {
+        if let k = ProvidersDisplay.pastedKey(UIPasteboard.general.string) {
+            key = k
+            settings.setKey(k, for: p.id)
+            pasteFeedback += 1
+            toast = Toast(text: ProvidersDisplay.pasteToast(name: p.name, saved: true))
+        } else {
+            toast = Toast(text: ProvidersDisplay.pasteToast(name: p.name, saved: false), error: true)
         }
     }
 

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.152 — 18 novembre 2026 — Clé d'un fournisseur collée en un appui
+- Nouveau : dans la fiche d'un fournisseur, un bouton « Coller » apparaît dans le champ de la clé quand il est vide ; la clé copiée est vérifiée, enregistrée, avec un avis et une vibration.
+- Amélioré : une liste de modèles vide dit quoi faire (coller la clé ou charger la liste) et propose un grand bouton « Charger la liste ».
+
 ## 3.0.151 — 18 novembre 2026 — Listes d'issues plus légères pour l'agent
 - Amélioré : quand l'agent liste les issues d'un dépôt, chaque pull request n'y porte plus qu'une simple marque au lieu de quatre liens (environ 10 % de tokens en moins sur une liste de 20).
 - Inchangé : une pull request fermée indique toujours si elle a été fusionnée.
