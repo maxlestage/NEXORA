@@ -1074,10 +1074,17 @@ mémoire 32k tokens, consigne 3 000 car.
   (4 environnements, 2 protégés) : 410 → 240 tokens (−41 %). Tests : 537 → 538 (mêmes 2
   échecs Linux du catalogue).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.133, environnements) → prochain passage : INTERFACE (écran pas encore
-repris récemment, par ex. Personnaliser ou accueil).
-Tokens ensuite : GET …/actions/runners ou …/actions/secrets (listes : champs par défaut, total redit).
+- 3.0.134 (interface) : Bibliothèque (InstallAgentsView, 2e passage, 1er en 3.0.42) —
+  `LibraryDisplay.selectable` : « Tout sélectionner » ne coche que les éléments pas encore
+  installés (avant : tout, donc retéléchargés pour rien), tous s'ils le sont tous (mise à
+  jour) ; `selectAllLabel` « Sélectionner les 3 nouveaux » ; `itemsHeader` « 12 éléments ·
+  3 installés » ; `installLabel(_:updates:)` « Mettre à jour 2 éléments ». Tests : 538 → 539
+  (mêmes 2 échecs Linux du catalogue).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.134, Bibliothèque) → prochain passage : TOKENS — GET …/actions/runners
+ou …/actions/secrets (listes : champs par défaut, total redit).
+Interface ensuite : Personnaliser ou accueil (non repris récemment).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

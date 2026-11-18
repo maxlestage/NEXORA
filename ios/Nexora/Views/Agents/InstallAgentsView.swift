@@ -180,7 +180,9 @@ struct InstallAgentsView: View {
     private func results(_ scan: RepoScan) -> some View {
         let shown = LibraryDisplay.items(scan, kind: kind, query: filter)
         let plugins = LibraryDisplay.plugins(scan, query: filter)
-        let allSelected = !shown.isEmpty && shown.allSatisfy { selected.contains($0.key) }
+        let target = LibraryDisplay.selectable(shown, isInstalled: agents.isInstalled)
+        let allSelected = !target.isEmpty && target.allSatisfy { selected.contains($0.key) }
+        let installedCount = shown.count(where: agents.isInstalled)
         return List {
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -246,13 +248,13 @@ struct InstallAgentsView: View {
                     }
                 } header: {
                     HStack {
-                        Text(LibraryDisplay.itemsCount(shown.count))
+                        Text(LibraryDisplay.itemsHeader(shown.count, installed: installedCount))
                         Spacer()
-                        Button(allSelected ? "Tout décocher" : "Tout sélectionner") {
+                        Button(LibraryDisplay.selectAllLabel(target: target.count, shown: shown.count, allSelected: allSelected)) {
                             if allSelected {
-                                selected.subtract(shown.map(\.key))
+                                selected.subtract(target.map(\.key))
                             } else {
-                                selected.formUnion(shown.map(\.key))
+                                selected.formUnion(target.map(\.key))
                             }
                         }
                         .font(.caption)
@@ -312,7 +314,10 @@ struct InstallAgentsView: View {
         } label: {
             Label(
                 progress.map { "Installation \($0.done)/\($0.total)…" }
-                    ?? LibraryDisplay.installLabel(selected.count),
+                    ?? LibraryDisplay.installLabel(
+                        selected.count,
+                        updates: scan.items.count(where: { selected.contains($0.key) && agents.isInstalled($0) })
+                    ),
                 systemImage: "square.and.arrow.down"
             )
             .frame(maxWidth: .infinity)
