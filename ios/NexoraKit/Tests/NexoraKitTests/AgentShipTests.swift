@@ -1029,6 +1029,61 @@ struct AgentShipTests {
         #expect((AgentRun.slimGitHub(cut) as? [String: Any])?["truncated"] as? Bool == true)
     }
 
+    @Test("banc github : recherche de code sans dépôt répété")
+    func githubSearchCode() throws {
+        let repo: [String: Any] = ["id": 1, "node_id": "R_kgDO", "name": "r", "full_name": "o/r", "private": false,
+                                   "owner": ["login": "o", "id": 2, "type": "User", "site_admin": false],
+                                   "html_url": "https://github.com/o/r", "description": "Une app", "fork": false,
+                                   "url": "https://api.github.com/repos/o/r",
+                                   "contents_url": "https://api.github.com/repos/o/r/contents/{+path}"]
+        func item(_ i: Int) -> [String: Any] {
+            let path = "Sources/App/Module\(i)/Calcul\(i).swift"
+            return ["name": "Calcul\(i).swift", "path": path,
+                    "sha": "3d21ec53a331a6f037a91c368710b99387d012c\(i % 10)",
+                    "url": "https://api.github.com/repositories/1/contents/\(path)?ref=3d21ec5",
+                    "git_url": "https://api.github.com/repositories/1/git/blobs/3d21ec5",
+                    "html_url": "https://github.com/o/r/blob/3d21ec53a331a6f037a91c368710b99387d012c1/\(path)",
+                    "repository": repo, "score": 1.0,
+                    "text_matches": [["object_url": "https://api.github.com/repositories/1/contents/\(path)",
+                                      "object_type": "FileContent", "property": "content",
+                                      "fragment": "func calcule(_ x: Int) -> Int {\n    x * \(i)\n}",
+                                      "matches": [["text": "calcule", "indices": [5, 12]]]]]]
+        }
+        let reply: [String: Any] = ["total_count": 20, "incomplete_results": false, "items": (1...20).map(item)]
+        // Avant : même réponse sans `slimSearch` (clés « Total_count »/« Score », de même longueur).
+        var raw = reply
+        raw["Total_count"] = raw.removeValue(forKey: "total_count")
+        raw["items"] = (1...20).map { i -> [String: Any] in var d = item(i); d["Score"] = d.removeValue(forKey: "score"); return d }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(raw)).count
+        let r = try #require(AgentRun.slimGitHub(reply) as? [String: Any])
+        let after = AgentRun.githubText(r).count
+        print("Banc github (recherche de code, 20 résultats) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        #expect(r["total_count"] == nil && r["incomplete_results"] == nil)
+        #expect((r["repository"] as? [String: Any])?["full_name"] as? String == "o/r")
+        let list = try #require(r["items"] as? [[String: Any]])
+        #expect(list.count == 20)
+        // Chemin et sha gardés ; extraits gardés en clair ; rien de répété.
+        #expect(list.allSatisfy { $0["path"] is String && $0["sha"] is String && $0["repository"] == nil
+            && $0["name"] == nil && $0["html_url"] == nil && $0["score"] == nil })
+        #expect((list[0]["text_matches"] as? [String])?.first?.contains("func calcule") == true)
+        // Résultats plus nombreux que ceux montrés, ou recherche incomplète : dit.
+        var more = reply
+        more["total_count"] = 57
+        more["incomplete_results"] = true
+        let m = try #require(AgentRun.slimGitHub(more) as? [String: Any])
+        #expect(m["total_count"] as? Int == 57 && m["incomplete_results"] as? Bool == true)
+        // Dépôts différents : chacun garde le sien.
+        var other = repo
+        other["full_name"] = "o/autre"
+        var mixed = item(2)
+        mixed["repository"] = other
+        let x = try #require(AgentRun.slimGitHub(["total_count": 2, "incomplete_results": false,
+                                                  "items": [item(1), mixed]] as [String: Any]) as? [String: Any])
+        #expect(x["repository"] == nil)
+        #expect((x["items"] as? [[String: Any]])?.allSatisfy { $0["repository"] != nil } == true)
+    }
+
     @Test("banc github : contenu de fichier décodé, dossier sans liens")
     func githubContents() throws {
         let source = (1...60).map { "    let valeur\($0) = calcule(\($0)) // ligne \($0)" }.joined(separator: "\n") + "\n"
