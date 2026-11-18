@@ -992,6 +992,43 @@ struct AgentShipTests {
         #expect((p["runners"] as? [[String: Any]])?.first?["ephemeral"] as? Bool == true)
     }
 
+    @Test("banc github : arbre Git sans modes ordinaires")
+    func githubTree() throws {
+        func e(_ i: Int) -> [String: Any] {
+            let dir = i % 8 == 0
+            var d: [String: Any] = ["path": "Sources/App/Module\(i / 8)/" + (dir ? "Sous\(i)" : "Fichier\(i).swift"),
+                                    "mode": dir ? "040000" : (i % 13 == 0 ? "100755" : "100644"),
+                                    "type": dir ? "tree" : "blob",
+                                    "sha": "3d21ec53a331a6f037a91c368710b99387d012c\(i % 10)",
+                                    "url": "https://api.github.com/repos/o/r/git/blobs/3d21ec53"]
+            if !dir { d["size"] = 900 + i }
+            return d
+        }
+        let tree: [String: Any] = ["sha": "9fb037999f264ba9a7fc6274d15fa3ae2ab98312",
+                                   "url": "https://api.github.com/repos/o/r/git/trees/9fb0379",
+                                   "tree": (1...80).map(e), "truncated": false]
+        // Avant : même réponse sans `slimTree` (clés « Mode »/« Truncated », de même longueur).
+        var raw = tree
+        raw["Truncated"] = raw.removeValue(forKey: "truncated")
+        raw["tree"] = (1...80).map { i -> [String: Any] in var d = e(i); d["Mode"] = d.removeValue(forKey: "mode"); return d }
+        let before = AgentRun.githubText(AgentRun.slimGitHub(raw)).count
+        let t = try #require(AgentRun.slimGitHub(tree) as? [String: Any])
+        let after = AgentRun.githubText(t).count
+        print("Banc github (arbre de 80 entrées) : \(before / 4) → \(after / 4) tokens")
+        #expect(after < before)
+        #expect(t["truncated"] == nil && t["sha"] is String)
+        let list = try #require(t["tree"] as? [[String: Any]])
+        // Modes ordinaires retirés ; exécutable gardé ; chemin, type, taille, sha gardés.
+        #expect(list.allSatisfy { $0["path"] is String && $0["type"] is String && $0["sha"] is String })
+        #expect(list.filter { $0["mode"] != nil }.allSatisfy { $0["mode"] as? String == "100755" })
+        #expect(list.contains { $0["mode"] as? String == "100755" })
+        #expect(list.filter { $0["type"] as? String == "blob" }.allSatisfy { $0["size"] is Int })
+        // Un arbre tronqué le dit toujours.
+        var cut = tree
+        cut["truncated"] = true
+        #expect((AgentRun.slimGitHub(cut) as? [String: Any])?["truncated"] as? Bool == true)
+    }
+
     @Test("banc github : contenu de fichier décodé, dossier sans liens")
     func githubContents() throws {
         let source = (1...60).map { "    let valeur\($0) = calcule(\($0)) // ligne \($0)" }.joined(separator: "\n") + "\n"

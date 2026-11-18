@@ -1140,11 +1140,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `ChatDisplay.showsFloatingNewChat`. Rien retiré. Tests : 547 → 548 (mêmes 2 échecs Linux
   du catalogue).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.142, double « Nouveau chat ») → prochain passage : TOKENS.
-Tokens : GET …/git/trees?recursive=1 (`url` par entrée déjà retiré ; `mode` 100644 par
-défaut, `type` déduit ?), GET …/search/code (`text_matches`, dépôt répété).
-Interface ensuite : Personnaliser (3 passages déjà) ou session de l'agent.
+- 3.0.143 (tokens) : `slimTree` — GET …/git/trees/{sha}?recursive=1 : `mode` retiré quand
+  il vaut la valeur ordinaire du type (100644 fichier, 040000 dossier ; 100755, 120000,
+  160000 gardés), `truncated` à faux retiré. Chemin, type, taille, `sha` gardés (`type`
+  gardé pour la clarté, bien que déductible de `size`). Banc `AgentShipTests.githubTree`
+  (80 entrées) : 2 728 → 2 427 tokens (−11 %). Tests : 548 → 549 (mêmes 2 échecs Linux
+  du catalogue).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.143, arbre Git) → prochain passage : INTERFACE (session de l'agent,
+ou Personnaliser qui a déjà eu 3 passages).
+Tokens ensuite : GET …/search/code (`text_matches`, dépôt répété dans chaque résultat).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.143 — 18 novembre 2026 — Arbre d'un dépôt plus léger pour l'agent
+- Amélioré : quand l'agent lit l'arborescence complète d'un dépôt GitHub, la réponse coûte environ 11 % de tokens en moins.
+- Les droits ordinaires des fichiers et dossiers ne sont plus répétés ; un fichier exécutable, un lien ou un sous-module reste signalé.
+
 ## 3.0.142 — 18 novembre 2026 — Un seul bouton « Nouveau chat »
 - Simplifié : l'accueil du Chat n'affiche plus deux boutons « Nouveau chat » ; le bouton flottant en bas reste.
 - Amélioré : en haut, le bouton à silhouette lance directement un chat avec un agent.
