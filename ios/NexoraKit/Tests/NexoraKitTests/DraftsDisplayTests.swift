@@ -35,4 +35,13 @@ struct DraftsDisplayTests {
         #expect(DraftsDisplay.position(of: "a", in: ["a"]) == nil)
         #expect(DraftsDisplay.position(of: "z", in: paths) == nil)
     }
+
+    @Test func ficheMemesMotsQueLaListe() {
+        #expect(DraftsDisplay.toggleLabel(accepted: true) == "Décocher")
+        #expect(DraftsDisplay.toggleLabel(accepted: false) == "Cocher")
+        #expect(DraftsDisplay.toggleToast(accepted: true).hasPrefix("Coché"))
+        #expect(DraftsDisplay.toggleToast(accepted: false).hasPrefix("Décoché"))
+        #expect(DraftsDisplay.uncheckedPill == "décoché")
+        #expect(DraftsDisplay.loadErrorTitle.count < 40)
+    }
 }

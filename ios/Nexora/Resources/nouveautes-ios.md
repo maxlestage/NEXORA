@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.160 — 19 novembre 2026 — Relecture des brouillons plus claire
+
+- Amélioré : la fiche d'un brouillon parle comme la liste (« Cocher » / « Décocher » au lieu de « Accepter » / « Refuser »).
+- Nouveau : un avis et une vibration confirment si le fichier partira sur GitHub.
+- Amélioré : un message simple quand les changements ne peuvent pas être affichés.
+
 ## 3.0.159 — 19 novembre 2026 — Commentaires de robots plus légers pour l'agent
 - Amélioré : quand l'agent lit les commentaires d'une issue ou d'une pull request, les anciens rapports répétés d'un même robot (couverture, déploiement…) sont réduits à leurs premières lignes ; le dernier reste entier.
 - Amélioré : environ 75 % de tokens en moins pour lire une longue discussion de pull request ; les commentaires des personnes restent complets.

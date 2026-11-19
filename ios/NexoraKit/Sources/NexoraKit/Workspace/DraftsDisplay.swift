@@ -56,4 +56,22 @@ public enum DraftsDisplay {
         guard paths.count > 1, let i = paths.firstIndex(of: path) else { return nil }
         return "\(i + 1) sur \(paths.count)"
     }
+
+    /// Le bouton de la fiche d'un brouillon : mêmes mots que la liste (Cocher /
+    /// Décocher), au lieu de « Accepter / Refuser » qui disaient la même chose autrement.
+    public static func toggleLabel(accepted: Bool) -> String {
+        accepted ? "Décocher" : "Cocher"
+    }
+
+    /// La pastille d'un brouillon décoché, en tête de sa fiche.
+    public static let uncheckedPill = "décoché"
+
+    /// L'avis après avoir coché ou décoché un brouillon depuis sa fiche.
+    public static func toggleToast(accepted: Bool) -> String {
+        accepted ? "Coché : il partira sur GitHub" : "Décoché : il ne partira pas"
+    }
+
+    /// Le titre quand les changements d'un brouillon ne peuvent pas être montrés
+    /// (le détail technique passe dessous, en petit).
+    public static let loadErrorTitle = "Changements impossibles à afficher"
 }
