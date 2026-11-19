@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.162 — 19 novembre 2026 — Dépôts : un retour après chaque action
+
+- Nouveau : après la création d'un dépôt, un avis « Dépôt … créé » propose « Lancer l'agent » en un appui.
+- Amélioré : « Copier le lien » d'un dépôt affiche « Lien copié » (avant : une simple vibration).
+
 ## 3.0.161 — 19 novembre 2026 — Relectures de robots plus légères pour l'agent
 - Amélioré : quand l'agent lit les relectures d'une pull request, les anciennes relectures d'un même robot (Copilot, CodeRabbit…) sont réduites à leurs premières lignes, avec le chemin pour les lire en entier.
 - Amélioré : l'agent voit toutes les relectures d'un coup au lieu de deux, pour environ 75 % de tokens en moins.

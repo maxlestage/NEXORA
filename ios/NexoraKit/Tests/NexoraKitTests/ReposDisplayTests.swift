@@ -53,6 +53,14 @@ struct ReposDisplayTests {
         #expect(ReposDisplay.agentLabel(r, login: "autre") == "Lancer l'agent sur max/nexora")
     }
 
+    @Test func avisApresCopieEtCreation() throws {
+        let r = try repo("nexora")
+        #expect(ReposDisplay.linkCopied == "Lien copié")
+        #expect(ReposDisplay.createdToast(r, login: "max") == "Dépôt nexora créé")
+        #expect(ReposDisplay.createdToast(r, login: "autre") == "Dépôt max/nexora créé")
+        #expect(ReposDisplay.createdAction == "Lancer l'agent")
+    }
+
     @Test func enTeteAvecCompte() {
         #expect(ReposDisplay.header(shown: 12, total: 12) == "12 dépôts")
         #expect(ReposDisplay.header(shown: 1, total: 1) == "1 dépôt")
