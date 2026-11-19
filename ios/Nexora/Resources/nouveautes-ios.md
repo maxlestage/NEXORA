@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.165 — 19 novembre 2026 — Recherches dans un fichier plus légères
+- Amélioré : quand l'agent cherche un mot très fréquent dans un fichier, il reçoit les 80 premières lignes en entier puis seulement les numéros des suivantes, environ 55 % de tokens en moins pour ces recherches.
+- Aucune ligne perdue : l'agent peut lire n'importe laquelle de ces lignes ensuite.
+
 ## 3.0.164 — 19 novembre 2026 — Chercher un fichier dans un dépôt
 
 - Nouveau : dans la fiche d'un dépôt, une recherche filtre les fichiers et dossiers du dossier ouvert (sans majuscules ni accents).

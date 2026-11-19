@@ -1113,6 +1113,27 @@ struct SearchHitsBench {
         #expect(after * 10 < before * 7)
         for h in hits { #expect(AgentRun.groupHits(hits).contains(h.split(separator: ":", maxSplits: 2)[2])) }
     }
+
+    @Test("find_in_file, beaucoup de lignes : 80 en entier, puis les numéros des suivantes")
+    func manyFindHits() {
+        let lines = (1...3000).map { $0 % 10 == 0 ? "    final state = ref.watch(chatStateProvider); // \($0)" : "x" }
+        let at = lines.indices.filter { lines[$0].contains("state") }  // 300 lignes
+        // Avant : les 200 premières lignes entières.
+        let before = at.prefix(200).map { ">\($0 + 1): \(lines[$0])" }.joined(separator: "\n").count
+        let r = AgentRun.manyHits(lines, at)
+        print("find_in_file (300 lignes trouvées) : \(before / 4) → \(r.count / 4) tokens")
+        #expect(r.count * 10 < before * 6)
+        // Les 80 premières en entier, aucune ligne perdue jusqu'à la 200e : son numéro reste.
+        #expect(r.contains(">800: \(lines[799])"))
+        #expect(!r.contains(">810:"))
+        #expect(r.contains("read_file et \"line\") : 810, 820,"))
+        #expect(r.contains(", 2000 … (100 de plus : précise \"pattern\")"))
+        // 80 lignes ou moins : toutes en entier, sans suite.
+        let few = Array(at.prefix(80))
+        #expect(AgentRun.manyHits(lines, few) == few.map { ">\($0 + 1): \(lines[$0])" }.joined(separator: "\n"))
+        // Moins de 200 : pas de « de plus ».
+        #expect(!AgentRun.manyHits(lines, Array(at.prefix(150))).contains("de plus"))
+    }
 }
 
 /// Le cache de prompt d'Anthropic, simulé fidèlement : une entrée n'est écrite qu'aux
