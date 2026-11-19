@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.167 — 19 novembre 2026 — Liste des fichiers pas renvoyée deux fois
+
+- Amélioré : quand l'agent redemande la liste de tous les fichiers du dépôt, il ne reçoit plus toute la liste une seconde fois (elle est déjà au début de la session), mais seulement les fichiers créés ou supprimés depuis.
+- Sur un dépôt d'environ 130 fichiers, chaque nouvelle demande de la liste coûte environ 19 tokens au lieu de 840.
+
 ## 3.0.166 — 19 novembre 2026 — Onglets d'un dépôt lisibles en très grand texte
 - Amélioré : dans la fiche d'un dépôt, en très grande taille de texte, les 5 onglets (Fichiers, Issues, PR, Actions, Commits) deviennent un menu pleine largeur ; avant, la barre coupait les mots.
 - Amélioré : VoiceOver annonce l'onglet ouvert (« Section, Fichiers »).

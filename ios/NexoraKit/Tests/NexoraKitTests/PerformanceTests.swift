@@ -1042,6 +1042,35 @@ struct FileTreeBench {
     }
 }
 
+extension FileTreeBench {
+    static let first = [LLMMessage("user", "DEMANDE DE L'UTILISATEUR : « x »\n\nFichiers :\n\(AgentRun.fileTree(repo))\n\nAvant toute action…")]
+
+    @Test("list_files de tout le dépôt déjà donné : renvoi court, seuls les changements")
+    func alreadyGiven() {
+        let same = AgentRun.treeAlreadyGiven(tree: Self.repo, files: Self.repo.sorted(), history: Self.first)
+        #expect(same == "(liste identique à celle du premier message, plus haut : sers-toi de celle-là)")
+        var now = Self.repo.filter { $0 != "README.md" }
+        now += ["app/lib/src/features/chat/state/nouveau.dart", "app/test/features/chat/nouveau_test.dart"]
+        let changed = AgentRun.treeAlreadyGiven(tree: Self.repo, files: now, history: Self.first)!
+        #expect(changed.contains("Créés :\napp/lib/src/features/chat/state/nouveau.dart\napp/test/features/chat/nouveau_test.dart"))
+        #expect(changed.hasSuffix("Supprimés :\nREADME.md"))
+        // Liste absente de l'historique, trop de changements ou dépôt minuscule : liste entière.
+        #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: Self.repo, history: []) == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: Array(Self.repo.prefix(50)), history: Self.first) == nil)
+        let tiny = ["a.txt", "b.txt"]
+        let small = [LLMMessage("user", "Fichiers :\n\(AgentRun.fileTree(tiny))\n\n")]
+        #expect(AgentRun.treeAlreadyGiven(tree: tiny, files: tiny, history: small) == nil)
+    }
+
+    @Test("banc : list_files de tout le dépôt après le premier message")
+    func alreadyGivenBench() {
+        let before = AgentRun.fileTree(Self.repo).count
+        let after = AgentRun.treeAlreadyGiven(tree: Self.repo, files: Self.repo, history: Self.first)!.count
+        print("list_files déjà donné (\(Self.repo.count) fichiers) : \(before / 4) → \(after / 4) tokens")
+        #expect(after * 10 < before)
+    }
+}
+
 @Suite("Résultats de recherche")
 struct RangeReadTests {
     let text = (1...200).map { "    let valeur\($0) = calcule(\($0), dans: fichier)" }.joined(separator: "\n")
