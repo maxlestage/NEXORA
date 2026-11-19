@@ -19,14 +19,41 @@ struct RepoView: View {
     /// La branche affichée : celle choisie, sinon celle par défaut du dépôt.
     private var current: String { branch ?? repo.branch }
 
-    var body: some View {
-        VStack(spacing: 0) {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Les 5 onglets : barre segmentée, ou menu pleine largeur en très grande taille de
+    /// texte (la barre y coupait les mots).
+    @ViewBuilder private var sectionPicker: some View {
+        if RepoDisplay.sectionsAsMenu(count: Part.allCases.count, accessibilitySize: typeSize.isAccessibilitySize) {
+            Menu {
+                Picker("Section", selection: $section) {
+                    ForEach(Part.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                HStack {
+                    Text(section.rawValue).fontWeight(.semibold)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(.rect)
+            }
+            .accessibilityLabel(RepoDisplay.sectionMenuAccessibility(current: section.rawValue))
+        } else {
             Picker("Section", selection: $section) {
                 ForEach(Part.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            sectionPicker
+                .padding(.horizontal)
+                .padding(.vertical, 8)
             // Hors de la branche par défaut, on le voit (les fichiers enregistrés vont sur elle)
             // et on y revient d'un toucher ; avant, la branche n'était visible que dans le menu.
             if let notice = RepoDisplay.branchNotice(current: current, defaultBranch: repo.branch) {
