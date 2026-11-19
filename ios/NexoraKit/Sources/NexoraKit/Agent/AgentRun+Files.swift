@@ -194,11 +194,32 @@ extension AgentRun {
     /// gardent l'ordre de leur premier fichier. Un nom avec « , { } » garde son
     /// chemin complet (la notation serait ambiguë).
     public nonisolated static func fileTree(_ files: [String]) -> String {
+        fileTree(files, fold: [], depth: nil)
+    }
+
+    /// `fileTree` avec des dossiers résumés : un fichier dont le dossier est dans
+    /// `fold` (ou, avec `depth`, dont le chemin a plus de `depth` dossiers) ne
+    /// compte que dans la ligne « dossier/ (N fichiers) » de ce dossier.
+    nonisolated static func fileTree(_ files: [String], fold: Set<String>, depth: Int?) -> String {
         var order: [String] = []
         var groups: [String: [String]] = [:]
         var lines: [Int: String] = [:]
+        var folded: [String: Int] = [:]
         for (i, f) in files.enumerated() {
             let cut = f.lastIndex(of: "/")
+            if let cut {
+                let dir = String(f[...cut])
+                var key: String? = fold.contains(dir) ? dir : nil
+                if let depth {
+                    let parts = dir.split(separator: "/")
+                    if parts.count > depth { key = parts.prefix(depth).joined(separator: "/") + "/" }
+                }
+                if let key {
+                    if folded[key] == nil { order.append("\u{1}\(key)") }
+                    folded[key, default: 0] += 1
+                    continue
+                }
+            }
             let name = cut.map { String(f[f.index(after: $0)...]) } ?? f
             guard let cut, !name.isEmpty, !name.contains(where: { ",{}".contains($0) }) else {
                 lines[i] = f
@@ -211,9 +232,66 @@ extension AgentRun {
         }
         return order.map { key in
             if key.hasPrefix("\u{0}") { return lines[Int(key.dropFirst())!]! }
+            if key.hasPrefix("\u{1}") {
+                let dir = String(key.dropFirst()), n = folded[dir]!
+                return "\(dir) (\(n) fichier\(n > 1 ? "s" : ""))"
+            }
             let names = groups[key]!
             return names.count == 1 ? key + names[0] : "\(key){\(names.joined(separator: ", "))}"
         }.joined(separator: "\n")
+    }
+
+    /// Extensions des fichiers rarement utiles à lire (images, polices, sons,
+    /// verrous) : leurs dossiers sont résumés en premier par `foldedTree`.
+    nonisolated static let assetExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "icns", "pdf", "ttf", "otf", "woff", "woff2",
+        "mp3", "wav", "m4a", "mp4", "mov", "lock", "snap", "bin", "zip",
+    ]
+
+    /// La liste des fichiers d'un grand dépôt (plus de `limit` fichiers), sans
+    /// en cacher une partie : au lieu de couper après les `limit` premiers (la fin
+    /// de l'alphabet disparaissait, des dossiers entiers restaient inconnus du
+    /// modèle), les plus gros dossiers sont résumés en « dossier/ (N fichiers) »
+    /// — d'abord ceux d'images et de polices — jusqu'à tenir en `limit` éléments.
+    /// Si cela ne suffit pas, les dossiers profonds sont résumés par leur
+    /// ancêtre. Chaque dossier du dépôt reste visible ; list_files avec « path »
+    /// en donne les fichiers. Sous la limite : `fileTree` tel quel.
+    public nonisolated static func foldedTree(_ files: [String], limit: Int = 400) -> String {
+        guard files.count > limit, limit > 0 else { return fileTree(files) }
+        let note = "\n(dossiers résumés : list_files avec \"path\" pour voir leurs fichiers)"
+        var counts: [String: Int] = [:], assets: [String: Int] = [:]
+        var maxDepth = 0
+        for f in files {
+            guard let cut = f.lastIndex(of: "/") else { continue }
+            let dir = String(f[...cut])
+            counts[dir, default: 0] += 1
+            let ext = f[cut...].split(separator: ".").last.map { $0.lowercased() } ?? ""
+            if assetExtensions.contains(ext) { assets[dir, default: 0] += 1 }
+            maxDepth = max(maxDepth, dir.split(separator: "/").count)
+        }
+        // Les dossiers d'au moins 4 fichiers, ceux d'images d'abord, puis les plus gros.
+        let dirs = counts.filter { $0.value >= 4 }.keys.sorted { a, b in
+            let aa = assets[a, default: 0] * 2 > counts[a]!, ab = assets[b, default: 0] * 2 > counts[b]!
+            if aa != ab { return aa }
+            if counts[a]! != counts[b]! { return counts[a]! > counts[b]! }
+            return dartLess(a, b)
+        }
+        var fold = Set<String>()
+        var shown = files.count
+        for d in dirs {
+            fold.insert(d)
+            shown -= counts[d]! - 1
+            if shown <= limit { return fileTree(files, fold: fold, depth: nil) + note }
+        }
+        // Trop de petits dossiers : les dossiers profonds sont résumés par leur ancêtre.
+        var depth = maxDepth - 1
+        while depth >= 1 {
+            let text = fileTree(files, fold: fold, depth: depth)
+            if text.split(separator: "\n").count <= limit { return text + note }
+            depth -= 1
+        }
+        let lines = fileTree(files, fold: fold, depth: 1).split(separator: "\n")
+        return lines.prefix(limit).joined(separator: "\n") + "\n… (\(lines.count - limit) de plus)" + note
     }
 
     /// list_files de tout le dépôt alors que la liste complète est encore dans le
@@ -741,8 +819,7 @@ extension AgentRun {
             if prefix.isEmpty, let short = Self.treeAlreadyGiven(tree: tree, files: files, history: history) {
                 return [short, notes].filter { !$0.trim().isEmpty }.joined(separator: "\n")
             }
-            let shown = Self.fileTree(Array(files.prefix(300)))
-            return [files.count > 300 ? "\(shown)\n… (\(files.count - 300) de plus, précise un dossier)" : shown, notes]
+            return [Self.foldedTree(files, limit: 300), notes]
                 .filter { !$0.trim().isEmpty }.joined(separator: "\n")
         case "read_file":
             let p = path()

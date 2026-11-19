@@ -1202,6 +1202,59 @@ struct FileTreeBench {
         // Aucun nom de fichier perdu.
         for f in Self.repo { #expect(AgentRun.fileTree(Self.repo).contains(f.split(separator: "/").last!)) }
     }
+
+    /// Un grand dépôt : 30 dossiers de code de 12 fichiers, 2 dossiers d'images, et des
+    /// dossiers en fin d'alphabet (« web/ », « zz/ ») que la coupure nette cachait.
+    static let bigRepo: [String] = {
+        var out = ["README.md"]
+        for i in 1...60 { out.append("assets/icons/icon_\(i).png") }
+        for d in 1...30 { for i in 1...12 { out.append("lib/feature_\(d)/file_\(i).dart") } }
+        for i in 1...40 { out.append("web/img/photo_\(i).jpg") }
+        for i in 1...3 { out.append("zz/main_\(i).swift") }
+        return out
+    }()
+
+    @Test("grand dépôt : dossiers résumés au lieu d'une liste coupée, aucun dossier caché")
+    func folded() {
+        let repo = Self.bigRepo
+        #expect(repo.count == 464)
+        // Sous la limite : la liste ordinaire, sans un mot de plus.
+        #expect(AgentRun.foldedTree(Self.repo) == AgentRun.fileTree(Self.repo))
+        let cut = AgentRun.fileTree(Array(repo.prefix(400))) + "\n… (\(repo.count - 400) de plus)"
+        let text = AgentRun.foldedTree(repo)
+        print("Liste d'un grand dépôt (\(repo.count) fichiers) : \(cut.count / 4) → \(text.count / 4) tokens")
+        #expect(text.count < cut.count)
+        // Les dossiers d'images sont résumés d'abord ; cela suffit ici, le code reste entier.
+        #expect(text.contains("assets/icons/ (60 fichiers)"))
+        #expect(text.contains("web/img/ (40 fichiers)"))
+        #expect(!text.contains("icon_1.png"))
+        #expect(text.contains("lib/feature_30/{file_1.dart"))
+        // Avant, la fin de l'alphabet n'était pas donnée du tout.
+        #expect(!cut.contains("zz/") && !cut.contains("web/"))
+        #expect(text.contains("zz/{main_1.swift, main_2.swift, main_3.swift}"))
+        #expect(text.hasSuffix("(dossiers résumés : list_files avec \"path\" pour voir leurs fichiers)"))
+        // Chaque dossier du dépôt figure dans la liste.
+        for f in repo where f.contains("/") {
+            #expect(text.contains(f[...f.lastIndex(of: "/")!]))
+        }
+        // Limite plus basse : les plus gros dossiers de code sont résumés à leur tour.
+        let tight = AgentRun.foldedTree(repo, limit: 100)
+        #expect(tight.split(separator: "\n").count <= 101)
+        #expect(tight.contains("lib/feature_1/ (12 fichiers)"))
+        #expect(tight.contains("README.md"))
+    }
+
+    @Test("grand dépôt fait de petits dossiers : résumés par leur ancêtre")
+    func foldedDeep() {
+        var repo: [String] = []
+        for a in 1...10 { for b in 1...30 { for i in 1...2 { repo.append("pkg_\(a)/mod_\(b)/f\(i).go") } } }
+        let text = AgentRun.foldedTree(repo, limit: 100)
+        #expect(text.split(separator: "\n").count == 11)
+        #expect(text.contains("pkg_10/ (60 fichiers)"))
+        // Un seul dossier énorme et plat : il est résumé, rien d'autre ne l'est.
+        let flat = (1...500).map { "src/f\($0).c" } + ["Makefile"]
+        #expect(AgentRun.foldedTree(flat) == "src/ (500 fichiers)\nMakefile\n(dossiers résumés : list_files avec \"path\" pour voir leurs fichiers)")
+    }
 }
 
 extension FileTreeBench {
