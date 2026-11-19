@@ -21,6 +21,8 @@ struct ProvidersDisplayTests {
         let vide = ProvidersDisplay.defaultCard(model: "m", provider: "", readyCount: 0)
         #expect(vide.note == "Ajoutez une clé ci-dessous")
         #expect(vide.accessibility == "Modèle par défaut : m. Aucun fournisseur prêt")
+        #expect(c.readyLine == "3 fournisseurs prêts")
+        #expect(vide.readyLine == "Aucun fournisseur prêt")
     }
 
     @Test func filtresEtRecherche() {

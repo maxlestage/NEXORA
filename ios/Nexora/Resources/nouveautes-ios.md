@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.170 — 19 novembre 2026 — Modèle par défaut lisible en très grand texte
+
+- Amélioré : dans l'onglet Modèles, en très grande taille de texte, la carte « Modèle par défaut » montre le nom du modèle en entier (sur plusieurs lignes) au lieu de le couper.
+- Amélioré : le nombre de fournisseurs prêts passe sous le modèle (« 3 fournisseurs prêts ») au lieu d'une colonne à droite qui écrasait le nom.
+- Inchangé : en taille de texte normale, la carte reste identique.
+
 ## 3.0.169 — 19 novembre 2026 — Longues demandes moins coûteuses
 
 - Amélioré : quand vous collez une longue demande à l'agent (un rapport de bug détaillé, par exemple), le rappel qu'il relit après chaque action n'en cite plus que le début, et non le texte entier.

@@ -70,6 +70,9 @@ public enum ProvidersDisplay {
         public let note: String
         public let accessibility: String
         public let hint: String
+        /// « 3 fournisseurs prêts » : ligne affichée sous le modèle en très grande taille
+        /// de texte, à la place du compteur de droite qui écrasait le nom.
+        public let readyLine: String
     }
 
     /// Sous-titre et VoiceOver de la carte : le fournisseur, ou ce qu'il faut faire
@@ -81,7 +84,8 @@ public enum ProvidersDisplay {
         let who = provider.isEmpty ? model : "\(model), \(provider)"
         return DefaultCard(note: note,
                            accessibility: "Modèle par défaut : \(who). \(ready.prefix(1).uppercased() + ready.dropFirst())",
-                           hint: "Touchez pour changer de modèle")
+                           hint: "Touchez pour changer de modèle",
+                           readyLine: ready.prefix(1).uppercased() + ready.dropFirst())
     }
 
     /// Les actions de l'appui long sur un fournisseur (sans ouvrir sa fiche).
