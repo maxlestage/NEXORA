@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.159 — 19 novembre 2026 — Commentaires de robots plus légers pour l'agent
+- Amélioré : quand l'agent lit les commentaires d'une issue ou d'une pull request, les anciens rapports répétés d'un même robot (couverture, déploiement…) sont réduits à leurs premières lignes ; le dernier reste entier.
+- Amélioré : environ 75 % de tokens en moins pour lire une longue discussion de pull request ; les commentaires des personnes restent complets.
+
 ## 3.0.158 — 19 novembre 2026 — Choix du modèle plus lisible
 
 - Amélioré : dans « Sélectionner un modèle », les explications tiennent en une phrase courte (note sur l'effort sans réglage natif ≈ 100 → 60 caractères).

@@ -153,7 +153,13 @@ extension AgentRun {
             }
             return personLogin(out) ?? slimRepo(slimRef(slimCompare(slimEvent(slimRelease(slimCheckSuite(slimCheckRun(slimOpen(slimDiscussion(slimReviewComment(slimFile(slimCommit(slimArtifact(slimJob(slimRun(slimCombinedStatus(slimStatus(slimDeploymentStatus(slimDeployment(slimBranch(slimCache(slimEnvironment(slimActionsList(slimHook(slimDelivery(slimContent(slimTree(slimSearch(out))))))))))))))))))))))))))))
         case let a as [Any]:
-            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })))
+            // Dépôt d'une liste de commentaires, lu avant que `html_url` ne soit retiré.
+            let repo = a.lazy.compactMap { x -> String? in
+                guard let u = (x as? [String: Any])?["html_url"] as? String,
+                      let m = htmlIssueRe.firstMatch(u) else { return nil }
+                return "/repos/\(m[1]!)/\(m[2]!)"
+            }.first
+            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })), repo: repo)
         default:
             return x
         }
@@ -173,14 +179,26 @@ extension AgentRun {
     /// chemin pour le lire en entier. Sans cela, deux ou trois longs textes (rapports de
     /// bug, notes de version) remplissaient les 7 000 caractères de la réponse et
     /// cachaient le reste de la liste. Un élément seul (GET …/issues/<n>,
-    /// …/releases/latest) et les listes de commentaires (sans `title`) gardent leur
-    /// texte entier.
-    nonisolated static func listBodies(_ a: [Any]) -> [Any] {
+    /// …/releases/latest) garde son texte entier. Dans une liste de commentaires d'issue
+    /// (GET …/issues/<n>/comments), seuls les anciens commentaires d'un robot suivis
+    /// d'un plus récent du même robot sont réduits ainsi (les robots de couverture ou
+    /// de déploiement répètent un long rapport à chaque envoi) ; les commentaires des
+    /// personnes et le dernier de chaque robot restent entiers.
+    nonisolated static func listBodies(_ a: [Any], repo: String? = nil) -> [Any] {
         guard a.count > 1 else { return a }
-        return a.map { x in
+        // Dernier commentaire de chaque robot dans une liste de commentaires d'issue.
+        var lastBot: [String: Int] = [:]
+        for (i, x) in a.enumerated() {
+            if let login = botLogin(x) { lastBot[login] = i }
+        }
+        return a.enumerated().map { i, x in
             guard var d = x as? [String: Any], let body = d["body"] as? String, body.count > listBodyMax else { return x }
             let path: String
-            if let n = d["number"] as? Int, d["title"] is String {
+            if let login = botLogin(x), lastBot[login] != i, let id = d["id"] as? Int {
+                // Ancien commentaire d'un robot (rapport de couverture, de déploiement…)
+                // remplacé par un plus récent du même robot plus bas dans la liste.
+                path = (repo ?? "…") + "/issues/comments/\(id)"
+            } else if let n = d["number"] as? Int, d["title"] is String {
                 if let u = d["html_url"] as? String, let m = htmlIssueRe.firstMatch(u) {
                     path = "/repos/\(m[1]!)/\(m[2]!)/issues/\(n)"
                 } else {
@@ -206,6 +224,17 @@ extension AgentRun {
             d["body"] = head + "\n… (\(body.count - head.count) car. de plus : GET \(path))"
             return d
         }
+    }
+
+    /// Le nom d'un robot (`user.type` « Bot ») auteur d'un commentaire d'issue allégé
+    /// (`id` + `body` + `created_at`, sans titre, ni fichier de relecture, ni état de
+    /// relecture), sinon nil.
+    nonisolated static func botLogin(_ x: Any) -> String? {
+        guard let d = x as? [String: Any], let u = d["user"] as? [String: Any],
+              (u["type"] as? String) == "Bot", let login = u["login"] as? String,
+              d["id"] is Int, d["body"] is String, d["created_at"] is String,
+              d["title"] == nil, d["path"] == nil, d["state"] == nil, d["diff_hunk"] == nil else { return nil }
+        return login
     }
 
     /// Une liste de commits (GET …/commits, du plus récent au plus ancien) dont

@@ -1258,11 +1258,21 @@ mémoire 32k tokens, consigne 3 000 car.
   `addModelsHint` (Pollinations ≈ 200 → 115 car., autres ≈ 90 → 72 car.). Rien retiré.
   Tests : 563 → 564 (mêmes 2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.158, ModelSheet) → prochain passage : TOKENS.
+- 3.0.159 (tokens) : `listBodies` étendu aux listes de commentaires d'issue (GET
+  …/issues/<n>/comments) — l'ancien commentaire d'un robot (`user.type` « Bot ») suivi
+  d'un plus récent du même robot est réduit à ses premières lignes (≤ 200 car.) + « (N car.
+  de plus : GET /repos/o/r/issues/comments/<id>) » ; dépôt lu dans `html_url` avant son
+  retrait. Personnes et dernier commentaire de chaque robot : entiers. Banc
+  `AgentShipTests.githubBotComments` (15 commentaires dont 12 rapports de couverture de
+  ≈ 2 500 car., réponse coupée à 7 000 car.) : 2 → 13 commentaires visibles, 14 000 →
+  3 500 tokens pour les voir tous (−75 %). Tests : 564 → 565 (mêmes 2 échecs Linux du
+  catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.159, commentaires de robots) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), accueil, Personnaliser.
-Piste tokens suivante : listes de commentaires très longues (GET …/issues/<n>/comments,
-dizaines de commentaires de bots) — regrouper les commentaires de bots identiques ? à mesurer.
+Piste tokens suivante : relectures (GET …/pulls/<n>/reviews) de robots répétées
+(Copilot, CodeRabbit) — même règle que 3.0.159 ? à mesurer.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
