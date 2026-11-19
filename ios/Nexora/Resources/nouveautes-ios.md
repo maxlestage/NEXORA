@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.169 — 19 novembre 2026 — Longues demandes moins coûteuses
+
+- Amélioré : quand vous collez une longue demande à l'agent (un rapport de bug détaillé, par exemple), le rappel qu'il relit après chaque action n'en cite plus que le début, et non le texte entier.
+- Résultat : environ 10 % de tokens en moins sur une session de 40 étapes avec une demande de 2 000 caractères (11 % de coût en moins chez Anthropic).
+- L'agent garde toujours la demande complète en tête de ses instructions, à chaque étape.
+
 ## 3.0.168 — 19 novembre 2026 — Crédits lisibles en très grand texte
 - Amélioré : dans Crédits et consommation, en très grande taille de texte, chaque fournisseur s'affiche sur toute la largeur (nom, solde, puis dépense du mois) ; avant, la colonne de droite écrasait le nom.
 - Taille de texte normale inchangée ; VoiceOver lit toujours la ligne en une fois.

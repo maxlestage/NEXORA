@@ -236,6 +236,12 @@ struct PerformanceTests {
     }
 }
 
+/// Une longue demande collée (≈ 2 000 caractères : un rapport de bug détaillé).
+private let longRequest = "La page contact du site ne fonctionne plus depuis la dernière mise à jour. "
+    + String(repeating: "Quand on remplit le formulaire et qu'on appuie sur Envoyer, rien ne se passe, "
+        + "aucun message d'erreur n'apparaît et le courriel n'arrive jamais. ", count: 12)
+    + "Corrige le formulaire, affiche un message clair en cas d'échec et ajoute des tests."
+
 /// Une session d'agent type (40 étapes sur un petit dépôt simulé) : les caractères
 /// envoyés au modèle, et la part qui n'est pas relue depuis le cache de prompt (tout
 /// ce qui suit le premier message différent de la requête précédente).
@@ -262,12 +268,16 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
                                retouched: Bool = false,
                                ranged: Bool = false, ranges: Bool = true,
                                edits: Bool = false, args: Bool = true,
+                               longTask: Bool = false, quote: Bool = true,
                                tap: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int) {
-    let reminder = AgentRun.reminderMark + "Demande faite au tout début : « Ajoute une page contact "
-        + "avec un formulaire »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
+    let task = longTask ? longRequest : "Ajoute une page contact avec un formulaire"
+    let quoted = quote ? AgentRun.reminderQuote(task) : task
+    let reminder = AgentRun.reminderMark + "Demande faite au tout début : « \(quoted) »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
         + "fait, appelle finish (sans refaire une action réussie)."
-    let system = String(repeating: "s", count: 6000)
-    var history = [LLMMessage("user", "Ajoute une page contact avec un formulaire")]
+    // La demande est en tête de la consigne ; son RAPPEL final la cite aussi.
+    let system = longTask ? task + String(repeating: "s", count: 6000) + "RAPPEL : « \(quoted) »"
+        : String(repeating: "s", count: 6000)
+    var history = [LLMMessage("user", task)]
     var previous: [LLMMessage] = []
     var sent = 0, uncached = 0
     for step in 0..<steps {
@@ -583,6 +593,29 @@ struct TokenBench {
         var recent = [LLMMessage("user", "Demande"), LLMMessage("assistant", reply), LLMMessage("user", "Résultat de edit_file :\nfait")]
         AgentRun.compactHistory(&recent)
         #expect(recent[1].content.contains(long))
+    }
+
+    @Test("session d'agent, longue demande collée : seul son début est cité dans les rappels")
+    func longRequestReminder() {
+        #expect(longRequest.count > 1_800)
+        let full = agentSessionChars(batch: AgentRun.compactBatch, longTask: true, quote: false)
+        let short = agentSessionChars(batch: AgentRun.compactBatch, longTask: true)
+        func anthropic(_ r: (sent: Int, uncached: Int)) -> Double {
+            Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1
+        }
+        func openai(_ r: (sent: Int, uncached: Int)) -> Double {
+            Double(r.uncached) + Double(r.sent - r.uncached) * 0.5
+        }
+        print("BANC longue demande (tokens ≈ car./4) : envoyés \(full.sent / 4) → \(short.sent / 4), "
+            + "hors cache \(full.uncached / 4) → \(short.uncached / 4), "
+            + "Anthropic \(Int(anthropic(full)) / 4) → \(Int(anthropic(short)) / 4), "
+            + "OpenAI \(Int(openai(full)) / 4) → \(Int(openai(short)) / 4)")
+        #expect(short.sent < full.sent * 95 / 100)
+        #expect(short.uncached < full.uncached)
+        // Une demande courte n'est pas touchée.
+        #expect(AgentRun.reminderQuote("Ajoute une page contact") == "Ajoute une page contact")
+        let q = AgentRun.reminderQuote(longRequest)
+        #expect(q.count < 340 && q.hasPrefix("La page contact du site") && q.hasSuffix("tes instructions)"))
     }
 
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
