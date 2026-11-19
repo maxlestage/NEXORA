@@ -1329,9 +1329,16 @@ mémoire 32k tokens, consigne 3 000 car.
   `FileTreeBench.alreadyGivenBench` (dépôt type de 131 fichiers) : 841 → 19 tokens par
   appel répété (−98 %). Tests : 572 → 574 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.167, list_files) → prochain passage : INTERFACE.
-Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e, peu utile).
+- 3.0.168 (interface) : Crédits et consommation (UsageView, 3e passage) — en très grande
+  taille de texte (`isAccessibilitySize`), `ProviderUsageRow` empile badge + nom, résumé,
+  puis `UsageDisplay.monthLine` (« ≈ 0,500 $ ce mois » / « aucune dépense ce mois », aussi
+  utilisé par `rowAccessibility`) au lieu de la colonne de droite qui écrasait le nom.
+  Taille normale inchangée. Rien retiré. Tests : 574 → 575 (mêmes 2 échecs Linux).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.168, UsageView) → prochain passage : TOKENS.
+Écrans d'interface restants peu traités : CreditsView (2e, peu utile) ; chercher d'autres
+lignes à colonne de droite qui s'écrasent en très grand texte (même recette).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

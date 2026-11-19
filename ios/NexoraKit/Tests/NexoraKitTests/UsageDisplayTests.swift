@@ -44,6 +44,11 @@ struct UsageDisplayTests {
         #expect(UsageDisplay.rowAccessibility(name: "OpenAI", summary: "ok", month: 0.5)
             == "OpenAI, ok, ≈ 0,500 $ ce mois")
     }
+
+    @Test func depenseDuMoisEnUneLigne() {
+        #expect(UsageDisplay.monthLine(0) == "aucune dépense ce mois")
+        #expect(UsageDisplay.monthLine(0.5) == "≈ 0,500 $ ce mois")
+    }
 }
 
 @Suite("Fiche d'un fournisseur")
