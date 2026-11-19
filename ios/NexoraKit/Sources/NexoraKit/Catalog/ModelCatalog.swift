@@ -293,13 +293,18 @@ public enum ModelList {
     /// La note complète : avec l'avertissement pour un modèle sans réglage natif.
     public static func effortNote(_ p: ProviderDef?, model: String?) -> String {
         let native = p == nil || model == nil ? true : hasNativeEffort(p, model: model)
-        return native ? effortNote : "\(effortNote)\n« \(model ?? "") » n'a pas de réglage natif : l'effort ajuste sa consigne et la longueur de ses réponses."
+        return native ? effortNote : "\(effortNote)\n\(nonNativeNote(model ?? ""))"
+    }
+
+    /// L'avertissement court pour un modèle sans réglage d'effort natif.
+    public static func nonNativeNote(_ model: String) -> String {
+        "« \(model) » n'a pas de réglage natif : l'effort ajuste sa consigne."
     }
 
     /// Le texte de « Ajouter des modèles » dans le panneau des modèles.
     public static func addModelsHint(providerId: String) -> String {
         providerId == "pollinations"
-            ? "Sans compte, Pollinations n'a qu'un modèle et coupe chaque réponse à 1 500 tokens (NEXORA demande la suite tout seul). Une clé gratuite (Groq, Gemini, OpenRouter…) en ajoute des dizaines."
-            : "Ajoutez la clé d'un fournisseur (beaucoup sont gratuits) pour choisir parmi ses modèles."
+            ? "Sans compte : un seul modèle, réponses coupées à 1 500 tokens. Une clé gratuite (Groq, Gemini…) en ajoute des dizaines."
+            : "Ajoutez la clé d'un fournisseur (souvent gratuite) pour voir ses modèles."
     }
 }

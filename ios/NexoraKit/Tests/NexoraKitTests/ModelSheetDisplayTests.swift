@@ -18,6 +18,15 @@ import Testing
         #expect(sans.contains("« llama-3 » n'a pas de réglage natif"))
     }
 
+    @Test func textesCourts() {
+        #expect(ModelSheetDisplay.moreModelsSubtitle(providerName: "Anthropic") == "Anthropic et tous les autres")
+        let note = ModelList.nonNativeNote("llama-3")
+        #expect(note.count <= 70)
+        #expect(ModelSheetDisplay.effortFooter(.eleve, nativeEffort: false, model: "llama-3").hasSuffix(note))
+        #expect(ModelList.addModelsHint(providerId: "pollinations").count <= 130)
+        #expect(ModelList.addModelsHint(providerId: "groq").count <= 80)
+    }
+
     @Test func libelleVoiceOverSansEmoji() {
         #expect(ModelSheetDisplay.accessibility(title: "🧠 Opus 5.5", subtitle: "Anthropic", checked: false) == "Opus 5.5, Anthropic")
         #expect(ModelSheetDisplay.accessibility(title: "GPT-5", subtitle: "Rapide", checked: true) == "GPT-5, Rapide, modèle actuel")

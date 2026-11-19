@@ -77,7 +77,7 @@ struct ModelSheet: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Plus de modèles").foregroundStyle(.primary)
-                                Text("\(provider?.name ?? current.providerId) et tous les autres fournisseurs")
+                                Text(ModelSheetDisplay.moreModelsSubtitle(providerName: provider?.name ?? current.providerId))
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                             Spacer()

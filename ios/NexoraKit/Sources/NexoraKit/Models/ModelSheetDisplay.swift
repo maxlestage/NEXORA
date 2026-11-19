@@ -15,9 +15,14 @@ public enum ModelSheetDisplay {
         var s = l.badge.map { "\($0) · " } ?? ""
         s += l.summary
         if !nativeEffort, let m = model, !m.isEmpty {
-            s += "\n« \(m) » n'a pas de réglage natif : l'effort ajuste sa consigne et la longueur de ses réponses."
+            s += "\n" + ModelList.nonNativeNote(m)
         }
         return s
+    }
+
+    /// Le sous-titre de « Plus de modèles » : court, sur une ligne.
+    public static func moreModelsSubtitle(providerName: String) -> String {
+        "\(providerName) et tous les autres"
     }
 
     /// Le libellé VoiceOver d'une ligne de modèle (sans émoji, avec « actuel »).
