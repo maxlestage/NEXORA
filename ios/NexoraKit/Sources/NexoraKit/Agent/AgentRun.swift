@@ -546,8 +546,25 @@ public final class AgentRun {
     /// 3.0.45 : 269 → 210 car. pour une demande courte (−22 %, jusqu'à 12 copies).
     public nonisolated static let reminderMark = "\n\n— RAPPEL DE LA DEMANDE —\n"
 
+    /// Au-delà de cette longueur, une demande n'est citée dans le rappel (et dans le
+    /// RAPPEL final de la consigne) que par son début : elle est déjà en entier en tête
+    /// de la consigne, redonnée à chaque étape. Avant (3.0.168), une demande collée de
+    /// 2 000 caractères repartait en entier dans chaque rappel (jusqu'à 12 copies).
+    public nonisolated static let reminderQuoteMax = 400
+
+    /// Le début d'une longue demande (≈ 280 caractères, coupé à la fin d'un mot) et un
+    /// renvoi à son texte complet ; une demande courte reste entière.
+    public nonisolated static func reminderQuote(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count > reminderQuoteMax else { return t }
+        let head = String(t.prefix(280))
+        let cut = head.lastIndex(where: { $0 == " " || $0 == "\n" }).map { String(head[..<$0]) } ?? head
+        return cut.trimmingCharacters(in: .whitespacesAndNewlines)
+            + " […] (en entier en tête de tes instructions)"
+    }
+
     public var reminder: String {
-        let r = requests
+        let r = requests.map(Self.reminderQuote)
         let next = r.count > 1
             ? "\nPuis, dans l'ordre (la dernière prime) :\n"
                 + r.dropFirst().enumerated().map { "\($0.offset + 2). « \($0.element) »" }.joined(separator: "\n")
@@ -703,7 +720,7 @@ public final class AgentRun {
         let req = requests
         parts.append(
             "RAPPEL : ta mission est la demande de l'utilisateur donnée tout en haut "
-                + "(« \(req[0]) »\(req.count > 1 ? ", puis ses \(req.count - 1) instruction(s) suivantes" : "")). "
+                + "(« \(Self.reminderQuote(req[0])) »\(req.count > 1 ? ", puis ses \(req.count - 1) instruction(s) suivantes" : "")). "
                 + "Rien d'autre."
         )
         return parts.joined(separator: "\n\n")

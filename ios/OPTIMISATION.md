@@ -1335,8 +1335,17 @@ mémoire 32k tokens, consigne 3 000 car.
   utilisé par `rowAccessibility`) au lieu de la colonne de droite qui écrasait le nom.
   Taille normale inchangée. Rien retiré. Tests : 574 → 575 (mêmes 2 échecs Linux).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.168, UsageView) → prochain passage : TOKENS.
+- 3.0.169 (tokens) : `AgentRun.reminderQuote` — une demande de plus de 400 car. n'est
+  citée dans le rappel ajouté à chaque résultat d'outil (jusqu'à 12 copies) et dans le
+  RAPPEL final de la consigne que par son début (≈ 280 car., coupé en fin de mot) + « […]
+  (en entier en tête de tes instructions) » ; elle reste entière dans `requestsPrompt`.
+  Demandes courtes inchangées. Banc `TokenBench.longRequestReminder` (40 étapes, demande
+  collée de 1 886 car.) : envoyés 537 909 → 483 560 tokens (−10,1 %), hors cache 136 917 →
+  120 886 (−11,7 %), coût Anthropic 211 246 → 187 375 (−11,3 %), OpenAI 337 413 →
+  302 223 (−10,4 %). Tests : 575 → 576 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.169, rappel des longues demandes) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : CreditsView (2e, peu utile) ; chercher d'autres
 lignes à colonne de droite qui s'écrasent en très grand texte (même recette).
 
