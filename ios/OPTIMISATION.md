@@ -1410,9 +1410,21 @@ mémoire 32k tokens, consigne 3 000 car.
   fournisseur (nom + Actualiser) s'empilent (AnyLayout). Taille normale inchangée. Rien
   retiré. Tests : 581 → 582 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.176) → prochain passage : TOKENS (pistes ci-dessous). Interface
-ensuite, même recette : InstallAgentsView, AgentPickerSheet (description sur 2 lignes),
+- 3.0.177 (tokens) : `AgentRun.foldedTree(_:limit:)` — dépôt de plus de 400 fichiers
+  (premier message) ou list_files de plus de 300 : au lieu de couper la liste (« … (N de
+  plus) » : la fin de l'alphabet, donc des dossiers entiers, restait inconnue du modèle),
+  les plus gros dossiers (≥ 4 fichiers ; ceux d'images/polices/verrous d'abord,
+  `assetExtensions`) sont résumés en « dossier/ (N fichiers) » jusqu'à tenir dans la
+  limite ; s'il y a trop de petits dossiers, résumé par l'ancêtre (profondeur décroissante).
+  Mesure sur CE dépôt (522 fichiers) : 2 632 → 2 622 tokens (égal), mais 428 fichiers
+  nommés au lieu de 400 et `ios/` entier visible (avant : absent) ; seuls app/test/ (93) et
+  5 dossiers d'icônes sont résumés. Banc synthétique (464 fichiers) : 1 438 → 1 354 tokens.
+  Gain attendu NON mesuré : un list_files de moins pour trouver la fin du dépôt (son
+  résultat était renvoyé à chaque étape). Tests : 582 → 584 (mêmes 2 échecs Linux).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.177) → prochain passage : INTERFACE,
+même recette : InstallAgentsView, AgentPickerSheet (description sur 2 lignes),
 aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
 
 ## Pistes tokens à faire
@@ -1421,9 +1433,8 @@ aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
   (`max_tokens`). (write_file au lieu d'edit_file : conseil ajouté en 3.0.175.) Limiter
   « thought » à une phrase est RISQUÉ : c'est le brouillon de raisonnement des modèles
   sans réflexion native ; ne le faire qu'avec une mesure de qualité.
-- Dépôt de plus de 400 fichiers : la liste du premier message est coupée aux 400 premiers
-  (ce dépôt en a 522 : `ios/` n'y figure pas en entier). Qualité plus que tokens : à voir
-  (dossiers résumés au-delà de 400 ?).
+- `treeAlreadyGiven` ne sert pas au-delà de 400 fichiers : un list_files sans dossier y
+  renvoie encore la liste résumée (≤ 300 éléments). À relier à `foldedTree` si mesuré utile.
 - Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,
   non mesurée (c'est le texte voulu par l'utilisateur ; ne pas y toucher sans réglage).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
