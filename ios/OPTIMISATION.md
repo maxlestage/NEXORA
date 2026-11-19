@@ -1422,10 +1422,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Gain attendu NON mesuré : un list_files de moins pour trouver la fin du dépôt (son
   résultat était renvoyé à chaque étape). Tests : 582 → 584 (mêmes 2 échecs Linux).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.177) → prochain passage : INTERFACE,
-même recette : InstallAgentsView, AgentPickerSheet (description sur 2 lignes),
-aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
+- 3.0.178 (interface) : « Choisir un agent » (AgentPickerSheet) en très grande taille de
+  texte — la description passe de 2 à 4 lignes (`AgentPickerDisplay.descriptionLines`) et
+  l'emoji passe devant le nom (`AgentPickerDisplay.title`, « 🔍 Relecteur ») au lieu d'une
+  colonne à part : toute la largeur va au texte. Taille normale inchangée. Rien retiré.
+  Tests : 584 → 585 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.178) → prochain passage : TOKENS (voir « Pistes tokens à faire »).
+Interface ensuite, même recette : InstallAgentsView, aperçu de PersonalizeView (orbe de
+72 pt non réduit en grand texte).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

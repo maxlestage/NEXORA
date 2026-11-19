@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.178 — 19 novembre 2026 — Choix de l'agent lisible en très grand texte
+- Amélioré : en très grande taille de texte, la description d'un agent s'affiche sur 4 lignes au lieu de 2 dans « Choisir un agent ».
+- Amélioré : son emoji passe devant son nom, pour laisser toute la largeur au texte.
+- Rien ne change en taille de texte normale.
+
 ## 3.0.177 — 19 novembre 2026 — L'agent voit tout un grand dépôt
 - Amélioré : sur un dépôt de plus de 400 fichiers, l'agent reçoit tous les dossiers dès le départ. Avant, la liste était coupée et la fin du dépôt lui restait inconnue.
 - Les plus gros dossiers (images et icônes d'abord) sont résumés en une ligne, « dossier/ (60 fichiers) » : pas plus de tokens qu'avant, et une recherche de moins.

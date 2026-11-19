@@ -115,6 +115,17 @@ public enum AgentPickerDisplay {
         return "Aucun agent pour « \(q) »"
     }
 
+    /// Lignes laissées à la description d'un agent : deux d'ordinaire, quatre en très grand
+    /// texte (deux lignes n'y montrent que quelques mots, pas de quoi choisir).
+    public static func descriptionLines(bigText: Bool) -> Int { bigText ? 4 : 2 }
+
+    /// Le nom affiché : en très grand texte l'emoji passe devant le nom (« 🔍 Relecteur »)
+    /// au lieu d'occuper une colonne à part, qui prend la largeur de la description.
+    public static func title(emoji: String, name: String, bigText: Bool) -> String {
+        let e = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        return bigText && !e.isEmpty ? "\(e) \(name)" : name
+    }
+
     /// Ce que lit VoiceOver pour une ligne : « Relecteur, Relit votre code, agent actuel ».
     public static func accessibility(name: String, description: String, selected: Bool) -> String {
         var parts = [name]
