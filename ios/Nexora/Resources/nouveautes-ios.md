@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.166 — 19 novembre 2026 — Onglets d'un dépôt lisibles en très grand texte
+- Amélioré : dans la fiche d'un dépôt, en très grande taille de texte, les 5 onglets (Fichiers, Issues, PR, Actions, Commits) deviennent un menu pleine largeur ; avant, la barre coupait les mots.
+- Amélioré : VoiceOver annonce l'onglet ouvert (« Section, Fichiers »).
+
 ## 3.0.165 — 19 novembre 2026 — Recherches dans un fichier plus légères
 - Amélioré : quand l'agent cherche un mot très fréquent dans un fichier, il reçoit les 80 premières lignes en entier puis seulement les numéros des suivantes, environ 55 % de tokens en moins pour ces recherches.
 - Aucune ligne perdue : l'agent peut lire n'importe laquelle de ces lignes ensuite.

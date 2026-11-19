@@ -27,4 +27,15 @@ public enum RepoDisplay {
     public static func menuAccessibility(current: String) -> String {
         "Plus d'options, branche \(current)"
     }
+
+    /// En très grande taille de texte, une barre segmentée de plus de 3 onglets coupe
+    /// les mots (« Fich… », « Com… ») : on la remplace alors par un menu pleine largeur.
+    public static func sectionsAsMenu(count: Int, accessibilitySize: Bool) -> Bool {
+        accessibilitySize && count > 3
+    }
+
+    /// Ce que VoiceOver lit pour ce menu : « Section, Fichiers ».
+    public static func sectionMenuAccessibility(current: String) -> String {
+        "Section, \(current)"
+    }
 }

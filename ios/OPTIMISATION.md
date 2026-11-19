@@ -1315,10 +1315,15 @@ mémoire 32k tokens, consigne 3 000 car.
   tokens (−54 %), aucune position perdue. Tests : 570 → 571 (mêmes 2 échecs Linux du
   catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.165, find_in_file) → prochain passage : INTERFACE.
-Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e),
-RepoView (barre à 5 segments en grand Dynamic Type).
+- 3.0.166 (interface) : fiche d'un dépôt (RepoView) — en très grande taille de texte
+  (`RepoDisplay.sectionsAsMenu` : taille d'accessibilité et plus de 3 onglets), la barre
+  segmentée des 5 onglets, qui coupait les mots, devient un menu pleine largeur (44 pt,
+  onglet ouvert affiché, `sectionMenuAccessibility` « Section, Fichiers »). Taille normale
+  inchangée. Rien retiré. Tests : 571 → 572 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.166, RepoView) → prochain passage : TOKENS.
+Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e, peu utile).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

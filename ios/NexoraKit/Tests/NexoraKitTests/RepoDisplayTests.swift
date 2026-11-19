@@ -15,4 +15,11 @@ import Testing
         #expect(RepoDisplay.backLabel(defaultBranch: "main") == "Revenir sur main")
         #expect(RepoDisplay.menuAccessibility(current: "dev") == "Plus d'options, branche dev")
     }
+
+    @Test func sectionsBecomeMenuOnlyForLargeTextAndManyTabs() {
+        #expect(RepoDisplay.sectionsAsMenu(count: 5, accessibilitySize: true))
+        #expect(!RepoDisplay.sectionsAsMenu(count: 5, accessibilitySize: false))
+        #expect(!RepoDisplay.sectionsAsMenu(count: 3, accessibilitySize: true))
+        #expect(RepoDisplay.sectionMenuAccessibility(current: "Fichiers") == "Section, Fichiers")
+    }
 }
