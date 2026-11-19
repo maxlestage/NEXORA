@@ -1360,11 +1360,16 @@ mémoire 32k tokens, consigne 3 000 car.
   1 350 tokens par étape (−63 %), 145 630 → 54 010 sur 40 étapes. Tests : 576 → 577
   (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.171, descriptions du catalogue) → prochain passage : INTERFACE, même
-recette : ligne d'un modèle (ProviderDetailView, id monospace + pastille « gratuit » à
-droite), PersonalizeView (7 Spacer, aucun réglage très grand texte), InstallAgentsView,
-ModelPickerSheet.
+- 3.0.172 (interface) : fiche d'un fournisseur (ProviderDetailView) — ligne d'un modèle :
+  en très grande taille de texte la pastille « gratuit » passe sous l'id (au lieu de la
+  colonne de droite) ; VoiceOver lit `ProviderDetailDisplay.modelAccessibility` (« gpt-4o,
+  128k de contexte, gratuit, modèle par défaut ») + `modelHint` ; ligne de 44 pt au moins,
+  touchable sur toute la largeur. Taille normale inchangée. Rien retiré. Tests : 577 → 578.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.172, ligne d'un modèle) → prochain passage : TOKENS (voir pistes
+ci-dessous). Interface ensuite, même recette : PersonalizeView (7 Spacer, aucun réglage
+très grand texte), InstallAgentsView, ModelPickerSheet.
 
 ## Pistes tokens à faire
 - Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,

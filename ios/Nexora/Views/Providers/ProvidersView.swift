@@ -287,6 +287,8 @@ struct ProviderDetailView: View {
     @State private var showAddress = false
     @State private var confirmDelete = false
     @State private var pasteFeedback = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var bigText: Bool { typeSize.isAccessibilitySize }
 
     private static let ollamaSuggestions = ["llama3.2", "qwen2.5-coder:7b", "qwen3:8b", "gemma3:4b", "deepseek-r1:8b", "mistral", "phi4-mini", "gpt-oss:20b"]
 
@@ -450,11 +452,17 @@ struct ProviderDetailView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(m.id).font(.callout.monospaced()).foregroundStyle(.primary)
                                     if let d = m.detail { Text(d).font(.caption).foregroundStyle(.secondary) }
+                                    // Très grand texte : la pastille passe dessous, l'id garde la largeur.
+                                    if m.free && bigText { Pill(text: "gratuit", color: Theme.green) }
                                 }
                                 Spacer()
-                                if m.free { Pill(text: "gratuit", color: Theme.green) }
+                                if m.free && !bigText { Pill(text: "gratuit", color: Theme.green) }
                             }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                         }
+                        .accessibilityLabel(ProviderDetailDisplay.modelAccessibility(id: m.id, detail: m.detail, free: m.free, isDefault: isDefault))
+                        .accessibilityHint(ProviderDetailDisplay.modelHint(isDefault: isDefault))
                         .swipeActions {
                             if isOllama && p.local {
                                 Button("Supprimer du serveur", systemImage: "trash", role: .destructive) {

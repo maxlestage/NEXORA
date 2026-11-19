@@ -157,6 +157,21 @@ public enum ProviderDetailDisplay {
         return out
     }
 
+    /// Ce que lit VoiceOver pour un modèle de la fiche d'un fournisseur :
+    /// « gpt-4o, 128k de contexte, gratuit, modèle par défaut ».
+    public static func modelAccessibility(id: String, detail: String?, free: Bool, isDefault: Bool) -> String {
+        var parts = [id]
+        if let d = detail?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty { parts.append(d) }
+        if free { parts.append("gratuit") }
+        if isDefault { parts.append("modèle par défaut") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// L'aide lue après la ligne : rien si le modèle est déjà celui par défaut.
+    public static func modelHint(isDefault: Bool) -> String {
+        isDefault ? "" : "Touchez deux fois pour en faire le modèle par défaut"
+    }
+
     /// L'adresse du serveur est-elle affichée d'emblée ? Oui pour un serveur local ou
     /// perso, ou si elle a été modifiée ; sinon elle est rangée dans « Adresse avancée ».
     public static func addressInline(_ p: ProviderDef, modified: Bool) -> Bool {

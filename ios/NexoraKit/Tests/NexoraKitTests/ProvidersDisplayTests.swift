@@ -115,6 +115,15 @@ struct ProviderDetailDisplayTests {
         #expect(ProviderDetailDisplay.showsSearch(count: 13))
     }
 
+    @Test func ligneDUnModeleLueParVoiceOver() {
+        #expect(ProviderDetailDisplay.modelAccessibility(id: "gpt-4o", detail: "128k de contexte", free: true, isDefault: true)
+            == "gpt-4o, 128k de contexte, gratuit, modèle par défaut")
+        #expect(ProviderDetailDisplay.modelAccessibility(id: "o3", detail: nil, free: false, isDefault: false) == "o3")
+        #expect(ProviderDetailDisplay.modelAccessibility(id: "o3", detail: "  ", free: true, isDefault: false) == "o3, gratuit")
+        #expect(ProviderDetailDisplay.modelHint(isDefault: true).isEmpty)
+        #expect(ProviderDetailDisplay.modelHint(isDefault: false).contains("modèle par défaut"))
+    }
+
     @Test func adresseEtTest() {
         let cloud = ProviderDef(id: "openai", name: "OpenAI", baseUrl: "https://a", kind: .openai)
         let local = ProviderDef(id: "ollama", name: "Ollama", baseUrl: "http://o", kind: .ollama, needsKey: false, local: true)

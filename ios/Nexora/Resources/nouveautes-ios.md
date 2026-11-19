@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.172 — 19 novembre 2026 — Modèles d'un fournisseur lisibles en très grand texte
+
+- Amélioré : dans la fiche d'un fournisseur, en très grande taille de texte, la pastille « gratuit » passe sous le nom du modèle au lieu de l'écraser à droite.
+- Amélioré : VoiceOver lit chaque modèle en clair (« gpt-4o, gratuit, modèle par défaut ») et indique comment en faire le modèle par défaut.
+- Chaque ligne de modèle est plus facile à toucher (44 points au moins, toute la largeur). Taille normale inchangée.
+
 ## 3.0.171 — 19 novembre 2026 — Agents et skills installés moins coûteux
 
 - Amélioré : la liste de vos sous-agents et de vos skills, rappelée au modèle à chaque étape de l'agent, ne garde de chaque description que la phrase qui dit quand s'en servir (sans les longs exemples).
