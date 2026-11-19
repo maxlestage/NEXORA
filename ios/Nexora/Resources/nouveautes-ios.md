@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.171 — 19 novembre 2026 — Agents et skills installés moins coûteux
+
+- Amélioré : la liste de vos sous-agents et de vos skills, rappelée au modèle à chaque étape de l'agent, ne garde de chaque description que la phrase qui dit quand s'en servir (sans les longs exemples).
+- Mesuré avec 12 sous-agents et 6 skills installés : environ 60 % de tokens en moins pour cette liste, soit près de 90 000 tokens sur une session de 40 étapes.
+- Le chat en profite aussi pour la liste des skills ; le contenu complet d'une skill ou d'un sous-agent reste chargé à la demande, comme avant.
+
 ## 3.0.170 — 19 novembre 2026 — Modèle par défaut lisible en très grand texte
 
 - Amélioré : dans l'onglet Modèles, en très grande taille de texte, la carte « Modèle par défaut » montre le nom du modèle en entier (sur plusieurs lignes) au lieu de le couper.

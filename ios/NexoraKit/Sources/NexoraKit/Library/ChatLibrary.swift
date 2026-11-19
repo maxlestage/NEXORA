@@ -71,6 +71,38 @@ public enum ChatLibrary {
         return String(text[r])
     }
 
+    /// Longueur gardée de la description d'une skill dans la liste donnée au modèle.
+    public static let skillLineMax = 400
+    /// Longueur gardée de la description d'un sous-agent dans la liste donnée au modèle.
+    public static let agentLineMax = 240
+
+    /// La description d'une skill ou d'un sous-agent telle qu'elle part dans la liste
+    /// de la consigne (renvoyée à chaque étape) : une seule ligne, sans les exemples
+    /// (« <example>… », « Examples: … » des agents de Claude Code, souvent 1 000
+    /// caractères), coupée en fin de phrase ou de mot au-delà de `max`. Le début dit
+    /// quand s'en servir, ce qui suffit pour choisir ; le contenu complet est chargé
+    /// à la demande (use_skill, delegate). Une description courte reste telle quelle.
+    public static func catalogLine(_ description: String, max: Int) -> String {
+        var t = description.replacingOccurrences(of: "\\n", with: " ")
+        // Les exemples : tout ce qui suit leur début, s'il reste une vraie phrase avant.
+        for mark in ["<example", "Examples:", "Example:", "Exemples :", "Exemple :", "Exemples:", "Exemple:"] {
+            if let r = t.range(of: mark, options: .caseInsensitive),
+               t[..<r.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines).count >= 40 {
+                t = String(t[..<r.lowerBound])
+            }
+        }
+        t = t.split(whereSeparator: { $0 == " " || $0 == "\t" || $0.isNewline }).joined(separator: " ")
+        guard t.count > max else { return t }
+        let head = String(t.prefix(max))
+        // De préférence à la fin d'une phrase, sinon à la fin d'un mot.
+        if let dot = head.range(of: ". ", options: .backwards),
+           head.distance(from: head.startIndex, to: dot.lowerBound) >= max / 2 {
+            return String(head[...dot.lowerBound])
+        }
+        let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
+        return cut + "…"
+    }
+
     /// Les skills dans la consigne : celles déjà chargées (en entier) et la liste
     /// des autres (nom et description), à demander avec `[[skill: nom]]`.
     /// `loaded` : les skills chargées dans la conversation.
@@ -84,7 +116,7 @@ public enum ChatLibrary {
         if !others.isEmpty && round < 2 {
             out.append(
                 "Skills disponibles (des savoir-faire chargés à la demande) :\n"
-                    + others.map { "- \($0.name) : \($0.description)" }.joined(separator: "\n")
+                    + others.map { "- \($0.name) : \(catalogLine($0.description, max: skillLineMax))" }.joined(separator: "\n")
                     + "\nSi l'une d'elles aide vraiment pour cette demande, réponds UNIQUEMENT par la ligne [[skill: nom]] (une ligne par skill utile) : son contenu te sera donné, puis tu répondras. Sinon, réponds normalement."
             )
         }

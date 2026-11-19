@@ -595,6 +595,50 @@ struct TokenBench {
         #expect(recent[1].content.contains(long))
     }
 
+    @Test("consigne de l'agent : descriptions des sous-agents et des skills sur une ligne courte")
+    @MainActor
+    func catalogLines() {
+        // Des sous-agents écrits à la façon de Claude Code : une phrase qui dit quand
+        // s'en servir, puis des exemples (≈ 900 caractères en tout).
+        let agentText = "Use this agent when you need to review recently written code for bugs, "
+            + "security problems and style issues before it is merged. It reads the diff, checks "
+            + "the tests and reports what must change. Examples: <example>Context: the user just "
+            + "finished a feature.\\nuser: \"I have added the login form, can you check it?\"\\n"
+            + "assistant: \"I'll use the code-reviewer agent to review the new form.\"\\n<commentary>"
+            + String(repeating: "The user wrote code and wants it checked, so the reviewer agent fits. ", count: 6)
+            + "</commentary></example>"
+        let skillText = "Guide complet pour créer, lire et remplir des fichiers PDF. À utiliser dès "
+            + "que la demande parle d'un PDF, d'un formulaire à remplir ou d'un document à fusionner. "
+            + String(repeating: "Couvre aussi l'extraction de tableaux, la rotation des pages et le filigrane. ", count: 6)
+        #expect(agentText.count > 800 && skillText.count > 600)
+        let run = makeRun(hub: FakeHub().transport, task: "Ajoute une page contact")
+        let base = run.system.count
+        run.subagents = (1...12).map { Agent(id: "a\($0)", name: "Agent \($0)", systemPrompt: "…", description: agentText) }
+        run.skills = (1...6).map { Skill(id: "s\($0)", name: "skill-\($0)", description: skillText, body: "…") }
+        let after = run.system.count - base
+        let before = after
+            + 12 * (agentText.count - ChatLibrary.catalogLine(agentText, max: ChatLibrary.agentLineMax).count)
+            + 6 * (skillText.count - ChatLibrary.catalogLine(skillText, max: ChatLibrary.skillLineMax).count)
+        print("BANC catalogue (12 sous-agents, 6 skills ; tokens ≈ car./4) : liste \(before / 4) → \(after / 4) "
+            + "tokens par étape, soit \(before * 40 / 4) → \(after * 40 / 4) sur 40 étapes")
+        #expect(after < before / 2)
+        // La phrase qui dit quand s'en servir reste, les exemples partent.
+        let sys = run.system
+        #expect(sys.contains("- agent-1 : Use this agent when you need to review recently written code"))
+        #expect(sys.contains("reports what must change."))
+        #expect(!sys.contains("<example>") && !sys.contains("commentary"))
+        #expect(sys.contains("- skill-1 : Guide complet pour créer, lire et remplir des fichiers PDF."))
+        #expect(sys.contains("dès que la demande parle d'un PDF"))
+        // Une description courte n'est pas touchée ; une longue est coupée proprement.
+        #expect(ChatLibrary.catalogLine("Relit le code", max: 240) == "Relit le code")
+        #expect(ChatLibrary.catalogLine("Écrit\n  des   tests", max: 240) == "Écrit des tests")
+        #expect(ChatLibrary.catalogLine("Exemple : un agent", max: 240) == "Exemple : un agent")
+        let words = ChatLibrary.catalogLine(String(repeating: "mot ", count: 200), max: 100)
+        #expect(words.count <= 100 && words.hasSuffix("mot…"))
+        let cut = ChatLibrary.catalogLine(skillText, max: ChatLibrary.skillLineMax)
+        #expect(cut.count <= ChatLibrary.skillLineMax && cut.hasSuffix("."))
+    }
+
     @Test("session d'agent, longue demande collée : seul son début est cité dans les rappels")
     func longRequestReminder() {
         #expect(longRequest.count > 1_800)
