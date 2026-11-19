@@ -35,6 +35,17 @@ public enum ReposDisplay {
         "Lancer l'agent sur \(title(repo, login: login))"
     }
 
+    /// L'avis après « Copier le lien » (avant : une vibration seule).
+    public static let linkCopied = "Lien copié"
+
+    /// L'avis après la création d'un dépôt : « Dépôt nexora créé ».
+    public static func createdToast(_ repo: Repo, login: String?) -> String {
+        "Dépôt \(title(repo, login: login)) créé"
+    }
+
+    /// Le bouton de cet avis : l'étape suivante la plus probable, sans chercher le dépôt.
+    public static let createdAction = "Lancer l'agent"
+
     /// L'en-tête de la liste : « 12 dépôts », « 1 dépôt », ou « 3 sur 12 » pendant une recherche.
     public static func header(shown: Int, total: Int) -> String {
         if shown < total { return "\(shown) sur \(total)" }

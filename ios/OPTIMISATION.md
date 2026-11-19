@@ -1284,9 +1284,17 @@ mémoire 32k tokens, consigne 3 000 car.
   3 500 tokens pour les voir toutes (−75 %). Tests : 566 → 567 (mêmes 2 échecs Linux du
   catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.161, relectures de robots) → prochain passage : INTERFACE.
-Écrans d'interface restants peu traités : UsageView (3e passage ?), accueil, Personnaliser.
+- 3.0.162 (interface) : liste des dépôts (ReposView, 2e passage, 1er en 3.0.136) — après
+  « Nouveau dépôt » (barre ou état vide), avis `ReposDisplay.createdToast` (« Dépôt nexora
+  créé ») + vibration, avec le bouton `createdAction` « Lancer l'agent » qui ouvre
+  NewSessionView sur le nouveau dépôt (avant : aucun retour, il fallait retrouver le dépôt
+  puis balayer, 2 à 3 gestes) ; « Copier le lien » : avis `linkCopied` (avant : vibration
+  seule). Rien retiré. Tests : 567 → 568 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.162, liste des dépôts) → prochain passage : TOKENS.
+Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e),
+fiche d'un dépôt (RepoView).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

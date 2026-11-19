@@ -127,6 +127,8 @@ struct ReposView: View {
     @State private var confirmSignOut = false
     /// Dépôt sur lequel lancer l'agent (balayage ou appui long), sans ouvrir sa fiche.
     @State private var agentRepo: Repo?
+    /// Avis bref (lien copié, dépôt créé avec « Lancer l'agent »).
+    @State private var toast: Toast?
 
     /// Les dépôts affichés (recherche sans accents ni casse, description et langage compris).
     private var shown: [Repo] { ReposDisplay.filter(github.repos, query: query) }
@@ -195,6 +197,7 @@ struct ReposView: View {
                             Button("Copier le lien", systemImage: "link") {
                                 UIPasteboard.general.string = r.htmlUrl
                                 copied += 1
+                                toast = Toast(text: ReposDisplay.linkCopied)
                             }
                         }
                     }
@@ -231,7 +234,14 @@ struct ReposView: View {
         .refreshable { await github.refresh() }
         .navigationDestination(for: Repo.self) { RepoView(repo: $0) }
         .navigationDestination(item: $agentRepo) { NewSessionView(repo: $0) }
-        .sheet(isPresented: $creating) { CreateRepoSheet() }
+        .sheet(isPresented: $creating) {
+            CreateRepoSheet { repo in
+                copied += 1
+                toast = Toast(text: ReposDisplay.createdToast(repo, login: github.user?.login),
+                              actionTitle: ReposDisplay.createdAction) { agentRepo = repo }
+            }
+        }
+        .toast($toast)
         .alert(SettingsDisplay.signOutTitle(login: github.user?.login), isPresented: $confirmSignOut) {
             Button("Annuler", role: .cancel) {}
             Button("Se déconnecter", role: .destructive) { github.signOut() }
