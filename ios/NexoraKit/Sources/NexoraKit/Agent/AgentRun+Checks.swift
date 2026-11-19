@@ -165,7 +165,13 @@ extension AgentRun {
                       let m = htmlReviewRe.firstMatch(u) else { return nil }
                 return "/repos/\(m[1]!)/\(m[2]!)/pulls/\(m[3]!)"
             }.first
-            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })), repo: repo, pull: pull)
+            // Dépôt d'une liste de commits (« …/commit/<sha> »), lu avant son retrait.
+            let commits = a.lazy.compactMap { x -> String? in
+                guard let u = (x as? [String: Any])?["html_url"] as? String,
+                      let m = htmlCommitRe.firstMatch(u) else { return nil }
+                return "/repos/\(m[1]!)/\(m[2]!)"
+            }.first
+            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })), repo: repo, pull: pull, commits: commits)
         default:
             return x
         }
@@ -177,6 +183,8 @@ extension AgentRun {
     nonisolated static let htmlIssueRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/(issues|pull)/\d+"#)
 
     nonisolated static let htmlReviewRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/pull/(\d+)#pullrequestreview-"#)
+
+    nonisolated static let htmlCommitRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/commit/[0-9a-f]+$"#)
 
     nonisolated static let htmlReleaseRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/releases/tag/"#)
 
@@ -193,7 +201,9 @@ extension AgentRun {
     /// de déploiement répètent un long rapport à chaque envoi) ; les commentaires des
     /// personnes et le dernier de chaque robot restent entiers. Même règle pour une liste
     /// de relectures (GET …/pulls/<n>/reviews : Copilot, CodeRabbit… relisent chaque envoi).
-    nonisolated static func listBodies(_ a: [Any], repo: String? = nil, pull: String? = nil) -> [Any] {
+    /// Dans une liste de commits (GET …/commits, commits d'une comparaison, recherche),
+    /// un long message (`commit.message`) est réduit de même, suivi de GET …/commits/<sha>.
+    nonisolated static func listBodies(_ a: [Any], repo: String? = nil, pull: String? = nil, commits: String? = nil) -> [Any] {
         guard a.count > 1 else { return a }
         // Dernier commentaire (ou relecture) de chaque robot dans la liste.
         var lastBot: [String: Int] = [:]
@@ -202,6 +212,13 @@ extension AgentRun {
             if let login = botReviewLogin(x) { lastBot["relecture:" + login] = i }
         }
         return a.enumerated().map { i, x in
+            if var d = x as? [String: Any], let sha = d["sha"] as? String, var c = d["commit"] as? [String: Any],
+               let msg = c["message"] as? String {
+                guard msg.count > listBodyMax else { return x }
+                c["message"] = shortBody(msg, path: (commits ?? "…") + "/commits/\(sha)")
+                d["commit"] = c
+                return d
+            }
             guard var d = x as? [String: Any], let body = d["body"] as? String, body.count > listBodyMax else { return x }
             let path: String
             if let login = botLogin(x), lastBot[login] != i, let id = d["id"] as? Int {
@@ -226,17 +243,23 @@ extension AgentRun {
             } else {
                 return x
             }
-            var head = ""
-            for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
-                let next = head.isEmpty ? String(line) : head + "\n" + line
-                if next.count > 200 { break }
-                head = next
-            }
-            if head.isEmpty { head = String(body.prefix(200)) }
-            head = head.trimmingCharacters(in: .whitespacesAndNewlines)
-            d["body"] = head + "\n… (\(body.count - head.count) car. de plus : GET \(path))"
+            d["body"] = shortBody(body, path: path)
             return d
         }
+    }
+
+    /// Les premières lignes d'un long texte (≤ 200 caractères, coupé en fin de ligne)
+    /// suivies du chemin pour le lire en entier.
+    nonisolated static func shortBody(_ body: String, path: String) -> String {
+        var head = ""
+        for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
+            let next = head.isEmpty ? String(line) : head + "\n" + line
+            if next.count > 200 { break }
+            head = next
+        }
+        if head.isEmpty { head = String(body.prefix(200)) }
+        head = head.trimmingCharacters(in: .whitespacesAndNewlines)
+        return head + "\n… (\(body.count - head.count) car. de plus : GET \(path))"
     }
 
     /// Le nom d'un robot (`user.type` « Bot ») auteur d'un commentaire d'issue allégé

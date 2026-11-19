@@ -1239,6 +1239,38 @@ struct AgentShipTests {
         #expect(one["body"] as? String == notes)
     }
 
+    @Test("banc github : longs messages réduits dans une liste de commits")
+    func githubCommitMessages() throws {
+        // 30 commits aux messages détaillés (≈ 600 caractères : titre, explication, chiffres).
+        let para = "Après la création d'un dépôt : avis et vibration, avec un bouton qui ouvre la session.\n"
+        let message = "NEXORA iOS 3.0.1 : dépôts, un retour après chaque action\n\n" + String(repeating: para, count: 6) + "Tests : 567 → 568."
+        func commits(_ key: String) -> [Any] {
+            (1...30).map { i -> Any in
+                let sha = String(format: "%040x", i)
+                let who: [String: Any] = ["name": "Max", "email": "m@x.fr", "date": "2026-11-19T10:00:00Z"]
+                var c: [String: Any] = ["author": who, "committer": who, "message": "", "tree": ["sha": sha] as [String: Any]]
+                c[key] = message
+                return ["sha": sha, "html_url": "https://github.com/o/r/commit/\(sha)", "commit": c,
+                        "parents": [["sha": String(format: "%040x", i + 1)]] as [Any]]
+            }
+        }
+        // Avant : même liste, message sous une clé que la réduction ignore (« Message »).
+        let raw = AgentRun.githubText(AgentRun.slimGitHub(commits("Message")))
+        let slim = AgentRun.githubText(AgentRun.slimGitHub(commits("message")))
+        func visible(_ t: String) -> Int { t.prefix(7000).components(separatedBy: "\"sha\":").count - 1 }
+        func cost(_ t: String) -> Int { let v = max(1, visible(t)); return ((30 + v - 1) / v) * min(t.count, 7000) / 4 }
+        print("Banc github (liste de 30 commits aux longs messages) : \(visible(raw)) → \(visible(slim)) commits visibles, \(cost(raw)) → \(cost(slim)) tokens pour les voir tous")
+        #expect(visible(slim) >= 2 * visible(raw) && cost(slim) * 2 <= cost(raw))
+        let list = try #require(AgentRun.slimGitHub(commits("message")) as? [[String: Any]])
+        let msg = try #require((list[2]["commit"] as? [String: Any])?["message"] as? String)
+        #expect(msg.hasPrefix("NEXORA iOS 3.0.1 : dépôts, un retour après chaque action\n\nAprès"))
+        #expect(msg.hasSuffix("car. de plus : GET /repos/o/r/commits/\(String(format: "%040x", 3)))"))
+        #expect(msg.count < 300)
+        // Un commit seul (GET …/commits/<sha>) garde son message entier.
+        let one = try #require(AgentRun.slimGitHub(commits("message")[0]) as? [String: Any])
+        #expect((one["commit"] as? [String: Any])?["message"] as? String == message)
+    }
+
     @Test("banc github : anciens rapports de robots réduits dans une liste de commentaires")
     func githubBotComments() throws {
         // Une pull request : 12 envois, chacun suivi d'un rapport de couverture (≈ 2 500 car.)
