@@ -1284,6 +1284,21 @@ extension FileTreeBench {
         print("list_files déjà donné (\(Self.repo.count) fichiers) : \(before / 4) → \(after / 4) tokens")
         #expect(after * 10 < before)
     }
+
+    @Test("grand dépôt : list_files de tout le dépôt renvoie à la liste résumée du premier message")
+    func alreadyGivenBig() {
+        let repo = Self.bigRepo
+        let given = AgentRun.foldedTree(repo, limit: AgentRun.firstTreeLimit)
+        let history = [LLMMessage("user", "DEMANDE DE L'UTILISATEUR : « x »\n\nFichiers :\n\(given)\n\nAvant toute action…")]
+        let before = AgentRun.foldedTree(repo, limit: 300).count
+        let short = AgentRun.treeAlreadyGiven(tree: repo, files: repo, history: history)
+        #expect(short == "(liste identique à celle du premier message, plus haut : sers-toi de celle-là)")
+        print("list_files déjà donné, grand dépôt (\(repo.count) fichiers) : \(before / 4) → \(short!.count / 4) tokens")
+        // Un fichier créé depuis reste signalé ; sans le premier message, liste entière.
+        let changed = AgentRun.treeAlreadyGiven(tree: repo, files: repo + ["zz/nouveau.swift"], history: history)!
+        #expect(changed.hasSuffix("Créés :\nzz/nouveau.swift"))
+        #expect(AgentRun.treeAlreadyGiven(tree: repo, files: repo, history: []) == nil)
+    }
 }
 
 @Suite("Résultats de recherche")
