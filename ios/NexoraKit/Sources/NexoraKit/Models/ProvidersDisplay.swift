@@ -292,6 +292,17 @@ public enum ModelPickerDisplay {
         updated.isEmpty ? "Liste intégrée à l'app" : "Liste du \(updated)"
     }
 
+    /// Les badges d'un modèle en une ligne (« gratuit · local »), pour la très grande taille
+    /// de texte où ils passent sous le nom ; `nil` s'il n'y en a aucun.
+    public static func tags(free: Bool, local: Bool) -> String? {
+        let tags = (free ? ["gratuit"] : []) + (local ? ["local"] : [])
+        return tags.isEmpty ? nil : tags.joined(separator: " · ")
+    }
+
+    /// Lignes laissées au nom d'un modèle : une seule d'ordinaire, trois en très grand texte
+    /// (sinon « claude-son… » et « claude-son… » ne se distinguent plus).
+    public static func lineLimit(bigText: Bool) -> Int { bigText ? 3 : 1 }
+
     /// Ce que lit VoiceOver pour une ligne : « gpt-4o, OpenAI, gratuit, modèle actuel ».
     public static func accessibility(model: String, provider: String, free: Bool, local: Bool, selected: Bool) -> String {
         var parts = [model, provider]

@@ -1402,10 +1402,18 @@ mémoire 32k tokens, consigne 3 000 car.
   chiffre. Limite connue : un fichier jamais lu (`orig` vide) ne reçoit pas le conseil.
   Tests : 580 → 581 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.175) → prochain passage : INTERFACE, même recette que 3.0.174 :
-InstallAgentsView, ModelPickerSheet, aperçu de PersonalizeView (orbe de 72 pt non réduit
-en grand texte). Tokens ensuite (pistes ci-dessous).
+- 3.0.176 (interface) : « Choisir un modèle » (ModelPickerSheet) en très grande taille de
+  texte — le nom d'un modèle (et son détail) passe de 1 à 3 lignes
+  (`ModelPickerDisplay.lineLimit`) au lieu d'être coupé à côté des badges, de la coche et
+  de l'étoile ; les badges passent sous le nom en une ligne (`ModelPickerDisplay.tags`,
+  « gratuit · local ») ; la ligne « Chercher les nouveaux modèles » et l'en-tête de
+  fournisseur (nom + Actualiser) s'empilent (AnyLayout). Taille normale inchangée. Rien
+  retiré. Tests : 581 → 582 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.176) → prochain passage : TOKENS (pistes ci-dessous). Interface
+ensuite, même recette : InstallAgentsView, AgentPickerSheet (description sur 2 lignes),
+aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

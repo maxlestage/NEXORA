@@ -10,6 +10,7 @@ struct ModelPickerSheet: View {
 
     @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var query = ""
     @State private var onlyFree = false
     @State private var loading: Set<String> = []
@@ -19,6 +20,9 @@ struct ModelPickerSheet: View {
 
     /// Peu de fournisseurs prêts : on les montre tous (avec « clé manquante »),
     /// sinon il n'y aurait presque rien à choisir.
+    /// Très grande taille de texte : les lignes s'empilent au lieu de se serrer.
+    private var bigText: Bool { typeSize.isAccessibilitySize }
+
     private var all: Bool { showAll ?? (settings.readyProviders.count <= 2) }
 
     private var providers: [ProviderDef] {
@@ -79,9 +83,12 @@ struct ModelPickerSheet: View {
                     Button {
                         Task { await refreshCatalog() }
                     } label: {
-                        HStack {
+                        let layout = bigText
+                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                            : AnyLayout(HStackLayout())
+                        layout {
                             Label("Chercher les nouveaux modèles", systemImage: "arrow.triangle.2.circlepath.icloud")
-                            Spacer()
+                            if !bigText { Spacer() }
                             if refreshingCatalog {
                                 ProgressView()
                             } else {
@@ -129,9 +136,12 @@ struct ModelPickerSheet: View {
                     Text(hint).font(.footnote).foregroundStyle(.secondary)
                 }
             } header: {
-                HStack {
+                let layout = bigText
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                    : AnyLayout(HStackLayout())
+                layout {
                     Text("\(p.emoji) \(p.name)")
-                    Spacer()
+                    if !bigText { Spacer() }
                     if loading.contains(p.id) {
                         ProgressView().controlSize(.mini)
                     } else if p.listing != .none {
@@ -159,14 +169,23 @@ struct ModelPickerSheet: View {
                 HStack(spacing: 10) {
                     if showsProvider { Text(p.emoji).font(.title3) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(m.id).font(.callout.monospaced()).foregroundStyle(.primary).lineLimit(1)
+                        Text(m.id).font(.callout.monospaced()).foregroundStyle(.primary)
+                            .lineLimit(ModelPickerDisplay.lineLimit(bigText: bigText))
                         if let detail = m.detail {
-                            Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(detail).font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(ModelPickerDisplay.lineLimit(bigText: bigText))
+                        }
+                        // En très grand texte, les badges passent sous le nom : il garde la largeur.
+                        if bigText, let tags = ModelPickerDisplay.tags(free: free || p.free, local: p.local) {
+                            Text(tags).font(.caption.weight(.semibold))
+                                .foregroundStyle(free || p.free ? Theme.green : Color.accentColor)
                         }
                     }
                     Spacer()
-                    if free || p.free { Pill(text: "gratuit", color: Theme.green) }
-                    if p.local { Pill(text: "local") }
+                    if !bigText {
+                        if free || p.free { Pill(text: "gratuit", color: Theme.green) }
+                        if p.local { Pill(text: "local") }
+                    }
                     if ref == selected { Image(systemName: "checkmark").foregroundStyle(.tint) }
                 }
                 .contentShape(Rectangle())
