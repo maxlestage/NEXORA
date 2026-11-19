@@ -1251,9 +1251,16 @@ mémoire 32k tokens, consigne 3 000 car.
   visibles, 14 000 → 1 461 tokens pour les voir toutes (−90 %). Tests : 562 → 563 (mêmes
   2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.157, listes de versions) → prochain passage : INTERFACE.
-Écrans d'interface restants peu traités : ModelSheet (2e passage), UsageView.
+- 3.0.158 (interface) : « Sélectionner un modèle » (ModelSheet, 2e passage, 1er en 3.0.61) —
+  textes raccourcis et mis dans NexoraKit : `ModelList.nonNativeNote` (note « pas de
+  réglage natif » partagée par la feuille et la page Effort, ≈ 100 → 60 car.),
+  `ModelSheetDisplay.moreModelsSubtitle` (« X et tous les autres », ≈ 45 → 28 car.),
+  `addModelsHint` (Pollinations ≈ 200 → 115 car., autres ≈ 90 → 72 car.). Rien retiré.
+  Tests : 563 → 564 (mêmes 2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.158, ModelSheet) → prochain passage : TOKENS.
+Écrans d'interface restants peu traités : UsageView (3e passage ?), accueil, Personnaliser.
 Piste tokens suivante : listes de commentaires très longues (GET …/issues/<n>/comments,
 dizaines de commentaires de bots) — regrouper les commentaires de bots identiques ? à mesurer.
 
