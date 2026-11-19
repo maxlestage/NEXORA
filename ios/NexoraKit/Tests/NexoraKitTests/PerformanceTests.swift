@@ -697,6 +697,56 @@ struct TokenBench {
         #expect(AgentRun.shortGoalRule.contains("phrase courte") && AgentRun.shortGoalRule.contains("premier tour"))
     }
 
+    @Test("write_file d'un fichier presque inchangé : la confirmation rappelle edit_file")
+    @MainActor
+    func rewriteHint() async {
+        // Un fichier de 200 lignes (≈ 8 000 car.) réécrit en entier pour 3 lignes changées.
+        let lines = (0..<200).map { "    let valeur\($0) = calcule(\($0), dans: page)" }
+        let old = lines.joined(separator: "\n") + "\n"
+        var edited = lines
+        for i in [20, 21, 22] { edited[i] += " // modifié" }
+        let new = edited.joined(separator: "\n")
+        let hint = AgentRun.rewriteHint(before: old, after: new)
+        #expect(hint == " 3 lignes sur 201 changent : la prochaine fois, edit_file suffit (bien moins à écrire).")
+        // Aucun mot de plus quand write_file est le bon outil : fichier court, ou
+        // largement réécrit ; et un contenu identique est signalé.
+        #expect(AgentRun.rewriteHint(before: "a\nb\n", after: "a\nc\n").isEmpty)
+        let short = lines.prefix(AgentRun.rewriteHintMinLines - 2).joined(separator: "\n")
+        #expect(AgentRun.rewriteHint(before: short, after: short + " // x").isEmpty)
+        let rewritten = lines.enumerated().map { $0.offset % 3 == 0 ? $0.element + " // autre" : $0.element }.joined(separator: "\n")
+        #expect(AgentRun.rewriteHint(before: old, after: rewritten).isEmpty)
+        #expect(AgentRun.rewriteHint(before: old, after: old).contains("identique"))
+        var added = lines
+        added.insert("    let nouveau = 1", at: 100)
+        #expect(AgentRun.rewriteHint(before: old, after: added.joined(separator: "\n")).hasPrefix(" 1 ligne sur 202 change :"))
+
+        // Dans une vraie session : fichier lu, puis réécrit en entier.
+        let read = "```json\n{\"tool\":\"read_file\",\"args\":{\"path\":\"lib/page.swift\"}}\n```"
+        let write = "```json\n{\"tool\":\"write_file\",\"args\":{\"path\":\"lib/page.swift\"}}\n```\n```swift\n" + new + "\n```"
+        let llm = ScriptLLM([read, write])
+        llm.whenEmpty = "```json\n{\"tool\":\"finish\",\"args\":{\"summary\":\"fin\"}}\n```"
+        let run = makeRun(llm, hub: repoHub(["lib/page.swift": old]), repo: "NEXORA", branch: "master", task: "Marque trois lignes de la page", checks: false)
+        run.specs.append("déjà compris")
+        await run.run()
+        #expect(run.draft("lib/page.swift") == new + "\n")
+        #expect(llm.last(2).contains("enregistré en brouillon") && llm.last(2).contains("3 lignes sur 201 changent"))
+
+        // Banc. Hypothèse (le modèle n'est pas mesurable ici) : 6 petites retouches
+        // de ce fichier dans une session ; avant, 6 réécritures entières ; après, la
+        // première est réécrite, puis le modèle suit le conseil (edit_file : les 3
+        // lignes en « old » et en « new »). Une réponse repart entière aux 4 étapes
+        // suivantes (relue ×0,1), puis elle est raccourcie.
+        let touches = 6
+        let editChars = 2 * edited[20...22].joined(separator: "\n").count + 80
+        let writtenBefore = touches * new.count
+        let writtenAfter = new.count + (touches - 1) * editChars + hint.count
+        func cost(_ written: Int) -> Int { Int(Double(written) * 5 + Double(written) * 4 * 0.1) }
+        print("BANC réécriture (6 retouches d'un fichier de 200 lignes ; tokens ≈ car./4) : écrits \(writtenBefore / 4) → \(writtenAfter / 4), "
+            + "coût Anthropic (écrit ×5, renvoyé 4 fois ×0,1) \(cost(writtenBefore) / 4) → \(cost(writtenAfter) / 4) ; "
+            + "conseil : \(hint.count / 4) tokens, seulement quand il sert")
+        #expect(writtenAfter < writtenBefore / 4)
+    }
+
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
     func agentSession() {
         let each = agentSessionChars(batch: 0)

@@ -1389,15 +1389,33 @@ mémoire 32k tokens, consigne 3 000 car.
   `PersonalizeDisplay.effortAccessibility` (sans émoji) + aide. Taille normale inchangée.
   Rien retiré. Tests : 579 → 580 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.174) → prochain passage : TOKENS (pistes ci-dessous, d'abord les
-tokens ÉCRITS). Interface ensuite, même recette : InstallAgentsView, ModelPickerSheet,
-aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
+- 3.0.175 (tokens ÉCRITS) : `AgentRun.rewriteHint(before:after:)` — write_file d'un fichier
+  existant (≥ 40 lignes et ≥ 1 500 car., contenu connu : lu ou déjà en brouillon) dont au
+  plus 1 ligne sur 5 change (début et fin identiques comptés) : la confirmation ajoute
+  « N lignes sur M changent : la prochaine fois, edit_file suffit (bien moins à écrire). »
+  (21 tokens, seulement dans ce cas ; « Contenu identique » si rien ne change). Sinon aucun
+  mot de plus. Banc `TokenBench.rewriteHint` (6 retouches de 3 lignes d'un fichier de 200
+  lignes) : écrits 13 218 → 2 727 tokens ; coût Anthropic (écrit ×5, renvoyé 4 fois ×0,1)
+  71 377 → 14 727. ATTENTION : HYPOTHÈSE de comportement (avant : 6 réécritures entières ;
+  après : la première, puis edit_file) — seul le conseil est mesuré (test de session :
+  fichier lu, réécrit, conseil reçu) ; le gain réel dépend du modèle, entre 0 et ce
+  chiffre. Limite connue : un fichier jamais lu (`orig` vide) ne reçoit pas le conseil.
+  Tests : 580 → 581 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.175) → prochain passage : INTERFACE, même recette que 3.0.174 :
+InstallAgentsView, ModelPickerSheet, aperçu de PersonalizeView (orbe de 72 pt non réduit
+en grand texte). Tokens ensuite (pistes ci-dessous).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
   « thought » (aucune limite demandée), le résumé de finish, les réponses du chat
-  (`max_tokens`), le contenu réécrit par write_file quand edit_file suffirait.
+  (`max_tokens`). (write_file au lieu d'edit_file : conseil ajouté en 3.0.175.) Limiter
+  « thought » à une phrase est RISQUÉ : c'est le brouillon de raisonnement des modèles
+  sans réflexion native ; ne le faire qu'avec une mesure de qualité.
+- Dépôt de plus de 400 fichiers : la liste du premier message est coupée aux 400 premiers
+  (ce dépôt en a 522 : `ios/` n'y figure pas en entier). Qualité plus que tokens : à voir
+  (dossiers résumés au-delà de 400 ?).
 - Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,
   non mesurée (c'est le texte voulu par l'utilisateur ; ne pas y toucher sans réglage).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

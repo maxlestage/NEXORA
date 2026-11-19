@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.175 — 19 novembre 2026 — Petites retouches moins coûteuses pour l'agent
+
+- Amélioré : quand l'agent réécrit un long fichier en entier pour n'y changer que quelques lignes, il est prévenu tout de suite et passe ensuite à une modification ciblée, bien moins coûteuse.
+- Économie : jusqu'à 5 fois moins de tokens écrits sur une série de petites retouches d'un même fichier (les tokens écrits sont les plus chers).
+- Inchangé : un fichier court ou largement réécrit est traité comme avant, sans un mot de plus.
+
 ## 3.0.174 — 19 novembre 2026 — Personnaliser lisible en très grand texte
 - Amélioré : en très grande taille de texte, les choix « Thème », « Animations » et « Mémoire » deviennent des menus : plus de libellés coupés (« Norm… »).
 - Amélioré : la valeur d'un curseur (taille du texte, créativité, vitesse de lecture) passe sous son libellé, et les styles de messages s'affichent l'un sous l'autre.

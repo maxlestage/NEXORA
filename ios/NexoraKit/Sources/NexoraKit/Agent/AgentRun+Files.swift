@@ -159,6 +159,35 @@ extension AgentRun {
             + ")"
     )
 
+    /// Un fichier existant réécrit en entier par write_file alors que presque tout
+    /// est resté identique : une phrase, ajoutée à la confirmation, dit combien de
+    /// lignes changent vraiment et rappelle edit_file. Les tokens écrits par le
+    /// modèle coûtent ≈ 5 fois plus cher que les tokens lus, et la réponse repart
+    /// entière aux 4 étapes suivantes. Vide (aucun token de plus) pour un fichier
+    /// court (moins de `rewriteHintMinLines` lignes ou de 1 500 caractères) ou
+    /// quand plus d'un cinquième des lignes change : là, write_file est le bon outil.
+    public nonisolated static func rewriteHint(before: String, after: String) -> String {
+        guard before.count >= 1_500 else { return "" }
+        let old = before.split(separator: "\n", omittingEmptySubsequences: false)
+        var new = after.split(separator: "\n", omittingEmptySubsequences: false)
+        // Le fichier est enregistré avec un saut de ligne final : ne pas le compter.
+        if before.hasSuffix("\n") && !after.hasSuffix("\n") { new.append("") }
+        guard old.count >= rewriteHintMinLines, new.count >= rewriteHintMinLines else { return "" }
+        let limit = min(old.count, new.count)
+        var head = 0
+        while head < limit && old[head] == new[head] { head += 1 }
+        var tail = 0
+        while tail < limit - head && old[old.count - 1 - tail] == new[new.count - 1 - tail] { tail += 1 }
+        let changed = max(old.count, new.count) - head - tail
+        guard changed * 5 <= new.count else { return "" }
+        if changed == 0 { return " Contenu identique à l'ancien : rien n'a changé." }
+        return " \(changed) ligne\(changed > 1 ? "s" : "") sur \(new.count) change\(changed > 1 ? "nt" : "") : "
+            + "la prochaine fois, edit_file suffit (bien moins à écrire)."
+    }
+
+    /// Longueur (en lignes) à partir de laquelle `rewriteHint` s'applique.
+    public nonisolated static let rewriteHintMinLines = 40
+
     /// Une liste de fichiers pour le modèle, regroupée par dossier : les fichiers
     /// d'un même dossier (au moins 2) tiennent sur une ligne, « app/lib/{a.dart,
     /// b.dart} », au lieu de répéter le dossier à chaque chemin. Les dossiers
@@ -871,7 +900,8 @@ extension AgentRun {
             }
             changes.set(p, content.endsWith("\n") ? content : content + "\n")
             notifyChanged()
-            return "OK, \(p) enregistré en brouillon (\(content.len) caractères).\(try await pitfalls(p))"
+            let hint = before.map { Self.rewriteHint(before: $0, after: content) } ?? ""
+            return "OK, \(p) enregistré en brouillon (\(content.len) caractères).\(hint)\(try await pitfalls(p))"
         case "delete_file":
             let p = path()
             guard let place = resolve(p), !place.1.isEmpty else { return mountHint }
