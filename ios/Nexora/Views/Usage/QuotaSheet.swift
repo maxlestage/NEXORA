@@ -12,8 +12,10 @@ struct QuotaSheet: View {
     @State private var prompt: AmountPrompt?
     @State private var amount = ""
     @State private var confirmReset = false
-    /// Change à chaque solde ou crédit choisi : une vibration le confirme.
+    /// Change à chaque solde ou crédit choisi, retiré ou remis à zéro : une vibration
+    /// et un avis le confirment.
     @State private var saved = 0
+    @State private var toast: Toast?
 
     private enum AmountPrompt {
         case prepaid, budget
@@ -38,6 +40,13 @@ struct QuotaSheet: View {
         .presentationDetents([.large, .medium])
         .presentationDragIndicator(.visible)
         .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
+        .toast($toast)
+    }
+
+    /// Confirme un changement : vibration et avis court.
+    private func confirm(_ change: QuotaDisplay.Change) {
+        saved += 1
+        toast = Toast(text: QuotaDisplay.toast(change))
     }
 
     @ViewBuilder
@@ -185,11 +194,7 @@ struct QuotaSheet: View {
                 UsageRow("Dépensé depuis", "≈ \(UsageFormat.dollars(u.prepaidSpent))\(priced ? "" : " (prix inconnus)")")
                     .padding(.bottom, 8)
             }
-            Text(
-                u.prepaid == nil
-                    ? "\(p.name) ne donne pas votre solde par l'API. Recopiez-le une fois depuis sa page de facturation : NEXORA déduit ensuite chaque réponse (chat et agents autonomes)."
-                    : "Recalez le solde de temps en temps avec celui de la page de facturation : l'estimation peut dériver (cache, outils, autres appareils)."
-            )
+            Text(QuotaDisplay.prepaidHint(p.name, hasPrepaid: u.prepaid != nil))
             .font(.caption)
             .foregroundStyle(.secondary)
             UsageFlow {
@@ -207,8 +212,12 @@ struct QuotaSheet: View {
                     .buttonStyle(.bordered)
                 }
                 if u.prepaid != nil {
-                    Button("Retirer") { usage.setPrepaid(p.id, nil) }
-                        .buttonStyle(.borderless)
+                    Button("Retirer") {
+                        usage.setPrepaid(p.id, nil)
+                        confirm(.prepaid(nil))
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(minHeight: 44)
                 }
             }
             .padding(.top, 8)
@@ -230,7 +239,7 @@ struct QuotaSheet: View {
                     let selected = u.monthlyBudget == plan.amount
                     Button("\(plan.name) · \(UsageFormat.dollars(plan.amount))") {
                         usage.setBudget(p.id, plan.amount)
-                        saved += 1
+                        confirm(.budget(plan.amount))
                     }
                         .buttonStyle(.bordered)
                         .tint(selected ? Theme.accent(settings.accent) : .secondary)
@@ -244,11 +253,14 @@ struct QuotaSheet: View {
                 }
                 .buttonStyle(.bordered)
                 if u.monthlyBudget != nil {
-                    Button("Aucun") { usage.setBudget(p.id, nil) }
-                        .buttonStyle(.bordered)
+                    Button("Aucun") {
+                        usage.setBudget(p.id, nil)
+                        confirm(.budget(nil))
+                    }
+                    .buttonStyle(.bordered)
                 }
             }
-            Text("Estimation : tokens × prix publics du \(ModelPrices.pricesDate) (tarif de journée). La page « Consommation » de \(p.name) fait foi.")
+            Text(QuotaDisplay.estimateNote(p.name, pricesDate: ModelPrices.pricesDate))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
@@ -271,10 +283,14 @@ struct QuotaSheet: View {
             .buttonStyle(.bordered)
             Button("Remettre à zéro", role: .destructive) { confirmReset = true }
                 .buttonStyle(.borderless)
+                .frame(minHeight: 44)
         }
         .padding(.top, 18)
         .confirmationDialog("Remettre à zéro les compteurs ?", isPresented: $confirmReset, titleVisibility: .visible) {
-            Button("Remettre à zéro", role: .destructive) { usage.reset(p.id) }
+            Button("Remettre à zéro", role: .destructive) {
+                usage.reset(p.id)
+                confirm(.reset)
+            }
             Button("Annuler", role: .cancel) {}
         } message: {
             Text(QuotaDisplay.resetMessage(p.name))
@@ -297,10 +313,13 @@ struct QuotaSheet: View {
         }
         if let current = prompt {
             switch current {
-            case .prepaid: usage.setPrepaid(p.id, v)
-            case .budget: usage.setBudget(p.id, v)
+            case .prepaid:
+                usage.setPrepaid(p.id, v)
+                confirm(.prepaid(v))
+            case .budget:
+                usage.setBudget(p.id, v)
+                confirm(.budget(v))
             }
-            if v != nil { saved += 1 }
         }
         prompt = nil
     }

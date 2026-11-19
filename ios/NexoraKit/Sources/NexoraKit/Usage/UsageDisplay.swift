@@ -104,6 +104,37 @@ public enum QuotaDisplay {
         return v > 0 && v.isFinite ? .value(v) : .invalid
     }
 
+    /// Ce qui vient de changer dans la fiche : un avis court le confirme (avant : seul le
+    /// solde ou le crédit choisi vibrait ; retirer ou remettre à zéro ne disait rien).
+    public enum Change: Sendable, Equatable {
+        case prepaid(Double?)
+        case budget(Double?)
+        case reset
+    }
+
+    /// Le texte de l'avis qui confirme `change`.
+    public static func toast(_ change: Change) -> String {
+        switch change {
+        case .prepaid(let v?): "Solde enregistré : \(UsageFormat.dollars(v))"
+        case .prepaid(nil): "Solde retiré"
+        case .budget(let v?): "Crédit mensuel : \(UsageFormat.dollars(v))"
+        case .budget(nil): "Crédit mensuel retiré"
+        case .reset: "Compteurs remis à zéro"
+        }
+    }
+
+    /// L'explication sous « Crédit prépayé », en une phrase courte.
+    public static func prepaidHint(_ name: String, hasPrepaid: Bool) -> String {
+        hasPrepaid
+            ? "Recalez-le de temps en temps sur la page de facturation : l'estimation peut dériver."
+            : "\(name) ne donne pas votre solde. Recopiez-le une fois : NEXORA déduit ensuite chaque réponse."
+    }
+
+    /// La note sous « Dépense estimée ».
+    public static func estimateNote(_ name: String, pricesDate: String) -> String {
+        "Estimation selon les prix publics du \(pricesDate). La page de \(name) fait foi."
+    }
+
     /// La question posée avant « Remettre à zéro ».
     public static func resetMessage(_ name: String) -> String {
         "Les requêtes, tokens et dépenses comptés pour \(name) sont effacés. Votre clé et vos réglages restent."
