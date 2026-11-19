@@ -14,6 +14,9 @@ struct ProvidersView: View {
     @State private var toast: Toast?
     @State private var keySaved = 0
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Très grande taille de texte (tailles d'accessibilité).
+    private var bigText: Bool { typeSize.isAccessibilitySize }
 
     private var list: [ProviderDef] {
         ProvidersDisplay.filter(settings.providers, filter: filter, query: query, isReady: { settings.isReady($0) })
@@ -31,18 +34,28 @@ struct ProvidersView: View {
                     Button { pickModel = true } label: {
                         GlassCard(glow: Theme.violet) {
                             HStack(spacing: 12) {
-                                Text("⭐").font(.system(size: 26)).accessibilityHidden(true)
+                                if !bigText {
+                                    Text("⭐").font(.system(size: 26)).accessibilityHidden(true)
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Modèle par défaut").font(.caption)
-                                    Text(def.model).font(.callout.monospaced().weight(.bold)).lineLimit(1)
+                                    Text(def.model).font(.callout.monospaced().weight(.bold))
+                                        .lineLimit(bigText ? 3 : 1)
                                     Text(card.note).font(.caption).foregroundStyle(.secondary)
+                                    if bigText {
+                                        // Très grand texte : le compteur passe sous le modèle.
+                                        Text(card.readyLine).font(.caption.weight(.semibold))
+                                            .foregroundStyle(Theme.accent(settings.accent))
+                                    }
                                 }
-                                Spacer()
-                                VStack {
-                                    Text("\(settings.readyProviders.count)")
-                                        .font(.title2.weight(.black))
-                                        .foregroundStyle(Theme.accent(settings.accent))
-                                    Text("prêts").font(.caption2)
+                                Spacer(minLength: 0)
+                                if !bigText {
+                                    VStack {
+                                        Text("\(settings.readyProviders.count)")
+                                            .font(.title2.weight(.black))
+                                            .foregroundStyle(Theme.accent(settings.accent))
+                                        Text("prêts").font(.caption2)
+                                    }
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.footnote.weight(.semibold))

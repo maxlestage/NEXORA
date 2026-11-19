@@ -1344,10 +1344,17 @@ mémoire 32k tokens, consigne 3 000 car.
   120 886 (−11,7 %), coût Anthropic 211 246 → 187 375 (−11,3 %), OpenAI 337 413 →
   302 223 (−10,4 %). Tests : 575 → 576 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.169, rappel des longues demandes) → prochain passage : INTERFACE.
-Écrans d'interface restants peu traités : CreditsView (2e, peu utile) ; chercher d'autres
-lignes à colonne de droite qui s'écrasent en très grand texte (même recette).
+- 3.0.170 (interface) : onglet Modèles (ProvidersView) — carte « Modèle par défaut » en très
+  grande taille de texte (`isAccessibilitySize`) : étoile et compteur de droite (« 3 prêts »)
+  retirés de la ligne, nom du modèle sur 3 lignes au plus (au lieu d'1, coupé), compteur
+  affiché dessous via `ProvidersDisplay.DefaultCard.readyLine` (« 3 fournisseurs prêts »).
+  Taille normale inchangée. Rien retiré. Tests : 576 → 576 (test de la carte enrichi).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.170, carte du modèle par défaut) → prochain passage : TOKENS.
+Interface ensuite, même recette : ligne d'un modèle (ProviderDetailView, id monospace +
+pastille « gratuit » à droite), PersonalizeView (7 Spacer, aucun réglage très grand texte),
+InstallAgentsView, ModelPickerSheet.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
