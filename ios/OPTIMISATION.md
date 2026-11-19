@@ -1307,8 +1307,16 @@ mémoire 32k tokens, consigne 3 000 car.
   état vide + « Effacer la recherche ». Avant : faire défiler les grands dossiers (src,
   node_modules…). Rien retiré. Tests : 569 → 570 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.164, fiche d'un dépôt) → prochain passage : TOKENS.
+- 3.0.165 (tokens) : `AgentRun.manyHits` — find_in_file avec plus de 12 lignes trouvées :
+  les `findShown` = 80 premières en entier (comme search_code pour tout le dépôt), puis
+  seulement les numéros des suivantes jusqu'à 200 (« lis-les avec read_file et "line" ») ;
+  avant : les 200 lignes entières (jusqu'à 60 000 car. par résultat). Banc
+  `SearchHitsBench.manyFindHits` (fichier de 3 000 lignes, 300 trouvées) : 3 095 → 1 414
+  tokens (−54 %), aucune position perdue. Tests : 570 → 571 (mêmes 2 échecs Linux du
+  catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.165, find_in_file) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e),
 RepoView (barre à 5 segments en grand Dynamic Type).
 

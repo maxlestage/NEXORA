@@ -510,6 +510,26 @@ extension AgentRun {
         return out.joined(separator: "\n")
     }
 
+    /// Lignes de find_in_file montrées en entier quand il y en a beaucoup (comme les 80
+    /// de search_code pour tout le dépôt).
+    public nonisolated static let findShown = 80
+
+    /// find_in_file avec plus de 12 lignes trouvées : les `findShown` premières en entier
+    /// (« 12: texte », coupées à 300 car.), puis seulement les NUMÉROS des suivantes,
+    /// jusqu'à 200 en tout, pour les lire avec read_file (« line »). Avant : les 200
+    /// lignes entières, soit jusqu'à 60 000 caractères renvoyés à chaque étape.
+    public nonisolated static func manyHits(_ lines: [String], _ at: [Int]) -> String {
+        let shown = at.prefix(findShown).map { i in
+            ">\(i + 1): \(lines[i].len > 300 ? lines[i].sub(0, 300) + "…" : lines[i])"
+        }.joined(separator: "\n")
+        let rest = Array(at.dropFirst(findShown).prefix(200 - findShown))
+        guard !rest.isEmpty else { return shown }
+        let more = at.count - findShown - rest.count
+        return shown + "\nAutres lignes trouvées (lis-les avec read_file et \"line\") : "
+            + rest.map { String($0 + 1) }.joined(separator: ", ")
+            + (more > 0 ? " … (\(more) de plus : précise \"pattern\")" : "")
+    }
+
     /// Des chemins proches d'un chemin introuvable (même nom de fichier ou même dossier).
     func nearby(_ path: String) async -> String {
         let tree = await files()
@@ -707,8 +727,7 @@ extension AgentRun {
                     + "Pour modifier, recopie le passage exact dans \"old\" d'edit_file."
             }
             return "\(at.count) ligne(s) dans \(p) (\(lines.count) lignes) :\n"
-                + at.prefix(200).map { show($0, hit: true) }.joined(separator: "\n")
-                + (at.count > 200 ? "\n… (\(at.count - 200) de plus)" : "")
+                + Self.manyHits(lines, at)
         case "edit_file":
             let p = path()
             // Les noms de Claude Code (old_string/new_string) et d'autres modèles.
