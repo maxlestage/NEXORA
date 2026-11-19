@@ -1321,8 +1321,16 @@ mémoire 32k tokens, consigne 3 000 car.
   onglet ouvert affiché, `sectionMenuAccessibility` « Section, Fichiers »). Taille normale
   inchangée. Rien retiré. Tests : 571 → 572 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.166, RepoView) → prochain passage : TOKENS.
+- 3.0.167 (tokens) : `AgentRun.treeAlreadyGiven` — list_files sans dossier alors que la
+  liste complète (≤ 400 fichiers, > 600 car.) est encore dans le premier message (jamais
+  raccourci) : renvoi court « liste identique à celle du premier message » + seuls les
+  fichiers créés/supprimés depuis (40 au plus, sinon liste entière). Avant : toute la liste
+  renvoyée (le dédoublonnage ne regardait que les « Résultat de »). Banc
+  `FileTreeBench.alreadyGivenBench` (dépôt type de 131 fichiers) : 841 → 19 tokens par
+  appel répété (−98 %). Tests : 572 → 574 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.167, list_files) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e, peu utile).
 
 ## Pistes tokens à faire

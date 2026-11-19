@@ -187,6 +187,30 @@ extension AgentRun {
         }.joined(separator: "\n")
     }
 
+    /// list_files de tout le dépôt alors que la liste complète est encore dans le
+    /// premier message de la session (jamais raccourci) : un renvoi court, plus les
+    /// seuls fichiers créés ou supprimés depuis, au lieu de toute la liste une
+    /// seconde fois (3.0.167). `nil` si la liste n'y est pas (plus de 400 fichiers,
+    /// session ancienne), si elle est courte ou si trop de fichiers ont changé.
+    public nonisolated static func treeAlreadyGiven(
+        tree: [String], files: [String], history: [LLMMessage]
+    ) -> String? {
+        guard !tree.isEmpty, tree.count <= 400 else { return nil }
+        let given = fileTree(tree)
+        guard given.count > dedupMin,
+              history.contains(where: { $0.role == "user" && $0.content.contains("Fichiers :\n\(given)\n\n") })
+        else { return nil }
+        let known = Set(tree), now = Set(files)
+        let added = files.filter { !known.contains($0) }
+        let removed = tree.filter { !now.contains($0) }
+        if added.count + removed.count > 40 { return nil }
+        var lines = ["(liste identique à celle du premier message, plus haut : sers-toi de celle-là"
+            + (added.isEmpty && removed.isEmpty ? ")" : " ; depuis :)")]
+        if !added.isEmpty { lines.append("Créés :\n" + fileTree(added)) }
+        if !removed.isEmpty { lines.append("Supprimés :\n" + fileTree(removed)) }
+        return lines.joined(separator: "\n")
+    }
+
     /// Le plan d'un fichier : ses définitions peu indentées, avec leur numéro de
     /// ligne (hors des lignes `skipFrom`–`skipTo`, déjà montrées). Au plus `max`
     /// entrées : les définitions de premier niveau d'abord.
@@ -684,6 +708,9 @@ extension AgentRun {
                 if !prefix.isEmpty { lines.append(await nearby(prefix)) }
                 lines.append(notes)
                 return lines.filter { !$0.trim().isEmpty }.joined(separator: "\n")
+            }
+            if prefix.isEmpty, let short = Self.treeAlreadyGiven(tree: tree, files: files, history: history) {
+                return [short, notes].filter { !$0.trim().isEmpty }.joined(separator: "\n")
             }
             let shown = Self.fileTree(Array(files.prefix(300)))
             return [files.count > 300 ? "\(shown)\n… (\(files.count - 300) de plus, précise un dossier)" : shown, notes]
