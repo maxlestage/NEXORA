@@ -98,6 +98,7 @@ struct QuotaSheetID: Identifiable, Hashable {
 struct ProviderUsageRow: View {
     let provider: ProviderDef
     let usage: ProviderUsage
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let p = provider
@@ -105,23 +106,36 @@ struct ProviderUsageRow: View {
         let now = Date()
         let level = u.level(now)
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                ProviderBadge(provider: p, size: 38)
-                VStack(alignment: .leading, spacing: 2) {
+            if typeSize.isAccessibilitySize {
+                // Très grand texte : tout empilé, pleine largeur, rien d'écrasé.
+                HStack(spacing: 10) {
+                    ProviderBadge(provider: p, size: 38)
                     Text(p.name).fontWeight(.bold)
-                    Text(UsageText.summary(p, u, now: now))
-                        .font(.caption)
-                        .foregroundStyle(level.color)
                 }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(u.costMonth > 0 ? "≈ \(UsageFormat.costLabel(u.costMonth))" : "—")
-                        .font(.system(.body, design: .monospaced).weight(.bold))
-                    Text("ce mois").font(.caption2).foregroundStyle(.secondary)
+                Text(UsageText.summary(p, u, now: now))
+                    .font(.caption)
+                    .foregroundStyle(level.color)
+                Text(UsageDisplay.monthLine(u.costMonth))
+                    .font(.caption.weight(.bold))
+            } else {
+                HStack(spacing: 10) {
+                    ProviderBadge(provider: p, size: 38)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(p.name).fontWeight(.bold)
+                        Text(UsageText.summary(p, u, now: now))
+                            .font(.caption)
+                            .foregroundStyle(level.color)
+                    }
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(u.costMonth > 0 ? "≈ \(UsageFormat.costLabel(u.costMonth))" : "—")
+                            .font(.system(.body, design: .monospaced).weight(.bold))
+                        Text("ce mois").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
                 }
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
             }
             if let ratio = u.displayRatio {
                 ProgressView(value: ratio)

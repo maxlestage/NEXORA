@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.168 — 19 novembre 2026 — Crédits lisibles en très grand texte
+- Amélioré : dans Crédits et consommation, en très grande taille de texte, chaque fournisseur s'affiche sur toute la largeur (nom, solde, puis dépense du mois) ; avant, la colonne de droite écrasait le nom.
+- Taille de texte normale inchangée ; VoiceOver lit toujours la ligne en une fois.
+
 ## 3.0.167 — 19 novembre 2026 — Liste des fichiers pas renvoyée deux fois
 
 - Amélioré : quand l'agent redemande la liste de tous les fichiers du dépôt, il ne reçoit plus toute la liste une seconde fois (elle est déjà au début de la session), mais seulement les fichiers créés ou supprimés depuis.

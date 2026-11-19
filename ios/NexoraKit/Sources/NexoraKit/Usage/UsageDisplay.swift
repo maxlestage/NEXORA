@@ -47,8 +47,13 @@ public enum UsageDisplay {
 
     /// Ce que VoiceOver lit pour une ligne de fournisseur.
     public static func rowAccessibility(name: String, summary: String, month: Double) -> String {
-        let spent = month > 0 ? "≈ \(UsageFormat.costLabel(month)) ce mois" : "aucune dépense ce mois"
-        return "\(name), \(summary), \(spent)"
+        "\(name), \(summary), \(monthLine(month))"
+    }
+
+    /// La dépense du mois en une ligne lisible, affichée sous le résumé quand le texte
+    /// est très grand (la colonne de droite écrasait alors le nom du fournisseur).
+    public static func monthLine(_ month: Double) -> String {
+        month > 0 ? "≈ \(UsageFormat.costLabel(month)) ce mois" : "aucune dépense ce mois"
     }
 }
 
