@@ -237,6 +237,7 @@ struct AgentPickerSheet: View {
 
     @Environment(AgentLibrary.self) private var agents
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var agentTypeSize
     @State private var query = ""
 
     var body: some View {
@@ -294,11 +295,14 @@ struct AgentPickerSheet: View {
             dismiss()
         } label: {
             HStack(spacing: 10) {
-                Text(emoji).font(.title3)
+                let bigText = agentTypeSize.isAccessibilitySize
+                if !bigText { Text(emoji).font(.title3) }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name).foregroundStyle(.primary)
+                    Text(AgentPickerDisplay.title(emoji: emoji, name: name, bigText: bigText))
+                        .foregroundStyle(.primary)
                     if !description.isEmpty {
-                        Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(description).font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(AgentPickerDisplay.descriptionLines(bigText: bigText))
                     }
                 }
                 Spacer()

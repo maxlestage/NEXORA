@@ -41,6 +41,14 @@ import Testing
         #expect(AgentPickerDisplay.accessibility(name: "Traducteur", description: " ", selected: false) == "Traducteur")
     }
 
+    @Test func tresGrandTexte() {
+        #expect(AgentPickerDisplay.descriptionLines(bigText: false) == 2)
+        #expect(AgentPickerDisplay.descriptionLines(bigText: true) == 4)
+        #expect(AgentPickerDisplay.title(emoji: "🔍", name: "Relecteur", bigText: false) == "Relecteur")
+        #expect(AgentPickerDisplay.title(emoji: "🔍", name: "Relecteur", bigText: true) == "🔍 Relecteur")
+        #expect(AgentPickerDisplay.title(emoji: " ", name: "Relecteur", bigText: true) == "Relecteur")
+    }
+
     @Test func agentActuelEnTeteSansDoublon() {
         let actuel = AgentPickerDisplay.current(agents, selected: agents[2], query: "")
         #expect(actuel?.id == agents[2].id)
