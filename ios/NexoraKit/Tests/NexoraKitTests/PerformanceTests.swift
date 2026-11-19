@@ -269,7 +269,8 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
                                ranged: Bool = false, ranges: Bool = true,
                                edits: Bool = false, args: Bool = true,
                                longTask: Bool = false, quote: Bool = true,
-                               tap: ((String, [LLMMessage]) -> Void)? = nil) -> (sent: Int, uncached: Int) {
+                               tap: ((String, [LLMMessage]) -> Void)? = nil,
+                               opening: ((String) -> String)? = nil, fullGoal: Int = 0) -> (sent: Int, uncached: Int) {
     let task = longTask ? longRequest : "Ajoute une page contact avec un formulaire"
     let quoted = quote ? AgentRun.reminderQuote(task) : task
     let reminder = AgentRun.reminderMark + "Demande faite au tout début : « \(quoted) »\nRedis-la dans \"demande\" et ne fais que ce qui la sert ; une fois tout "
@@ -277,7 +278,11 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
     // La demande est en tête de la consigne ; son RAPPEL final la cite aussi.
     let system = longTask ? task + String(repeating: "s", count: 6000) + "RAPPEL : « \(quoted) »"
         : String(repeating: "s", count: 6000)
-    var history = [LLMMessage("user", task)]
+    // `opening` : le premier message réel (la demande, puis la fin qui la fait redire).
+    var history = [LLMMessage("user", opening.map { "DEMANDE DE L'UTILISATEUR : « \(task) »\n\n" + $0(task) } ?? task)]
+    // `fullGoal` : nombre de premières réponses où l'agent recopie toute la demande
+    // dans « demande » (ensuite, une phrase courte).
+    let briefGoal = "Ajouter une page contact avec un formulaire (nom, e-mail, message) reliée au menu principal"
     var previous: [LLMMessage] = []
     var sent = 0, uncached = 0
     for step in 0..<steps {
@@ -301,8 +306,8 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         let codeBody = retouched ? codeLines.joined(separator: "\n") : String(repeating: "c", count: 2000)
         let code = step % 3 == 2 ? "\n```swift\n" + codeBody + "\n```" : ""
         let file = step % 5 == 4 ? step - 2 : step
-        history.append(LLMMessage("assistant", "```json\n{\"demande\": \"Ajouter une page contact avec un formulaire "
-            + "(nom, e-mail, message) reliée au menu principal\", \"thought\": \"Je lis f\(file) pour voir "
+        history.append(LLMMessage("assistant", "```json\n{\"demande\": \"\(step < fullGoal ? task : briefGoal)"
+            + "\", \"thought\": \"Je lis f\(file) pour voir "
             + "comment les pages sont déclarées : il faut repérer le routeur, le composant de mise en page commun "
             + "et la façon dont le menu principal liste ses entrées, pour ajouter la page contact au même endroit "
             + "sans casser la navigation existante.\", \"tool\": \"read_file\", \"args\": {\"path\": \"f\(file)\"}}\n```" + code))
@@ -660,6 +665,36 @@ struct TokenBench {
         #expect(AgentRun.reminderQuote("Ajoute une page contact") == "Ajoute une page contact")
         let q = AgentRun.reminderQuote(longRequest)
         #expect(q.count < 340 && q.hasPrefix("La page contact du site") && q.hasSuffix("tes instructions)"))
+    }
+
+    @Test("session d'agent, longue demande : citée une fois au départ, redite en une phrase ensuite")
+    func longRequestRestated() {
+        // Premier message : la demande n'y est plus recopiée une seconde fois.
+        let twice: (String) -> String = { "Avant toute action, redis-toi dans \"demande\" tout ce que "
+            + "l'utilisateur veut (« \($0) »), point par point. Puis lis directement les fichiers utiles (plusieurs à la fois)." }
+        #expect(AgentRun.restateAsk("Ajoute une page contact") == twice("Ajoute une page contact"))
+        let ask = AgentRun.restateAsk(longRequest)
+        #expect(ask.count < 200 && ask.contains("sa demande ci-dessus") && ask.contains("point par point"))
+        let steps = 40
+        // Hypothèse (le modèle n'est pas mesurable ici) : avant, il recopie la longue
+        // demande à chaque tour ; après, en entier au premier tour, puis en une phrase.
+        let before = agentSessionChars(batch: AgentRun.compactBatch, longTask: true, opening: twice, fullGoal: steps)
+        let once = agentSessionChars(batch: AgentRun.compactBatch, longTask: true, opening: AgentRun.restateAsk, fullGoal: steps)
+        let after = agentSessionChars(batch: AgentRun.compactBatch, longTask: true, opening: AgentRun.restateAsk, fullGoal: 1)
+        let writtenBefore = steps * longRequest.count, writtenAfter = longRequest.count + (steps - 1) * 90
+        // Coût Anthropic : hors cache ×1,25, relu ×0,1, écrit par le modèle ×5.
+        func cost(_ r: (sent: Int, uncached: Int), _ written: Int) -> Int {
+            Int(Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1 + Double(written) * 5)
+        }
+        print("BANC demande redite (tokens ≈ car./4) : envoyés \(before.sent / 4) → \(once.sent / 4) (citée une fois) "
+            + "→ \(after.sent / 4) (une phrase), hors cache \(before.uncached / 4) → \(once.uncached / 4) → \(after.uncached / 4), "
+            + "écrits « demande » \(writtenBefore / 4) → \(writtenAfter / 4), "
+            + "coût Anthropic avec sortie \(cost(before, writtenBefore) / 4) → \(cost(once, writtenBefore) / 4) → \(cost(after, writtenAfter) / 4)")
+        #expect(once.sent < before.sent)
+        #expect(after.sent < once.sent * 95 / 100)
+        #expect(after.uncached < once.uncached)
+        // La règle est dans la consigne, et le premier tour reste complet.
+        #expect(AgentRun.shortGoalRule.contains("phrase courte") && AgentRun.shortGoalRule.contains("premier tour"))
     }
 
     @Test("session d'agent : historique raccourci par paquets, le cache de prompt sert")
