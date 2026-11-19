@@ -1268,8 +1268,15 @@ mémoire 32k tokens, consigne 3 000 car.
   3 500 tokens pour les voir tous (−75 %). Tests : 564 → 565 (mêmes 2 échecs Linux du
   catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.159, commentaires de robots) → prochain passage : INTERFACE.
+- 3.0.160 (interface) : fiche d'un brouillon (DraftDiffView, 2e passage de la revue, 1er en
+  3.0.40) — mêmes mots que la liste : `DraftsDisplay.toggleLabel` (« Cocher / Décocher » au
+  lieu de « Accepter / Refuser »), `uncheckedPill` (« décoché » au lieu de « refusé »),
+  `WorkspaceText.draftsSummary` (« 1 décoché ») ; `toggleToast` + vibration après chaque
+  choix (avant : aucun retour) ; `loadErrorTitle` : titre simple, détail technique dessous.
+  Rien retiré. Tests : 565 → 566 (mêmes 2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.160, fiche d'un brouillon) → prochain passage : TOKENS.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), accueil, Personnaliser.
 Piste tokens suivante : relectures (GET …/pulls/<n>/reviews) de robots répétées
 (Copilot, CodeRabbit) — même règle que 3.0.159 ? à mesurer.

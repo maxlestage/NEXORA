@@ -287,7 +287,7 @@ struct DraftRow: View {
     }
 }
 
-/// La comparaison d'un brouillon, avec Accepter / Refuser / Modifier, et
+/// La comparaison d'un brouillon, avec Cocher / Décocher / Modifier, et
 /// « Suivant » pour relire tous les brouillons sans revenir à la liste.
 struct DraftDiffView: View {
     let run: AgentRun
@@ -296,11 +296,14 @@ struct DraftDiffView: View {
     @State private var path: String
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(SettingsStore.self) private var settings
     @State private var whole = false
     @State private var diff: DiffResult?
     @State private var error: String?
     @State private var editing = false
     @State private var toast: Toast?
+    /// Compteur des choix Cocher / Décocher, pour la vibration.
+    @State private var toggled = 0
     /// Les colonnes des numéros et des signes suivent la taille du texte.
     @ScaledMetric(relativeTo: .caption2) private var numberWidth: CGFloat = 34
     @ScaledMetric(relativeTo: .caption) private var signWidth: CGFloat = 16
@@ -318,14 +321,18 @@ struct DraftDiffView: View {
         let next = DraftsDisplay.next(after: path, in: paths)
         Group {
             if let error {
-                ContentUnavailableView("Version d'origine illisible : \(error)", systemImage: "exclamationmark.triangle")
+                ContentUnavailableView(
+                    DraftsDisplay.loadErrorTitle,
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(error)
+                )
             } else if let d = diff {
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
                         Text(path).font(.caption.monospaced()).lineLimit(1)
                         Pill(text: "+\(d.added)", color: Theme.green)
                         Pill(text: "−\(d.removed)", color: Theme.red)
-                        if !ok { Pill(text: "refusé", color: .gray) }
+                        if !ok { Pill(text: DraftsDisplay.uncheckedPill, color: .gray) }
                         if d.truncated { Pill(text: "comparaison simplifiée", color: Theme.amber) }
                         Spacer(minLength: 0)
                         if let place = DraftsDisplay.position(of: path, in: paths) {
@@ -368,17 +375,17 @@ struct DraftDiffView: View {
                 }
                 if ok {
                     Button(role: .destructive) {
-                        run.setAccepted(path, false)
+                        toggle(false)
                     } label: {
-                        Label("Refuser", systemImage: "xmark").frame(maxWidth: .infinity)
+                        Label(DraftsDisplay.toggleLabel(accepted: true), systemImage: "xmark").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .tint(Theme.red)
                 } else {
                     Button {
-                        run.setAccepted(path, true)
+                        toggle(true)
                     } label: {
-                        Label("Accepter", systemImage: "checkmark").frame(maxWidth: .infinity)
+                        Label(DraftsDisplay.toggleLabel(accepted: false), systemImage: "checkmark").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -408,6 +415,14 @@ struct DraftDiffView: View {
             }
         }
         .toast($toast)
+        .sensoryFeedback(.selection, trigger: toggled) { _, _ in settings.haptics }
+    }
+
+    /// Coche ou décoche le brouillon montré, avec un avis et une vibration.
+    private func toggle(_ accepted: Bool) {
+        run.setAccepted(path, accepted)
+        toggled += 1
+        toast = Toast(text: DraftsDisplay.toggleToast(accepted: accepted))
     }
 
     private struct DraftKey: Hashable {
