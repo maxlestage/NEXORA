@@ -1236,9 +1236,16 @@ mémoire 32k tokens, consigne 3 000 car.
   réponse, 26 250 → 3 500 tokens pour voir les 30 (−87 %). Tests : 559 → 560 (mêmes 2
   échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.155, listes d'issues) → prochain passage : INTERFACE.
-Écran : QuotaSheet, ModelSheet ou InstallAgentsView (peu ou pas traités).
+- 3.0.156 (interface) : fiche d'un fournisseur (QuotaSheet, 2e passage, 1er en 3.0.62) —
+  `QuotaDisplay.toast(Change)` : avis + vibration après solde indiqué/retiré, crédit mensuel
+  choisi/retiré, compteurs remis à zéro (avant : seuls solde et crédit choisis vibraient,
+  retirer ou remettre à zéro ne disait rien) ; `prepaidHint` et `estimateNote` : explications
+  en une phrase (≈ 190 → 95 car. et 125 → 80 car.) ; « Retirer » et « Remettre à zéro »
+  44 pt. Rien retiré. Tests : 560 → 562 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.156, QuotaSheet) → prochain passage : TOKENS.
+Écrans d'interface restants peu traités : ModelSheet (2e passage), UsageView.
 Piste tokens suivante : `body` des listes de versions (GET …/releases, notes longues) —
 même réduction avec `tag_name` ? à mesurer.
 

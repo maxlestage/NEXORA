@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.156 — 19 novembre 2026 — Fiche d'un fournisseur plus claire
+- Amélioré : indiquer, retirer un solde ou un crédit mensuel, ou remettre les compteurs à zéro affiche un avis de confirmation avec une vibration.
+- Amélioré : explications du solde prépayé et de la dépense estimée raccourcies à une phrase.
+- Accessibilité : « Retirer » et « Remettre à zéro » plus faciles à toucher (44 pt).
+
 ## 3.0.155 — 18 novembre 2026 — Listes d'issues plus légères pour l'agent
 
 - Amélioré : dans une liste d'issues ou de pull requests, les longs textes sont raccourcis à leurs premières lignes, avec le chemin pour les lire en entier.

@@ -48,6 +48,23 @@ struct UsageDisplayTests {
 
 @Suite("Fiche d'un fournisseur")
 struct QuotaDisplayTests {
+    @Test func avisApresChangement() {
+        #expect(QuotaDisplay.toast(.prepaid(18.4)) == "Solde enregistré : 18,4 $")
+        #expect(QuotaDisplay.toast(.prepaid(nil)) == "Solde retiré")
+        #expect(QuotaDisplay.toast(.budget(20)) == "Crédit mensuel : 20,0 $")
+        #expect(QuotaDisplay.toast(.budget(nil)) == "Crédit mensuel retiré")
+        #expect(QuotaDisplay.toast(.reset) == "Compteurs remis à zéro")
+    }
+
+    @Test func textesCourts() {
+        let sans = QuotaDisplay.prepaidHint("Mistral", hasPrepaid: false)
+        let avec = QuotaDisplay.prepaidHint("Mistral", hasPrepaid: true)
+        #expect(sans.contains("Mistral") && sans.count < 110)
+        #expect(avec.count < 100 && avec != sans)
+        let note = QuotaDisplay.estimateNote("OpenAI", pricesDate: "1er novembre 2026")
+        #expect(note.contains("OpenAI") && note.contains("1er novembre 2026") && note.count < 100)
+    }
+
     @Test func rienCompte() {
         let u = ProviderUsage("openai")
         #expect(QuotaDisplay.counted(u).isEmpty)
