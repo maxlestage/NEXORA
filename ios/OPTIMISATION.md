@@ -1300,10 +1300,17 @@ mémoire 32k tokens, consigne 3 000 car.
   visibles, 7 000 → 3 500 tokens pour les voir tous (−50 %). Tests : 568 → 569 (mêmes 2
   échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.163, listes de commits) → prochain passage : INTERFACE.
+- 3.0.164 (interface) : fiche d'un dépôt (RepoView, onglet Fichiers) — recherche dans le
+  dossier ouvert (`.searchable`, `FilesDisplay.filter` déjà testé, invite commune
+  `FilesDisplay.searchPrompt` avec la pièce jointe) ; ligne du bas `FilesDisplay.footer`
+  (« 3 résultats sur 42 » pendant la recherche, résumé du dossier sinon) ; aucun résultat :
+  état vide + « Effacer la recherche ». Avant : faire défiler les grands dossiers (src,
+  node_modules…). Rien retiré. Tests : 569 → 570 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.164, fiche d'un dépôt) → prochain passage : TOKENS.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e),
-fiche d'un dépôt (RepoView).
+RepoView (barre à 5 segments en grand Dynamic Type).
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

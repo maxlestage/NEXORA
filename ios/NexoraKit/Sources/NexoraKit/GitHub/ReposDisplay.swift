@@ -100,6 +100,17 @@ public enum FilesDisplay {
         items.filter { AgentsDisplay.matches(query, $0.name) }
     }
 
+    /// L'invite de la recherche dans un dossier d'un dépôt (fiche du dépôt, pièce jointe).
+    public static let searchPrompt = "Chercher dans ce dossier"
+
+    /// La ligne sous la liste : le résumé du dossier, ou pendant une recherche ce qu'elle
+    /// garde (« 3 résultats sur 42 »). Vide si rien à dire.
+    public static func footer(shown: [ContentItem], total: Int, query: String) -> String {
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return summary(shown) }
+        if shown.isEmpty { return "" }
+        return (shown.count == 1 ? "1 résultat" : "\(shown.count) résultats") + " sur \(total)"
+    }
+
     /// Une taille de fichier à la française : « 840 o », « 1,2 Ko », « 3 Mo ».
     public static func size(_ bytes: Int) -> String {
         if bytes < 1_000 { return "\(max(0, bytes)) o" }

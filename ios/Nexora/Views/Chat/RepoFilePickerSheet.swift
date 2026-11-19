@@ -180,7 +180,7 @@ private struct RepoFileBrowser: View {
                 }
             }
         }
-        .searchable(text: $query, prompt: "Chercher dans ce dossier")
+        .searchable(text: $query, prompt: FilesDisplay.searchPrompt)
         .navigationTitle(path.isEmpty ? repo.fullName : (path.components(separatedBy: "/").last ?? path))
         .navigationBarTitleDisplayMode(.inline)
         .task { if items == nil { await load() } }
