@@ -1366,12 +1366,30 @@ mémoire 32k tokens, consigne 3 000 car.
   128k de contexte, gratuit, modèle par défaut ») + `modelHint` ; ligne de 44 pt au moins,
   touchable sur toute la largeur. Taille normale inchangée. Rien retiré. Tests : 577 → 578.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.172, ligne d'un modèle) → prochain passage : TOKENS (voir pistes
-ci-dessous). Interface ensuite, même recette : PersonalizeView (7 Spacer, aucun réglage
-très grand texte), InstallAgentsView, ModelPickerSheet.
+- 3.0.173 (tokens, première piste sur les tokens ÉCRITS) : longue demande moins répétée.
+  (1) `AgentRun.restateAsk` — le premier message (renvoyé à chaque étape) ne recopie plus
+  une demande de plus de 400 car. une seconde fois (« sa demande ci-dessus ») ; demande
+  courte inchangée. (2) `AgentRun.shortGoalRule`, ajoutée à la règle du champ « demande »
+  de la consigne : après le premier tour (ou le premier tour suivant une nouvelle
+  instruction), une phrase de 20 mots au plus ; le premier tour reste complet, point par
+  point, et le rappel des résultats d'outils est inchangé. Banc
+  `TokenBench.longRequestRestated` (40 étapes, demande de 1 886 car.) : envoyés 591 896 →
+  573 196 (citée une fois, mesuré sur le vrai message) → 489 280 ; hors cache 154 166 →
+  153 698 → 121 388 ; écrits dans « demande » 18 860 → 1 349 ; coût Anthropic sortie
+  comprise (×5) 330 780 → 328 373 → 195 270 (−41 %). ATTENTION : l'étape (2) est une
+  HYPOTHÈSE de comportement (avant : le modèle recopie toute la demande à chaque tour ;
+  après : une phrase de 90 car.) — un vrai modèle résumait peut-être déjà ; le gain réel
+  est entre 0 et ce chiffre. Tests : 578 → 579.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.173) → prochain passage : INTERFACE, même recette : PersonalizeView
+(7 Spacer, aucun réglage très grand texte), InstallAgentsView, ModelPickerSheet. Tokens
+ensuite : voir pistes ci-dessous.
 
 ## Pistes tokens à faire
+- Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
+  « thought » (aucune limite demandée), le résumé de finish, les réponses du chat
+  (`max_tokens`), le contenu réécrit par write_file quand edit_file suffirait.
 - Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,
   non mesurée (c'est le texte voulu par l'utilisateur ; ne pas y toucher sans réglage).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.173 — 19 novembre 2026 — Longues demandes moins coûteuses pour l'agent
+
+- Amélioré : quand vous collez une longue demande, l'agent ne la recopie plus en entier à chaque étape ; il la redit point par point au départ, puis en une phrase.
+- Amélioré : sur une session de 40 étapes avec une demande de 2 000 caractères, jusqu'à 15 % de tokens envoyés en moins et bien moins de texte écrit par le modèle (le plus cher).
+- Plus lisible : dans la session, le rappel « 🎯 » de chaque étape tient en une ligne.
+
 ## 3.0.172 — 19 novembre 2026 — Modèles d'un fournisseur lisibles en très grand texte
 
 - Amélioré : dans la fiche d'un fournisseur, en très grande taille de texte, la pastille « gratuit » passe sous le nom du modèle au lieu de l'écraser à droite.

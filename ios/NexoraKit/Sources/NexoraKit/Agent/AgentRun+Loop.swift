@@ -67,9 +67,7 @@ extension AgentRun {
                         + more.map { "- « \($0) »" }.joined(separator: "\n") + "\n\n")
                     + (files.isEmpty ? "Explore le dépôt." : "Fichiers :\n\(files)") + "\n\n"
                     + (tests.isEmpty ? "" : "OÙ ÉCRIRE LES TESTS (inutile de le chercher) :\n\(tests)\n\n")
-                    + "Avant toute action, redis-toi dans \"demande\" tout ce que "
-                    + "l'utilisateur veut (« \(task) »), point par point. Puis lis "
-                    + "directement les fichiers utiles (plusieurs à la fois)."
+                    + Self.restateAsk(task)
             ))
         } else if !follow.isEmpty && fromApp {
             // Un rapport de l'app : dans l'historique, affiché comme un résultat.

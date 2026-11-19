@@ -563,6 +563,27 @@ public final class AgentRun {
             + " […] (en entier en tête de tes instructions)"
     }
 
+    /// La fin du premier message : l'agent se redit la demande avant d'agir. Une
+    /// longue demande (plus de `reminderQuoteMax`) n'y est pas recopiée : elle est
+    /// trois lignes plus haut dans le même message, qui repart à chaque étape
+    /// (3.0.173 ; avant, 2 copies entières dans ce message).
+    public nonisolated static func restateAsk(_ task: String) -> String {
+        let cited = task.trimmingCharacters(in: .whitespacesAndNewlines).count > reminderQuoteMax
+            ? "sa demande ci-dessus" : "« \(task) »"
+        return "Avant toute action, redis-toi dans \"demande\" tout ce que "
+            + "l'utilisateur veut (\(cited)), point par point. Puis lis "
+            + "directement les fichiers utiles (plusieurs à la fois)."
+    }
+
+    /// Ajouté à la règle du champ « demande » : après le premier tour, l'agent ne
+    /// recopie pas toute la demande à chaque réponse (les tokens écrits coûtent ≈ 5
+    /// fois plus cher que les tokens lus, et les 4 dernières réponses repartent
+    /// entières à chaque étape). Le premier tour reste complet, point par point.
+    public nonisolated static let shortGoalRule =
+        "Après ton premier tour (et le premier tour qui suit une nouvelle instruction), "
+        + "une phrase courte suffit dans \"demande\" (20 mots au plus) : ne recopie "
+        + "pas toute la demande à chaque tour."
+
     public var reminder: String {
         let r = requests.map(Self.reminderQuote)
         let next = r.count > 1
@@ -699,7 +720,8 @@ public final class AgentRun {
                 + "\"tool\": \"nom\", \"args\": {...}}\n```\n"
                 + "Le champ \"demande\" est OBLIGATOIRE à CHAQUE tour : répète-toi ce que "
                 + "l'utilisateur veut avant chaque action (sa dernière instruction en "
-                + "priorité), puis fais une action qui sert exactement cette demande.\n"
+                + "priorité), puis fais une action qui sert exactement cette demande. "
+                + Self.shortGoalRule + "\n"
                 + "POUR ALLER VITE, groupe plusieurs actions dans un même tour (par exemple "
                 + "lire plusieurs fichiers, ou écrire plusieurs fichiers) :\n"
                 + "```json\n{\"demande\": \"…\", \"thought\": \"…\", \"actions\": [{\"tool\": "
