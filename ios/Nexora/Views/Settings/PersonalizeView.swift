@@ -6,6 +6,7 @@ import UIKit
 /// (`ui/settings/personalize_screen.dart`).
 struct PersonalizeView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var pickLevel = false
     @State private var importing = false
     @State private var importText = ""
@@ -23,6 +24,10 @@ struct PersonalizeView: View {
             name: name, about: about, style: style,
             savedName: settings.assistantName, savedAbout: settings.aboutMe, savedStyle: settings.responseStyle)
     }
+
+    /// Très grande taille de texte : les lignes « libellé + valeur » s'empilent
+    /// et les choix à segments deviennent des menus (rien n'est coupé).
+    private var bigText: Bool { typeSize.isAccessibilitySize }
 
     var body: some View {
         @Bindable var settings = settings
@@ -69,7 +74,7 @@ struct PersonalizeView: View {
                     Label("Clair", systemImage: "sun.max.fill").tag("light")
                     Label("Auto", systemImage: "iphone").tag("system")
                 }
-                .pickerStyle(.segmented)
+                .modifier(SegmentedOrMenu(menu: bigText))
                 Toggle(isOn: $settings.oledBlack) {
                     VStack(alignment: .leading) {
                         Text("Noir pur (écran OLED)")
@@ -80,11 +85,7 @@ struct PersonalizeView: View {
 
             Section {
                 VStack(alignment: .leading) {
-                    HStack {
-                        Text("Taille du texte")
-                        Spacer()
-                        Text(PersonalizeDisplay.percent(settings.textScale)).monospacedDigit().foregroundStyle(.secondary)
-                    }
+                    valueRow("Taille du texte", PersonalizeDisplay.percent(settings.textScale))
                     Slider(value: $settings.textScale, in: 0.85...1.3, step: 0.05)
                         .accessibilityLabel("Taille du texte")
                         .accessibilityValue(PersonalizeDisplay.percent(settings.textScale))
@@ -96,7 +97,7 @@ struct PersonalizeView: View {
                         Text("Douces").tag("reduced")
                         Text("Aucune").tag("off")
                     }
-                    .pickerStyle(.segmented)
+                    .modifier(SegmentedOrMenu(menu: bigText))
                     .labelsHidden()
                 }
                 Toggle("Retour haptique", isOn: $settings.haptics)
@@ -116,13 +117,23 @@ struct PersonalizeView: View {
                             Text("\(settings.defaultLevel.emoji) \(settings.defaultLevel.label) · \(settings.defaultLevel.summary)")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        LevelBars(level: settings.defaultLevel, color: Theme.accent(settings.accent))
+                        // En très grand texte, les barres laissent toute la largeur au texte.
+                        if !bigText {
+                            Spacer()
+                            LevelBars(level: settings.defaultLevel, color: Theme.accent(settings.accent))
+                        }
                     }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .accessibilityLabel(PersonalizeDisplay.effortAccessibility(
+                    label: settings.defaultLevel.label, summary: settings.defaultLevel.summary))
+                .accessibilityHint("Ouvre le choix de l'effort")
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Style des messages envoyés")
-                    HStack(spacing: 8) {
+                    // Côte à côte ; l'un sous l'autre en très grand texte (libellés entiers).
+                    let styles = bigText ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+                    styles {
                         ForEach(PersonalizeDisplay.bubbleStyles, id: \.value) { value, label in
                             Button {
                                 settings.bubbleStyle = value
@@ -160,7 +171,7 @@ struct PersonalizeView: View {
                         Text("Longue").tag(128_000)
                         Text("Tout").tag(0)
                     }
-                    .pickerStyle(.segmented)
+                    .modifier(SegmentedOrMenu(menu: bigText))
                     .labelsHidden()
                     Text(ChatDisplay.memoryCaption(settings.contextTokens)).font(.caption).foregroundStyle(.secondary)
                 }
@@ -172,11 +183,7 @@ struct PersonalizeView: View {
                 }
                 DisclosureGroup("Avancé") {
                     VStack(alignment: .leading) {
-                        HStack {
-                            Text("Créativité")
-                            Spacer()
-                            Text(PersonalizeDisplay.temperature(settings.temperature)).monospacedDigit().foregroundStyle(.secondary)
-                        }
+                        valueRow("Créativité", PersonalizeDisplay.temperature(settings.temperature))
                         Slider(value: $settings.temperature, in: 0...1.5, step: 0.1)
                             .accessibilityLabel("Créativité")
                             .accessibilityValue(PersonalizeDisplay.temperature(settings.temperature))
@@ -207,11 +214,7 @@ struct PersonalizeView: View {
                     }
                 }
                 VStack(alignment: .leading) {
-                    HStack {
-                        Text("Vitesse de lecture")
-                        Spacer()
-                        Text(PersonalizeDisplay.voiceRate(settings.voiceRate)).foregroundStyle(.secondary)
-                    }
+                    valueRow("Vitesse de lecture", PersonalizeDisplay.voiceRate(settings.voiceRate))
                     Slider(value: $settings.voiceRate, in: 0.3...0.7, step: 0.05)
                         .accessibilityLabel("Vitesse de lecture")
                         .accessibilityValue(PersonalizeDisplay.voiceRate(settings.voiceRate))
@@ -281,6 +284,26 @@ struct PersonalizeView: View {
             if assistantDirty { storeAssistant() }
         }
         .toast($toast)
+    }
+
+    /// Un libellé et sa valeur au-dessus d'un curseur : côte à côte, ou l'un sous
+    /// l'autre en très grand texte. VoiceOver les lit déjà sur le curseur.
+    @ViewBuilder
+    private func valueRow(_ title: String, _ value: String) -> some View {
+        if bigText {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(value).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .accessibilityHidden(true)
+        } else {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .accessibilityHidden(true)
+        }
     }
 
     /// L'aperçu en direct : couleurs, logo, messages, niveau.
@@ -371,6 +394,20 @@ struct PersonalizeView: View {
         name = settings.assistantName
         about = settings.aboutMe
         style = settings.responseStyle
+    }
+}
+
+/// Choix à segments ; menu en très grande taille de texte, où les segments
+/// coupent leurs libellés (« Norm… »).
+private struct SegmentedOrMenu: ViewModifier {
+    let menu: Bool
+
+    func body(content: Content) -> some View {
+        if menu {
+            content.pickerStyle(.menu)
+        } else {
+            content.pickerStyle(.segmented)
+        }
     }
 }
 

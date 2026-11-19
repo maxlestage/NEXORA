@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.174 — 19 novembre 2026 — Personnaliser lisible en très grand texte
+- Amélioré : en très grande taille de texte, les choix « Thème », « Animations » et « Mémoire » deviennent des menus : plus de libellés coupés (« Norm… »).
+- Amélioré : la valeur d'un curseur (taille du texte, créativité, vitesse de lecture) passe sous son libellé, et les styles de messages s'affichent l'un sous l'autre.
+- Amélioré : VoiceOver lit « Effort par défaut : Équilibré… » sans l'émoji, et ne répète plus deux fois la valeur des curseurs.
+
 ## 3.0.173 — 19 novembre 2026 — Longues demandes moins coûteuses pour l'agent
 
 - Amélioré : quand vous collez une longue demande, l'agent ne la recopie plus en entier à chaque étape ; il la redit point par point au départ, puis en une phrase.

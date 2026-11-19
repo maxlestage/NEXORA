@@ -1381,10 +1381,18 @@ mémoire 32k tokens, consigne 3 000 car.
   après : une phrase de 90 car.) — un vrai modèle résumait peut-être déjà ; le gain réel
   est entre 0 et ce chiffre. Tests : 578 → 579.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.173) → prochain passage : INTERFACE, même recette : PersonalizeView
-(7 Spacer, aucun réglage très grand texte), InstallAgentsView, ModelPickerSheet. Tokens
-ensuite : voir pistes ci-dessous.
+- 3.0.174 (interface) : Personnaliser (PersonalizeView) en très grande taille de texte —
+  `SegmentedOrMenu` : Thème, Animations et Mémoire passent de segments (libellés coupés) à
+  un menu ; `valueRow` : la valeur d'un curseur passe sous son libellé (et n'est plus lue
+  deux fois par VoiceOver, le curseur la dit déjà) ; styles de messages l'un sous l'autre ;
+  ligne « Effort par défaut » : barres masquées en grand texte, 44 pt, VoiceOver lit
+  `PersonalizeDisplay.effortAccessibility` (sans émoji) + aide. Taille normale inchangée.
+  Rien retiré. Tests : 579 → 580 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.174) → prochain passage : TOKENS (pistes ci-dessous, d'abord les
+tokens ÉCRITS). Interface ensuite, même recette : InstallAgentsView, ModelPickerSheet,
+aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
