@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.176 — 19 novembre 2026 — Choix du modèle lisible en très grand texte
+
+- Amélioré : en très grande taille de texte, le nom d'un modèle s'affiche en entier (jusqu'à trois lignes) au lieu d'être coupé après quelques lettres.
+- Amélioré : les mentions « gratuit » et « local » passent alors sous le nom, et les lignes « Chercher les nouveaux modèles » et « Actualiser » s'empilent au lieu de se serrer.
+- En taille normale, rien ne change.
+
 ## 3.0.175 — 19 novembre 2026 — Petites retouches moins coûteuses pour l'agent
 
 - Amélioré : quand l'agent réécrit un long fichier en entier pour n'y changer que quelques lignes, il est prévenu tout de suite et passe ensuite à une modification ciblée, bien moins coûteuse.

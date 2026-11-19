@@ -40,4 +40,13 @@ import Testing
         #expect(ModelPickerDisplay.catalogNote(updated: "") == "Liste intégrée à l'app")
         #expect(ModelPickerDisplay.catalogNote(updated: "12 nov.") == "Liste du 12 nov.")
     }
+
+    @Test func badgesEtLignesEnTresGrandTexte() {
+        #expect(ModelPickerDisplay.tags(free: true, local: false) == "gratuit")
+        #expect(ModelPickerDisplay.tags(free: false, local: true) == "local")
+        #expect(ModelPickerDisplay.tags(free: true, local: true) == "gratuit · local")
+        #expect(ModelPickerDisplay.tags(free: false, local: false) == nil)
+        #expect(ModelPickerDisplay.lineLimit(bigText: false) == 1)
+        #expect(ModelPickerDisplay.lineLimit(bigText: true) == 3)
+    }
 }
