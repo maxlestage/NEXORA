@@ -159,7 +159,13 @@ extension AgentRun {
                       let m = htmlIssueRe.firstMatch(u) else { return nil }
                 return "/repos/\(m[1]!)/\(m[2]!)"
             }.first
-            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })), repo: repo)
+            // Pull request d'une liste de relectures (« …/pull/7#pullrequestreview-… »).
+            let pull = a.lazy.compactMap { x -> String? in
+                guard let u = (x as? [String: Any])?["html_url"] as? String,
+                      let m = htmlReviewRe.firstMatch(u) else { return nil }
+                return "/repos/\(m[1]!)/\(m[2]!)/pulls/\(m[3]!)"
+            }.first
+            return listBodies(replyHunks(linearCommits(a.map { slimGitHub($0) })), repo: repo, pull: pull)
         default:
             return x
         }
@@ -169,6 +175,8 @@ extension AgentRun {
     nonisolated static let listBodyMax = 300
 
     nonisolated static let htmlIssueRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/(issues|pull)/\d+"#)
+
+    nonisolated static let htmlReviewRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/pull/(\d+)#pullrequestreview-"#)
 
     nonisolated static let htmlReleaseRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/releases/tag/"#)
 
@@ -183,13 +191,15 @@ extension AgentRun {
     /// (GET …/issues/<n>/comments), seuls les anciens commentaires d'un robot suivis
     /// d'un plus récent du même robot sont réduits ainsi (les robots de couverture ou
     /// de déploiement répètent un long rapport à chaque envoi) ; les commentaires des
-    /// personnes et le dernier de chaque robot restent entiers.
-    nonisolated static func listBodies(_ a: [Any], repo: String? = nil) -> [Any] {
+    /// personnes et le dernier de chaque robot restent entiers. Même règle pour une liste
+    /// de relectures (GET …/pulls/<n>/reviews : Copilot, CodeRabbit… relisent chaque envoi).
+    nonisolated static func listBodies(_ a: [Any], repo: String? = nil, pull: String? = nil) -> [Any] {
         guard a.count > 1 else { return a }
-        // Dernier commentaire de chaque robot dans une liste de commentaires d'issue.
+        // Dernier commentaire (ou relecture) de chaque robot dans la liste.
         var lastBot: [String: Int] = [:]
         for (i, x) in a.enumerated() {
             if let login = botLogin(x) { lastBot[login] = i }
+            if let login = botReviewLogin(x) { lastBot["relecture:" + login] = i }
         }
         return a.enumerated().map { i, x in
             guard var d = x as? [String: Any], let body = d["body"] as? String, body.count > listBodyMax else { return x }
@@ -198,6 +208,9 @@ extension AgentRun {
                 // Ancien commentaire d'un robot (rapport de couverture, de déploiement…)
                 // remplacé par un plus récent du même robot plus bas dans la liste.
                 path = (repo ?? "…") + "/issues/comments/\(id)"
+            } else if let login = botReviewLogin(x), lastBot["relecture:" + login] != i, let id = d["id"] as? Int {
+                // Ancienne relecture d'un robot, suivie d'une plus récente du même robot.
+                path = (pull ?? "…/pulls/<n>") + "/reviews/\(id)"
             } else if let n = d["number"] as? Int, d["title"] is String {
                 if let u = d["html_url"] as? String, let m = htmlIssueRe.firstMatch(u) {
                     path = "/repos/\(m[1]!)/\(m[2]!)/issues/\(n)"
@@ -234,6 +247,16 @@ extension AgentRun {
               (u["type"] as? String) == "Bot", let login = u["login"] as? String,
               d["id"] is Int, d["body"] is String, d["created_at"] is String,
               d["title"] == nil, d["path"] == nil, d["state"] == nil, d["diff_hunk"] == nil else { return nil }
+        return login
+    }
+
+    /// Le nom d'un robot (`user.type` « Bot ») auteur d'une relecture de pull request
+    /// allégée (`id` + `body` + `state` + `submitted_at`, sans titre ni fichier), sinon nil.
+    nonisolated static func botReviewLogin(_ x: Any) -> String? {
+        guard let d = x as? [String: Any], let u = d["user"] as? [String: Any],
+              (u["type"] as? String) == "Bot", let login = u["login"] as? String,
+              d["id"] is Int, d["body"] is String, d["state"] is String, d["submitted_at"] is String,
+              d["title"] == nil, d["path"] == nil, d["diff_hunk"] == nil else { return nil }
         return login
     }
 

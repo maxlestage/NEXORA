@@ -1275,11 +1275,18 @@ mémoire 32k tokens, consigne 3 000 car.
   choix (avant : aucun retour) ; `loadErrorTitle` : titre simple, détail technique dessous.
   Rien retiré. Tests : 565 → 566 (mêmes 2 échecs Linux du catalogue et des prix en direct).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.160, fiche d'un brouillon) → prochain passage : TOKENS.
+- 3.0.161 (tokens) : `listBodies` étendu aux listes de relectures (GET …/pulls/<n>/reviews) —
+  l'ancienne relecture d'un robot (`botReviewLogin` : `user.type` « Bot », `state`,
+  `submitted_at`) suivie d'une plus récente du même robot est réduite à ses premières lignes
+  + « (N car. de plus : GET /repos/o/r/pulls/<n>/reviews/<id>) » ; pull request lue dans
+  `html_url` (`htmlReviewRe`) avant son retrait. Banc `AgentShipTests.githubBotReviews`
+  (15 relectures dont 12 d'un robot de ≈ 2 500 car.) : 2 → 13 relectures visibles, 14 000 →
+  3 500 tokens pour les voir toutes (−75 %). Tests : 566 → 567 (mêmes 2 échecs Linux du
+  catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.161, relectures de robots) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), accueil, Personnaliser.
-Piste tokens suivante : relectures (GET …/pulls/<n>/reviews) de robots répétées
-(Copilot, CodeRabbit) — même règle que 3.0.159 ? à mesurer.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
