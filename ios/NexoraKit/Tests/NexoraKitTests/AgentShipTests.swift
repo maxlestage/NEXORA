@@ -1239,6 +1239,41 @@ struct AgentShipTests {
         #expect(one["body"] as? String == notes)
     }
 
+    @Test("banc github : anciens rapports de robots réduits dans une liste de commentaires")
+    func githubBotComments() throws {
+        // Une pull request : 12 envois, chacun suivi d'un rapport de couverture (≈ 2 500 car.)
+        // du même robot, et 3 commentaires de personnes.
+        let row = "| src/Module/Fichier.swift | 87.5% <ø> (+0.2%) | ⬆️ |\n"
+        let report = "## Rapport de couverture\n\n| Fichier | Couverture | Δ |\n|---|---|---|\n" + String(repeating: row, count: 44)
+        let human = String(repeating: "Je pense qu'il faut revoir la gestion des erreurs ici. ", count: 8)
+        func comments(_ type: String) -> [Any] {
+            (1...15).map { i -> Any in
+                let bot = i % 5 != 0
+                return ["id": 1000 + i, "html_url": "https://github.com/o/r/pull/7#issuecomment-\(1000 + i)",
+                        "user": ["login": bot ? "codecov[bot]" : "max", "type": bot ? type : "User"] as [String: Any],
+                        "created_at": "2026-11-\(10 + i)T10:00:00Z", "author_association": bot ? "NONE" : "OWNER",
+                        "body": bot ? report + "\nEnvoi \(i)" : human]
+            }
+        }
+        // Avant : mêmes commentaires, robots non reconnus (type « Robot »).
+        let raw = AgentRun.githubText(AgentRun.slimGitHub(comments("Robot")))
+        let slim = AgentRun.githubText(AgentRun.slimGitHub(comments("Bot")))
+        func visible(_ t: String) -> Int { t.prefix(7000).components(separatedBy: "\"created_at\":").count - 1 }
+        func cost(_ t: String) -> Int { let v = max(1, visible(t)); return ((15 + v - 1) / v) * min(t.count, 7000) / 4 }
+        print("Banc github (15 commentaires dont 12 rapports d'un robot) : \(visible(raw)) → \(visible(slim)) commentaires visibles, \(cost(raw)) → \(cost(slim)) tokens pour les voir tous")
+        #expect(visible(slim) >= 3 * visible(raw) && cost(slim) * 3 < cost(raw))
+        let list = try #require(AgentRun.slimGitHub(comments("Bot")) as? [[String: Any]])
+        let old = try #require(list[0]["body"] as? String)
+        #expect(old.hasPrefix("## Rapport de couverture"))
+        #expect(old.hasSuffix("car. de plus : GET /repos/o/r/issues/comments/1001)"))
+        // Le dernier rapport du robot et les commentaires des personnes restent entiers.
+        #expect(list[13]["body"] as? String == report + "\nEnvoi 14")
+        #expect(list[4]["body"] as? String == human)
+        // Un seul commentaire de robot : entier.
+        let single = try #require(AgentRun.slimGitHub([comments("Bot")[0], comments("Bot")[4]]) as? [[String: Any]])
+        #expect(single[0]["body"] as? String == report + "\nEnvoi 1")
+    }
+
     @Test("banc github : commentaires HTML des modèles retirés des textes")
     func githubBodyComments() throws {
         // Un modèle de pull request courant : consignes en commentaires HTML, invisibles sur GitHub.
