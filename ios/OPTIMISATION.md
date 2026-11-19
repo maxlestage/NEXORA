@@ -1350,13 +1350,25 @@ mémoire 32k tokens, consigne 3 000 car.
   affiché dessous via `ProvidersDisplay.DefaultCard.readyLine` (« 3 fournisseurs prêts »).
   Taille normale inchangée. Rien retiré. Tests : 576 → 576 (test de la carte enrichi).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.170, carte du modèle par défaut) → prochain passage : TOKENS.
-Interface ensuite, même recette : ligne d'un modèle (ProviderDetailView, id monospace +
-pastille « gratuit » à droite), PersonalizeView (7 Spacer, aucun réglage très grand texte),
-InstallAgentsView, ModelPickerSheet.
+- 3.0.171 (tokens) : `ChatLibrary.catalogLine` — dans la consigne de l'agent (renvoyée à
+  chaque étape) et dans la liste des skills du chat, la description d'un sous-agent (240
+  car. au plus) ou d'une skill (400) tient sur une ligne : exemples retirés (« <example> »,
+  « Examples: » des agents de Claude Code), espaces et « \\n » réduits, coupe en fin de
+  phrase ou de mot. Avant : description entière (souvent ≈ 1 000 car. par agent installé,
+  60 agents au plus). Descriptions courtes inchangées ; contenu complet toujours chargé à
+  la demande. Banc `TokenBench.catalogLines` (12 sous-agents, 6 skills) : liste 3 640 →
+  1 350 tokens par étape (−63 %), 145 630 → 54 010 sur 40 étapes. Tests : 576 → 577
+  (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.171, descriptions du catalogue) → prochain passage : INTERFACE, même
+recette : ligne d'un modèle (ProviderDetailView, id monospace + pastille « gratuit » à
+droite), PersonalizeView (7 Spacer, aucun réglage très grand texte), InstallAgentsView,
+ModelPickerSheet.
 
 ## Pistes tokens à faire
+- Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,
+  non mesurée (c'est le texte voulu par l'utilisateur ; ne pas y toucher sans réglage).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
   vérifier `foldSimilar` sur des avertissements Swift répétés le jour où il y en a un.
 

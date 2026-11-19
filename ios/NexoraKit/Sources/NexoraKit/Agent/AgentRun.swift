@@ -683,13 +683,13 @@ public final class AgentRun {
         if !skills.isEmpty {
             parts.append(
                 "Skills disponibles (charge celles qui servent avec use_skill) :\n"
-                    + skills.map { "- \($0.name) : \($0.description)" }.joined(separator: "\n")
+                    + skills.map { "- \($0.name) : \(ChatLibrary.catalogLine($0.description, max: ChatLibrary.skillLineMax))" }.joined(separator: "\n")
             )
         }
         if !subs.isEmpty {
             parts.append(
                 "Sous-agents disponibles (delegate) :\n"
-                    + subs.map { "- \(Self.slug($0.name)) : \($0.description)" }.joined(separator: "\n")
+                    + subs.map { "- \(Self.slug($0.name)) : \(ChatLibrary.catalogLine($0.description, max: ChatLibrary.agentLineMax))" }.joined(separator: "\n")
             )
         }
         parts.append(
