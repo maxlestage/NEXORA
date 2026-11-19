@@ -39,4 +39,11 @@ public enum PersonalizeDisplay {
         let label = bubbleStyles.first { $0.value == value }?.label ?? "Contour"
         return "Style \(label)"
     }
+
+    /// Ce que VoiceOver lit pour la ligne « Effort par défaut » : le nom du niveau
+    /// et ce qu'il fait, sans l'émoji (lu sinon comme « visage… » ou « éclair »).
+    public static func effortAccessibility(label: String, summary: String) -> String {
+        let detail = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        return detail.isEmpty ? "Effort par défaut : \(label)" : "Effort par défaut : \(label), \(detail)"
+    }
 }

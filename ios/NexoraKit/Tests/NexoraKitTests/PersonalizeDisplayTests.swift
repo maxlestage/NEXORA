@@ -32,4 +32,16 @@ struct PersonalizeDisplayTests {
         #expect(PersonalizeDisplay.bubbleStyleLabel("filled") == "Style Plein")
         #expect(PersonalizeDisplay.bubbleStyleLabel("inconnu") == "Style Contour")
     }
+
+    @Test func effortLuParVoiceOver() {
+        #expect(PersonalizeDisplay.effortAccessibility(label: "Équilibré", summary: "Bon pour tout")
+                == "Effort par défaut : Équilibré, Bon pour tout")
+        #expect(PersonalizeDisplay.effortAccessibility(label: "Rapide", summary: "  ") == "Effort par défaut : Rapide")
+        // Avec un vrai niveau : ni émoji, ni virgule en trop.
+        for level in ThinkLevel.allCases {
+            let lu = PersonalizeDisplay.effortAccessibility(label: level.label, summary: level.summary)
+            #expect(lu.hasPrefix("Effort par défaut : \(level.label)"))
+            #expect(!lu.contains(level.emoji))
+        }
+    }
 }
