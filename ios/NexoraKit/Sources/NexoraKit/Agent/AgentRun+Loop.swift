@@ -38,7 +38,7 @@ extension AgentRun {
             }
             // Les fichiers sont donnés tout de suite : un aller-retour de moins.
             let tree = await files()
-            let files = Self.foldedTree(tree, limit: 400)
+            let files = Self.foldedTree(tree, limit: Self.firstTreeLimit)
             let tests = Self.testLayout(tree)
             // Aucun dépôt lisible : l'agent travaillerait à l'aveugle et tournerait en
             // rond. La session s'arrête tout de suite en disant pourquoi ; « continue »

@@ -248,6 +248,9 @@ extension AgentRun {
         "mp3", "wav", "m4a", "mp4", "mov", "lock", "snap", "bin", "zip",
     ]
 
+    /// Nombre d'éléments de la liste des fichiers du premier message de la session.
+    public nonisolated static let firstTreeLimit = 400
+
     /// La liste des fichiers d'un grand dépôt (plus de `limit` fichiers), sans
     /// en cacher une partie : au lieu de couper après les `limit` premiers (la fin
     /// de l'alphabet disparaissait, des dossiers entiers restaient inconnus du
@@ -297,13 +300,15 @@ extension AgentRun {
     /// list_files de tout le dépôt alors que la liste complète est encore dans le
     /// premier message de la session (jamais raccourci) : un renvoi court, plus les
     /// seuls fichiers créés ou supprimés depuis, au lieu de toute la liste une
-    /// seconde fois (3.0.167). `nil` si la liste n'y est pas (plus de 400 fichiers,
-    /// session ancienne), si elle est courte ou si trop de fichiers ont changé.
+    /// seconde fois (3.0.167). Grand dépôt (plus de `firstTreeLimit` fichiers) : la
+    /// liste résumée du premier message sert de la même façon (3.0.179). `nil` si la
+    /// liste n'y est pas (session ancienne), si elle est courte ou si trop de
+    /// fichiers ont changé.
     public nonisolated static func treeAlreadyGiven(
         tree: [String], files: [String], history: [LLMMessage]
     ) -> String? {
-        guard !tree.isEmpty, tree.count <= 400 else { return nil }
-        let given = fileTree(tree)
+        guard !tree.isEmpty else { return nil }
+        let given = foldedTree(tree, limit: firstTreeLimit)
         guard given.count > dedupMin,
               history.contains(where: { $0.role == "user" && $0.content.contains("Fichiers :\n\(given)\n\n") })
         else { return nil }

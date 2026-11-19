@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.179 — 19 novembre 2026 — Grand dépôt : la liste des fichiers n'est plus renvoyée deux fois
+- Amélioré : sur un dépôt de plus de 400 fichiers, quand l'agent redemande la liste de tout le dépôt, il reçoit un simple renvoi à celle du début (plus les fichiers créés ou supprimés depuis) : environ 1 100 tokens de moins à chaque fois.
+- Inchangé : la liste d'un dossier précis reste donnée en détail.
+
 ## 3.0.178 — 19 novembre 2026 — Choix de l'agent lisible en très grand texte
 - Amélioré : en très grande taille de texte, la description d'un agent s'affiche sur 4 lignes au lieu de 2 dans « Choisir un agent ».
 - Amélioré : son emoji passe devant son nom, pour laisser toute la largeur au texte.

@@ -1428,10 +1428,17 @@ mémoire 32k tokens, consigne 3 000 car.
   colonne à part : toute la largeur va au texte. Taille normale inchangée. Rien retiré.
   Tests : 584 → 585 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.178) → prochain passage : TOKENS (voir « Pistes tokens à faire »).
-Interface ensuite, même recette : InstallAgentsView, aperçu de PersonalizeView (orbe de
-72 pt non réduit en grand texte).
+- 3.0.179 (tokens) : `treeAlreadyGiven` vaut aussi au-delà de 400 fichiers — il compare
+  à `foldedTree(tree, limit: firstTreeLimit)` (la liste résumée du premier message, même
+  constante que la boucle) au lieu de renoncer. Un list_files de tout un grand dépôt
+  renvoyait la liste résumée à 300 éléments (moins détaillée que celle du début, et
+  gardée ensuite dans l'historique). Banc (464 fichiers) : 1 136 → 19 tokens par appel.
+  Tests : 585 → 586 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.179) → prochain passage : INTERFACE, même recette que 3.0.176/178
+(très grand texte) : InstallAgentsView, aperçu de PersonalizeView (orbe de 72 pt non
+réduit en grand texte). Tokens ensuite (voir « Pistes tokens à faire »).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
@@ -1439,8 +1446,6 @@ Interface ensuite, même recette : InstallAgentsView, aperçu de PersonalizeView
   (`max_tokens`). (write_file au lieu d'edit_file : conseil ajouté en 3.0.175.) Limiter
   « thought » à une phrase est RISQUÉ : c'est le brouillon de raisonnement des modèles
   sans réflexion native ; ne le faire qu'avec une mesure de qualité.
-- `treeAlreadyGiven` ne sert pas au-delà de 400 fichiers : un list_files sans dossier y
-  renvoie encore la liste résumée (≤ 300 éléments). À relier à `foldedTree` si mesuré utile.
 - Consigne (`systemPrompt`) d'un agent personnalisé très longue : envoyée à chaque étape,
   non mesurée (c'est le texte voulu par l'utilisateur ; ne pas y toucher sans réglage).
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;
