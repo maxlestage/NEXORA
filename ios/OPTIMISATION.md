@@ -1243,11 +1243,19 @@ mémoire 32k tokens, consigne 3 000 car.
   en une phrase (≈ 190 → 95 car. et 125 → 80 car.) ; « Retirer » et « Remettre à zéro »
   44 pt. Rien retiré. Tests : 560 → 562 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.156, QuotaSheet) → prochain passage : TOKENS.
+- 3.0.157 (tokens) : `listBodies` étendu aux listes de versions (GET …/releases : éléments
+  avec `tag_name`) — notes de plus de 300 car. réduites à leurs premières lignes (≤ 200 car.)
+  suivies de « (N car. de plus : GET /repos/o/r/releases/tags/<tag>) ». Version seule
+  (…/releases/latest, …/tags/<tag>) inchangée. Banc `AgentShipTests.githubReleaseBodies`
+  (15 versions aux notes de ≈ 3 000 car., réponse coupée à 7 000 car.) : 2 → 15 versions
+  visibles, 14 000 → 1 461 tokens pour les voir toutes (−90 %). Tests : 562 → 563 (mêmes
+  2 échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.157, listes de versions) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : ModelSheet (2e passage), UsageView.
-Piste tokens suivante : `body` des listes de versions (GET …/releases, notes longues) —
-même réduction avec `tag_name` ? à mesurer.
+Piste tokens suivante : listes de commentaires très longues (GET …/issues/<n>/comments,
+dizaines de commentaires de bots) — regrouper les commentaires de bots identiques ? à mesurer.
 
 ## Pistes tokens à faire
 - Journal d'un job iOS (xcodebuild) en échec : aucun disponible (aucun échec iOS récent) ;

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.157 — 19 novembre 2026 — Listes de versions plus légères pour l'agent
+- Amélioré : dans une liste de versions (releases) lue par l'agent, les longues notes sont réduites à leurs premières lignes, avec le chemin pour les lire en entier.
+- Amélioré : l'agent voit les 15 versions d'un coup au lieu de 2, pour environ 90 % de tokens en moins.
+
 ## 3.0.156 — 19 novembre 2026 — Fiche d'un fournisseur plus claire
 - Amélioré : indiquer, retirer un solde ou un crédit mensuel, ou remettre les compteurs à zéro affiche un avis de confirmation avec une vibration.
 - Amélioré : explications du solde prépayé et de la dépense estimée raccourcies à une phrase.

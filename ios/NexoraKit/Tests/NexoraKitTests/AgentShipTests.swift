@@ -1209,6 +1209,36 @@ struct AgentShipTests {
         #expect(comments[1]["body"] as? String == report)
     }
 
+    @Test("banc github : notes longues d'une liste de versions réduites")
+    func githubReleaseBodies() throws {
+        // 15 versions, chacune avec des notes générées (≈ 3 000 caractères).
+        let line = "* Corrige l'affichage du tableau de bord par @o dans https://github.com/o/r/pull/12\n"
+        let notes = "## Nouveautés\n\n" + String(repeating: line, count: 36) + "\n**Changements** : https://github.com/o/r/compare/v1...v2"
+        func items(_ key: String) -> [Any] {
+            (1...15).map { i -> Any in
+                ["tag_name": "v1.\(i)", "name": "Version 1.\(i)", "prerelease": false, "draft": false,
+                 "html_url": "https://github.com/o/r/releases/tag/v1.\(i)", "assets": [] as [Any],
+                 "published_at": "2026-11-0\(i % 9 + 1)T10:00:00Z", key: notes]
+            }
+        }
+        // Avant : même liste, notes sous une clé que la réduction ignore (« Body »).
+        let raw = AgentRun.githubText(AgentRun.slimGitHub(items("Body")))
+        let slim = AgentRun.githubText(AgentRun.slimGitHub(items("body")))
+        func visible(_ t: String) -> Int { t.prefix(7000).components(separatedBy: "\"tag_name\":").count - 1 }
+        // Tokens pour voir les 15 versions : réponse coupée à 7 000 car., autant d'appels que nécessaire.
+        func cost(_ t: String) -> Int { let v = max(1, visible(t)); return ((15 + v - 1) / v) * min(t.count, 7000) / 4 }
+        print("Banc github (liste de 15 versions aux longues notes) : \(visible(raw)) → \(visible(slim)) versions visibles, \(cost(raw)) → \(cost(slim)) tokens pour les voir toutes")
+        #expect(visible(slim) >= 5 * visible(raw) && cost(slim) * 4 < cost(raw))
+        let list = try #require(AgentRun.slimGitHub(items("body")) as? [[String: Any]])
+        let body = try #require(list[2]["body"] as? String)
+        #expect(body.hasPrefix("## Nouveautés\n\n* Corrige"))
+        #expect(body.hasSuffix("car. de plus : GET /repos/o/r/releases/tags/v1.3)"))
+        #expect(body.count < 300)
+        // Une version seule (…/releases/latest) garde ses notes entières.
+        let one = try #require(AgentRun.slimGitHub(items("body")[0]) as? [String: Any])
+        #expect(one["body"] as? String == notes)
+    }
+
     @Test("banc github : commentaires HTML des modèles retirés des textes")
     func githubBodyComments() throws {
         // Un modèle de pull request courant : consignes en commentaires HTML, invisibles sur GitHub.

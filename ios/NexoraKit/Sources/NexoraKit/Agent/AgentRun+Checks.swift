@@ -164,18 +164,37 @@ extension AgentRun {
 
     nonisolated static let htmlIssueRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/(issues|pull)/\d+"#)
 
+    nonisolated static let htmlReleaseRe = DRegex(#"^https://github\.com/([^/]+)/([^/]+)/releases/tag/"#)
+
     /// Une liste d'issues ou de pull requests (au moins deux éléments avec `number` et
-    /// `title` : GET …/issues, …/pulls, `items` d'une recherche) : un texte de plus de
-    /// `listBodyMax` caractères est réduit à ses premières lignes (≤ 200 caractères,
-    /// coupé en fin de ligne) suivies du chemin pour le lire en entier. Sans cela, deux
-    /// ou trois longs textes remplissaient les 7 000 caractères de la réponse et
-    /// cachaient le reste de la liste. Un élément seul (GET …/issues/<n>) et les listes
-    /// de commentaires (sans `title`) gardent leur texte entier.
+    /// `title` : GET …/issues, …/pulls, `items` d'une recherche) ou de versions (avec
+    /// `tag_name` : GET …/releases) : un texte de plus de `listBodyMax` caractères est
+    /// réduit à ses premières lignes (≤ 200 caractères, coupé en fin de ligne) suivies du
+    /// chemin pour le lire en entier. Sans cela, deux ou trois longs textes (rapports de
+    /// bug, notes de version) remplissaient les 7 000 caractères de la réponse et
+    /// cachaient le reste de la liste. Un élément seul (GET …/issues/<n>,
+    /// …/releases/latest) et les listes de commentaires (sans `title`) gardent leur
+    /// texte entier.
     nonisolated static func listBodies(_ a: [Any]) -> [Any] {
         guard a.count > 1 else { return a }
         return a.map { x in
-            guard var d = x as? [String: Any], let n = d["number"] as? Int, d["title"] is String,
-                  let body = d["body"] as? String, body.count > listBodyMax else { return x }
+            guard var d = x as? [String: Any], let body = d["body"] as? String, body.count > listBodyMax else { return x }
+            let path: String
+            if let n = d["number"] as? Int, d["title"] is String {
+                if let u = d["html_url"] as? String, let m = htmlIssueRe.firstMatch(u) {
+                    path = "/repos/\(m[1]!)/\(m[2]!)/issues/\(n)"
+                } else {
+                    path = "…/issues/\(n)"
+                }
+            } else if let tag = d["tag_name"] as? String {
+                if let u = d["html_url"] as? String, let m = htmlReleaseRe.firstMatch(u) {
+                    path = "/repos/\(m[1]!)/\(m[2]!)/releases/tags/\(tag)"
+                } else {
+                    path = "…/releases/tags/\(tag)"
+                }
+            } else {
+                return x
+            }
             var head = ""
             for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
                 let next = head.isEmpty ? String(line) : head + "\n" + line
@@ -184,11 +203,6 @@ extension AgentRun {
             }
             if head.isEmpty { head = String(body.prefix(200)) }
             head = head.trimmingCharacters(in: .whitespacesAndNewlines)
-            var path = "…/issues/\(n)"
-            if let u = d["html_url"] as? String,
-               let m = htmlIssueRe.firstMatch(u) {
-                path = "/repos/\(m[1]!)/\(m[2]!)/issues/\(n)"
-            }
             d["body"] = head + "\n… (\(body.count - head.count) car. de plus : GET \(path))"
             return d
         }
