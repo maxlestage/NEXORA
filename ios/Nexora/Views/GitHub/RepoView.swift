@@ -101,10 +101,14 @@ struct FileBrowserView: View {
     @State private var error: String?
     @State private var loading = true
     @State private var newFile = false
+    @State private var query = ""
 
     var body: some View {
+        // Recherche dans le dossier (avant : il fallait faire défiler les grands dossiers).
+        let shown = FilesDisplay.filter(items, query: query)
+        let footer = FilesDisplay.footer(shown: shown, total: items.count, query: query)
         List {
-            ForEach(items) { item in
+            ForEach(shown) { item in
                 NavigationLink {
                     if item.isDir {
                         FileBrowserView(repo: repo, path: item.path, branch: branch)
@@ -124,8 +128,8 @@ struct FileBrowserView: View {
                     }
                 }
             }
-            if !items.isEmpty {
-                Text(FilesDisplay.summary(items))
+            if !footer.isEmpty {
+                Text(footer)
                     .font(.footnote).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .listRowSeparator(.hidden)
@@ -144,6 +148,12 @@ struct FileBrowserView: View {
                     Button("Réessayer") { Task { await load() } }
                         .buttonStyle(.borderedProminent)
                 }
+            } else if !items.isEmpty && shown.isEmpty {
+                ContentUnavailableView {
+                    Label(AttachDisplay.emptyTitle(query: query), systemImage: "magnifyingglass")
+                } actions: {
+                    Button("Effacer la recherche") { query = "" }
+                }
             } else if !loading && items.isEmpty {
                 ContentUnavailableView {
                     Label("Dossier vide", systemImage: "folder")
@@ -160,6 +170,7 @@ struct FileBrowserView: View {
                     .padding(.horizontal).padding(.vertical, 6)
             }
         }
+        .searchable(text: $query, prompt: FilesDisplay.searchPrompt)
         .refreshable { await load() }
         .task(id: branch) { await load() }
         .toolbar {

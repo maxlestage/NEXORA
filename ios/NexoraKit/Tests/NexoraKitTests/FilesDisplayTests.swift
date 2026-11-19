@@ -27,4 +27,18 @@ struct FilesDisplayTests {
         #expect(FilesDisplay.summary([try item("d", dir: true), try item("a"), try item("b")])
             == "1 dossier · 2 fichiers")
     }
+
+    @Test func rechercheDansUnDossier() throws {
+        let items = [try item("src", dir: true), try item("main.swift"), try item("Modèles.swift")]
+        // Sans recherche : le résumé habituel du dossier.
+        #expect(FilesDisplay.footer(shown: items, total: 3, query: " ") == "1 dossier · 2 fichiers")
+        // Pendant une recherche : ce qu'elle garde, sur le total.
+        let gardés = FilesDisplay.filter(items, query: "swift")
+        #expect(FilesDisplay.footer(shown: gardés, total: 3, query: "swift") == "2 résultats sur 3")
+        #expect(FilesDisplay.footer(shown: FilesDisplay.filter(items, query: "modele"), total: 3, query: "modele")
+            == "1 résultat sur 3")
+        // Aucun résultat : l'état vide le dit déjà, la ligne reste vide.
+        #expect(FilesDisplay.footer(shown: [], total: 3, query: "zzz") == "")
+        #expect(FilesDisplay.searchPrompt == "Chercher dans ce dossier")
+    }
 }
