@@ -1291,8 +1291,17 @@ mémoire 32k tokens, consigne 3 000 car.
   puis balayer, 2 à 3 gestes) ; « Copier le lien » : avis `linkCopied` (avant : vibration
   seule). Rien retiré. Tests : 567 → 568 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.162, liste des dépôts) → prochain passage : TOKENS.
+- 3.0.163 (tokens) : `listBodies` étendu aux listes de commits (GET …/commits, commits
+  d'une comparaison, recherche : éléments avec `sha` + `commit.message`) — message de plus
+  de 300 car. réduit à ses premières lignes (`shortBody`, ≤ 200 car.) + « (N car. de plus :
+  GET /repos/o/r/commits/<sha>) » ; dépôt lu dans `html_url` (`htmlCommitRe`) avant son
+  retrait. Commit seul (GET …/commits/<sha>) inchangé. Banc `AgentShipTests.githubCommitMessages`
+  (30 commits aux messages de ≈ 600 car., réponse coupée à 7 000 car.) : 9 → 18 commits
+  visibles, 7 000 → 3 500 tokens pour les voir tous (−50 %). Tests : 568 → 569 (mêmes 2
+  échecs Linux du catalogue et des prix en direct).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.163, listes de commits) → prochain passage : INTERFACE.
 Écrans d'interface restants peu traités : UsageView (3e passage ?), CreditsView (2e),
 fiche d'un dépôt (RepoView).
 

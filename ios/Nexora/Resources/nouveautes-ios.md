@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.163 — 19 novembre 2026 — L'agent lit l'historique des commits plus vite
+- Amélioré : dans une liste de commits, les longs messages sont réduits à leurs premières lignes ; l'agent voit 2 fois plus de commits par lecture (9 → 18 sur 30), soit environ 50 % de tokens en moins pour parcourir l'historique.
+- Le message complet reste lisible en ouvrant le commit, et un commit ouvert seul garde son message entier.
+
 ## 3.0.162 — 19 novembre 2026 — Dépôts : un retour après chaque action
 
 - Nouveau : après la création d'un dépôt, un avis « Dépôt … créé » propose « Lancer l'agent » en un appui.
