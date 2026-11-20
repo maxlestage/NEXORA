@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.187 — 20 novembre 2026 — Tests en échec : l'agent lit l'essentiel
+
+- Amélioré : quand des tests échouent sur GitHub, l'agent ne relit plus les centaines de lignes « test réussi » du journal. Il voit les échecs et le bilan, pour environ 8 fois moins de tokens.
+- Fonctionne avec les tests Swift, Xcode, Flutter, Go, Rust, Python et JavaScript.
+
 ## 3.0.186 — 20 novembre 2026 — Quitter un fichier modifié : on sait ce qu'on perd
 
 - Amélioré : dans Code, quitter un fichier sans l'enregistrer nomme le fichier (« Abandonner les modifications de main.dart ? »).
