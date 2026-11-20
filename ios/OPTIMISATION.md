@@ -1442,10 +1442,19 @@ mémoire 32k tokens, consigne 3 000 car.
   (`LibraryDisplay.itemDetail(_:installed:bigText:)`). Taille normale inchangée. Rien retiré.
   Tests : 586 → 587 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.180) → prochain passage : TOKENS (voir « Pistes tokens à faire »).
-Interface ensuite, même recette (très grand texte) : aperçu de PersonalizeView (orbe de
-72 pt non réduit en grand texte).
+- 3.0.181 (tokens) : `treeAlreadyGiven(…, prefix:)` — list_files d'un DOSSIER alors que le
+  premier message nomme déjà chacun de ses fichiers (dépôt ≤ 400 fichiers, donc rien de
+  résumé ; liste du dossier > 600 car.) : renvoi « (les N fichiers de « dir/ » sont déjà
+  dans la liste du premier message…) » + créés/supprimés du dossier, au lieu de la liste.
+  Banc `FileTreeBench.folderAlreadyGiven` (108 fichiers sur 131) : 762 → 26 tokens par
+  appel (−97 %), gardés ensuite dans l'historique. Grand dépôt et petit dossier inchangés.
+  Tests : 587 → 588 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.181) → prochain passage : INTERFACE, même recette (très grand texte) :
+aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte). Tokens ensuite : voir
+« Pistes tokens à faire » ; piste voisine : list_files d'un dossier NON résumé d'un grand
+dépôt (> 400 fichiers), encore renvoyé en entier.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

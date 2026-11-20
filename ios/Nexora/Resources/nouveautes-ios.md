@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.181 — 20 novembre 2026 — Agent : un dossier déjà listé n'est plus renvoyé
+
+- Amélioré : quand l'agent redemande les fichiers d'un dossier qu'il a déjà sous les yeux depuis le début de la session, il reçoit un simple rappel au lieu de toute la liste (environ 95 % de tokens en moins pour cette action, et à chaque étape suivante).
+- Les fichiers créés ou supprimés depuis dans ce dossier restent signalés.
+- Grand dépôt (plus de 400 fichiers) ou petit dossier : rien ne change.
+
 ## 3.0.180 — 20 novembre 2026 — Bibliothèque lisible en très grand texte
 - Amélioré : en très grande taille de texte, la Bibliothèque (installer des agents, skills et commandes) donne toute la largeur aux noms : l'emoji d'une source passe devant son titre, et « Installé » s'écrit sous le nom au lieu d'une pastille à droite.
 - Amélioré : la description d'un plugin s'y affiche sur 4 lignes au lieu de 2.
