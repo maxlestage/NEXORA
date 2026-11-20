@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.185 — 20 novembre 2026 — Suppression d'une routine plus claire
+- Amélioré : avant de supprimer une routine, l'app la nomme et dit ce qui se passe (elle ne se lancera plus, les sessions déjà faites sont gardées).
+- Amélioré : pour une routine sur GitHub, l'app précise que son workflow est désactivé et que le fichier reste dans le dépôt.
+
 ## 3.0.184 — 20 novembre 2026 — Confirmations d'effacement plus claires
 - Amélioré : avant d'effacer toutes les conversations, l'app dit combien partent et si des épinglées sont comprises.
 - Amélioré : les boutons disent ce qu'ils font (« Effacer », « Tout effacer ») au lieu de « Confirmer ».

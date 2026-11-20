@@ -314,14 +314,16 @@ struct RoutineEditorView: View {
                 }
             }
         }
-        .confirmationDialog("Supprimer la routine ?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Supprimer", role: .destructive) {
+        .confirmationDialog(RoutinesDisplay.deleteTitle(name: (routine ?? r).name), isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Supprimer la routine", role: .destructive) {
                 Task {
                     await routines.delete(r.id)
                     dismiss()
                 }
             }
             Button("Annuler", role: .cancel) {}
+        } message: {
+            Text(RoutinesDisplay.deleteMessage((routine ?? r).runner))
         }
         .sheet(isPresented: $pickingRepo) {
             RepoPickerSheet { repo in

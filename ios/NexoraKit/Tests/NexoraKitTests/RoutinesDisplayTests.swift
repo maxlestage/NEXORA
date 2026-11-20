@@ -70,4 +70,14 @@ struct RoutinesDisplayTests {
         due.lastRun = now.addingTimeInterval(-3 * 86_400)
         #expect(RoutinesDisplay.summary([due, zeta], now: now, calendar: utc) == "1 active sur 2 · ensuite « Tôt » dès que possible")
     }
+
+    @Test func suppressionClaire() {
+        #expect(RoutinesDisplay.deleteTitle(name: " Bugs ") == "Supprimer « Bugs » ?")
+        #expect(RoutinesDisplay.deleteTitle(name: "  ") == "Supprimer la routine ?")
+        let app = RoutinesDisplay.deleteMessage(.app)
+        let hub = RoutinesDisplay.deleteMessage(.github)
+        #expect(app.contains("sessions déjà faites sont gardées"))
+        #expect(hub.contains("workflow est désactivé") && hub.contains("fichier reste"))
+        #expect(app != hub)
+    }
 }
