@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.184 — 20 novembre 2026 — Confirmations d'effacement plus claires
+- Amélioré : avant d'effacer toutes les conversations, l'app dit combien partent et si des épinglées sont comprises.
+- Amélioré : les boutons disent ce qu'ils font (« Effacer », « Tout effacer ») au lieu de « Confirmer ».
+- Amélioré : s'il n'y a aucune conversation, l'app le dit tout de suite, sans demander de confirmation.
+
 ## 3.0.183 — 20 novembre 2026 — Dossier d'un grand dépôt non renvoyé deux fois
 - Amélioré : dans un grand dépôt (plus de 400 fichiers), quand l'agent redemande la liste d'un dossier déjà détaillé au début de la session, il reçoit un renvoi court au lieu de toute la liste (environ 97 % de tokens en moins pour cet appel).
 - Les fichiers créés ou supprimés depuis restent signalés ; un dossier résumé au départ est toujours listé en entier.

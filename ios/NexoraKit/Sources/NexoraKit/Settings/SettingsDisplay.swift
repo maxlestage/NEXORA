@@ -55,6 +55,23 @@ public enum SettingsDisplay {
         n == 0 ? "Aucune conversation à effacer" : "\(count(n, "conversation")) \(n > 1 ? "effacées" : "effacée")"
     }
 
+    /// Titre de la confirmation avant « Effacer toutes les conversations » : dit combien.
+    public static func deleteAllTitle(_ n: Int) -> String {
+        n > 1 ? "Effacer les \(n) conversations ?" : "Effacer la conversation ?"
+    }
+
+    /// Ce qui part avec « Effacer toutes les conversations » (les épinglées aussi, à la
+    /// différence du ménage des anciennes).
+    public static func deleteAllMessage(count n: Int, pinned: Int) -> String {
+        let tail = (n > 1 ? "Elles sont retirées" : "Elle est retirée") + " de cet appareil, sans retour possible."
+        guard pinned > 0 else { return tail }
+        return "\(count(pinned, "épinglée")) \(pinned > 1 ? "comprises" : "comprise"). \(tail)"
+    }
+
+    /// Ce qui part avec « Tout réinitialiser », en mots simples.
+    public static let resetMessage =
+        "Clés, jeton GitHub, agents et conversations sont retirés de cet appareil, sans retour possible."
+
     /// Ligne GitHub : « Connecté : @max » ou « Non connecté ».
     public static func github(login: String?, connected: Bool) -> String {
         connected ? "Connecté : @\(login ?? "…")" : "Non connecté"
