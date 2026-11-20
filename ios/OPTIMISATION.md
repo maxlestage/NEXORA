@@ -1487,14 +1487,24 @@ mémoire 32k tokens, consigne 3 000 car.
   la taille du texte d'un nouveau fichier). Avant : « Abandonner les modifications ? » seul.
   Rien retiré. Tests : 592 → 593 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.186) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
-Deux passages TOKENS de suite sans piste sûre (3.0.185, 3.0.186) : ne pas relire encore
-find_in_file, use_skill, outil github, pitfalls, `max_tokens`, images, titres ; chercher
-plutôt une MESURE nouvelle (banc d'une session avec outil github ou CI en échec).
-Interface ensuite : très grand texte sur la feuille d'import de Personnaliser et
-Réglages › Données (ligne « place » + bouton recalculer). Confirmations : toutes revues
-(AgentsView, RepoView, Routines, Réglages, serveurs MCP).
+- 3.0.187 (tokens) : journaux de CI — tests réussis repliés. Mesure nouvelle : banc
+  `CILogTests.testLogBench` (`sampleTestLog` : `swift test` de 350 tests avec 2 échecs, puis
+  `flutter test` de 200 tests avec 1 échec ; 200 lignes demandées) : 2 577 → 309 tokens
+  (−88 %), et les 2 échecs Swift, hors de la fin gardée avant, sont maintenant tous lus.
+  `CILog.clean` : une suite de lignes « test lancé / réussi » (`logPassed` : swift-testing,
+  XCTest, xcodebuild, flutter, go, cargo, pytest -v, jest) tient en une ligne, la dernière,
+  suivie de « (+N lignes de tests réussis ou lancés) » ; échecs (« ✘ », « [E] », « failed »)
+  et bilans (« Test run with … », « Some tests failed. ») intacts. Tests : 593 → 595 (mêmes
+  2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.187) → prochain passage : INTERFACE : très grand texte sur la feuille
+d'import de Personnaliser et Réglages › Données (ligne « place » + bouton recalculer).
+Confirmations : toutes revues (AgentsView, RepoView, Routines, Réglages, serveurs MCP).
+Tokens ensuite : ne pas relire find_in_file, use_skill, outil github, pitfalls,
+`max_tokens`, images, titres (revus en 3.0.185/186) ; chercher une MESURE nouvelle
+(ex. sortie des autres outils de vérification : même repli des tests réussis ailleurs que
+dans `jobLog` ? session avec outil github).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

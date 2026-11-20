@@ -174,3 +174,77 @@ struct CILogTests {
         #expect(CILog.shorten("court") == "court")
     }
 }
+
+/// Un journal de tests en échec : `swift test` (350 tests, chacun « lancé » puis
+/// « réussi », 2 échecs au milieu), puis `flutter test` (200 tests, 1 échec).
+func sampleTestLog() -> String {
+    var l: [String] = ["##[group]Run swift test --package-path NexoraKit", "swift test", "##[endgroup]",
+                       "Build complete! (42.10s)", "◇ Test run started.", "◇ Suite ChatTests started."]
+    for n in 1...350 {
+        l.append("◇ Test essai\(n)() started.")
+        if n == 120 || n == 121 {
+            l.append("✘ Test essai\(n)() recorded an issue at ChatTests.swift:\(n):9: Expectation failed: (titre → \"a\") == \"b\"")
+            l.append("✘ Test essai\(n)() failed after 0.002 seconds with 1 issue.")
+        } else {
+            l.append("✔ Test essai\(n)() passed after 0.001 seconds.")
+        }
+    }
+    l += ["✘ Suite ChatTests failed after 1.204 seconds with 2 issues.",
+          "✘ Test run with 350 tests in 1 suite failed after 1.210 seconds with 2 issues.",
+          "##[error]Process completed with exit code 1.",
+          "##[group]Run flutter test", "flutter test", "##[endgroup]"]
+    for n in 1...200 {
+        let failed = n > 90 ? " -1" : ""
+        l.append("00:\(String(format: "%02d", n / 10)) +\(n > 90 ? n - 1 : n)\(failed): test/widget\(n % 9)_test.dart: cas numéro \(n)")
+        if n == 90 {
+            l += ["══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞══", "Expected: <3>", "  Actual: <4>",
+                  "00:09 +89 -1: test/widget0_test.dart: cas numéro 90 [E]", "  Test failed. See exception logs above."]
+        }
+    }
+    l += ["00:20 +199 -1: Some tests failed.", "##[error]Process completed with exit code 1."]
+    return l.map { "2026-11-20T08:00:00.0000000Z \($0)" }.joined(separator: "\n")
+}
+
+extension CILogTests {
+    @Test("tests réussis ou lancés : une ligne par suite, les échecs et les bilans restent")
+    func passedTests() {
+        let out = CILog.clean([
+            "◇ Test run started.", "◇ Test a() started.", "✔ Test a() passed after 0.001 seconds.",
+            "◇ Test b() started.", "✘ Test b() recorded an issue at T.swift:3:9: Expectation failed",
+            "✘ Test b() failed after 0.002 seconds with 1 issue.",
+            "Test Case 'T.c' started at 2026-11-20 08:00:00.000", "Test Case 'T.c' passed (0.001 seconds).",
+            "Test case 'T.d()' passed on 'Clone 1 of iPhone 17 - Nexora (123)' (0.004 seconds)",
+            "Test case 'T.e()' failed on 'Clone 1 of iPhone 17 - Nexora (123)' (0.004 seconds)",
+            "✔ Test run with 5 tests in 1 suite passed after 0.010 seconds.",
+            "00:01 +1: test/a_test.dart: un", "00:01 +2: test/a_test.dart: deux",
+            "00:01 +2 -1: test/a_test.dart: deux [E]", "00:02 +3 -1: Some tests failed.",
+            "test result: ok. 3 passed; 0 failed", "Tests passed after a retry",
+        ].joined(separator: "\n"))
+        #expect(out == [
+            "◇ Test run started.",
+            "◇ Test b() started.  (+2 lignes de tests réussis ou lancés)",
+            "✘ Test b() recorded an issue at T.swift:3:9: Expectation failed",
+            "✘ Test b() failed after 0.002 seconds with 1 issue.",
+            "Test case 'T.d()' passed on 'Clone 1 of iPhone 17 - Nexora (123)' (0.004 seconds)  (+2 lignes de tests réussis ou lancés)",
+            "Test case 'T.e()' failed on 'Clone 1 of iPhone 17 - Nexora (123)' (0.004 seconds)",
+            "✔ Test run with 5 tests in 1 suite passed after 0.010 seconds.",
+            "00:01 +2: test/a_test.dart: deux  (+1 ligne de tests réussis ou lancés)",
+            "00:01 +2 -1: test/a_test.dart: deux [E]", "00:02 +3 -1: Some tests failed.",
+            "test result: ok. 3 passed; 0 failed", "Tests passed after a retry",
+        ])
+    }
+
+    @Test("journal de tests en échec : moins de tokens, les échecs et les bilans restent")
+    func testLogBench() {
+        let raw = sampleTestLog()
+        let after = CILog.condense(raw, lines: 200)
+        print("🪙 journal de tests (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.count / 4 < 900)
+        #expect(after.contains("Test essai120() recorded an issue at ChatTests.swift:120:9"))
+        #expect(after.contains("Test essai121() failed after"))
+        #expect(after.contains("Test run with 350 tests in 1 suite failed"))
+        #expect(after.contains("Actual: <4>"))
+        #expect(after.contains("cas numéro 90 [E]"))
+        #expect(after.contains("Some tests failed."))
+    }
+}

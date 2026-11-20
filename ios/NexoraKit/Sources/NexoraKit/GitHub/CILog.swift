@@ -9,6 +9,15 @@ private let logPlace = DRegex(#"(?:[\w.~-]*/)*[\w.-]+\.[A-Za-z]\w*:\d+(?::\d+)?"
 /// ligne de xcodebuild, il ne dit rien à l'agent, qui lit des chemins du dépôt.
 private let logRoot = DRegex(#"(?:/home/runner/work|/Users/runner/work|/__w)/[^/\s'"]+/[^/\s'"]+/"#)
 private let logRootBare = DRegex(#"(?:/home/runner/work|/Users/runner/work|/__w)/[^/\s'"]+/[^/\s'"]+(?=[\s'"]|$)"#)
+/// Une ligne qui dit seulement qu'un test est lancé ou réussi (swift-testing, XCTest,
+/// xcodebuild, flutter test, go test, cargo test, pytest -v, jest). Les bilans
+/// (« Test run with … », « All tests passed! », « Some tests failed. ») n'en sont pas.
+private let logPassed = DRegex(
+    #"^\S{0,2} ?(?:Test|Suite) (?!run ).+ (?:started\.|passed after [\d.]+ seconds\.)$"#
+    + #"|^Test [Cc]ase '.+' (?:started at .+|passed(?: on '.+')? \([\d.]+ seconds\)\.?)$"#
+    + #"|^Test Suite '.+' (?:started|passed) at .+$"#
+    + #"|^\d\d:\d\d \+\d+(?: ~\d+)?(?: -\d+)?: (?!Some tests failed|All tests passed).+(?<!\[E\])$"#
+    + #"|^✅ .+|^\s*[✓√] .+|^=== (?:RUN|PAUSE|CONT) .+|^\s*--- PASS: .+|^test .+ \.\.\. ok$|^\S+ PASSED(?:\s+\[ *\d+%\])?$"#)
 private let logError = DRegex(
     #"##\[error\]|\berror\b|\bfail(ed|ure|s)?\b|panic|traceback|exception|fatal|✘"#, caseSensitive: false)
 
@@ -17,6 +26,8 @@ private let logError = DRegex(
 /// progression (« [12/400] Compiling … », téléchargement du cache), marqueurs
 /// d'actions (« ##[start-action …] »), contenu des groupes
 /// repliés (préparation, variables d'environnement) ni nettoyage de fin de job ;
+/// une suite de lignes « test lancé / test réussi » tient en une ligne (la dernière,
+/// avec le nombre des autres) : les échecs et les bilans restent ;
 /// une suite de messages identiques à l'emplacement près (« info • … •
 /// lib/a.dart:1:1 ») tient en une ligne suivie des autres emplacements ;
 /// les erreurs plus haut que la fin gardée sont reprises avec un peu de contexte.
@@ -50,6 +61,14 @@ public enum CILog {
         var out: [String] = []
         var inGroup = false
         var progress = false
+        // Lignes « test lancé / réussi » de la suite en cours (la dernière est gardée).
+        var passed = 0
+        func endPassed() {
+            if passed > 1 {
+                out[out.count - 1] += "  (+\(passed - 1) ligne\(passed > 2 ? "s" : "") de tests réussis ou lancés)"
+            }
+            passed = 0
+        }
         // « \r\n » est un seul caractère en Swift : découpé par `isNewline`.
         for piece in raw.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
             var line = String(piece)
@@ -74,6 +93,13 @@ public enum CILog {
                 continue
             }
             if line.trimmingCharacters(in: .whitespaces).isEmpty || line == out.last { continue }
+            if logPassed.hasMatch(line) {
+                if passed > 0 { out[out.count - 1] = line } else { out.append(line) }
+                passed += 1
+                progress = false
+                continue
+            }
+            endPassed()
             // Une suite de lignes de progression (« [12/400] Compiling … ») : la dernière.
             let isProgress = logProgress.hasMatch(line)
             if isProgress && progress {
@@ -83,6 +109,7 @@ public enum CILog {
             progress = isProgress
             out.append(line)
         }
+        endPassed()
         return foldSimilar(out)
     }
 
