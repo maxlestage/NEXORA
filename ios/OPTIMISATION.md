@@ -1471,11 +1471,20 @@ mémoire 32k tokens, consigne 3 000 car.
   réinitialiser » : message qui liste ce qui part (`resetMessage`), bouton « Tout effacer ».
   Rien retiré. Tests : 590 → 591 (mêmes 2 échecs Linux du catalogue et des prix).
 
+- 3.0.185 (interface ; passage TOKENS sans piste sûre : budget de réflexion déjà réglé par
+  le niveau, `max_tokens`, images, titres, recherches, skills revus — rien de mesurable sans
+  risque) : Routines — suppression claire. Titre qui nomme la routine
+  (`RoutinesDisplay.deleteTitle(name:)`), message qui dit ce qui se passe
+  (`deleteMessage(_:)` : plus de passages, sessions gardées ; sur GitHub, workflow désactivé,
+  fichier gardé), bouton « Supprimer la routine ». Rien retiré. Tests : 591 → 592 (mêmes 2
+  échecs Linux du catalogue et des prix).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.184) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
+(interface faite en 3.0.185) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
 Interface ensuite : très grand texte sur la feuille d'import de Personnaliser et
-Réglages › Données (ligne « place » + bouton recalculer), autres « Confirmer »/alertes
-vagues ailleurs dans l'app (`grep -rn 'role: .destructive' Nexora`).
+Réglages › Données (ligne « place » + bouton recalculer) ; confirmations restantes sans
+nom ni message : « Supprimer ce serveur ? » a déjà un message, vérifier AgentsView
+(l. 143 et 574) et RepoView « Abandonner les modifications ? ».
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

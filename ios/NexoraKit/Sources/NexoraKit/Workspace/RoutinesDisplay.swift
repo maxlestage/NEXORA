@@ -79,4 +79,19 @@ public enum RoutinesDisplay {
         case .github: "Tourne sur GitHub, même téléphone éteint, et ouvre une pull request."
         }
     }
+
+    /// Titre de la confirmation de suppression : nomme la routine.
+    public static func deleteTitle(name: String) -> String {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return n.isEmpty ? "Supprimer la routine ?" : "Supprimer « \(n) » ?"
+    }
+
+    /// Ce que la suppression change, en une phrase : plus de passages, les sessions
+    /// déjà faites restent ; sur GitHub, le workflow est désactivé (fichier gardé).
+    public static func deleteMessage(_ runner: RoutineRunner) -> String {
+        switch runner {
+        case .app: "Elle ne se lancera plus. Les sessions déjà faites sont gardées."
+        case .github: "Elle ne se lancera plus : son workflow est désactivé sur GitHub (le fichier reste dans le dépôt). Les pull requests déjà ouvertes sont gardées."
+        }
+    }
 }
