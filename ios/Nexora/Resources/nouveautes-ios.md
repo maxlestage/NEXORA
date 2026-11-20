@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.189 — 20 novembre 2026 — Build en échec : l'agent ne relit plus l'installation
+- Amélioré : quand un build échoue après une longue installation (cargo, pip, Gradle, pub, SwiftPM, bundler, CocoaPods, apt), l'agent lit l'erreur sans la liste des dépendances : environ 90 % de tokens en moins sur ce journal.
+- Amélioré : les erreurs restent toutes lisibles, même quand plusieurs commandes échouent dans le même job.
+
 ## 3.0.188 — 20 novembre 2026 — Importer des réglages : on voit tout de suite si c'est bon
 
 - Amélioré : la feuille « Importer des réglages » dit sous le champ combien de réglages elle a reconnus, avant de valider.
