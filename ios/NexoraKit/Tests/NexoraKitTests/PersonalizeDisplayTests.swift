@@ -54,4 +54,24 @@ struct PersonalizeDisplayTests {
         // Deux colonnes tiennent sur le plus petit iPhone (320 pt, marges de la liste déduites).
         #expect(PersonalizeDisplay.swatchWidth(bigText: true) * 2 + 12 <= 320 - 40)
     }
+
+    @Test func feuilleImport() {
+        // Champ vide : rien à dire, « Importer » inactif.
+        let vide = PersonalizeDisplay.importStatus(text: "  \n", fromClipboard: false)
+        #expect(vide == .init(message: "", isError: false, canImport: false))
+        // Un export : le nombre de réglages reconnus, et d'où il vient.
+        let export = #"{"theme":"dark","haptics":true,"inconnu":1}"#
+        let bon = PersonalizeDisplay.importStatus(text: export, fromClipboard: false)
+        #expect(bon == .init(message: "2 réglages reconnus", isError: false, canImport: true))
+        let repris = PersonalizeDisplay.importStatus(text: #" {"theme":"dark"} "#, fromClipboard: true)
+        #expect(repris.message == "1 réglage reconnu, repris du presse-papiers")
+        #expect(repris.canImport)
+        // Autre chose (texte, JSON sans réglage) : dit sur place, sans fermer la feuille.
+        for mauvais in ["bonjour", #"{"autre":1}"#, "[1,2]"] {
+            let s = PersonalizeDisplay.importStatus(text: mauvais, fromClipboard: false)
+            #expect(s.isError && !s.canImport)
+            #expect(s.message.contains("Exporter mes réglages"))
+        }
+        #expect(Preferences.exportCount(nil) == 0)
+    }
 }
