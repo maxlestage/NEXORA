@@ -1479,12 +1479,22 @@ mémoire 32k tokens, consigne 3 000 car.
   fichier gardé), bouton « Supprimer la routine ». Rien retiré. Tests : 591 → 592 (mêmes 2
   échecs Linux du catalogue et des prix).
 
+- 3.0.186 (interface ; passage TOKENS réévalué d'abord, rien de sûr : find_in_file,
+  use_skill (déjà dédoublonné par `dedupResults`), outil github (`slimGitHub`), `pitfalls`
+  relus — tout est déjà borné) : Code › éditeur de fichier — quitter sans enregistrer.
+  Titre qui nomme le fichier (`FileEditorDisplay.leaveTitle(path:isNew:)`), message qui dit
+  ce qui sera perdu (`leaveMessage(old:new:isNew:)` : « 3 lignes ajoutées, 1 retirée… », ou
+  la taille du texte d'un nouveau fichier). Avant : « Abandonner les modifications ? » seul.
+  Rien retiré. Tests : 592 → 593 (mêmes 2 échecs Linux du catalogue et des prix).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.185) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
+(interface faite en 3.0.186) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
+Deux passages TOKENS de suite sans piste sûre (3.0.185, 3.0.186) : ne pas relire encore
+find_in_file, use_skill, outil github, pitfalls, `max_tokens`, images, titres ; chercher
+plutôt une MESURE nouvelle (banc d'une session avec outil github ou CI en échec).
 Interface ensuite : très grand texte sur la feuille d'import de Personnaliser et
-Réglages › Données (ligne « place » + bouton recalculer) ; confirmations restantes sans
-nom ni message : « Supprimer ce serveur ? » a déjà un message, vérifier AgentsView
-(l. 143 et 574) et RepoView « Abandonner les modifications ? ».
+Réglages › Données (ligne « place » + bouton recalculer). Confirmations : toutes revues
+(AgentsView, RepoView, Routines, Réglages, serveurs MCP).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

@@ -9,6 +9,24 @@ struct FileEditorDisplayTests {
         #expect(FileEditorDisplay.defaultMessage(path: "README.md", isNew: false) == "Met à jour README.md")
     }
 
+    @Test func confirmationAvantDeQuitter() {
+        #expect(FileEditorDisplay.leaveTitle(path: "app/lib/main.dart", isNew: false)
+            == "Abandonner les modifications de main.dart ?")
+        #expect(FileEditorDisplay.leaveTitle(path: "docs/notes.md", isNew: true)
+            == "Abandonner le nouveau fichier notes.md ?")
+        #expect(FileEditorDisplay.leaveTitle(path: "", isNew: true) == "Abandonner ce nouveau fichier ?")
+        #expect(FileEditorDisplay.leaveTitle(path: "docs/", isNew: true) == "Abandonner le nouveau fichier docs ?")
+        #expect(FileEditorDisplay.leaveMessage(old: "a\nb\n", new: "a\nc\nd\ne\n", isNew: false)
+            == "3 lignes ajoutées, 1 retirée : rien n'est enregistré, ces changements seront perdus.")
+        #expect(FileEditorDisplay.leaveMessage(old: "a\n", new: "b\n", isNew: false)
+            == "1 ligne ajoutée, 1 retirée : rien n'est enregistré, ces changements seront perdus.")
+        #expect(FileEditorDisplay.leaveMessage(old: "", new: "a\nb\n", isNew: true)
+            == "Ce fichier n'est pas enregistré : le texte écrit (2 lignes · 4 o) sera perdu.")
+        let long = String(repeating: "x\n", count: 3_001)
+        #expect(FileEditorDisplay.leaveMessage(old: long, new: long + "y", isNew: false)
+            == "Rien n'est enregistré : ces changements seront perdus.")
+    }
+
     @Test func cheminInvalide() {
         #expect(FileEditorDisplay.pathProblem("") != nil)
         #expect(FileEditorDisplay.pathProblem("   ") != nil)

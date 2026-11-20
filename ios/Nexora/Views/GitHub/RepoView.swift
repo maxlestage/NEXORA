@@ -358,9 +358,15 @@ struct FileEditorView: View {
                 }
             }
         }
-        .confirmationDialog("Abandonner les modifications ?", isPresented: $confirmLeave, titleVisibility: .visible) {
+        .confirmationDialog(
+            FileEditorDisplay.leaveTitle(path: path, isNew: isNew),
+            isPresented: $confirmLeave,
+            titleVisibility: .visible
+        ) {
             Button("Abandonner", role: .destructive) { dismiss() }
             Button("Continuer à modifier", role: .cancel) {}
+        } message: {
+            Text(FileEditorDisplay.leaveMessage(old: file?.text ?? "", new: text, isNew: isNew))
         }
         .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
         .task {

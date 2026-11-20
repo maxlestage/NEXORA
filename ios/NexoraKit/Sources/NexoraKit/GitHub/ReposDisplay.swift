@@ -243,6 +243,32 @@ public enum FileEditorDisplay {
         return "\(added), \(removed), sur \(branch)"
     }
 
+    /// Titre de la confirmation avant de quitter sans enregistrer : il nomme le
+    /// fichier (« Abandonner les modifications de main.dart ? »). Nouveau fichier :
+    /// « Abandonner le nouveau fichier notes.md ? » (sans nom tant qu'il n'en a pas).
+    public static func leaveTitle(path: String, isNew: Bool) -> String {
+        let name = path.split(separator: "/").last.map(String.init)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        if isNew {
+            return name.isEmpty ? "Abandonner ce nouveau fichier ?" : "Abandonner le nouveau fichier \(name) ?"
+        }
+        return name.isEmpty ? "Abandonner les modifications ?" : "Abandonner les modifications de \(name) ?"
+    }
+
+    /// Ce qui sera perdu, sous le titre : « 3 lignes ajoutées, 1 retirée : rien n'est
+    /// enregistré, ces changements seront perdus. » Nouveau fichier : le texte écrit.
+    public static func leaveMessage(old: String, new: String, isNew: Bool) -> String {
+        if isNew {
+            return "Ce fichier n'est pas enregistré : le texte écrit (\(summary(new))) sera perdu."
+        }
+        guard let c = lineChanges(old: old, new: new) else {
+            return "Rien n'est enregistré : ces changements seront perdus."
+        }
+        let added = c.added == 1 ? "1 ligne ajoutée" : "\(c.added) lignes ajoutées"
+        let removed = c.removed == 1 ? "1 retirée" : "\(c.removed) retirées"
+        return "\(added), \(removed) : rien n'est enregistré, ces changements seront perdus."
+    }
+
     /// Une décimale à la française, sans « ,0 » : 1,2 ; 12.
     static func decimal(_ x: Double) -> String {
         let r = (x * 10).rounded() / 10
