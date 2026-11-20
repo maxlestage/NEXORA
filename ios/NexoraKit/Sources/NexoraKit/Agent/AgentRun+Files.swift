@@ -303,21 +303,30 @@ extension AgentRun {
     /// seconde fois (3.0.167). Grand dépôt (plus de `firstTreeLimit` fichiers) : la
     /// liste résumée du premier message sert de la même façon (3.0.179). `nil` si la
     /// liste n'y est pas (session ancienne), si elle est courte ou si trop de
-    /// fichiers ont changé.
+    /// fichiers ont changé. Avec `prefix` (list_files d'un dossier, 3.0.181) : même
+    /// renvoi quand le premier message nomme déjà chaque fichier du dossier (dépôt
+    /// d'au plus `firstTreeLimit` fichiers, donc aucun dossier résumé) et que la
+    /// liste du dossier est longue.
     public nonisolated static func treeAlreadyGiven(
-        tree: [String], files: [String], history: [LLMMessage]
+        tree: [String], files: [String], history: [LLMMessage], prefix: String = ""
     ) -> String? {
         guard !tree.isEmpty else { return nil }
         let given = foldedTree(tree, limit: firstTreeLimit)
         guard given.count > dedupMin,
               history.contains(where: { $0.role == "user" && $0.content.contains("Fichiers :\n\(given)\n\n") })
         else { return nil }
-        let known = Set(tree), now = Set(files)
+        let before = prefix.isEmpty ? tree : tree.filter { $0.hasPrefix(prefix) }
+        if !prefix.isEmpty {
+            guard tree.count <= firstTreeLimit, !before.isEmpty, fileTree(files).count > dedupMin else { return nil }
+        }
+        let known = Set(before), now = Set(files)
         let added = files.filter { !known.contains($0) }
-        let removed = tree.filter { !now.contains($0) }
+        let removed = before.filter { !now.contains($0) }
         if added.count + removed.count > 40 { return nil }
-        var lines = ["(liste identique à celle du premier message, plus haut : sers-toi de celle-là"
-            + (added.isEmpty && removed.isEmpty ? ")" : " ; depuis :)")]
+        let head = prefix.isEmpty
+            ? "(liste identique à celle du premier message, plus haut : sers-toi de celle-là"
+            : "(les \(before.count) fichiers de « \(prefix) » sont déjà dans la liste du premier message, plus haut : sers-toi de celle-là"
+        var lines = [head + (added.isEmpty && removed.isEmpty ? ")" : " ; depuis :)")]
         if !added.isEmpty { lines.append("Créés :\n" + fileTree(added)) }
         if !removed.isEmpty { lines.append("Supprimés :\n" + fileTree(removed)) }
         return lines.joined(separator: "\n")
@@ -821,7 +830,7 @@ extension AgentRun {
                 lines.append(notes)
                 return lines.filter { !$0.trim().isEmpty }.joined(separator: "\n")
             }
-            if prefix.isEmpty, let short = Self.treeAlreadyGiven(tree: tree, files: files, history: history) {
+            if let short = Self.treeAlreadyGiven(tree: tree, files: files, history: history, prefix: prefix) {
                 return [short, notes].filter { !$0.trim().isEmpty }.joined(separator: "\n")
             }
             return [Self.foldedTree(files, limit: 300), notes]

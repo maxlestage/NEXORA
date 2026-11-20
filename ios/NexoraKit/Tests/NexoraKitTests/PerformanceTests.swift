@@ -1299,6 +1299,40 @@ extension FileTreeBench {
         #expect(changed.hasSuffix("Créés :\nzz/nouveau.swift"))
         #expect(AgentRun.treeAlreadyGiven(tree: repo, files: repo, history: []) == nil)
     }
+
+    @Test("list_files d'un dossier déjà nommé en entier dans le premier message : renvoi court")
+    func folderAlreadyGiven() {
+        let dir = Self.busiestDir
+        let inDir = Self.repo.filter { $0.hasPrefix(dir) }
+        let before = AgentRun.fileTree(inDir).count
+        let short = AgentRun.treeAlreadyGiven(tree: Self.repo, files: inDir, history: Self.first, prefix: dir)
+        #expect(short == "(les \(inDir.count) fichiers de « \(dir) » sont déjà dans la liste du premier message, plus haut : sers-toi de celle-là)")
+        print("list_files d'un dossier déjà donné (\(inDir.count) fichiers sur \(Self.repo.count)) : \(before / 4) → \(short!.count / 4) tokens")
+        #expect(short!.count * 5 < before)
+        // Un fichier créé ou supprimé dans le dossier reste signalé, pas ceux d'ailleurs.
+        let changed = AgentRun.treeAlreadyGiven(
+            tree: Self.repo, files: Array(inDir.dropFirst()) + [dir + "zz_nouveau.txt"], history: Self.first, prefix: dir)!
+        #expect(changed.contains("Créés :\n\(dir)zz_nouveau.txt"))
+        #expect(changed.hasSuffix("Supprimés :\n\(inDir[0])"))
+        // Petit dossier, dossier inconnu, premier message absent : liste entière.
+        let few = Array(inDir.prefix(3))
+        #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: few, history: Self.first, prefix: few[0]) == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: [], history: Self.first, prefix: "absent/") == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: inDir, history: [], prefix: dir) == nil)
+        // Grand dépôt (dossiers résumés dans le premier message) : liste entière.
+        let big = Self.bigRepo
+        let given = AgentRun.foldedTree(big, limit: AgentRun.firstTreeLimit)
+        let history = [LLMMessage("user", "Fichiers :\n\(given)\n\n")]
+        let top = String(big[0].prefix { $0 != "/" }) + "/"
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: big.filter { $0.hasPrefix(top) }, history: history, prefix: top) == nil)
+    }
+
+    /// Le dossier de premier niveau du dépôt d'essai qui contient le plus de fichiers.
+    static var busiestDir: String {
+        var counts: [String: Int] = [:]
+        for f in repo { if let cut = f.firstIndex(of: "/") { counts[String(f[...cut]), default: 0] += 1 } }
+        return counts.max { ($0.value, $1.key) < ($1.value, $0.key) }!.key
+    }
 }
 
 @Suite("Résultats de recherche")
