@@ -157,7 +157,10 @@ struct SettingsView: View {
 
                 // Actions irréversibles, rangées tout en bas (chacune demande confirmation).
                 Section {
-                    Button("Effacer toutes les conversations", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    Button("Effacer toutes les conversations", systemImage: "trash", role: .destructive) {
+                        // Rien à effacer : on le dit tout de suite, sans confirmation inutile.
+                        if chats.index.isEmpty { deleteAll() } else { confirmDelete = true }
+                    }
                     Button(role: .destructive) {
                         confirmReset = true
                     } label: {
@@ -199,15 +202,17 @@ struct SettingsView: View {
             } message: {
                 Text(SettingsDisplay.signOutMessage)
             }
-            .alert("Effacer toutes les conversations ?", isPresented: $confirmDelete) {
+            .alert(SettingsDisplay.deleteAllTitle(chats.index.count), isPresented: $confirmDelete) {
                 Button("Annuler", role: .cancel) {}
-                Button("Confirmer", role: .destructive) { deleteAll() }
+                Button("Effacer", role: .destructive) { deleteAll() }
+            } message: {
+                Text(SettingsDisplay.deleteAllMessage(count: chats.index.count, pinned: chats.index.filter(\.pinned).count))
             }
             .alert("Tout effacer de cet appareil ?", isPresented: $confirmReset) {
                 Button("Annuler", role: .cancel) {}
-                Button("Confirmer", role: .destructive) { resetAll() }
+                Button("Tout effacer", role: .destructive) { resetAll() }
             } message: {
-                Text("Action irréversible.")
+                Text(SettingsDisplay.resetMessage)
             }
             .alert("OAuth App GitHub", isPresented: $editingClientId) {
                 TextField("Client ID", text: $clientId)

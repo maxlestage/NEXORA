@@ -11,6 +11,16 @@ struct SettingsDisplayTests {
         #expect(SettingsDisplay.storage(conversations: 1, bytes: nil) == "1 conversation")
     }
 
+    @Test func confirmationsAvantEffacement() {
+        #expect(SettingsDisplay.deleteAllTitle(1) == "Effacer la conversation ?")
+        #expect(SettingsDisplay.deleteAllTitle(12) == "Effacer les 12 conversations ?")
+        #expect(SettingsDisplay.deleteAllMessage(count: 4, pinned: 0) == "Elles sont retirées de cet appareil, sans retour possible.")
+        #expect(SettingsDisplay.deleteAllMessage(count: 1, pinned: 1) == "1 épinglée comprise. Elle est retirée de cet appareil, sans retour possible.")
+        #expect(SettingsDisplay.deleteAllMessage(count: 5, pinned: 3).hasPrefix("3 épinglées comprises. "))
+        #expect(SettingsDisplay.resetMessage.contains("Clés"))
+        #expect(SettingsDisplay.resetMessage.contains("sans retour"))
+    }
+
     @Test func retours() {
         #expect(SettingsDisplay.cleaned(0) == "Rien à supprimer (les épinglées sont gardées)")
         #expect(SettingsDisplay.cleaned(1) == "1 conversation supprimée")

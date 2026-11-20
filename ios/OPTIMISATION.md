@@ -1464,11 +1464,18 @@ mémoire 32k tokens, consigne 3 000 car.
   appel (−97 %), gardés ensuite dans l'historique. Tests : 589 → 590 (mêmes 2 échecs
   Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.183) → prochain passage : INTERFACE, même recette (très grand
-texte) : écrans pas encore passés en revue (feuille d'import de Personnaliser,
-Réglages › Données). Tokens ensuite : voir « Pistes tokens à faire » (list_files est
-maintenant couvert : dépôt entier, dossier, petit et grand dépôt).
+- 3.0.184 (interface) : Réglages › Effacer — confirmations claires. « Effacer toutes les
+  conversations » : titre avec le nombre (`SettingsDisplay.deleteAllTitle`), message qui dit
+  si des épinglées sont comprises (`deleteAllMessage(count:pinned:)`), bouton « Effacer » au
+  lieu de « Confirmer » ; aucune conversation → toast direct, sans alerte. « Tout
+  réinitialiser » : message qui liste ce qui part (`resetMessage`), bouton « Tout effacer ».
+  Rien retiré. Tests : 590 → 591 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.184) → prochain passage : TOKENS, voir « Pistes tokens à faire ».
+Interface ensuite : très grand texte sur la feuille d'import de Personnaliser et
+Réglages › Données (ligne « place » + bouton recalculer), autres « Confirmer »/alertes
+vagues ailleurs dans l'app (`grep -rn 'role: .destructive' Nexora`).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
