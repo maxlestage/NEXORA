@@ -22,6 +22,8 @@ struct DraftReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var shipping = false
+    /// L'envoi sur GitHub est en cours (plusieurs secondes) : Valider attend.
+    @State private var sending = false
     @State private var toast: Toast?
     /// Augmente à chaque envoi réussi (vibration).
     @State private var shipped = 0
@@ -62,7 +64,7 @@ struct DraftReviewView: View {
                         run.setAllAccepted(DraftsDisplay.bulkAccepts(accepted: accepted, total: paths.count))
                     }
                     .frame(minHeight: 44)
-                    .disabled(run.running)
+                    .disabled(run.running || sending)
                 }
             }
         }
@@ -71,12 +73,20 @@ struct DraftReviewView: View {
                 Button {
                     shipping = true
                 } label: {
-                    Label(WorkspaceText.validateLabel(accepted), systemImage: "checkmark.seal")
+                    if let label = DraftsDisplay.sendingLabel(sending) {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text(label)
+                        }
                         .frame(maxWidth: .infinity)
+                    } else {
+                        Label(WorkspaceText.validateLabel(accepted), systemImage: "checkmark.seal")
+                            .frame(maxWidth: .infinity)
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(accepted == 0 || run.running)
+                .disabled(!DraftsDisplay.canValidate(accepted: accepted, running: run.running, sending: sending))
                 if let hint = DraftsDisplay.emptyHint(accepted: accepted, total: paths.count) {
                     Text(hint)
                         .font(.caption)
@@ -99,6 +109,10 @@ struct DraftReviewView: View {
     /// Envoie les brouillons acceptés : chaque dépôt qui a déjà sa pull request la
     /// met à jour ; les autres en ouvrent une (si demandé), ou un commit direct.
     private func ship(message: String, branch: String?, openPr: Bool, hasPull: Bool) async {
+        // Un seul envoi à la fois : un second enverrait les mêmes fichiers deux fois.
+        guard !sending else { return }
+        sending = true
+        defer { sending = false }
         do {
             let results = try await run.commitAll(
                 message: message.isEmpty ? run.task : message,

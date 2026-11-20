@@ -1516,15 +1516,20 @@ mémoire 32k tokens, consigne 3 000 car.
   « FAILED » n'est jamais repliée. Tests : 596 → 598 (mêmes 2 échecs Linux du catalogue et
   des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.189) → prochain passage : INTERFACE : Réglages › Données en très grand
-texte (ligne « place » + bouton recalculer : le texte se replie déjà, à vérifier seulement),
-accueil, Aide. Confirmations : toutes revues (AgentsView, RepoView, Routines, Réglages,
-serveurs MCP).
-Tokens ensuite : ne pas relire find_in_file, use_skill, outil github, pitfalls, `max_tokens`,
-images, titres (3.0.185/186) ni `jobLog` / `CILog` (tests 3.0.187, installations 3.0.189) ;
-chercher une MESURE nouvelle (ex. session avec outil github ; npm « npm warn deprecated »
-répétés ; étapes xcodebuild sans xcbeautify).
+- 3.0.190 (interface) : Valider les brouillons, 3e passage (DraftReviewView) — pendant
+  `commitAll` (plusieurs secondes de réseau) rien ne bougeait et Valider restait actif : un
+  second appui rouvrait la feuille et envoyait les mêmes fichiers deux fois. État `sending` :
+  bouton « Envoi sur GitHub… » + indicateur, Valider et « Tout cocher » grisés, `ship` refuse
+  un envoi pendant un autre. `DraftsDisplay.sendingLabel` / `canValidate`. Tests : 598 → 599.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.190) → prochain passage : TOKENS : ne pas relire find_in_file,
+use_skill, outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` /
+`CILog` (tests 3.0.187, installations 3.0.189) ; chercher une MESURE nouvelle (ex. session
+avec outil github ; npm « npm warn deprecated » répétés ; étapes xcodebuild sans xcbeautify).
+Interface ensuite : chercher d'autres actions réseau sans état « en cours » (même défaut
+que 3.0.190 : RepoView, CloudAgentsView, RoutinesView), Réglages › Données en très grand
+texte (à vérifier seulement), accueil, Aide. Confirmations : toutes revues.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
