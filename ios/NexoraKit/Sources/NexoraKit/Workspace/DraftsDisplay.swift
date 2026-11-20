@@ -10,6 +10,17 @@ public enum DraftsDisplay {
         accepted == 0 && total > 0 ? "Cochez au moins un fichier pour valider." : nil
     }
 
+    /// Le bouton Valider pendant l'envoi sur GitHub (`nil` : son libellé habituel).
+    public static func sendingLabel(_ sending: Bool) -> String? {
+        sending ? "Envoi sur GitHub…" : nil
+    }
+
+    /// Valider est-il possible ? Jamais pendant un envoi (un second appui enverrait
+    /// les mêmes fichiers deux fois), ni pendant que l'agent travaille, ni sans fichier coché.
+    public static func canValidate(accepted: Int, running: Bool, sending: Bool) -> Bool {
+        accepted > 0 && !running && !sending
+    }
+
     /// Le bouton de la barre : `true` = tout cocher, `false` = tout décocher.
     public static func bulkAccepts(accepted: Int, total: Int) -> Bool {
         accepted < total

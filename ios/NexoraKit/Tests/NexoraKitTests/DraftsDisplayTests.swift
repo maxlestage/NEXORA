@@ -16,6 +16,15 @@ struct DraftsDisplayTests {
         #expect(DraftsDisplay.intro.count < 100)
     }
 
+    @Test func pendantLEnvoiValiderEstBloque() {
+        #expect(DraftsDisplay.sendingLabel(false) == nil)
+        #expect(DraftsDisplay.sendingLabel(true) == "Envoi sur GitHub…")
+        #expect(DraftsDisplay.canValidate(accepted: 2, running: false, sending: false))
+        #expect(!DraftsDisplay.canValidate(accepted: 2, running: false, sending: true))
+        #expect(!DraftsDisplay.canValidate(accepted: 2, running: true, sending: false))
+        #expect(!DraftsDisplay.canValidate(accepted: 0, running: false, sending: false))
+    }
+
     @Test func ligneLueParVoiceOver() {
         #expect(DraftsDisplay.rowAccessibility(path: "a.swift", kind: .modified, added: 12, removed: 1, accepted: true)
             == "a.swift, Modifié, 12 lignes ajoutées, 1 retirée, coché")

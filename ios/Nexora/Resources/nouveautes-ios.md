@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.190 — 20 novembre 2026 — Valider les brouillons : on voit que l'envoi est en cours
+
+- Amélioré : pendant l'envoi sur GitHub, le bouton Valider affiche « Envoi sur GitHub… » avec un indicateur (avant : rien ne bougeait pendant plusieurs secondes).
+- Corrigé : un second appui sur Valider pendant l'envoi ne peut plus envoyer les mêmes fichiers deux fois.
+
 ## 3.0.189 — 20 novembre 2026 — Build en échec : l'agent ne relit plus l'installation
 - Amélioré : quand un build échoue après une longue installation (cargo, pip, Gradle, pub, SwiftPM, bundler, CocoaPods, apt), l'agent lit l'erreur sans la liste des dépendances : environ 90 % de tokens en moins sur ce journal.
 - Amélioré : les erreurs restent toutes lisibles, même quand plusieurs commandes échouent dans le même job.
