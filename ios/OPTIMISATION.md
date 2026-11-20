@@ -1456,11 +1456,19 @@ mémoire 32k tokens, consigne 3 000 car.
   (`swatchWidth(bigText:)`, deux colonnes sur iPhone), nom non coupé. Taille normale
   inchangée. Rien retiré. Tests : 588 → 589 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.182) → prochain passage : TOKENS : list_files d'un dossier NON
-résumé d'un grand dépôt (> 400 fichiers), encore renvoyé en entier ; sinon voir « Pistes
-tokens à faire ». Interface ensuite, même recette (très grand texte) : écrans pas encore
-passés en revue (feuille d'import de Personnaliser, Réglages › Données).
+- 3.0.183 (tokens) : `treeAlreadyGiven(…, prefix:)` étendu aux GRANDS dépôts (> 400
+  fichiers) : renvoi court quand chaque ligne de `fileTree` du dossier figure telle quelle
+  dans la liste résumée du premier message (un dossier résumé « dossier/ (N fichiers) » ou
+  un préfixe qui coupe un dossier n'y figure pas → liste entière, comme avant). Banc
+  `FileTreeBench.folderAlreadyGivenBig` (360 fichiers sur 464) : 1 109 → 26 tokens par
+  appel (−97 %), gardés ensuite dans l'historique. Tests : 589 → 590 (mêmes 2 échecs
+  Linux du catalogue et des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.183) → prochain passage : INTERFACE, même recette (très grand
+texte) : écrans pas encore passés en revue (feuille d'import de Personnaliser,
+Réglages › Données). Tokens ensuite : voir « Pistes tokens à faire » (list_files est
+maintenant couvert : dépôt entier, dossier, petit et grand dépôt).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

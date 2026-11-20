@@ -304,9 +304,11 @@ extension AgentRun {
     /// liste résumée du premier message sert de la même façon (3.0.179). `nil` si la
     /// liste n'y est pas (session ancienne), si elle est courte ou si trop de
     /// fichiers ont changé. Avec `prefix` (list_files d'un dossier, 3.0.181) : même
-    /// renvoi quand le premier message nomme déjà chaque fichier du dossier (dépôt
-    /// d'au plus `firstTreeLimit` fichiers, donc aucun dossier résumé) et que la
-    /// liste du dossier est longue.
+    /// renvoi quand le premier message nomme déjà chaque fichier du dossier et que
+    /// la liste du dossier est longue. Dépôt d'au plus `firstTreeLimit` fichiers :
+    /// aucun dossier n'y est résumé. Grand dépôt (3.0.183) : seulement si chaque
+    /// ligne de la liste du dossier figure telle quelle dans le premier message
+    /// (un dossier résumé en « dossier/ (N fichiers) » n'y figure pas).
     public nonisolated static func treeAlreadyGiven(
         tree: [String], files: [String], history: [LLMMessage], prefix: String = ""
     ) -> String? {
@@ -317,7 +319,11 @@ extension AgentRun {
         else { return nil }
         let before = prefix.isEmpty ? tree : tree.filter { $0.hasPrefix(prefix) }
         if !prefix.isEmpty {
-            guard tree.count <= firstTreeLimit, !before.isEmpty, fileTree(files).count > dedupMin else { return nil }
+            guard !before.isEmpty, fileTree(files).count > dedupMin else { return nil }
+            if tree.count > firstTreeLimit {
+                let shown = Set(given.split(separator: "\n"))
+                guard fileTree(before).split(separator: "\n").allSatisfy({ shown.contains($0) }) else { return nil }
+            }
         }
         let known = Set(before), now = Set(files)
         let added = files.filter { !known.contains($0) }

@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.183 — 20 novembre 2026 — Dossier d'un grand dépôt non renvoyé deux fois
+- Amélioré : dans un grand dépôt (plus de 400 fichiers), quand l'agent redemande la liste d'un dossier déjà détaillé au début de la session, il reçoit un renvoi court au lieu de toute la liste (environ 97 % de tokens en moins pour cet appel).
+- Les fichiers créés ou supprimés depuis restent signalés ; un dossier résumé au départ est toujours listé en entier.
+
 ## 3.0.182 — 20 novembre 2026 — Personnaliser lisible en très grand texte
 - Amélioré : en très grande taille de texte, l'aperçu de l'écran Personnaliser réduit le logo et affiche le nom de l'assistant dessous, sur toute la largeur.
 - Amélioré : les jeux de couleurs passent sur deux colonnes plus larges, leur nom n'est plus coupé.
