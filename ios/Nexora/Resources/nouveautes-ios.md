@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.188 — 20 novembre 2026 — Importer des réglages : on voit tout de suite si c'est bon
+
+- Amélioré : la feuille « Importer des réglages » dit sous le champ combien de réglages elle a reconnus, avant de valider.
+- Corrigé : un texte qui n'est pas un export ne ferme plus la feuille. L'erreur s'affiche sur place et le texte collé n'est pas perdu.
+- Nouveau : boutons « Coller » et « Effacer » dans la feuille, sans appui long.
+
 ## 3.0.187 — 20 novembre 2026 — Tests en échec : l'agent lit l'essentiel
 
 - Amélioré : quand des tests échouent sur GitHub, l'agent ne relit plus les centaines de lignes « test réussi » du journal. Il voit les échecs et le bilan, pour environ 8 fois moins de tokens.

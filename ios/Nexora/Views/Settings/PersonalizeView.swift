@@ -350,7 +350,8 @@ struct PersonalizeView: View {
     }
 
     private var importSheet: some View {
-        NavigationStack {
+        let status = PersonalizeDisplay.importStatus(text: importText, fromClipboard: importFromClipboard)
+        return NavigationStack {
             Form {
                 Section {
                     TextField("Collez ici les réglages exportés", text: $importText, axis: .vertical)
@@ -358,9 +359,29 @@ struct PersonalizeView: View {
                         .lineLimit(6...12)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .onChange(of: importText) { importFromClipboard = false }
                 } footer: {
-                    if importFromClipboard {
-                        Label("Réglages repris du presse-papiers", systemImage: "doc.on.clipboard")
+                    // On sait avant de valider si le texte est bon : plus d'avis
+                    // « texte invalide » une fois la feuille refermée et le texte perdu.
+                    if !status.message.isEmpty {
+                        Label(status.message,
+                              systemImage: status.isError ? "exclamationmark.triangle" : "checkmark.circle")
+                            .foregroundStyle(status.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    }
+                }
+                if importText.isEmpty {
+                    Section {
+                        Button("Coller", systemImage: "doc.on.clipboard") {
+                            importText = UIPasteboard.general.string ?? ""
+                        }
+                        .frame(minHeight: 44)
+                    }
+                } else {
+                    Section {
+                        Button("Effacer", systemImage: "xmark.circle", role: .destructive) {
+                            importText = ""
+                        }
+                        .frame(minHeight: 44)
                     }
                 }
             }
@@ -370,16 +391,13 @@ struct PersonalizeView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { importing = false } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Importer") {
-                        importing = false
-                        guard !importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                         if settings.importPreferences(importText) {
+                            importing = false
                             reloadFields()
                             toast = Toast(text: "Réglages importés ✅")
-                        } else {
-                            toast = Toast(text: "Texte invalide : collez des réglages exportés.", error: true)
                         }
                     }
-                    .disabled(importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(!status.canImport)
                 }
             }
         }

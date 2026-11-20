@@ -58,4 +58,38 @@ public enum PersonalizeDisplay {
     public static func swatchWidth(bigText: Bool) -> Double {
         bigText ? 132 : 72
     }
+
+    /// Ce que la feuille d'import dit du texte collé, avant de toucher « Importer ».
+    public struct ImportStatus: Equatable, Sendable {
+        /// Ligne sous le champ (vide : rien à dire).
+        public let message: String
+        /// Le texte n'est pas un export : la ligne s'affiche en rouge.
+        public let isError: Bool
+        /// « Importer » est actif.
+        public let canImport: Bool
+
+        public init(message: String, isError: Bool, canImport: Bool) {
+            self.message = message
+            self.isError = isError
+            self.canImport = canImport
+        }
+    }
+
+    /// L'état de la feuille d'import : on sait tout de suite si le texte collé est bon,
+    /// au lieu de l'apprendre par un avis une fois la feuille refermée.
+    public static func importStatus(text: String, fromClipboard: Bool) -> ImportStatus {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return ImportStatus(message: "", isError: false, canImport: false)
+        }
+        let n = Preferences.exportCount(text)
+        guard n > 0 else {
+            return ImportStatus(
+                message: "Ce texte n'est pas un export de réglages. Touchez « Exporter mes réglages » sur l'autre appareil, puis collez ici.",
+                isError: true, canImport: false)
+        }
+        let found = n == 1 ? "1 réglage reconnu" : "\(n) réglages reconnus"
+        return ImportStatus(
+            message: fromClipboard ? "\(found), repris du presse-papiers" : found,
+            isError: false, canImport: true)
+    }
 }

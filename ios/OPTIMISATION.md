@@ -1497,14 +1497,21 @@ mémoire 32k tokens, consigne 3 000 car.
   et bilans (« Test run with … », « Some tests failed. ») intacts. Tests : 593 → 595 (mêmes
   2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.187) → prochain passage : INTERFACE : très grand texte sur la feuille
-d'import de Personnaliser et Réglages › Données (ligne « place » + bouton recalculer).
+- 3.0.188 (interface, Personnaliser › feuille d'import) : `PersonalizeDisplay.importStatus`
+  (+ `Preferences.exportCount`) : sous le champ, « N réglages reconnus » ou l'erreur en
+  rouge AVANT de valider ; « Importer » inactif tant que le texte n'est pas un export (avant :
+  la feuille se fermait, avis « texte invalide », texte collé perdu). Boutons « Coller » /
+  « Effacer » (44 pt). Le pied de section se replie tout seul en très grand texte.
+  Tests : 595 → 596.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.188) → prochain passage : TOKENS : ne pas relire find_in_file,
+use_skill, outil github, pitfalls, `max_tokens`, images, titres (revus en 3.0.185/186) ni
+`jobLog` (3.0.187) ; chercher une MESURE nouvelle (ex. même repli des tests réussis dans la
+sortie des autres outils de vérification ; session avec outil github).
+Interface ensuite : Réglages › Données en très grand texte (ligne « place » + bouton
+recalculer : le texte se replie déjà, à vérifier seulement), accueil, Aide.
 Confirmations : toutes revues (AgentsView, RepoView, Routines, Réglages, serveurs MCP).
-Tokens ensuite : ne pas relire find_in_file, use_skill, outil github, pitfalls,
-`max_tokens`, images, titres (revus en 3.0.185/186) ; chercher une MESURE nouvelle
-(ex. sortie des autres outils de vérification : même repli des tests réussis ailleurs que
-dans `jobLog` ? session avec outil github).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

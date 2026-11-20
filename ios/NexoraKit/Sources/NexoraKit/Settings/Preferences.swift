@@ -109,6 +109,11 @@ public struct Preferences: Sendable, Equatable {
     /// l'écran d'import le reprend alors tout seul, sans avoir à le coller.
     public static func isExport(_ text: String?) -> Bool { exportObject(text) != nil }
 
+    /// Nombre de réglages reconnus dans un texte exporté (0 si ce n'est pas un export).
+    public static func exportCount(_ text: String?) -> Int {
+        exportObject(text).map { exportKeys.intersection($0.keys).count } ?? 0
+    }
+
     /// Les clés d'un export (celles de `export()`).
     static let exportKeys: Set<String> = [
         "theme", "default_model", "temperature", "show_thinking", "haptics", "default_level",
