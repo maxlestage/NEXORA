@@ -1319,12 +1319,32 @@ extension FileTreeBench {
         #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: few, history: Self.first, prefix: few[0]) == nil)
         #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: [], history: Self.first, prefix: "absent/") == nil)
         #expect(AgentRun.treeAlreadyGiven(tree: Self.repo, files: inDir, history: [], prefix: dir) == nil)
-        // Grand dépôt (dossiers résumés dans le premier message) : liste entière.
+    }
+
+    @Test("grand dépôt : list_files d'un dossier non résumé du premier message : renvoi court")
+    func folderAlreadyGivenBig() {
         let big = Self.bigRepo
         let given = AgentRun.foldedTree(big, limit: AgentRun.firstTreeLimit)
         let history = [LLMMessage("user", "Fichiers :\n\(given)\n\n")]
-        let top = String(big[0].prefix { $0 != "/" }) + "/"
-        #expect(AgentRun.treeAlreadyGiven(tree: big, files: big.filter { $0.hasPrefix(top) }, history: history, prefix: top) == nil)
+        func under(_ p: String) -> [String] { big.filter { $0.hasPrefix(p) } }
+        // « lib/ » : chaque fichier est nommé dans le premier message.
+        let lib = under("lib/")
+        let before = AgentRun.foldedTree(lib, limit: 300).count
+        let short = AgentRun.treeAlreadyGiven(tree: big, files: lib, history: history, prefix: "lib/")
+        #expect(short == "(les \(lib.count) fichiers de « lib/ » sont déjà dans la liste du premier message, plus haut : sers-toi de celle-là)")
+        print("list_files d'un dossier déjà donné, grand dépôt (\(lib.count) fichiers sur \(big.count)) : \(before / 4) → \((short ?? "").count / 4) tokens")
+        // Un fichier créé dans le dossier reste signalé ; petit sous-dossier : liste entière.
+        let changed = AgentRun.treeAlreadyGiven(tree: big, files: lib + ["lib/feature_7/zz.dart"], history: history, prefix: "lib/")
+        #expect(changed?.hasSuffix("Créés :\nlib/feature_7/zz.dart") == true)
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("lib/feature_7/"), history: history, prefix: "lib/feature_7/") == nil)
+        // Dossier résumé (« assets/icons/ (60 fichiers) »), lui-même ou par son parent,
+        // et préfixe qui coupe un dossier en deux : liste entière.
+        #expect(given.contains("assets/icons/ (60 fichiers)"))
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("assets/icons/"), history: history, prefix: "assets/icons/") == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("assets/"), history: history, prefix: "assets/") == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("web/"), history: history, prefix: "web/") == nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("lib/feature_1"), history: history, prefix: "lib/feature_1") != nil)
+        #expect(AgentRun.treeAlreadyGiven(tree: big, files: under("lib/feature_1/file_1"), history: history, prefix: "lib/feature_1/file_1") == nil)
     }
 
     /// Le dossier de premier niveau du dépôt d'essai qui contient le plus de fichiers.
