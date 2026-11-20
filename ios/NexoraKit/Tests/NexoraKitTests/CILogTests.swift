@@ -329,3 +329,87 @@ extension CILogTests {
         #expect(after.contains("FAILED tests/test_total.py::test_total - assert 3 == 4"))
     }
 }
+
+/// Journal simulé d'un projet JavaScript en échec : `npm ci` (45 avertissements de paquets
+/// dépréciés), `docker build` (8 couches téléchargées, 1 étape en erreur), puis
+/// `vite build` (70 fichiers produits) suivi d'une erreur TypeScript.
+func sampleJSLog() -> String {
+    var l = ["##[group]Run npm ci", "npm ci", "##[endgroup]"]
+    for n in 1...45 {
+        l.append("npm warn deprecated paquet-\(n)@\(n % 9).\(n % 4).0: This version is no longer supported. Please upgrade to paquet-\(n)@\(n % 9 + 1) or see https://exemple.dev/paquet-\(n)/migration")
+    }
+    l += ["added 1423 packages, and audited 1424 packages in 38s",
+          "##[group]Run docker build -t nexora .", "docker build -t nexora .", "##[endgroup]",
+          "#1 [internal] load build definition from Dockerfile", "#1 transferring dockerfile: 512B done", "#1 DONE 0.0s",
+          "#4 [1/6] FROM docker.io/library/node:22@sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+          "#4 resolve docker.io/library/node:22@sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0 done"]
+    for couche in 1...8 {
+        let h = String(repeating: "\(couche)a", count: 32)
+        for pas in 1...12 { l.append("#4 sha256:\(h) \(pas * 4).19MB / 48.23MB \(pas).\(couche)s") }
+        l += ["#4 sha256:\(h) 48.23MB / 48.23MB 1.\(couche)s done", "#4 extracting sha256:\(h) 0.\(couche)s done"]
+    }
+    l += ["#4 DONE 14.2s", "#5 [2/6] WORKDIR /app", "#5 DONE 0.1s", "#6 [3/6] COPY package.json .", "#6 DONE 0.0s",
+          "#7 [4/6] RUN npm run lint", "#7 0.412 > nexora@1.0.0 lint", "#7 0.412 > eslint src",
+          "#7 2.108 /app/src/total.ts", "#7 2.108   12:7  error  'total' is assigned a value but never used  no-unused-vars",
+          "#7 ERROR: process \"/bin/sh -c npm run lint\" did not complete successfully: exit code: 1",
+          "##[error]Process completed with exit code 1.",
+          "##[group]Run npm run build", "npm run build", "##[endgroup]",
+          "vite v6.0.1 building for production...", "✓ 812 modules transformed."]
+    for n in 1...70 {
+        l.append("dist/assets/morceau-\(n)-a1b2c3d\(n % 10).js    \(n + 3).\(n % 100) kB │ gzip: \(n / 3 + 1).\(n % 10)0 kB")
+    }
+    l += ["✓ built in 6.41s",
+          "##[group]Run npx tsc --noEmit", "npx tsc --noEmit", "##[endgroup]",
+          "src/total.ts(14,9): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "##[error]Process completed with exit code 2."]
+    return l.map { "2026-11-20T08:00:00.0000000Z \($0)" }.joined(separator: "\n")
+}
+
+extension CILogTests {
+    @Test("npm, Docker, fichiers produits : une ligne par suite, les erreurs restent")
+    func jsSteps() {
+        let out = CILog.clean([
+            "npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported",
+            "npm WARN deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported",
+            "npm warn deprecated vieux@1.0.0: fails on Node 22, upgrade",
+            " WARN  deprecated eslint@8.57.1: This version is no longer supported.",
+            "added 12 packages in 2s",
+            "#4 sha256:abcdef0123 4.19MB / 48.23MB 0.2s", "#4 sha256:abcdef0123 48.23MB / 48.23MB 1.1s done",
+            "#4 extracting sha256:abcdef0123 0.4s done", "#4 DONE 2.0s",
+            "#5 [2/6] RUN npm test", "#5 0.412 > nexora@1.0.0 test", "#5 1.200 2 tests passed",
+            "#5 DONE 1.3s", "#6 [3/6] COPY . .", "#6 CACHED", "#7 [4/6] RUN npm run lint",
+            "#7 ERROR: process \"/bin/sh -c npm run lint\" did not complete successfully: exit code: 1",
+            "dist/index.html                  0.46 kB │ gzip:  0.30 kB",
+            "dist/assets/index-a1b2c3d4.css  12.31 kB │ gzip:  3.02 kB",
+            "dist/assets/index-e5f6a7b8.js  142.80 kB │ gzip: 45.91 kB",
+            "✓ built in 1.20s",
+            "Taille du rapport : 12 kB",
+        ].joined(separator: "\n"))
+        #expect(out == [
+            "npm WARN deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported",
+            "npm warn deprecated vieux@1.0.0: fails on Node 22, upgrade",
+            " WARN  deprecated eslint@8.57.1: This version is no longer supported.",
+            "added 12 packages in 2s",
+            "#5 [2/6] RUN npm test", "#5 0.412 > nexora@1.0.0 test", "#5 1.200 2 tests passed",
+            "#7 [4/6] RUN npm run lint",
+            "#7 ERROR: process \"/bin/sh -c npm run lint\" did not complete successfully: exit code: 1",
+            "dist/assets/index-e5f6a7b8.js  142.80 kB │ gzip: 45.91 kB",
+            "✓ built in 1.20s",
+            "Taille du rapport : 12 kB",
+        ])
+    }
+
+    @Test("journal JavaScript et Docker en échec : moins de tokens, les erreurs restent")
+    func jsLogBench() {
+        let raw = sampleJSLog()
+        let after = CILog.condense(raw, lines: 200)
+        print("🪙 journal JavaScript et Docker (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.count / 4 < 400)
+        #expect(after.contains("#7 [4/6] RUN npm run lint"))
+        #expect(after.contains("12:7  error  'total' is assigned a value but never used"))
+        #expect(after.contains("#7 ERROR: process"))
+        #expect(after.contains("added 1423 packages"))
+        #expect(after.contains("✓ built in 6.41s"))
+        #expect(after.contains("src/total.ts(14,9): error TS2322"))
+    }
+}
