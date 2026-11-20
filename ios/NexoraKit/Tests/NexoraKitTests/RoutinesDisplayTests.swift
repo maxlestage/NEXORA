@@ -80,4 +80,23 @@ struct RoutinesDisplayTests {
         #expect(hub.contains("workflow est désactivé") && hub.contains("fichier reste"))
         #expect(app != hub)
     }
+
+    @Test func lancementDitCeQuiSePasse() {
+        #expect(RoutinesDisplay.runLabel(launching: false) == "Lancer maintenant")
+        #expect(RoutinesDisplay.runLabel(launching: true) == "Lancement…")
+        var hub = Routine(id: "1", name: "Bugs", task: "corrige", repos: ["a/b@main"], startMinute: 60)
+        hub.runner = .github
+        #expect(RoutinesDisplay.runNotice(hub, error: nil) == ("Routine lancée sur GitHub", false))
+        // Avant : « Routine lancée sur GitHub » même quand GitHub refusait.
+        let refus = RoutinesDisplay.runNotice(hub, error: "404 : workflow introuvable")
+        #expect(refus.isError && refus.text.contains("404 : workflow introuvable"))
+        #expect(!refus.text.contains("Routine lancée"))
+        var app = hub
+        app.runner = .app
+        #expect(RoutinesDisplay.runNotice(app, error: nil) == ("Le passage précédent travaille encore", false))
+        app.repos = []
+        #expect(RoutinesDisplay.runNotice(app, error: nil) == ("Ajoutez au moins un dépôt.", true))
+        app.task = "  "
+        #expect(RoutinesDisplay.runNotice(app, error: nil) == ("Décrivez la mission de la routine.", true))
+    }
 }
