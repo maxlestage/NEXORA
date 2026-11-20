@@ -80,6 +80,22 @@ public enum RoutinesDisplay {
         }
     }
 
+    /// Libellé de « Lancer maintenant » : pendant l'appel à GitHub, on le voit.
+    public static func runLabel(launching: Bool) -> String {
+        launching ? "Lancement…" : "Lancer maintenant"
+    }
+
+    /// L'avis après « Lancer maintenant » quand aucune session ne s'ouvre : dit ce qui
+    /// s'est vraiment passé. `error` : le refus de GitHub, s'il y en a un.
+    public static func runNotice(_ r: Routine, error: String?) -> (text: String, isError: Bool) {
+        if r.runner == .github {
+            if let error, !error.isEmpty { return ("GitHub n'a pas lancé la routine : \(error)", true) }
+            return ("Routine lancée sur GitHub", false)
+        }
+        if let problem = saveProblem(task: r.task, repos: r.repos) { return (problem, true) }
+        return ("Le passage précédent travaille encore", false)
+    }
+
     /// Titre de la confirmation de suppression : nomme la routine.
     public static func deleteTitle(name: String) -> String {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)

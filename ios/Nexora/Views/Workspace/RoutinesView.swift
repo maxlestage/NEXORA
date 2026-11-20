@@ -11,6 +11,8 @@ struct RoutinesView: View {
     @State private var started: String?
     /// Change à chaque routine activée ou désactivée : une vibration le confirme.
     @State private var toggled = 0
+    /// La routine en cours de lancement (appel à GitHub) : pas de second lancement.
+    @State private var launching: String?
 
     var body: some View {
         List {
@@ -20,7 +22,9 @@ struct RoutinesView: View {
                     NavigationLink {
                         RoutineEditorView(routine: r)
                     } label: {
-                        RoutineRow(routine: r, error: routines.errors[r.id]) { on in setEnabled(r, on) }
+                        RoutineRow(routine: r, error: routines.errors[r.id], launching: launching == r.id) { on in
+                            setEnabled(r, on)
+                        }
                     }
                     // Action fréquente, avant seulement dans la fiche de la routine.
                     .swipeActions(edge: .leading) {
@@ -34,6 +38,7 @@ struct RoutinesView: View {
                         Button("Lancer maintenant", systemImage: "play.fill") {
                             Task { await runNow(r) }
                         }
+                        .disabled(launching != nil)
                         Button(
                             r.enabled ? "Désactiver" : "Activer",
                             systemImage: r.enabled ? "pause.circle" : "checkmark.circle"
@@ -82,10 +87,14 @@ struct RoutinesView: View {
     }
 
     private func runNow(_ r: Routine) async {
+        guard launching == nil else { return }
+        launching = r.id
+        defer { launching = nil }
         if let run = await routines.runNow(r.id) {
             started = run.id
         } else {
-            toast = Toast(text: r.runner == .github ? "Routine lancée sur GitHub" : "Le passage précédent travaille encore")
+            let notice = RoutinesDisplay.runNotice(r, error: routines.errors[r.id])
+            toast = Toast(text: notice.text, error: notice.isError)
         }
     }
 }
@@ -94,13 +103,18 @@ struct RoutinesView: View {
 struct RoutineRow: View {
     let routine: Routine
     let error: String?
+    var launching = false
     let onToggle: (Bool) -> Void
 
     var body: some View {
         let r = routine
         HStack(spacing: 12) {
-            Image(systemName: r.runner == .github ? "icloud.and.arrow.up" : "iphone")
-                .foregroundStyle(Color.accentColor)
+            if launching {
+                ProgressView().accessibilityLabel(RoutinesDisplay.runLabel(launching: true))
+            } else {
+                Image(systemName: r.runner == .github ? "icloud.and.arrow.up" : "iphone")
+                    .foregroundStyle(Color.accentColor)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(r.name).fontWeight(.bold)
                 Text(RoutinesDisplay.rowDetail(r))
@@ -130,6 +144,7 @@ struct RoutineEditorView: View {
     @State private var r: Routine
     @State private var window: Bool
     @State private var saving = false
+    @State private var launching = false
     @State private var pickingRepo = false
     @State private var toast: Toast?
     @State private var started: String?
@@ -288,9 +303,18 @@ struct RoutineEditorView: View {
                     Button {
                         Task { await runNow() }
                     } label: {
-                        Label("Lancer maintenant", systemImage: "play.fill").frame(maxWidth: .infinity)
+                        HStack(spacing: 8) {
+                            if launching {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "play.fill")
+                            }
+                            Text(RoutinesDisplay.runLabel(launching: launching))
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .disabled(launching)
                     Button(role: .destructive) {
                         confirmDelete = true
                     } label: {
@@ -361,10 +385,15 @@ struct RoutineEditorView: View {
     }
 
     private func runNow() async {
+        guard !launching else { return }
+        launching = true
+        defer { launching = false }
         if let run = await routines.runNow(r.id) {
             started = run.id
         } else {
-            toast = Toast(text: r.runner == .github ? "Routine lancée sur GitHub" : "Le passage précédent travaille encore")
+            // La routine enregistrée est celle qui est lancée (pas les modifications en cours).
+            let notice = RoutinesDisplay.runNotice(routine ?? r, error: routines.errors[r.id])
+            toast = Toast(text: notice.text, error: notice.isError)
         }
     }
 }

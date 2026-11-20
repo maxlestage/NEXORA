@@ -1533,15 +1533,23 @@ mémoire 32k tokens, consigne 3 000 car.
   l'étape en échec), « dist/x.js 12 kB │ gzip: 3 kB ». La sortie d'une étape Docker
   (« #7 0.412 … ») n'est PAS repliée ; une ligne en erreur non plus. Tests : 599 → 601.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.191) → prochain passage : INTERFACE : chercher d'autres actions réseau
-sans état « en cours » (même défaut que 3.0.190 : RepoView, CloudAgentsView, RoutinesView),
-Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
-Confirmations : toutes revues. Tokens ensuite : ne pas relire find_in_file, use_skill,
-outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`
-(tests 3.0.187, installations 3.0.189, npm/Docker/vite 3.0.191) ; chercher une MESURE
+- 3.0.192 (INTERFACE, écran Routines) : « Lancer maintenant » (balayage, appui long, fiche).
+  Avant : aucun état « en cours » (2 appuis = 2 lancements du workflow GitHub) et l'avis
+  « Routine lancée sur GitHub » s'affichait même quand GitHub refusait (texte faux) ;
+  une routine du téléphone sans dépôt disait « Le passage précédent travaille encore ».
+  Après : 1 seul lancement possible, « Lancement… » + indicateur (fiche et ligne de la
+  liste), refus de GitHub en rouge avec sa raison, ancien refus effacé au lancement
+  suivant (`RoutineBook.runNow`). Logique : `RoutinesDisplay.runLabel` / `runNotice`.
+  Tests : 601 → 602.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.192 : Routines) → prochain passage : TOKENS : chercher une MESURE
 nouvelle (ex. session avec outil github ; étapes xcodebuild sans xcbeautify ; yarn
-« warning a > b@1: … » non traité).
+« warning a > b@1: … » non traité) ; ne pas relire find_in_file, use_skill, outil github,
+pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog` (tests 3.0.187,
+installations 3.0.189, npm/Docker/vite 3.0.191). Interface ensuite : actions réseau sans
+état « en cours » dans RepoView et CloudAgentsView (Routines et brouillons faits),
+Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

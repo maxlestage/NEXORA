@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.192 — 20 novembre 2026 — Routines : « Lancer maintenant » dit ce qui se passe
+- Corrigé : si GitHub refuse de lancer une routine, l'app le dit en rouge avec la raison (avant, elle affichait « Routine lancée sur GitHub » même en cas de refus).
+- Amélioré : pendant le lancement, le bouton affiche « Lancement… » et reste grisé ; un second appui ne lance plus la routine deux fois.
+- Amélioré : une routine sans dépôt ou sans mission explique ce qu'il manque au lieu de dire que le passage précédent travaille encore.
+
 ## 3.0.191 — 20 novembre 2026 — Projets JavaScript et Docker : l'agent lit l'erreur, pas l'installation
 - Amélioré : quand un build JavaScript ou Docker échoue, l'agent consomme environ 94 % de tokens en moins pour lire le journal.
 - Amélioré : les avertissements npm de paquets dépréciés, les couches Docker téléchargées et la liste des fichiers produits tiennent chacun en une ligne.

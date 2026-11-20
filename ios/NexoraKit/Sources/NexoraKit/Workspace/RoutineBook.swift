@@ -168,6 +168,8 @@ public final class RoutineBook {
         put(r)
         if r.runner == .github {
             persist()
+            // Un ancien refus ne doit pas rester affiché après un lancement réussi.
+            errors[r.id] = nil
             for t in r.targets {
                 do {
                     try await host.github.dispatch(
