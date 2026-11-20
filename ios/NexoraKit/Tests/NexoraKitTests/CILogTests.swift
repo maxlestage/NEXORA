@@ -413,3 +413,93 @@ extension CILogTests {
         #expect(after.contains("src/total.ts(14,9): error TS2322"))
     }
 }
+
+/// Un journal type yarn + Go + Maven + Composer + dotnet : installations bavardes, puis
+/// un test Go et une compilation Java en échec.
+func samplePolyglotLog() -> String {
+    var l = ["##[group]Run yarn install --frozen-lockfile", "yarn install --frozen-lockfile", "##[endgroup]",
+             "yarn install v1.22.22", "[1/4] Resolving packages...", "[2/4] Fetching packages..."]
+    for n in 1...40 {
+        l.append("warning outil-\(n) > ancien-\(n)@\(n % 7).\(n % 3).1: This package is deprecated and no longer maintained. Use nouveau-\(n) instead, see https://exemple.dev/ancien-\(n)")
+    }
+    l += ["[3/4] Linking dependencies...", "[4/4] Building fresh packages...", "Done in 41.20s.",
+          "##[group]Run go test ./...", "go test ./...", "##[endgroup]"]
+    for n in 1...40 { l.append("go: downloading github.com/exemple/module-\(n) v1.\(n).\(n % 5)") }
+    l += ["--- FAIL: TestTotal (0.00s)", "    total_test.go:14: obtenu 3, attendu 4", "FAIL",
+          "FAIL\tgithub.com/exemple/nexora/total\t0.012s", "##[error]Process completed with exit code 1.",
+          "##[group]Run mvn -B verify", "mvn -B verify", "##[endgroup]", "[INFO] Scanning for projects..."]
+    for n in 1...30 {
+        let u = "https://repo.maven.apache.org/maven2/org/exemple/lib-\(n)/2.\(n).0/lib-\(n)-2.\(n).0"
+        l += ["Downloading from central: \(u).pom", "Downloaded from central: \(u).pom (\(n + 2).4 kB at \(n * 3) kB/s)",
+              "Downloading from central: \(u).jar", "Downloaded from central: \(u).jar (\(n * 12) kB at \(n * 40) kB/s)"]
+    }
+    l += ["[ERROR] /home/runner/work/nexora/nexora/src/main/java/Total.java:[12,9] incompatible types: String cannot be converted to int",
+          "[INFO] BUILD FAILURE", "##[error]Process completed with exit code 1.",
+          "##[group]Run composer install", "composer install", "##[endgroup]",
+          "Installing dependencies from lock file (including require-dev)"]
+    for n in 1...25 { l.append("  - Downloading vendeur/paquet-\(n) (v3.\(n).0)") }
+    for n in 1...25 { l.append("  - Installing vendeur/paquet-\(n) (v3.\(n).0): Extracting archive") }
+    l += ["Generating autoload files",
+          "##[group]Run dotnet restore", "dotnet restore", "##[endgroup]", "  Determining projects to restore..."]
+    for n in 1...12 { l.append("  Restored /home/runner/work/nexora/nexora/src/Projet\(n)/Projet\(n).csproj (in \(n * 110) ms).") }
+    l += ["Projet3/Total.cs(8,13): error CS0029: Cannot implicitly convert type 'string' to 'int'",
+          "##[error]Process completed with exit code 1."]
+    return l.map { "2026-11-20T08:00:00.0000000Z \($0)" }.joined(separator: "\n")
+}
+
+extension CILogTests {
+    @Test("yarn, Go, Maven, Composer, dotnet : une ligne par suite, les erreurs restent")
+    func polyglotSteps() {
+        let out = CILog.clean([
+            "warning jest > jsdom > abab@2.0.6: Use your platform's native atob() and btoa() methods instead",
+            "warning glob@7.2.3: Glob versions prior to v9 are no longer supported",
+            "warning \" > a@1.0.0\" has unmet peer dependency \"b@^2.0.0\".",
+            "➤ YN0013: │ lodash@npm:4.17.21 can't be found in the cache and will be fetched from the remote registry",
+            "➤ YN0013: │ react@npm:19.0.0 can't be found in the cache and will be fetched from the remote registry",
+            "➤ YN0000: └ Completed in 4s 120ms",
+            "go: downloading github.com/a/b v1.2.3", "go: downloading golang.org/x/sys v0.27.0",
+            "go: downloading github.com/a/go-error v1.0.0",
+            "ok  \tgithub.com/exemple/nexora\t0.004s",
+            "Downloading from central: https://repo.maven.apache.org/maven2/a/1/a-1.pom",
+            "Downloaded from central: https://repo.maven.apache.org/maven2/a/1/a-1.pom (2.4 kB at 30 kB/s)",
+            "Progress (1): 4.1/12 kB",
+            "[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/a/1/a-1.jar (12 kB at 90 kB/s)",
+            "[INFO] BUILD SUCCESS",
+            "  - Downloading symfony/console (v7.1.0)", "  - Installing symfony/console (v7.1.0): Extracting archive",
+            "  - Upgrading psr/log (3.0.0 => 3.0.2): Extracting archive",
+            "  - Le point d'une liste (à garder)",
+            "  Restored /src/A/A.csproj (in 1.2 sec).", "  Restored /src/B/B.csproj (in 310 ms).",
+            "Build succeeded.",
+        ].joined(separator: "\n"))
+        #expect(out == [
+            "warning glob@7.2.3: Glob versions prior to v9 are no longer supported",
+            "warning \" > a@1.0.0\" has unmet peer dependency \"b@^2.0.0\".",
+            "➤ YN0013: │ react@npm:19.0.0 can't be found in the cache and will be fetched from the remote registry",
+            "➤ YN0000: └ Completed in 4s 120ms",
+            "go: downloading golang.org/x/sys v0.27.0",
+            "go: downloading github.com/a/go-error v1.0.0",
+            "ok  \tgithub.com/exemple/nexora\t0.004s",
+            "[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/a/1/a-1.jar (12 kB at 90 kB/s)",
+            "[INFO] BUILD SUCCESS",
+            "  - Upgrading psr/log (3.0.0 => 3.0.2): Extracting archive",
+            "  - Le point d'une liste (à garder)",
+            "  Restored /src/B/B.csproj (in 310 ms).",
+            "Build succeeded.",
+        ])
+    }
+
+    @Test("journal yarn, Go, Maven, Composer, dotnet en échec : moins de tokens, les erreurs restent")
+    func polyglotLogBench() {
+        let raw = samplePolyglotLog()
+        let after = CILog.condense(raw, lines: 200)
+        print("🪙 journal yarn, Go, Maven, Composer, dotnet (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.count / 4 < 500)
+        #expect(after.contains("Done in 41.20s."))
+        #expect(after.contains("total_test.go:14: obtenu 3, attendu 4"))
+        #expect(after.contains("--- FAIL: TestTotal"))
+        #expect(after.contains("Total.java:[12,9] incompatible types"))
+        #expect(after.contains("[INFO] BUILD FAILURE"))
+        #expect(after.contains("Generating autoload files"))
+        #expect(after.contains("Total.cs(8,13): error CS0029"))
+    }
+}

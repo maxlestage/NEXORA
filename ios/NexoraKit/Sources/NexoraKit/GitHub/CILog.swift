@@ -5,7 +5,7 @@ private let logColor = DRegex(#"\u001B\[[0-9;]*[A-Za-z]"#)
 private let logProgress = DRegex(#"^\[\d+/\d+\] |^Received \d+ of \d+ \("#)
 /// Une ligne qui dit seulement qu'une dépendance est téléchargée, installée ou compilée,
 /// ou qu'une étape de build passe (cargo, pip, Gradle, pub, SwiftPM, bundler, CocoaPods,
-/// apt, npm, Docker, vite). Une suite de ces lignes est traitée comme une progression : la dernière reste.
+/// apt, npm, Docker, vite, yarn, Go, Maven, Composer, dotnet). Une suite de ces lignes est traitée comme une progression : la dernière reste.
 private let logStep = DRegex(
     #"^\s*(?:Compiling|Downloaded|Downloading|Checking|Fresh|Adding|Locking) [\w-]+ v\d[\w.+-]*(?: \(.+\))?$"#
     + #"|^\s*(?:Collecting|Downloading|Using cached|Requirement already satisfied:|Obtaining) \S.*$|^\s*━+.*$"#
@@ -18,7 +18,14 @@ private let logStep = DRegex(
     // vite, webpack : liste des fichiers produits avec leur taille.
     + #"|^(?:npm )?\s*(?:warn|WARN)\s+deprecated \S.*$|^Progress: resolved \d+.*$"#
     + #"|^#\d+ (?:\[[^\]]*\] .*|sha256:\S+ .*|extracting sha256:\S+.*|CACHED|DONE [\d.]+s|transferring \S+ .*|resolve \S+ .*|\.\.\.)$"#
-    + #"|^\s*\S+\.\w+\s+[\d.,]+ (?:B|kB|KiB|MB|MiB)(?: [│|] .*)?$"#)
+    + #"|^\s*\S+\.\w+\s+[\d.,]+ (?:B|kB|KiB|MB|MiB)(?: [│|] .*)?$"#
+    // yarn : paquets dépréciés, paquets à télécharger ; Go : modules téléchargés ; Maven :
+    // fichiers téléchargés ; Composer : paquets installés ; dotnet : projets restaurés.
+    + #"|^warning (?:[\w@/.-]+ > )*[\w@/.-]+@[\w.-]+: .*$|^➤ YN0013: .*$"#
+    + #"|^go: (?:downloading|finding|extracting) \S+ v\S+$"#
+    + #"|^(?:\[INFO\] )?Download(?:ing|ed) from \S+: \S+.*$|^Progress \(\d+\): .*$"#
+    + #"|^\s+- (?:Downloading|Installing|Syncing|Locking|Upgrading|Downgrading) \S+ \(\S+(?: => \S+)?\)(?:: .*)?$"#
+    + #"|^\s+Restored \S+ \(in [\d.,]+ (?:ms|sec|min)\)\.$"#)
 private let logPlace = DRegex(#"(?:[\w.~-]*/)*[\w.-]+\.[A-Za-z]\w*:\d+(?::\d+)?"#)
 /// Le dossier de travail du runner (« /Users/runner/work/depot/depot/ »,
 /// « /home/runner/work/…/ », « /__w/…/ » dans un conteneur) : répété sur chaque

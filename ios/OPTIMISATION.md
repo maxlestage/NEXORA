@@ -1542,14 +1542,28 @@ mémoire 32k tokens, consigne 3 000 car.
   suivant (`RoutineBook.runNow`). Logique : `RoutinesDisplay.runLabel` / `runNotice`.
   Tests : 601 → 602.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.192 : Routines) → prochain passage : TOKENS : chercher une MESURE
-nouvelle (ex. session avec outil github ; étapes xcodebuild sans xcbeautify ; yarn
-« warning a > b@1: … » non traité) ; ne pas relire find_in_file, use_skill, outil github,
-pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog` (tests 3.0.187,
-installations 3.0.189, npm/Docker/vite 3.0.191). Interface ensuite : actions réseau sans
-état « en cours » dans RepoView et CloudAgentsView (Routines et brouillons faits),
-Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
+- 3.0.193 (tokens) : journaux de CI — yarn, Go, Maven, Composer, dotnet repliés. Mesure
+  nouvelle : banc `CILogTests.polyglotLogBench` (`samplePolyglotLog` : `yarn install` avec
+  40 « warning a > b@1: … », `go test` avec 40 « go: downloading … » puis test en échec,
+  `mvn verify` avec 120 « Downloading / Downloaded from central » puis erreur javac,
+  `composer install` de 25 paquets, `dotnet restore` de 12 projets puis erreur CS ; 200
+  lignes demandées) : 4 544 → 275 tokens (−94 % ; avant le changement `condense` rendait
+  4 478 tokens et perdait l'échec du test Go et l'erreur Java, hors de la fin gardée).
+  `logStep` étendu : yarn classique « warning (a > )b@1.2.3: … » (PAS « has unmet peer
+  dependency », gardé), yarn berry « ➤ YN0013 », « go: downloading x v1 », Maven
+  « Downloading / Downloaded from dépôt: … » (avec ou sans « [INFO] ») et « Progress (1): … »,
+  Composer « - Installing a/b (v1): … », dotnet « Restored x.csproj (in 310 ms). ».
+  Tests : 602 → 604.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.193 : journaux yarn/Go/Maven/Composer/dotnet) → prochain passage :
+INTERFACE : actions réseau sans état « en cours » dans RepoView et CloudAgentsView
+(Routines et brouillons faits), Réglages › Données en très grand texte (à vérifier
+seulement), accueil, Aide. Tokens ensuite : chercher une MESURE nouvelle (ex. session avec
+outil github ; étapes xcodebuild sans xcbeautify) ; ne pas relire find_in_file, use_skill,
+outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`
+(tests 3.0.187, installations 3.0.189, npm/Docker/vite 3.0.191, yarn/Go/Maven 3.0.193 :
+les journaux de CI sont couverts, ne plus y revenir sans journal réel en échec).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
