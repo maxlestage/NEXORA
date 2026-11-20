@@ -1522,14 +1522,26 @@ mémoire 32k tokens, consigne 3 000 car.
   bouton « Envoi sur GitHub… » + indicateur, Valider et « Tout cocher » grisés, `ship` refuse
   un envoi pendant un autre. `DraftsDisplay.sendingLabel` / `canValidate`. Tests : 598 → 599.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.190) → prochain passage : TOKENS : ne pas relire find_in_file,
-use_skill, outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` /
-`CILog` (tests 3.0.187, installations 3.0.189) ; chercher une MESURE nouvelle (ex. session
-avec outil github ; npm « npm warn deprecated » répétés ; étapes xcodebuild sans xcbeautify).
-Interface ensuite : chercher d'autres actions réseau sans état « en cours » (même défaut
-que 3.0.190 : RepoView, CloudAgentsView, RoutinesView), Réglages › Données en très grand
-texte (à vérifier seulement), accueil, Aide. Confirmations : toutes revues.
+- 3.0.191 (tokens) : journaux de CI — npm, Docker et fichiers produits repliés. Mesure
+  nouvelle : banc `CILogTests.jsLogBench` (`sampleJSLog` : `npm ci` avec 45 « npm warn
+  deprecated », `docker build` de 8 couches téléchargées + lint en échec dans une étape,
+  `vite build` de 70 fichiers puis erreur `tsc` ; 200 lignes demandées) : 3 921 → 221
+  tokens (−94 % ; avant le changement `condense` rendait 4 001 tokens, rien n'était replié).
+  `logStep` étendu : « npm warn deprecated … » / pnpm « WARN deprecated … » / « Progress:
+  resolved … », Docker BuildKit (« #4 sha256:… 8MB / 48MB », « extracting », « CACHED »,
+  « DONE 1.2s », « #5 [2/6] … » : la dernière ligne de la suite reste, donc l'en-tête de
+  l'étape en échec), « dist/x.js 12 kB │ gzip: 3 kB ». La sortie d'une étape Docker
+  (« #7 0.412 … ») n'est PAS repliée ; une ligne en erreur non plus. Tests : 599 → 601.
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.191) → prochain passage : INTERFACE : chercher d'autres actions réseau
+sans état « en cours » (même défaut que 3.0.190 : RepoView, CloudAgentsView, RoutinesView),
+Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
+Confirmations : toutes revues. Tokens ensuite : ne pas relire find_in_file, use_skill,
+outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`
+(tests 3.0.187, installations 3.0.189, npm/Docker/vite 3.0.191) ; chercher une MESURE
+nouvelle (ex. session avec outil github ; étapes xcodebuild sans xcbeautify ; yarn
+« warning a > b@1: … » non traité).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

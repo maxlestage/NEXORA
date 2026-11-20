@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.191 — 20 novembre 2026 — Projets JavaScript et Docker : l'agent lit l'erreur, pas l'installation
+- Amélioré : quand un build JavaScript ou Docker échoue, l'agent consomme environ 94 % de tokens en moins pour lire le journal.
+- Amélioré : les avertissements npm de paquets dépréciés, les couches Docker téléchargées et la liste des fichiers produits tiennent chacun en une ligne.
+- Les erreurs (lint, TypeScript, étape Docker en échec) restent toutes lues.
+
 ## 3.0.190 — 20 novembre 2026 — Valider les brouillons : on voit que l'envoi est en cours
 
 - Amélioré : pendant l'envoi sur GitHub, le bouton Valider affiche « Envoi sur GitHub… » avec un indicateur (avant : rien ne bougeait pendant plusieurs secondes).
