@@ -21,6 +21,7 @@ struct InstallAgentsView: View {
     @Environment(AgentLibrary.self) private var agents
     @Environment(GitHubSession.self) private var github
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.dynamicTypeSize) private var libraryTypeSize
     @State private var repoText = ""
     @State private var pasteText = ""
     @State private var showPaste = false
@@ -38,6 +39,9 @@ struct InstallAgentsView: View {
     @State private var started = false
 
     private var scan: RepoScan? { stack.last }
+
+    /// Très grande taille de texte : les colonnes d'icônes laissent leur largeur au texte.
+    private var bigText: Bool { libraryTypeSize.isAccessibilitySize }
 
     var body: some View {
         Group {
@@ -107,9 +111,10 @@ struct InstallAgentsView: View {
                         Task { await browse(src.spec) }
                     } label: {
                         HStack(spacing: 12) {
-                            Text(src.emoji).font(.title)
+                            if !bigText { Text(src.emoji).font(.title) }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(src.title).font(.headline).foregroundStyle(.primary)
+                                Text(AgentPickerDisplay.title(emoji: src.emoji, name: src.title, bigText: bigText))
+                                    .font(.headline).foregroundStyle(.primary)
                                 Text(src.description).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
@@ -222,11 +227,12 @@ struct InstallAgentsView: View {
                             Task { await browse(p.spec, push: true) }
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "shippingbox").foregroundStyle(Color.accentColor)
+                                if !bigText { Image(systemName: "shippingbox").foregroundStyle(Color.accentColor) }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(p.name).font(.headline).foregroundStyle(.primary)
                                     if !p.description.isEmpty {
-                                        Text(p.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                        Text(p.description).font(.caption).foregroundStyle(.secondary)
+                                            .lineLimit(AgentPickerDisplay.descriptionLines(bigText: bigText))
                                     }
                                 }
                                 Spacer()
@@ -286,6 +292,7 @@ struct InstallAgentsView: View {
 
     private func itemRow(_ item: NexoraKit.LibraryItem) -> some View {
         let on = selected.contains(item.key)
+        let installed = agents.isInstalled(item)
         return Button {
             if on { selected.remove(item.key) } else { selected.insert(item.key) }
         } label: {
@@ -295,13 +302,17 @@ struct InstallAgentsView: View {
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                    Text(LibraryDisplay.itemDetail(item)).font(.caption2).foregroundStyle(.secondary)
+                    Text(LibraryDisplay.itemDetail(item, installed: installed, bigText: bigText))
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if agents.isInstalled(item) {
-                    Pill(text: "installé", color: Theme.green)
-                } else {
-                    Image(systemName: item.kind.symbol).foregroundStyle(.secondary)
+                // En très grand texte, « Installé » est écrit dans le détail : pas de colonne à droite.
+                if !bigText {
+                    if installed {
+                        Pill(text: "installé", color: Theme.green)
+                    } else {
+                        Image(systemName: item.kind.symbol).foregroundStyle(.secondary)
+                    }
                 }
             }
         }
