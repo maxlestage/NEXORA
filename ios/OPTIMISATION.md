@@ -1450,11 +1450,17 @@ mémoire 32k tokens, consigne 3 000 car.
   appel (−97 %), gardés ensuite dans l'historique. Grand dépôt et petit dossier inchangés.
   Tests : 587 → 588 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.181) → prochain passage : INTERFACE, même recette (très grand texte) :
-aperçu de PersonalizeView (orbe de 72 pt non réduit en grand texte). Tokens ensuite : voir
-« Pistes tokens à faire » ; piste voisine : list_files d'un dossier NON résumé d'un grand
-dépôt (> 400 fichiers), encore renvoyé en entier.
+- 3.0.182 (interface) : Personnaliser en très grande taille de texte — aperçu : logo de
+  44 pt au lieu de 72 (`PersonalizeDisplay.previewOrbSize(bigText:)`), nom de l'assistant
+  dessous sur toute la largeur ; jeux de couleurs : colonnes de 132 pt au lieu de 72
+  (`swatchWidth(bigText:)`, deux colonnes sur iPhone), nom non coupé. Taille normale
+  inchangée. Rien retiré. Tests : 588 → 589 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.182) → prochain passage : TOKENS : list_files d'un dossier NON
+résumé d'un grand dépôt (> 400 fichiers), encore renvoyé en entier ; sinon voir « Pistes
+tokens à faire ». Interface ensuite, même recette (très grand texte) : écrans pas encore
+passés en revue (feuille d'import de Personnaliser, Réglages › Données).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

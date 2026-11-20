@@ -44,4 +44,14 @@ struct PersonalizeDisplayTests {
             #expect(!lu.contains(level.emoji))
         }
     }
+
+    @Test func tresGrandTexte() {
+        // Taille normale inchangée ; en très grand texte, logo plus petit et colonnes plus larges.
+        #expect(PersonalizeDisplay.previewOrbSize(bigText: false) == 72)
+        #expect(PersonalizeDisplay.previewOrbSize(bigText: true) == 44)
+        #expect(PersonalizeDisplay.swatchWidth(bigText: false) == 72)
+        #expect(PersonalizeDisplay.swatchWidth(bigText: true) >= 120)
+        // Deux colonnes tiennent sur le plus petit iPhone (320 pt, marges de la liste déduites).
+        #expect(PersonalizeDisplay.swatchWidth(bigText: true) * 2 + 12 <= 320 - 40)
+    }
 }

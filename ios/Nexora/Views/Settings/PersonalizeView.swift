@@ -63,9 +63,9 @@ struct PersonalizeView: View {
             }
 
             Section("Couleurs") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 12)], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: PersonalizeDisplay.swatchWidth(bigText: bigText)), spacing: 12)], spacing: 12) {
                     ForEach(Theme.palettes) { p in
-                        Swatch(palette: p, selected: settings.accent == p.id) { settings.accent = p.id }
+                        Swatch(palette: p, selected: settings.accent == p.id, bigText: bigText) { settings.accent = p.id }
                     }
                 }
                 .padding(.vertical, 6)
@@ -309,14 +309,21 @@ struct PersonalizeView: View {
     /// L'aperçu en direct : couleurs, logo, messages, niveau.
     private var preview: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                NexusOrb(size: 72, satellites: 6, interactive: false)
-                VStack(alignment: .leading, spacing: 2) {
-                    GradientText(settings.assistantName, font: .title3.weight(.black), tracking: 2)
-                    Text("Aperçu · \(Theme.palette(settings.accent).name)").font(.caption).foregroundStyle(.secondary)
+            if bigText {
+                // Très grand texte : logo réduit, et le nom dessous sur toute la largeur.
+                HStack(spacing: 10) {
+                    previewOrb
+                    Spacer()
+                    LevelBars(level: settings.defaultLevel, color: Theme.accent(settings.accent))
                 }
-                Spacer()
-                LevelBars(level: settings.defaultLevel, color: Theme.accent(settings.accent))
+                previewTitle.frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 10) {
+                    previewOrb
+                    previewTitle
+                    Spacer()
+                    LevelBars(level: settings.defaultLevel, color: Theme.accent(settings.accent))
+                }
             }
             HStack {
                 Spacer()
@@ -329,6 +336,17 @@ struct PersonalizeView: View {
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
+    }
+
+    private var previewOrb: some View {
+        NexusOrb(size: CGFloat(PersonalizeDisplay.previewOrbSize(bigText: bigText)), satellites: 6, interactive: false)
+    }
+
+    private var previewTitle: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            GradientText(settings.assistantName, font: .title3.weight(.black), tracking: 2)
+            Text("Aperçu · \(Theme.palette(settings.accent).name)").font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     private var importSheet: some View {
@@ -415,6 +433,7 @@ private struct SegmentedOrMenu: ViewModifier {
 private struct Swatch: View {
     let palette: Theme.Palette
     let selected: Bool
+    var bigText = false
     let onTap: () -> Void
 
     @Environment(SettingsStore.self) private var settings
@@ -434,7 +453,9 @@ private struct Swatch: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
-            .frame(width: 72)
+            // Très grand texte : le nom prend toute la colonne (plus large) au lieu de 72 pt.
+            .frame(width: bigText ? nil : 72)
+            .frame(maxWidth: bigText ? .infinity : nil)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: selected) { _, new in new && settings.haptics }
