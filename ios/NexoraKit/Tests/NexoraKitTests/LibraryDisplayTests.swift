@@ -58,4 +58,13 @@ struct LibraryDisplayTests {
         #expect(LibraryDisplay.installLabel(2, updates: 2) == "Mettre à jour 2 éléments")
         #expect(LibraryDisplay.installLabel(2, updates: 1) == "Installer 2 éléments")
     }
+
+    @Test func detailEnTresGrandTexte() {
+        let skill = item(.skill, "skills/pdf/SKILL.md", files: ["a", "b"])
+        // Taille normale : la pastille « installé » reste à droite, le détail ne change pas.
+        #expect(LibraryDisplay.itemDetail(skill, installed: true, bigText: false) == "Skill · 2 fichiers")
+        #expect(LibraryDisplay.itemDetail(skill, installed: false, bigText: true) == "Skill · 2 fichiers")
+        // Très grand texte : plus de pastille, l'état est écrit dans le détail.
+        #expect(LibraryDisplay.itemDetail(skill, installed: true, bigText: true) == "Installé · Skill · 2 fichiers")
+    }
 }

@@ -1435,10 +1435,17 @@ mémoire 32k tokens, consigne 3 000 car.
   gardée ensuite dans l'historique). Banc (464 fichiers) : 1 136 → 19 tokens par appel.
   Tests : 585 → 586 (mêmes 2 échecs Linux du catalogue et des prix).
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.179) → prochain passage : INTERFACE, même recette que 3.0.176/178
-(très grand texte) : InstallAgentsView, aperçu de PersonalizeView (orbe de 72 pt non
-réduit en grand texte). Tokens ensuite (voir « Pistes tokens à faire »).
+- 3.0.180 (interface) : Bibliothèque (InstallAgentsView) en très grande taille de texte —
+  emoji d'une source devant son titre (`AgentPickerDisplay.title`), icône des plugins
+  masquée, description d'un plugin sur 4 lignes (2 avant), pastille « installé » et icône
+  du type remplacées par « Installé · … » dans le détail
+  (`LibraryDisplay.itemDetail(_:installed:bigText:)`). Taille normale inchangée. Rien retiré.
+  Tests : 586 → 587 (mêmes 2 échecs Linux du catalogue et des prix).
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.180) → prochain passage : TOKENS (voir « Pistes tokens à faire »).
+Interface ensuite, même recette (très grand texte) : aperçu de PersonalizeView (orbe de
+72 pt non réduit en grand texte).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

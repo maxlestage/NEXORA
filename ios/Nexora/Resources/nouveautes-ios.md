@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.180 — 20 novembre 2026 — Bibliothèque lisible en très grand texte
+- Amélioré : en très grande taille de texte, la Bibliothèque (installer des agents, skills et commandes) donne toute la largeur aux noms : l'emoji d'une source passe devant son titre, et « Installé » s'écrit sous le nom au lieu d'une pastille à droite.
+- Amélioré : la description d'un plugin s'y affiche sur 4 lignes au lieu de 2.
+- Inchangé : rien ne bouge en taille de texte normale.
+
 ## 3.0.179 — 19 novembre 2026 — Grand dépôt : la liste des fichiers n'est plus renvoyée deux fois
 - Amélioré : sur un dépôt de plus de 400 fichiers, quand l'agent redemande la liste de tout le dépôt, il reçoit un simple renvoi à celle du début (plus les fichiers créés ou supprimés depuis) : environ 1 100 tokens de moins à chaque fois.
 - Inchangé : la liste d'un dossier précis reste donnée en détail.

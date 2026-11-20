@@ -38,6 +38,13 @@ public enum LibraryDisplay {
         return parts.joined(separator: " · ")
     }
 
+    /// Le détail d'une ligne selon la taille du texte : en très grand texte, la pastille
+    /// « installé » n'a plus sa colonne à droite (elle écrasait le nom), l'état est donc
+    /// écrit en tête du détail (« Installé · Skill · 3 fichiers »).
+    public static func itemDetail(_ item: LibraryItem, installed: Bool, bigText: Bool) -> String {
+        installed && bigText ? "Installé · \(itemDetail(item))" : itemDetail(item)
+    }
+
     /// « 1 élément », « 12 éléments ».
     public static func itemsCount(_ n: Int) -> String { count(n, "élément") }
 
