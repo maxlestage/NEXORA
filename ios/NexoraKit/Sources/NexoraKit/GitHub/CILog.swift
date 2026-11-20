@@ -3,6 +3,17 @@ import Foundation
 private let logStamp = DRegex(#"^\d{4}-\d\d-\d\dT[\d:.]+Z ?"#)
 private let logColor = DRegex(#"\u001B\[[0-9;]*[A-Za-z]"#)
 private let logProgress = DRegex(#"^\[\d+/\d+\] |^Received \d+ of \d+ \("#)
+/// Une ligne qui dit seulement qu'une dépendance est téléchargée, installée ou compilée,
+/// ou qu'une étape de build passe (cargo, pip, Gradle, pub, SwiftPM, bundler, CocoaPods,
+/// apt). Une suite de ces lignes est traitée comme une progression : la dernière reste.
+private let logStep = DRegex(
+    #"^\s*(?:Compiling|Downloaded|Downloading|Checking|Fresh|Adding|Locking) [\w-]+ v\d[\w.+-]*(?: \(.+\))?$"#
+    + #"|^\s*(?:Collecting|Downloading|Using cached|Requirement already satisfied:|Obtaining) \S.*$|^\s*━+.*$"#
+    + #"|^> Task :\S+(?: (?:UP-TO-DATE|NO-SOURCE|FROM-CACHE|SKIPPED))?$"#
+    + #"|^[+>!] [a-z_]\w* \d+\.\d+\.\d+\S*(?: \(.+\))?$"#
+    + #"|^(?:Fetching|Fetched|Computing version for|Computed|Creating working copy for|Working copy of|Cloning|Updating) (?:https?://|git@)\S+.*$"#
+    + #"|^(?:Installing|Using|Fetching) [\w.-]+ \(?\d[\w.]*\)?(?: \(was .+\))?$"#
+    + #"|^(?:Get|Hit|Ign):\d+ \S+.*$|^(?:Selecting previously unselected package|Preparing to unpack|Unpacking|Setting up) \S.*$"#)
 private let logPlace = DRegex(#"(?:[\w.~-]*/)*[\w.-]+\.[A-Za-z]\w*:\d+(?::\d+)?"#)
 /// Le dossier de travail du runner (« /Users/runner/work/depot/depot/ »,
 /// « /home/runner/work/…/ », « /__w/…/ » dans un conteneur) : répété sur chaque
@@ -23,7 +34,8 @@ private let logError = DRegex(
 
 /// Le journal d'un job de CI, raccourci avant d'être lu par l'agent : sans
 /// horodatage, couleurs, lignes vides, lignes répétées, suites de lignes de
-/// progression (« [12/400] Compiling … », téléchargement du cache), marqueurs
+/// progression (« [12/400] Compiling … », téléchargement du cache, dépendances
+/// installées ou compilées, tâches Gradle sans échec), marqueurs
 /// d'actions (« ##[start-action …] »), contenu des groupes
 /// repliés (préparation, variables d'environnement) ni nettoyage de fin de job ;
 /// une suite de lignes « test lancé / test réussi » tient en une ligne (la dernière,
@@ -101,7 +113,8 @@ public enum CILog {
             }
             endPassed()
             // Une suite de lignes de progression (« [12/400] Compiling … ») : la dernière.
-            let isProgress = logProgress.hasMatch(line)
+            // Pareil pour une suite d'installations ou d'étapes de build sans erreur.
+            let isProgress = logProgress.hasMatch(line) || (logStep.hasMatch(line) && !isError(line))
             if isProgress && progress {
                 out[out.count - 1] = line
                 continue

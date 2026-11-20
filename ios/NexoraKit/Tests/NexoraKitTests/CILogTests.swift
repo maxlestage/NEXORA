@@ -248,3 +248,84 @@ extension CILogTests {
         #expect(after.contains("Some tests failed."))
     }
 }
+
+/// Journal simulé de trois jobs en échec après une longue installation : `cargo build`
+/// (150 dépendances compilées, 1 erreur), Gradle (120 tâches, 1 en échec), puis
+/// `pip install` (60 paquets) suivi d'un test pytest en échec.
+func sampleInstallLog() -> String {
+    var l = ["##[group]Run cargo build --locked", "cargo build --locked", "##[endgroup]"]
+    for n in 1...150 { l.append("   Compiling dependance-\(n) v1.\(n % 7).\(n % 13)") }
+    l += ["   Compiling nexora v0.1.0 (/home/runner/work/nexora/nexora)",
+          "error[E0425]: cannot find value `total` in this scope",
+          "  --> src/main.rs:12:20", "   |", "12 |     println!(\"{}\", total);", "   |                    ^^^^^ not found in this scope",
+          "error: could not compile `nexora` (bin \"nexora\") due to 1 previous error",
+          "##[error]Process completed with exit code 101.",
+          "##[group]Run ./gradlew assembleDebug", "./gradlew assembleDebug", "##[endgroup]"]
+    let etats = ["", " UP-TO-DATE", " NO-SOURCE", " FROM-CACHE"]
+    for n in 1...120 { l.append("> Task :app:etape\(n)Debug\(etats[n % 4])") }
+    l += ["> Task :app:compileDebugKotlin FAILED",
+          "e: file:///home/runner/work/nexora/nexora/app/src/main/kotlin/Main.kt:12:5 Unresolved reference: total",
+          "FAILURE: Build failed with an exception.", "* What went wrong:",
+          "Execution failed for task ':app:compileDebugKotlin'.", "BUILD FAILED in 1m 12s",
+          "##[error]Process completed with exit code 1.",
+          "##[group]Run pip install -r requirements.txt", "pip install -r requirements.txt", "##[endgroup]"]
+    for n in 1...60 {
+        l += ["Collecting paquet\(n)>=1.\(n % 5) (from -r requirements.txt (line \(n)))",
+              "  Downloading paquet\(n)-1.\(n % 5).0-py3-none-any.whl (\(n + 10) kB)",
+              "     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \(n + 10).0/\(n + 10).0 kB 5.1 MB/s eta 0:00:00"]
+    }
+    l += ["Installing collected packages: paquet1, paquet2, paquet3",
+          "Successfully installed paquet1-1.1.0 paquet2-1.2.0 paquet3-1.3.0",
+          "##[group]Run pytest", "pytest", "##[endgroup]",
+          "tests/test_total.py F                                                    [100%]",
+          "E       assert 3 == 4", "tests/test_total.py:8: AssertionError",
+          "FAILED tests/test_total.py::test_total - assert 3 == 4",
+          "##[error]Process completed with exit code 1."]
+    return l.map { "2026-11-20T08:00:00.0000000Z \($0)" }.joined(separator: "\n")
+}
+
+extension CILogTests {
+    @Test("installation et étapes de build : une ligne par suite, les échecs restent")
+    func installSteps() {
+        let out = CILog.clean([
+            "   Compiling serde v1.0.210", "   Compiling tokio v1.40.0", "   Compiling app v0.1.0 (/src/app)",
+            "error[E0425]: cannot find value `x` in this scope",
+            "> Task :app:preBuild UP-TO-DATE", "> Task :app:merge", "> Task :app:lint",
+            "w: Main.kt:3:1 Variable inutilisée", "> Task :app:compileKotlin FAILED",
+            "Collecting requests", "  Downloading requests-2.32.3-py3-none-any.whl (64 kB)",
+            "Requirement already satisfied: idna in ./venv", "Downloading failure-0.1.whl",
+            "Successfully installed requests-2.32.3",
+            "+ args 2.6.0", "+ async 2.12.0 (2.13.0 available)", "Changed 2 dependencies!",
+            "Fetching https://github.com/a/b.git", "Fetched https://github.com/a/b.git from cache (0.42s)",
+            "Computing version for https://github.com/a/b.git", "Build complete!",
+            "Installing rake 13.2.1", "Using json 2.7.2", "Installing Alamofire (5.9.1)", "Bundle complete!",
+            "+ rm -rf build 1.2.3 autre", "Compiling the project failed",
+        ].joined(separator: "\n"))
+        #expect(out == [
+            "   Compiling app v0.1.0 (/src/app)",
+            "error[E0425]: cannot find value `x` in this scope",
+            "> Task :app:lint",
+            "w: Main.kt:3:1 Variable inutilisée", "> Task :app:compileKotlin FAILED",
+            "Requirement already satisfied: idna in ./venv", "Downloading failure-0.1.whl",
+            "Successfully installed requests-2.32.3",
+            "+ async 2.12.0 (2.13.0 available)", "Changed 2 dependencies!",
+            "Computing version for https://github.com/a/b.git", "Build complete!",
+            "Installing Alamofire (5.9.1)", "Bundle complete!",
+            "+ rm -rf build 1.2.3 autre", "Compiling the project failed",
+        ])
+    }
+
+    @Test("journal d'installation puis échec : moins de tokens, les erreurs restent")
+    func installLogBench() {
+        let raw = sampleInstallLog()
+        let after = CILog.condense(raw, lines: 200)
+        print("🪙 journal d'installation (200 lignes) : \(plainTail(raw, lines: 200).count / 4) → \(after.count / 4) tokens")
+        #expect(after.count / 4 < 700)
+        #expect(after.contains("error[E0425]: cannot find value `total`"))
+        #expect(after.contains("src/main.rs:12:20"))
+        #expect(after.contains("> Task :app:compileDebugKotlin FAILED"))
+        #expect(after.contains("Main.kt:12:5 Unresolved reference: total"))
+        #expect(after.contains("BUILD FAILED in 1m 12s"))
+        #expect(after.contains("FAILED tests/test_total.py::test_total - assert 3 == 4"))
+    }
+}

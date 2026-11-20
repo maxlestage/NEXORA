@@ -1504,14 +1504,27 @@ mémoire 32k tokens, consigne 3 000 car.
   « Effacer » (44 pt). Le pied de section se replie tout seul en très grand texte.
   Tests : 595 → 596.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.188) → prochain passage : TOKENS : ne pas relire find_in_file,
-use_skill, outil github, pitfalls, `max_tokens`, images, titres (revus en 3.0.185/186) ni
-`jobLog` (3.0.187) ; chercher une MESURE nouvelle (ex. même repli des tests réussis dans la
-sortie des autres outils de vérification ; session avec outil github).
-Interface ensuite : Réglages › Données en très grand texte (ligne « place » + bouton
-recalculer : le texte se replie déjà, à vérifier seulement), accueil, Aide.
-Confirmations : toutes revues (AgentsView, RepoView, Routines, Réglages, serveurs MCP).
+- 3.0.189 (tokens) : journaux de CI — installations et étapes de build repliées. Mesure
+  nouvelle : banc `CILogTests.installLogBench` (`sampleInstallLog` : `cargo build` de 150
+  dépendances + 1 erreur, Gradle de 120 tâches + 1 en échec, `pip install` de 60 paquets
+  puis pytest en échec ; 200 lignes demandées) : 3 114 → 304 tokens (−90 %), et les trois
+  erreurs sont lues (avant : la fin gardée était remplie par pip). `CILog.clean` : `logStep`
+  (cargo « Compiling x v1 », pip « Collecting / Downloading / ━━ », « > Task :a:b
+  [UP-TO-DATE] », pub « + x 1.2.3 », SwiftPM « Fetching https… », bundler / CocoaPods
+  « Installing x 1.2 », apt « Get:1 … / Unpacking … ») suit la règle des progressions (la
+  dernière ligne de la suite reste) ; une ligne qui porte une erreur (`isError`) ou
+  « FAILED » n'est jamais repliée. Tests : 596 → 598 (mêmes 2 échecs Linux du catalogue et
+  des prix).
+
+## Prochain passage : INTERFACE
+(tokens faits en 3.0.189) → prochain passage : INTERFACE : Réglages › Données en très grand
+texte (ligne « place » + bouton recalculer : le texte se replie déjà, à vérifier seulement),
+accueil, Aide. Confirmations : toutes revues (AgentsView, RepoView, Routines, Réglages,
+serveurs MCP).
+Tokens ensuite : ne pas relire find_in_file, use_skill, outil github, pitfalls, `max_tokens`,
+images, titres (3.0.185/186) ni `jobLog` / `CILog` (tests 3.0.187, installations 3.0.189) ;
+chercher une MESURE nouvelle (ex. session avec outil github ; npm « npm warn deprecated »
+répétés ; étapes xcodebuild sans xcbeautify).
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
