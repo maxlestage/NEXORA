@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.193 — 20 novembre 2026 — Build yarn, Go, Maven, Composer ou .NET en échec : l'agent lit l'erreur
+- Amélioré : quand l'agent lit le journal d'un build en échec, les longues listes de paquets téléchargés ou dépréciés (yarn, Go, Maven, Composer, .NET) tiennent en une ligne : environ 94 % de tokens en moins sur ces journaux.
+- Amélioré : les erreurs de test et de compilation de ces journaux ne sont plus poussées hors de la partie lue par l'agent.
+
 ## 3.0.192 — 20 novembre 2026 — Routines : « Lancer maintenant » dit ce qui se passe
 - Corrigé : si GitHub refuse de lancer une routine, l'app le dit en rouge avec la raison (avant, elle affichait « Routine lancée sur GitHub » même en cas de refus).
 - Amélioré : pendant le lancement, le bouton affiche « Lancement… » et reste grisé ; un second appui ne lance plus la routine deux fois.
