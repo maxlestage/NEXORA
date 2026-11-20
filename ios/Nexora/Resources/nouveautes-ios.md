@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.186 — 20 novembre 2026 — Quitter un fichier modifié : on sait ce qu'on perd
+
+- Amélioré : dans Code, quitter un fichier sans l'enregistrer nomme le fichier (« Abandonner les modifications de main.dart ? »).
+- Amélioré : le message dit ce qui sera perdu (« 3 lignes ajoutées, 1 retirée »), ou la taille du texte écrit pour un nouveau fichier.
+
 ## 3.0.185 — 20 novembre 2026 — Suppression d'une routine plus claire
 - Amélioré : avant de supprimer une routine, l'app la nomme et dit ce qui se passe (elle ne se lancera plus, les sessions déjà faites sont gardées).
 - Amélioré : pour une routine sur GitHub, l'app précise que son workflow est désactivé et que le fichier reste dans le dépôt.
