@@ -378,6 +378,10 @@ struct FileEditorView: View {
             Text(FileEditorDisplay.leaveMessage(old: file?.text ?? "", new: text, isNew: isNew))
         }
         .sensoryFeedback(.success, trigger: saved) { _, _ in settings.haptics }
+        // « Enregistré sur … » ne vaut plus dès que le texte est modifié de nouveau.
+        .onChange(of: changed) { _, now in
+            if now { info = nil }
+        }
         .task {
             guard !isNew else { return }
             await load()
@@ -415,7 +419,8 @@ struct FileEditorView: View {
                 dismiss()
             }
         } catch {
-            self.error = error.localizedDescription
+            info = nil
+            self.error = FileEditorDisplay.saveError(error, path: path, branch: branch, isNew: isNew)
         }
     }
 }
