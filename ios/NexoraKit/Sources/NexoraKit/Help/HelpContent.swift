@@ -41,12 +41,40 @@ public enum Help {
         return t.replacingOccurrences(of: "ç", with: "c")
     }
 
+    /// Les petits mots d'une question posée naturellement (« comment créer un agent »),
+    /// qui ne disent rien du sujet : ils ne doivent pas faire échouer la recherche.
+    static let stopWords: Set<String> = [
+        "a", "au", "aux", "avec", "avoir", "ca", "ce", "ces", "combien", "comment", "dans", "de", "des", "du",
+        "en", "est", "et", "faire", "fait", "faut", "il", "je", "la", "le", "les", "ma", "me", "mes", "mon",
+        "ne", "on", "ou", "par", "pas", "peut", "peux", "pour", "pourquoi", "puis", "que", "quel", "quelle",
+        "quand", "qui", "quoi", "se", "ses", "son", "sont", "sur", "un", "une", "vos", "votre",
+    ]
+
+    /// Les mots à chercher : sans majuscules ni accents, sans les petits mots, et sans
+    /// la terminaison (« clés » trouve « clé », « supprimer » trouve « supprimez »).
+    /// Une recherche faite seulement de petits mots les garde tels quels.
+    public static func keywords(_ query: String) -> [String] {
+        let all = normalize(query)
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+        let useful = all.filter { $0.count > 1 && !stopWords.contains($0) }
+        return (useful.isEmpty ? all : useful).map(stem)
+    }
+
+    /// Le mot sans sa terminaison courante, s'il reste au moins 4 lettres.
+    static func stem(_ word: String) -> String {
+        for suffix in ["es", "er", "ez", "s", "x", "e"] where word.hasSuffix(suffix) && word.count - suffix.count >= 4 {
+            return String(word.dropLast(suffix.count))
+        }
+        return word
+    }
+
     /// Les thèmes et les questions qui correspondent à une recherche (tout si elle
     /// est vide). Chaque mot doit se trouver dans la question, la réponse ou le titre
     /// du thème, dans n'importe quel ordre (« gratuite clé » trouve « clé gratuite »).
     /// Un thème sans question trouvée disparaît.
     public static func search(_ query: String, in sections: [HelpSection] = Help.sections) -> [(section: HelpSection, topics: [HelpTopic])] {
-        let words = normalize(query).split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "?" }).map(String.init)
+        let words = keywords(query)
         return sections.compactMap { s in
             let title = normalize(s.title)
             let topics = s.topics.filter { t in

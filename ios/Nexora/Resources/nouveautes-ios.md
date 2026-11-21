@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.199 — 21 novembre 2026 — Aide : la recherche comprend vos questions
+- Amélioré : dans « Aide et guides », écrivez votre question comme elle vient (« comment créer un agent », « combien ça coûte ») : les petits mots ne font plus échouer la recherche.
+- Amélioré : le pluriel et la forme du verbe ne comptent plus (« clés » trouve « clé », « supprimer » trouve « supprimez »).
+
 ## 3.0.198 — 21 novembre 2026 — Éditeur de fichier : conflit réglé sur place
 
 - Nouveau : si un fichier a changé sur GitHub pendant que vous le modifiez, deux boutons apparaissent sous le message : « Garder mon texte » ou « Reprendre celle de GitHub ».
