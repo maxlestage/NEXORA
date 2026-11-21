@@ -61,6 +61,33 @@ public enum CloudAgentsDisplay {
             : message
     }
 
+    /// Ce qu'un agent est en train de faire sur GitHub : on le lit sur son bouton.
+    public enum Busy: Sendable, Equatable {
+        case installing, launching
+    }
+
+    /// Le libellé du bouton pendant l'appel à GitHub (avant : un indicateur sans texte
+    /// pour l'installation, et rien du tout pour le lancement).
+    public static func busyLabel(_ busy: Busy, installed: Bool) -> String {
+        switch busy {
+        case .installing: installed ? "Mise à jour…" : "Installation…"
+        case .launching: "Lancement…"
+        }
+    }
+
+    /// Le message quand GitHub refuse de lancer l'agent, avec quoi faire pour les deux
+    /// refus les plus fréquents (avant : le texte brut de GitHub, en anglais).
+    public static func launchError(_ message: String, agent: String, branch: String) -> String {
+        let base = "GitHub n'a pas lancé \(agent) : \(message)"
+        if message.localizedCaseInsensitiveContains("workflow_dispatch") {
+            return base + " — choisissez « Mettre à jour » dans le menu « … » de l'agent."
+        }
+        if message.localizedCaseInsensitiveContains("not found") || message.contains("404") {
+            return base + " — vérifiez que l'agent est installé sur la branche \(branch)."
+        }
+        return base
+    }
+
     /// Une instruction vide ne part pas.
     public static func canLaunch(_ instruction: String) -> Bool {
         !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

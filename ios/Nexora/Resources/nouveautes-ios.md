@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.194 — 21 novembre 2026 — Agents cloud : le lancement se voit
+
+- Amélioré : après « Lancer », le bouton de l'agent affiche « Lancement… » jusqu'à la réponse de GitHub ; pendant une installation, il dit « Installation… » ou « Mise à jour… » au lieu d'un simple indicateur.
+- Amélioré : pendant qu'un agent s'installe ou se lance, les autres boutons attendent : plus de double lancement par erreur.
+- Corrigé : quand GitHub refuse de lancer un agent, le message dit quoi faire (mettre l'agent à jour, ou vérifier la branche) au lieu du seul texte de GitHub.
+
 ## 3.0.193 — 20 novembre 2026 — Build yarn, Go, Maven, Composer ou .NET en échec : l'agent lit l'erreur
 - Amélioré : quand l'agent lit le journal d'un build en échec, les longues listes de paquets téléchargés ou dépréciés (yarn, Go, Maven, Composer, .NET) tiennent en une ligne : environ 94 % de tokens en moins sur ces journaux.
 - Amélioré : les erreurs de test et de compilation de ces journaux ne sont plus poussées hors de la partie lue par l'agent.

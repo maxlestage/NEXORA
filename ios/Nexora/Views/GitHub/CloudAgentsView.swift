@@ -14,6 +14,9 @@ struct CloudAgentsView: View {
     @State private var installed: Set<String>?
     @State private var runs: [WorkflowRun] = []
     @State private var busy: String?
+    /// Ce que fait l'agent `busy` : installation (ou mise à jour) ou lancement.
+    @State private var busyKind = CloudAgentsDisplay.Busy.installing
+    @State private var refreshing = false
     @State private var launching: CloudAgent?
     @State private var yaml: CloudAgent?
     @State private var toast: Toast?
@@ -76,6 +79,7 @@ struct CloudAgentsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Actualiser", systemImage: "arrow.clockwise") { Task { await load() } }
+                    .disabled(refreshing)
             }
         }
         .refreshable { await load() }
@@ -154,14 +158,17 @@ struct CloudAgentsView: View {
                     if installed { launching = a } else { Task { await install(a) } }
                 } label: {
                     if busy == a.id {
-                        ProgressView().frame(minWidth: 80)
+                        HStack(spacing: 6) {
+                            ProgressView()
+                            Text(CloudAgentsDisplay.busyLabel(busyKind, installed: installed))
+                        }
                     } else {
                         Label(CloudAgentsDisplay.primaryAction(installed: installed),
                               systemImage: installed ? "play.fill" : "arrow.down.circle")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(busy == a.id)
+                .disabled(busy != nil)
                 // Visible tant que la clé n'est pas sûre d'être ajoutée, puis dans « … ».
                 if CloudAgentsDisplay.showsSecretButton(a.secrets, present: secrets) {
                     Button("Secret", systemImage: "key", action: openSecretPage)
@@ -173,7 +180,7 @@ struct CloudAgentsView: View {
                         Button("Mettre à jour", systemImage: "arrow.triangle.2.circlepath") {
                             Task { await install(a) }
                         }
-                        .disabled(busy == a.id)
+                        .disabled(busy != nil)
                     }
                     if let help = a.secretHelpUrl, let u = URL(string: help) {
                         Button("Obtenir la clé", systemImage: "safari") { openURL(u) }
@@ -198,6 +205,8 @@ struct CloudAgentsView: View {
     }
 
     private func load() async {
+        refreshing = true
+        defer { refreshing = false }
         do {
             let items = try await api.list(repo.owner.login, repo.name, path: ".github/workflows")
             let all = try await api.runs(repo.owner.login, repo.name)
@@ -213,6 +222,8 @@ struct CloudAgentsView: View {
     }
 
     private func install(_ a: CloudAgent) async {
+        guard busy == nil else { return }
+        busyKind = .installing
         busy = a.id
         defer { busy = nil }
         do {
@@ -229,18 +240,23 @@ struct CloudAgentsView: View {
     }
 
     private func launch(_ a: CloudAgent, instruction: String, model: String) async {
-        guard CloudAgentsDisplay.canLaunch(instruction) else { return }
+        guard CloudAgentsDisplay.canLaunch(instruction), busy == nil else { return }
         let text = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        busyKind = .launching
+        busy = a.id
         do {
             var inputs = ["instruction": text]
             if a.id == "aider-free" { inputs["model"] = model.trimmingCharacters(in: .whitespacesAndNewlines) }
             try await api.dispatch(repo.owner.login, repo.name, workflowFile: a.workflowFile, ref: repo.branch, inputs: inputs)
+            busy = nil
             toast = Toast(text: "\(a.name) est au travail 🚀")
             launched += 1
             try? await Task.sleep(for: .seconds(4))
             await load()
         } catch {
-            toast = Toast(text: error.localizedDescription, error: true)
+            busy = nil
+            toast = Toast(text: CloudAgentsDisplay.launchError(
+                error.localizedDescription, agent: a.name, branch: repo.branch), error: true)
         }
     }
 }
