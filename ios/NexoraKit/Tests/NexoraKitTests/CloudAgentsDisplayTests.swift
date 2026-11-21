@@ -28,6 +28,20 @@ struct CloudAgentsDisplayTests {
         #expect(CloudAgentsDisplay.intro.count < 120)
     }
 
+    @Test func appelEnCoursEtRefusDuLancement() {
+        #expect(CloudAgentsDisplay.busyLabel(.installing, installed: false) == "Installation…")
+        #expect(CloudAgentsDisplay.busyLabel(.installing, installed: true) == "Mise à jour…")
+        #expect(CloudAgentsDisplay.busyLabel(.launching, installed: true) == "Lancement…")
+        let ancien = CloudAgentsDisplay.launchError(
+            "Workflow does not have 'workflow_dispatch' trigger", agent: "Aider", branch: "main")
+        #expect(ancien.hasPrefix("GitHub n'a pas lancé Aider : Workflow does not"))
+        #expect(ancien.hasSuffix("« Mettre à jour » dans le menu « … » de l'agent."))
+        let absent = CloudAgentsDisplay.launchError("Not Found", agent: "Aider", branch: "dev")
+        #expect(absent.hasSuffix("installé sur la branche dev."))
+        #expect(CloudAgentsDisplay.launchError("Hors ligne", agent: "Aider", branch: "main")
+            == "GitHub n'a pas lancé Aider : Hors ligne")
+    }
+
     @Test func clesEtOrdre() {
         let keys = ["ANTHROPIC_API_KEY"]
         #expect(CloudAgentsDisplay.secretLine(keys, present: nil) == "Clé à ajouter : ANTHROPIC_API_KEY")

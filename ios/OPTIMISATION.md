@@ -1555,15 +1555,23 @@ mémoire 32k tokens, consigne 3 000 car.
   Composer « - Installing a/b (v1): … », dotnet « Restored x.csproj (in 310 ms). ».
   Tests : 602 → 604.
 
-## Prochain passage : INTERFACE
-(tokens faits en 3.0.193 : journaux yarn/Go/Maven/Composer/dotnet) → prochain passage :
-INTERFACE : actions réseau sans état « en cours » dans RepoView et CloudAgentsView
-(Routines et brouillons faits), Réglages › Données en très grand texte (à vérifier
-seulement), accueil, Aide. Tokens ensuite : chercher une MESURE nouvelle (ex. session avec
-outil github ; étapes xcodebuild sans xcbeautify) ; ne pas relire find_in_file, use_skill,
-outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`
-(tests 3.0.187, installations 3.0.189, npm/Docker/vite 3.0.191, yarn/Go/Maven 3.0.193 :
-les journaux de CI sont couverts, ne plus y revenir sans journal réel en échec).
+- 3.0.194 (interface) : Agents cloud (`CloudAgentsView`) — appels à GitHub visibles.
+  Avant : après « Lancer » (feuille fermée), rien ne bougeait jusqu'à la réponse de GitHub
+  et on pouvait relancer (2 lancements possibles) ; l'installation montrait un indicateur
+  sans texte ; un refus de GitHub s'affichait brut. Après : bouton « Lancement… » /
+  « Installation… » / « Mise à jour… » (`CloudAgentsDisplay.busyLabel`), tous les boutons
+  principaux grisés pendant un appel (1 seul appel à la fois), « Actualiser » grisé pendant
+  le chargement, refus expliqué (`launchError` : workflow_dispatch → « Mettre à jour »,
+  404 → branche). Tests : 604 → 605.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.194 : Agents cloud, appels en cours) → prochain passage : TOKENS :
+chercher une MESURE nouvelle (ex. session avec outil github ; étapes xcodebuild sans
+xcbeautify) ; ne pas relire find_in_file, use_skill, outil github, pitfalls, `max_tokens`,
+images, titres (3.0.185/186) ni `jobLog` / `CILog` (journaux de CI couverts, ne plus y
+revenir sans journal réel en échec). Interface ensuite : RepoView (enregistrer a déjà son
+état « en cours » ; vérifier suppression / création de branche), Réglages › Données en
+très grand texte (à vérifier seulement), accueil, Aide.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
