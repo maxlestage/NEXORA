@@ -12,6 +12,22 @@ struct HelpDisplayTests {
         #expect(Help.search("   ").count == Help.sections.count)
     }
 
+    @Test func questionPoseeNaturellement() {
+        // Les petits mots et les terminaisons ne font plus échouer la recherche.
+        #expect(Help.keywords("Comment créer un agent ?") == ["creer", "agent"])
+        #expect(Help.keywords("l'agent, mes clés") == ["agent", "cles"].map(Help.stem))
+        #expect(Help.keywords("c'est quoi") == ["c", "est", "quoi"])
+        #expect(Help.stem("cles") == "cles" && Help.stem("modeles") == "model" && Help.stem("supprimer") == "supprim")
+        for q in [
+            "comment avoir une clé gratuite", "supprimer mes données", "pourquoi ça coûte", "combien ça coûte",
+            "comment créer un agent", "pull requests", "comment lancer les tests", "modèles gratuits",
+            "c'est quoi un agent", "mes clés sont où",
+        ] {
+            #expect(!Help.search(q).isEmpty, "rien pour « \(q) »")
+        }
+        #expect(Help.search("comment zzzqqq").isEmpty)
+    }
+
     @Test func peuDeReponsesSOuvrentSeules() {
         let all = Help.search("")
         #expect(!HelpDisplay.autoExpand(all, searching: false))

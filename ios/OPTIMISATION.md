@@ -1607,6 +1607,15 @@ mémoire 32k tokens, consigne 3 000 car.
   … vient de changer. Réessayez. » Gestes après un conflit : ≈ 6 → 2. Tests : 608 (un test
   étendu). Tokens ce passage : aucune piste nouvelle à plus de 2 % (rien mesuré, rien forcé).
 
+- 3.0.199 (interface, centre d'aide, 3e passage) : la recherche comprend une question posée
+  naturellement. Avant : chaque mot devait se trouver dans le texte, donc « comment créer un
+  agent » ne trouvait rien (« comment » absent). Après : `Help.keywords` retire les petits
+  mots (`stopWords`), coupe aussi sur l'apostrophe, et `Help.stem` retire la terminaison
+  (es, er, ez, s, x, e s'il reste 4 lettres). Mesure sur 30 questions naturelles : sans
+  résultat 20 → 12 (les 12 restantes : sujets absents de l'aide — hors ligne, dictée,
+  TestFlight, couleur, export… — à couvrir par du CONTENU si utile, pas par la recherche).
+  Tests : 608 → 609. Tokens ce passage : pistes épuisées (voir ci-dessous), rien forcé.
+
 - Note d'environnement (routine, pas la CI) : si `swift test` échoue sur « le catalogue livré
   est valide » et « prix en direct » (8 erreurs), c'est le lien `Resources/models.json`
   recopié tel quel dans `.build` (lien cassé). Contournement local, sans rien committer :
@@ -1614,14 +1623,15 @@ mémoire 32k tokens, consigne 3 000 car.
   `rm -rf ios/app`.
 
 ## Prochain passage : TOKENS
-(interface faite en 3.0.198 : éditeur de fichier, conflit réglé sur place) → prochain
-passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à
-plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer à
-l'interface sans rien forcer. Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés),
-find_in_file, use_skill, outil github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : taille des fichiers de la liste via ByteCountFormatter au lieu de
-`FilesDisplay.size`, Réglages › Données en très grand texte (à vérifier seulement),
-accueil, Aide.
+(interface faite en 3.0.199 : recherche du centre d'aide) → prochain passage : TOKENS, mais
+les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût d'une
+session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer. Ne
+pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
+github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
+Interface ensuite : mêmes mots vides et terminaisons pour les autres recherches (agents,
+modèles, conversations : vérifier d'abord par une mesure qu'elles échouent), questions
+d'aide manquantes (hors ligne, dictée, couleur, export des chats), Réglages › Données en
+très grand texte (à vérifier seulement), accueil.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
