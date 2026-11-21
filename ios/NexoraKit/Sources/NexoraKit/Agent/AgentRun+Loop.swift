@@ -421,8 +421,7 @@ extension AgentRun {
                     Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage(
                         "user",
-                        "Avant de terminer, relis TOUTES tes modifications comme un "
-                            + "relecteur exigeant :\n\(reviewDiff())\n\n"
+                        Self.reviewLead + "\(reviewDiff())\n\n"
                             + "Vérifie : la demande est entièrement faite ; la syntaxe, les "
                             + "imports et les noms sont justes ; rien n'est cassé ; les cas "
                             + "limites sont gérés ; les tests couvrent chaque modification et "

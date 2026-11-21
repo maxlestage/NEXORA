@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.195 — 21 novembre 2026 — Longues sessions de l'agent moins chères
+
+- Amélioré : quand l'agent a relu ses modifications avant de terminer, cette relecture ne repart plus avec chaque étape suivante de la session.
+- Résultat : une longue session où l'agent termine plusieurs fois (retouches, demandes à la suite) envoie environ 15 à 30 % de tokens en moins.
+- La relecture en cours reste entière : l'agent vérifie son travail comme avant.
+
 ## 3.0.194 — 21 novembre 2026 — Agents cloud : le lancement se voit
 
 - Amélioré : après « Lancer », le bouton de l'agent affiche « Lancement… » jusqu'à la réponse de GitHub ; pendant une installation, il dit « Installation… » ou « Mise à jour… » au lieu d'un simple indicateur.
