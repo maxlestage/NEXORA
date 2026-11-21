@@ -253,6 +253,9 @@ struct FileEditorView: View {
     @State private var info: String?
     @State private var saved = 0
     @State private var confirmLeave = false
+    /// Enregistrement refusé car le fichier a changé sur GitHub : on propose de recharger ici.
+    @State private var conflict = false
+    @State private var reloading = false
 
     private var changed: Bool { isNew ? !text.isEmpty : text != file?.text }
     /// Ce qui empêche d'enregistrer un nouveau fichier (nil si rien).
@@ -275,7 +278,20 @@ struct FileEditorView: View {
                         .padding(.top, 6)
                 }
             }
-            if let error, file != nil || isNew { Text(error).foregroundStyle(Theme.red).padding() }
+            if let error, file != nil || isNew {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error).foregroundStyle(Theme.red)
+                    if conflict {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) { conflictButtons }
+                            VStack(alignment: .leading, spacing: 8) { conflictButtons }
+                        }
+                        .disabled(reloading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+            }
             if let info { Text(info).foregroundStyle(Theme.green).font(.footnote).padding(.top, 6) }
             if file?.binary == true {
                 ContentUnavailableView("Fichier binaire", systemImage: "doc.questionmark", description: Text("Ce fichier ne peut pas être affiché."))
@@ -388,6 +404,36 @@ struct FileEditorView: View {
         }
     }
 
+    /// Après un conflit : sortir de l'impasse sans quitter l'écran.
+    @ViewBuilder private var conflictButtons: some View {
+        Button(FileEditorDisplay.keepMine) {
+            Task { await reloadAfterConflict(keepMine: true) }
+        }
+        .buttonStyle(.borderedProminent)
+        .frame(minHeight: 44)
+        Button(FileEditorDisplay.takeTheirs, role: .destructive) {
+            Task { await reloadAfterConflict(keepMine: false) }
+        }
+        .buttonStyle(.bordered)
+        .frame(minHeight: 44)
+    }
+
+    /// Recharge la version de GitHub après un conflit. `keepMine` : le texte saisi reste, et
+    /// la ligne « +N −M » le compare à la nouvelle version avant d'enregistrer de nouveau.
+    private func reloadAfterConflict(keepMine: Bool) async {
+        reloading = true
+        defer { reloading = false }
+        do {
+            let f = try await github.api.readFile(repo.owner.login, repo.name, path: path, ref: branch)
+            file = f
+            if !keepMine { text = f.text }
+            error = nil
+            conflict = false
+        } catch {
+            self.error = "Version de GitHub illisible : \(error.localizedDescription)"
+        }
+    }
+
     private func load() async {
         error = nil
         do {
@@ -412,6 +458,7 @@ struct FileEditorView: View {
             message = ""
             editing = false
             error = nil
+            conflict = false
             info = "Enregistré sur \(branch)."
             saved += 1
             if isNew {
@@ -420,6 +467,7 @@ struct FileEditorView: View {
             }
         } catch {
             info = nil
+            conflict = FileEditorDisplay.isConflict(error, isNew: isNew)
             self.error = FileEditorDisplay.saveError(error, path: path, branch: branch, isNew: isNew)
         }
     }

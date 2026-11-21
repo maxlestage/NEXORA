@@ -197,6 +197,17 @@ public enum AttachDisplay {
 
 /// Logique d'affichage de l'éditeur de fichier (fiche d'un dépôt), testable sous Linux.
 public enum FileEditorDisplay {
+    /// Boutons proposés après un conflit (fichier changé sur GitHub pendant la modification).
+    public static let keepMine = "Garder mon texte"
+    public static let takeTheirs = "Reprendre celle de GitHub"
+
+    /// Vrai si l'enregistrement a été refusé parce que le fichier a changé sur GitHub depuis
+    /// son ouverture : l'écran propose alors de recharger sans quitter (jamais pour un
+    /// nouveau fichier, qui n'a pas de version à recharger).
+    public static func isConflict(_ error: any Error, isNew: Bool) -> Bool {
+        !isNew && (error as? GitHubError)?.status == 409
+    }
+
     /// Ce qu'on affiche quand l'enregistrement échoue, en mots simples pour les refus
     /// courants de GitHub (sinon le message d'origine) : 409, le fichier a changé depuis
     /// son ouverture ; 422 sur un nouveau fichier, le chemin est déjà pris ; 403 et 404,
@@ -205,9 +216,12 @@ public enum FileEditorDisplay {
         guard let status = (error as? GitHubError)?.status else { return error.localizedDescription }
         let name = path.trimmingCharacters(in: .whitespaces)
         switch status {
+        case 409 where isNew:
+            return "La branche \(branch) vient de changer sur GitHub. Réessayez."
         case 409:
-            return "Ce fichier a changé sur GitHub depuis son ouverture. Copiez votre texte, "
-                + "rouvrez le fichier, puis refaites vos modifications."
+            return "Ce fichier a changé sur GitHub depuis son ouverture. « \(keepMine) » : votre texte "
+                + "sera comparé à la nouvelle version avant d'enregistrer. « \(takeTheirs) » : "
+                + "vos modifications sont abandonnées."
         case 422 where isNew:
             return "Un fichier existe déjà à « \(name) » sur \(branch). Choisissez un autre nom."
         case 403, 404:
