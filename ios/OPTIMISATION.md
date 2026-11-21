@@ -50,6 +50,10 @@ message différent de la requête précédente. Coût relatif : Anthropic = hors
 | 3.0.56, 40 étapes avec modifications (« old »/« new » des vieilles réponses réduits à 100 car.) | 654 030 (−10,0 %) | 115 505 (−4,9 %) | 198 233 (−6,7 %) | 384 767 (−9,3 %) |
 | 3.0.56, 80 étapes avec modifications (gardés) | 1 925 278 | 262 767 | 494 710 | 1 094 023 |
 | 3.0.56, 80 étapes avec modifications (réduits) | 1 583 006 (−17,8 %) | 244 259 (−7,0 %) | 439 199 (−11,2 %) | 913 633 (−16,5 %) |
+| 3.0.195, 40 étapes avec relectures finales (`reviewed: true`, nouvelle ligne : finish + diff de 8 000 car. toutes les 10 étapes, gardé) | 643 194 | 132 354 | 216 527 | 387 774 |
+| 3.0.195, 40 étapes avec relectures (vieilles relectures réduites à une note) | 534 358 (−16,9 %) | 120 833 (−8,7 %) | 192 394 (−11,1 %) | 327 595 (−15,5 %) |
+| 3.0.195, 80 étapes avec relectures (gardées) | 1 798 942 | 295 854 | 520 126 | 1 047 398 |
+| 3.0.195, 80 étapes avec relectures (réduites) | 1 233 867 (−31,4 %) | 269 621 (−8,9 %) | 433 451 (−16,7 %) | 751 744 (−28,2 %) |
 
 Banc « Cache Anthropic » (`swift test --filter AnthropicCacheBench`, 3.0.58) : même session,
 mais cache d'Anthropic simulé FIDÈLEMENT (`AnthropicCacheSim` : une entrée n'est écrite qu'aux
@@ -1564,14 +1568,25 @@ mémoire 32k tokens, consigne 3 000 car.
   le chargement, refus expliqué (`launchError` : workflow_dispatch → « Mettre à jour »,
   404 → branche). Tests : 604 → 605.
 
-## Prochain passage : TOKENS
-(interface faite en 3.0.194 : Agents cloud, appels en cours) → prochain passage : TOKENS :
-chercher une MESURE nouvelle (ex. session avec outil github ; étapes xcodebuild sans
-xcbeautify) ; ne pas relire find_in_file, use_skill, outil github, pitfalls, `max_tokens`,
-images, titres (3.0.185/186) ni `jobLog` / `CILog` (journaux de CI couverts, ne plus y
-revenir sans journal réel en échec). Interface ensuite : RepoView (enregistrer a déjà son
-état « en cours » ; vérifier suppression / création de branche), Réglages › Données en
-très grand texte (à vérifier seulement), accueil, Aide.
+- 3.0.195 (tokens) : `compactHistory(…, reviews:)` — la relecture finale (« Avant de
+  terminer, relis TOUTES tes modifications… » + `reviewDiff()`, jusqu'à 14 000 car.) est un
+  message « user » qui n'est pas un « Résultat de … » : il n'était JAMAIS raccourci et
+  repartait à chaque étape jusqu'à la fin de la session (une relecture par demande).
+  Maintenant : après 5 réponses de l'agent, réduite à `AgentRun.reviewNote`, dans le même
+  paquet que les autres raccourcis (compte pour 1 dans `due` ; seule, elle ne déplace pas
+  le début de la requête). Début du message : `AgentRun.reviewLead` (utilisé par la boucle).
+  Banc `TokenBench.oldReviews` : 80 étapes, envoyés −31,4 %, coût Anthropic −16,7 %,
+  OpenAI −28,2 % (tableau en tête). Tests : 605 → 606.
+
+## Prochain passage : INTERFACE
+(tokens fait en 3.0.195 : vieilles relectures finales) → prochain passage : INTERFACE :
+RepoView (enregistrer a déjà son état « en cours » ; vérifier suppression / création de
+branche), Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
+Tokens ensuite : autres messages « user » de l'app jamais raccourcis car sans préfixe
+« Résultat de » — « Tu ne peux pas terminer : ce code ne compilera pas. » + erreurs
+(`broken`), demande de tests (`testsAsked`), retour de CI (`ciAsked`, AgentRun+Ship) :
+mesurer leur taille réelle avant d'y toucher ; ne pas relire find_in_file, use_skill,
+outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

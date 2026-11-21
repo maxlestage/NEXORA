@@ -766,7 +766,8 @@ public final class AgentRun {
     /// `args` : les longs passages « old », « new » et « content » des anciennes actions
     /// (edit_file, write_file) ne gardent que leur début (voir `shortArgs`).
     public nonisolated static func compactHistory(
-        _ history: inout [LLMMessage], keep: Int = keepFullResults, batch: Int = 0, args: Bool = true
+        _ history: inout [LLMMessage], keep: Int = keepFullResults, batch: Int = 0, args: Bool = true,
+        reviews: Bool = true
     ) {
         let block = DRegex("```(\\w*)\\n([\\s\\S]*?)```")
         if batch > 0 {
@@ -784,6 +785,8 @@ public final class AgentRun {
                 } else if m.role == "user" && m.content.hasPrefix("Résultat de ") && m.content.len > 600 {
                     seen += 1
                     if seen > keep { due += 1 }
+                } else if reviews && turns > 4 && isReview(m) {
+                    due += 1
                 }
             }
             if due < batch { return }
@@ -797,7 +800,13 @@ public final class AgentRun {
         var turns = 0
         for i in stride(from: history.count - 1, through: 0, by: -1) {
             let m = history[i]
-            if m.role != "assistant" { continue }
+            if m.role != "assistant" {
+                // Une vieille relecture finale : l'agent l'a faite (4 réponses depuis),
+                // et son diff, périmé dès la retouche suivante, repartait à chaque
+                // étape jusqu'à la fin de la session.
+                if reviews && turns > 4 && isReview(m) { history[i] = LLMMessage("user", reviewNote) }
+                continue
+            }
             turns += 1
             if turns <= 4 { continue }
             let long = m.content.len > 1500
@@ -904,6 +913,19 @@ public final class AgentRun {
 
     nonisolated static func isRelance(_ content: String) -> Bool {
         relancePrefixes.contains { content.hasPrefix($0) }
+    }
+
+    /// Le début de la relecture finale demandée avant finish (suivi du diff de toutes
+    /// les modifications, jusqu'à 14 000 caractères).
+    public nonisolated static let reviewLead = "Avant de terminer, relis TOUTES tes modifications comme un "
+        + "relecteur exigeant :\n"
+
+    /// Ce qui reste d'une ancienne relecture finale (le tour garde sa place).
+    public nonisolated static let reviewNote = "(relecture finale de tes modifications demandée ici ; son diff, "
+        + "ancien, est retiré de l'historique : relis un fichier avec read_file si besoin)"
+
+    nonisolated static func isReview(_ m: LLMMessage) -> Bool {
+        m.role == "user" && m.content.len > 600 && m.content.hasPrefix(reviewLead)
     }
 
     nonisolated static let droppedNote = "(ancien résultat retiré de l'historique, relis-le si besoin)"

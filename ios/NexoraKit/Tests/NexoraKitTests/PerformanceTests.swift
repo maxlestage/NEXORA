@@ -259,6 +259,10 @@ private let longRequest = "La page contact du site ne fonctionne plus depuis la 
 /// `ranged` : fichiers de 100 lignes ; toutes les 4 étapes, l'agent relit les lignes 41
 /// à 100 du fichier lu juste avant ; `ranges` : ces lignes déjà données ne repartent
 /// pas (3.0.52).
+/// `reviewed` : toutes les 10 étapes, l'agent appelle finish et l'app lui fait relire
+/// le diff de ses modifications (8 000 caractères), puis la session continue (retouche
+/// ou demande suivante) ; `reviews` : les vieilles relectures ne gardent qu'une note
+/// (3.0.195).
 /// `edits` : une étape sur 3, l'agent modifie ensuite le fichier lu avec edit_file
 /// (« old » de 500 caractères, « new » de 900, dans le JSON) ; `args` : ces passages
 /// ne gardent que leur début dans les anciennes réponses (3.0.56).
@@ -269,6 +273,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
                                ranged: Bool = false, ranges: Bool = true,
                                edits: Bool = false, args: Bool = true,
                                longTask: Bool = false, quote: Bool = true,
+                               reviewed: Bool = false, reviews: Bool = true,
                                tap: ((String, [LLMMessage]) -> Void)? = nil,
                                opening: ((String) -> String)? = nil, fullGoal: Int = 0) -> (sent: Int, uncached: Int) {
     let task = longTask ? longRequest : "Ajoute une page contact avec un formulaire"
@@ -294,7 +299,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
             AgentRun.dropReminders(&history, keeping: reminder)
             history.append(LLMMessage("user", "Je n'ai pas trouvé d'action. Réponds avec un bloc "
                 + "```json {\"demande\": …, \"thought\": …, \"tool\": …, \"args\": {…}}```." + reminder))
-            AgentRun.compactHistory(&history, batch: batch, args: args)
+            AgentRun.compactHistory(&history, batch: batch, args: args, reviews: reviews)
             let total = history.reduce(system.count) { $0 + $1.content.count }
             var same = 0
             while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
@@ -337,7 +342,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         }
         if dedup { result = AgentRun.dedupResults(result, history: history, diffs: diffs, writes: writes, ranges: ranges) }
         history.append(LLMMessage("user", result[0] + reminder))
-        AgentRun.compactHistory(&history, batch: batch, args: args)
+        AgentRun.compactHistory(&history, batch: batch, args: args, reviews: reviews)
         let total = history.reduce(system.count) { $0 + $1.content.count }
         var same = 0
         while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
@@ -345,6 +350,21 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
         sent += total
         uncached += fresh
         tap?(system, history); previous = history
+        if reviewed && step % 10 == 9 {
+            history.append(LLMMessage("assistant", "```json\n{\"demande\": \"\(briefGoal)\", \"thought\": \"Tout est fait.\", "
+                + "\"tool\": \"finish\", \"args\": {\"summary\": \"Page contact ajoutée et reliée au menu.\"}}\n```"))
+            AgentRun.dropReminders(&history, keeping: reminder)
+            let diff = (0..<160).map { "+\($0 + 1):     let champ\($0) = formulaire.valeur(\($0), s\(step))" }.joined(separator: "\n")
+            history.append(LLMMessage("user", AgentRun.reviewLead + "### f\(step) (+160 −0)\n" + diff
+                + "\n\nVérifie : la demande est entièrement faite. Si tout est bon, rappelle finish (même résumé)." + reminder))
+            AgentRun.compactHistory(&history, batch: batch, args: args, reviews: reviews)
+            let total = history.reduce(system.count) { $0 + $1.content.count }
+            var same = 0
+            while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
+            sent += total
+            uncached += history.dropFirst(same).reduce(0) { $0 + $1.content.count }
+            tap?(system, history); previous = history
+        }
         if edits && step % 3 == 1 {
             let oldText = (0..<10).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // ancien" }.joined(separator: "\\n")
             let newText = (0..<18).map { "    let valeur\($0) = calcule(\($0), dans: f\(file)) // nouveau" }.joined(separator: "\\n")
@@ -353,7 +373,7 @@ private func agentSessionChars(batch: Int, reminders: Bool = true, dedup: Bool =
                 + "\"tool\": \"edit_file\", \"args\": {\"path\": \"f\(file)\", \"old\": \"\(oldText)\", \"new\": \"\(newText)\"}}\n```"))
             AgentRun.dropReminders(&history, keeping: reminder)
             history.append(LLMMessage("user", "Résultat de edit_file :\nf\(file) modifié (brouillon)." + reminder))
-            AgentRun.compactHistory(&history, batch: batch, args: args)
+            AgentRun.compactHistory(&history, batch: batch, args: args, reviews: reviews)
             let total = history.reduce(system.count) { $0 + $1.content.count }
             var same = 0
             while same < min(previous.count, history.count) && previous[same] == history[same] { same += 1 }
@@ -501,6 +521,45 @@ struct TokenBench {
         #expect(Int(anthropic) / 4 < 400_000)
         #expect(Int(openai) / 4 < 817_882)
         #expect(r.dropped.last! < 60)
+    }
+
+    @Test("vieilles relectures finales : le diff ne repart plus à chaque étape")
+    func oldReviews() {
+        func anthropic(_ r: (sent: Int, uncached: Int)) -> Double { Double(r.uncached) * 1.25 + Double(r.sent - r.uncached) * 0.1 }
+        func openai(_ r: (sent: Int, uncached: Int)) -> Double { Double(r.uncached) + Double(r.sent - r.uncached) * 0.5 }
+        for steps in [40, 80] {
+            let kept = agentSessionChars(batch: AgentRun.compactBatch, steps: steps, reviewed: true, reviews: false)
+            let dropped = agentSessionChars(batch: AgentRun.compactBatch, steps: steps, reviewed: true)
+            for (name, r) in [("gardées", kept), ("réduites à une note", dropped)] {
+                print("🪙 \(steps) étapes avec relectures \(name) : \(r.sent / 4) tokens envoyés, \(r.uncached / 4) hors cache, "
+                    + "coût Anthropic ≈ \(Int(anthropic(r)) / 4), OpenAI ≈ \(Int(openai(r)) / 4)")
+            }
+            #expect(dropped.sent < kept.sent)
+            #expect(anthropic(dropped) < anthropic(kept))
+            #expect(openai(dropped) < openai(kept))
+        }
+        // La relecture en cours (moins de 5 réponses depuis) reste entière ; une vieille
+        // ne garde qu'une note, et les rôles alternent toujours.
+        let review = LLMMessage("user", AgentRun.reviewLead + String(repeating: "+1: x\n", count: 400) + "\nVérifie.")
+        func turn(_ n: Int) -> [LLMMessage] {
+            [LLMMessage("assistant", "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"f\(n)\"}}\n```"),
+             LLMMessage("user", "Résultat de read_file :\ncourt")]
+        }
+        var recent = [LLMMessage("user", "demande"), review] + (0..<4).flatMap(turn)
+        AgentRun.compactHistory(&recent)
+        #expect(recent[1] == review)
+        var old = [LLMMessage("user", "demande"), review] + (0..<5).flatMap(turn)
+        AgentRun.compactHistory(&old)
+        #expect(old[1] == LLMMessage("user", AgentRun.reviewNote))
+        #expect(old.count == 12)
+        // Par paquets : une vieille relecture seule ne déplace pas le début de la requête.
+        var alone = [LLMMessage("user", "demande"), review] + (0..<5).flatMap(turn)
+        AgentRun.compactHistory(&alone, batch: AgentRun.compactBatch)
+        #expect(alone[1] == review)
+        // Réglage coupé : gardée.
+        var off = [LLMMessage("user", "demande"), review] + (0..<5).flatMap(turn)
+        AgentRun.compactHistory(&off, reviews: false)
+        #expect(off[1] == review)
     }
 
     @Test("fichier relu après modification : seulement les passages changés")
