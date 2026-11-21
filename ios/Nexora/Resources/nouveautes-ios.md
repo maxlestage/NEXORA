@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.198 — 21 novembre 2026 — Éditeur de fichier : conflit réglé sur place
+
+- Nouveau : si un fichier a changé sur GitHub pendant que vous le modifiez, deux boutons apparaissent sous le message : « Garder mon texte » ou « Reprendre celle de GitHub ».
+- Amélioré : avec « Garder mon texte », la ligne « +N −M » compare votre texte à la nouvelle version avant d'enregistrer de nouveau.
+- Plus besoin de copier son texte, de quitter l'écran puis de rouvrir le fichier.
+
 ## 3.0.197 — 21 novembre 2026 — Éditeur de fichier : refus expliqués
 
 - Amélioré : quand GitHub refuse d'enregistrer un fichier, l'app dit pourquoi en mots simples (le fichier a changé depuis son ouverture, le nom est déjà pris, pas le droit d'écrire) au lieu du message brut.
