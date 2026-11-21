@@ -1578,15 +1578,31 @@ mémoire 32k tokens, consigne 3 000 car.
   Banc `TokenBench.oldReviews` : 80 étapes, envoyés −31,4 %, coût Anthropic −16,7 %,
   OpenAI −28,2 % (tableau en tête). Tests : 605 → 606.
 
-## Prochain passage : INTERFACE
-(tokens fait en 3.0.195 : vieilles relectures finales) → prochain passage : INTERFACE :
-RepoView (enregistrer a déjà son état « en cours » ; vérifier suppression / création de
-branche), Réglages › Données en très grand texte (à vérifier seulement), accueil, Aide.
-Tokens ensuite : autres messages « user » de l'app jamais raccourcis car sans préfixe
-« Résultat de » — « Tu ne peux pas terminer : ce code ne compilera pas. » + erreurs
-(`broken`), demande de tests (`testsAsked`), retour de CI (`ciAsked`, AgentRun+Ship) :
-mesurer leur taille réelle avant d'y toucher ; ne pas relire find_in_file, use_skill,
-outil github, pitfalls, `max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`.
+- 3.0.196 (interface) : fiche d'un dépôt › Fichiers (`FileBrowserView`) — nouveau fichier.
+  Vérifié d'abord : l'app n'a NI suppression de fichier NI création de branche dans RepoView
+  (rien à corriger là). Avant : après « Enregistrer » d'un nouveau fichier, la feuille se
+  fermait sans aucun retour et la liste du dossier n'était pas rechargée (fichier invisible
+  jusqu'au tirer-pour-actualiser). Après : `FileEditorView.onCreated` → liste rechargée +
+  avis `FilesDisplay.createdToast` (nom si dans le dossier affiché, chemin entier sinon ;
+  `isDirectChild`). Tests : 606 → 607.
+
+- Note d'environnement (routine, pas la CI) : si `swift test` échoue sur « le catalogue livré
+  est valide » et « prix en direct » (8 erreurs), c'est le lien `Resources/models.json`
+  recopié tel quel dans `.build` (lien cassé). Contournement local, sans rien committer :
+  `mkdir -p ios/app/assets && cp app/assets/models.json ios/app/assets/`, relancer, puis
+  `rm -rf ios/app`.
+
+## Prochain passage : TOKENS
+(interface faite en 3.0.196 : nouveau fichier d'un dépôt) → prochain passage : TOKENS :
+autres messages « user » de l'app jamais raccourcis car sans préfixe « Résultat de » —
+« Tu ne peux pas terminer : ce code ne compilera pas. » + erreurs (`broken`), demande de
+tests (`testsAsked`), retour de CI (`ciAsked`, AgentRun+Ship) : mesurer leur taille réelle
+avant d'y toucher ; ne pas relire find_in_file, use_skill, outil github, pitfalls,
+`max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`.
+Interface ensuite : éditeur de fichier (l'avis vert « Enregistré sur … » reste affiché même
+après une nouvelle modification ; conflit 409 de GitHub affiché brut ; taille des fichiers
+de la liste via ByteCountFormatter au lieu de `FilesDisplay.size`), Réglages › Données en
+très grand texte (à vérifier seulement), accueil, Aide.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

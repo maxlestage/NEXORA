@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.196 — 21 novembre 2026 — Nouveau fichier visible tout de suite
+
+- Amélioré : dans un dépôt, un fichier que vous venez de créer apparaît aussitôt dans la liste du dossier (avant, il fallait tirer la liste pour le voir).
+- Nouveau : un avis confirme la création, avec le nom du fichier et la branche (« a.swift » créé sur main).
+
 ## 3.0.195 — 21 novembre 2026 — Longues sessions de l'agent moins chères
 
 - Amélioré : quand l'agent a relu ses modifications avant de terminer, cette relecture ne repart plus avec chaque étape suivante de la session.

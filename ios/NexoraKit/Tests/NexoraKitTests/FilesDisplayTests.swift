@@ -41,4 +41,17 @@ struct FilesDisplayTests {
         #expect(FilesDisplay.footer(shown: [], total: 3, query: "zzz") == "")
         #expect(FilesDisplay.searchPrompt == "Chercher dans ce dossier")
     }
+
+    @Test func avisApresCreationDUnFichier() {
+        // Dans le dossier affiché : le nom suffit (la liste rechargée le montre).
+        #expect(FilesDisplay.createdToast(path: "src/a.swift", folder: "src", branch: "main") == "« a.swift » créé sur main")
+        #expect(FilesDisplay.createdToast(path: "LISEZMOI.md", folder: "", branch: "dev") == "« LISEZMOI.md » créé sur dev")
+        // Créé ailleurs (chemin modifié à la main) : le chemin entier, pour le retrouver.
+        #expect(FilesDisplay.createdToast(path: "src/vues/b.swift", folder: "src", branch: "main") == "« src/vues/b.swift » créé sur main")
+        #expect(FilesDisplay.createdToast(path: "c.txt", folder: "src", branch: "main") == "« c.txt » créé sur main")
+        #expect(FilesDisplay.isDirectChild("src/a.swift", of: "src/"))
+        #expect(!FilesDisplay.isDirectChild("src/vues/b.swift", of: "src"))
+        #expect(!FilesDisplay.isDirectChild("a.swift", of: "src"))
+        #expect(!FilesDisplay.isDirectChild("", of: ""))
+    }
 }

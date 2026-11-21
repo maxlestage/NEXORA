@@ -111,6 +111,22 @@ public enum FilesDisplay {
         return (shown.count == 1 ? "1 résultat" : "\(shown.count) résultats") + " sur \(total)"
     }
 
+    /// Vrai si le fichier `path` est directement dans le dossier `folder` (« » = racine) :
+    /// il apparaît alors dans la liste affichée.
+    public static func isDirectChild(_ path: String, of folder: String) -> Bool {
+        let parts = path.split(separator: "/")
+        guard !parts.isEmpty else { return false }
+        return parts.dropLast().joined(separator: "/") == folder.split(separator: "/").joined(separator: "/")
+    }
+
+    /// L'avis après la création d'un fichier : son nom s'il est dans le dossier affiché,
+    /// son chemin entier s'il a été créé ailleurs (il n'apparaît alors pas dans la liste).
+    public static func createdToast(path: String, folder: String, branch: String) -> String {
+        let name = path.split(separator: "/").last.map(String.init) ?? path
+        let shown = isDirectChild(path, of: folder) ? name : path
+        return "« \(shown) » créé sur \(branch)"
+    }
+
     /// Une taille de fichier à la française : « 840 o », « 1,2 Ko », « 3 Mo ».
     public static func size(_ bytes: Int) -> String {
         if bytes < 1_000 { return "\(max(0, bytes)) o" }
