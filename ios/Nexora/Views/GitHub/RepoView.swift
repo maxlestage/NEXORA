@@ -129,6 +129,7 @@ struct FileBrowserView: View {
     @State private var loading = true
     @State private var newFile = false
     @State private var query = ""
+    @State private var toast: Toast?
 
     var body: some View {
         // Recherche dans le dossier (avant : il fallait faire défiler les grands dossiers).
@@ -207,9 +208,15 @@ struct FileBrowserView: View {
         }
         .sheet(isPresented: $newFile) {
             NavigationStack {
-                FileEditorView(repo: repo, path: path.isEmpty ? "" : path + "/", branch: branch, isNew: true)
+                // Le fichier créé apparaît tout de suite (avant : il fallait tirer la liste
+                // pour le voir) et un avis le confirme.
+                FileEditorView(repo: repo, path: path.isEmpty ? "" : path + "/", branch: branch, isNew: true, onCreated: { created in
+                    toast = Toast(text: FilesDisplay.createdToast(path: created, folder: path, branch: branch))
+                    Task { await load() }
+                })
             }
         }
+        .toast($toast)
     }
 
     private func load() async {
@@ -231,6 +238,8 @@ struct FileEditorView: View {
     @State var path: String
     let branch: String
     var isNew = false
+    /// Appelé avec le chemin du fichier qui vient d'être créé (nouveau fichier seulement).
+    var onCreated: (@MainActor (String) -> Void)?
 
     @Environment(GitHubSession.self) private var github
     @Environment(SettingsStore.self) private var settings
@@ -401,7 +410,10 @@ struct FileEditorView: View {
             error = nil
             info = "Enregistré sur \(branch)."
             saved += 1
-            if isNew { dismiss() }
+            if isNew {
+                onCreated?(path)
+                dismiss()
+            }
         } catch {
             self.error = error.localizedDescription
         }
