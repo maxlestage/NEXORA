@@ -59,4 +59,19 @@ struct FileEditorDisplayTests {
         #expect(FileEditorDisplay.summary(String(repeating: "x", count: 12_000)) == "1 ligne · 12 Ko")
         #expect(FileEditorDisplay.summary(String(repeating: "x", count: 2_500_000)) == "1 ligne · 2,5 Mo")
     }
+
+    @Test func refusDEnregistrementEnMotsSimples() {
+        let conflit = FileEditorDisplay.saveError(GitHubError("a.md does not match abc123", status: 409), path: "a.md", branch: "main", isNew: false)
+        #expect(conflit.hasPrefix("Ce fichier a changé sur GitHub depuis son ouverture."))
+        #expect(!conflit.contains("409") && !conflit.contains("abc123"))
+        let pris = FileEditorDisplay.saveError(GitHubError("Invalid request.\n\n\"sha\" wasn't supplied.", status: 422), path: " docs/a.md ", branch: "main", isNew: true)
+        #expect(pris == "Un fichier existe déjà à « docs/a.md » sur main. Choisissez un autre nom.")
+        let refus = FileEditorDisplay.saveError(GitHubError("Not Found", status: 404), path: "a.md", branch: "dev", isNew: false)
+        #expect(refus.contains("pas le droit d'écrire sur dev"))
+        // Les autres erreurs gardent leur message : 422 hors création, panne de réseau.
+        let autre = GitHubError("Validation Failed", status: 422)
+        #expect(FileEditorDisplay.saveError(autre, path: "a.md", branch: "main", isNew: false) == autre.description)
+        let reseau = GitHubError("GitHub injoignable. Réessayez.")
+        #expect(FileEditorDisplay.saveError(reseau, path: "a.md", branch: "main", isNew: true) == reseau.message)
+    }
 }

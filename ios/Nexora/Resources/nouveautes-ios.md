@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.197 — 21 novembre 2026 — Éditeur de fichier : refus expliqués
+
+- Amélioré : quand GitHub refuse d'enregistrer un fichier, l'app dit pourquoi en mots simples (le fichier a changé depuis son ouverture, le nom est déjà pris, pas le droit d'écrire) au lieu du message brut.
+- Corrigé : l'avis vert « Enregistré sur … » disparaît dès que vous modifiez de nouveau le fichier, ou si l'enregistrement suivant échoue.
+
 ## 3.0.196 — 21 novembre 2026 — Nouveau fichier visible tout de suite
 
 - Amélioré : dans un dépôt, un fichier que vous venez de créer apparaît aussitôt dans la liste du dossier (avant, il fallait tirer la liste pour le voir).

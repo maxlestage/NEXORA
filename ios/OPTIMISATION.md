@@ -1586,6 +1586,18 @@ mémoire 32k tokens, consigne 3 000 car.
   avis `FilesDisplay.createdToast` (nom si dans le dossier affiché, chemin entier sinon ;
   `isDirectChild`). Tests : 606 → 607.
 
+- 3.0.197 (interface) : éditeur de fichier d'un dépôt. Avant : un refus de GitHub à
+  l'enregistrement s'affichait brut (« GitHub 409 · a.md does not match … », « GitHub 422 ·
+  Invalid request. "sha" wasn't supplied. ») et l'avis vert « Enregistré sur … » restait
+  affiché pendant une nouvelle modification, même à côté d'une erreur. Après :
+  `FileEditorDisplay.saveError` (409 → fichier changé depuis l'ouverture ; 422 sur un nouveau
+  fichier → nom déjà pris ; 403/404 → pas le droit d'écrire ; sinon message d'origine) et
+  l'avis s'efface dès que le texte change ou qu'un enregistrement échoue.
+  Tests : 607 → 608.
+  Tokens, MESURÉ puis ÉCARTÉ ce passage : messages de l'app `ciAsked` (≈ 330 car.),
+  `testsAsked` (≈ 400 à 700 car.), `broken` (≈ 300 car. par fichier) — une fois par demande
+  (deux pour `broken`), rappel déjà retiré par `stripReminders`.
+
 - Note d'environnement (routine, pas la CI) : si `swift test` échoue sur « le catalogue livré
   est valide » et « prix en direct » (8 erreurs), c'est le lien `Resources/models.json`
   recopié tel quel dans `.build` (lien cassé). Contournement local, sans rien committer :
@@ -1593,16 +1605,15 @@ mémoire 32k tokens, consigne 3 000 car.
   `rm -rf ios/app`.
 
 ## Prochain passage : TOKENS
-(interface faite en 3.0.196 : nouveau fichier d'un dépôt) → prochain passage : TOKENS :
-autres messages « user » de l'app jamais raccourcis car sans préfixe « Résultat de » —
-« Tu ne peux pas terminer : ce code ne compilera pas. » + erreurs (`broken`), demande de
-tests (`testsAsked`), retour de CI (`ciAsked`, AgentRun+Ship) : mesurer leur taille réelle
-avant d'y toucher ; ne pas relire find_in_file, use_skill, outil github, pitfalls,
-`max_tokens`, images, titres (3.0.185/186) ni `jobLog` / `CILog`.
-Interface ensuite : éditeur de fichier (l'avis vert « Enregistré sur … » reste affiché même
-après une nouvelle modification ; conflit 409 de GitHub affiché brut ; taille des fichiers
-de la liste via ByteCountFormatter au lieu de `FilesDisplay.size`), Réglages › Données en
-très grand texte (à vérifier seulement), accueil, Aide.
+(interface faite en 3.0.197 : éditeur de fichier, refus d'enregistrement) → prochain
+passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à
+plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer à
+l'interface sans rien forcer. Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés),
+find_in_file, use_skill, outil github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
+Interface ensuite : éditeur de fichier (bouton « Recharger » après un conflit 409 pour
+reprendre la version de GitHub sans quitter l'écran ; taille des fichiers de la liste via
+ByteCountFormatter au lieu de `FilesDisplay.size`), Réglages › Données en très grand texte
+(à vérifier seulement), accueil, Aide.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ
@@ -1630,5 +1641,9 @@ très grand texte (à vérifier seulement), accueil, Aide.
   de qualité, pas d'économie) ; hors du but « moins de tokens à résultat égal ».
 - Suite d'une réponse coupée : déjà économe (historique identique en tête, donc relu
   depuis le cache ; seule la partie écrite et la consigne de 160 car. s'ajoutent).
+- Raccourcir les vieux messages `ciAsked` / `testsAsked` / `broken` (3.0.197) : ≈ 300 à
+  700 car. chacun, une fois par demande ; sur 40 étapes (534 k car. envoyés) ≈ 1,5 %
+  d'envoyés et ≈ 0,2 % du coût (relus depuis le cache), contre le risque de faire oublier
+  où écrire les tests. Gain trop faible.
 - Rappel dans un message utilisateur à part : deux messages « user » de suite sont
   refusés par certains fournisseurs ; remplacé par le retrait par paquets (3.0.10).

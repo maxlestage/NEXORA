@@ -197,6 +197,27 @@ public enum AttachDisplay {
 
 /// Logique d'affichage de l'éditeur de fichier (fiche d'un dépôt), testable sous Linux.
 public enum FileEditorDisplay {
+    /// Ce qu'on affiche quand l'enregistrement échoue, en mots simples pour les refus
+    /// courants de GitHub (sinon le message d'origine) : 409, le fichier a changé depuis
+    /// son ouverture ; 422 sur un nouveau fichier, le chemin est déjà pris ; 403 et 404,
+    /// pas le droit d'écrire (ou branche disparue).
+    public static func saveError(_ error: any Error, path: String, branch: String, isNew: Bool) -> String {
+        guard let status = (error as? GitHubError)?.status else { return error.localizedDescription }
+        let name = path.trimmingCharacters(in: .whitespaces)
+        switch status {
+        case 409:
+            return "Ce fichier a changé sur GitHub depuis son ouverture. Copiez votre texte, "
+                + "rouvrez le fichier, puis refaites vos modifications."
+        case 422 where isNew:
+            return "Un fichier existe déjà à « \(name) » sur \(branch). Choisissez un autre nom."
+        case 403, 404:
+            return "Enregistrement refusé : vous n'avez pas le droit d'écrire sur \(branch), "
+                + "ou cette branche n'existe plus."
+        default:
+            return error.localizedDescription
+        }
+    }
+
     /// Le message de commit proposé (et utilisé si le champ reste vide) :
     /// « Ajoute docs/a.md » ou « Met à jour a.md ».
     public static func defaultMessage(path: String, isNew: Bool) -> String {
