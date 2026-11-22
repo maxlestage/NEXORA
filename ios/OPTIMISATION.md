@@ -1616,6 +1616,15 @@ mémoire 32k tokens, consigne 3 000 car.
   TestFlight, couleur, export… — à couvrir par du CONTENU si utile, pas par la recherche).
   Tests : 608 → 609. Tokens ce passage : pistes épuisées (voir ci-dessous), rien forcé.
 
+- 3.0.200 (interface, centre d'aide, 4e passage : CONTENU) : trois sujets ajoutés sans changer
+  les 8 thèmes (parité) — « hors ligne / sans connexion », « couleurs, thème, taille du
+  texte » (Bien démarrer), « exporter, partager ou sauvegarder une conversation »
+  (Confidentialité) ; « dictée » ajouté au titre du sujet voix ; deux mentions d'Android
+  retirées (trousseau, arrière-plan). Mesure sur 9 questions naturelles (hors ligne, sans
+  connexion, dictée, couleur, mode sombre, taille du texte, exporter, partager un chat,
+  sauvegarder mes réglages) : sans résultat 9 → 0. Sujets : 32 → 35. Tests : 609 (un test
+  étendu). Tokens ce passage : pistes épuisées, rien forcé.
+
 - Note d'environnement (routine, pas la CI) : si `swift test` échoue sur « le catalogue livré
   est valide » et « prix en direct » (8 erreurs), c'est le lien `Resources/models.json`
   recopié tel quel dans `.build` (lien cassé). Contournement local, sans rien committer :
@@ -1623,15 +1632,17 @@ mémoire 32k tokens, consigne 3 000 car.
   `rm -rf ios/app`.
 
 ## Prochain passage : TOKENS
-(interface faite en 3.0.199 : recherche du centre d'aide) → prochain passage : TOKENS, mais
+(interface faite en 3.0.200 : contenu du centre d'aide) → prochain passage : TOKENS, mais
 les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût d'une
 session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer. Ne
 pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
 Interface ensuite : mêmes mots vides et terminaisons pour les autres recherches (agents,
-modèles, conversations : vérifier d'abord par une mesure qu'elles échouent), questions
-d'aide manquantes (hors ligne, dictée, couleur, export des chats), Réglages › Données en
-très grand texte (à vérifier seulement), accueil.
+modèles, conversations : vérifier d'abord par une mesure qu'elles échouent), sujet voix
+rangé dans le thème « GitHub » de l'aide (le déplacer vers « Bien démarrer » si la parité
+le permet), `ErrorHelp` ligne 50 parle encore d'« iPhone ou Android » (cas navigateur,
+sans doute jamais affiché sur iOS : à vérifier), Réglages › Données en très grand texte
+(à vérifier seulement), accueil.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

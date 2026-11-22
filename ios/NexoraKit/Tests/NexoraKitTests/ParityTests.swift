@@ -100,7 +100,7 @@ struct HelpTests {
     @Test("centre d'aide : thèmes, recherche sans accents")
     func search() {
         #expect(Help.sections.count == 8)
-        #expect(Help.sections.flatMap(\.topics).count == 32)
+        #expect(Help.sections.flatMap(\.topics).count == 35)
         #expect(Help.normalize("Clé Créée à Noël ç") == "cle creee a noel c")
         let found = Help.search("cle gratuite")
         #expect(found.contains { $0.topics.contains { $0.question == "Comment obtenir une clé gratuite ?" } })

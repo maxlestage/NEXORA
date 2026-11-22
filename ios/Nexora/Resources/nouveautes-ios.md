@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.200 — 22 novembre 2026 — Aide : trois réponses qui manquaient
+- Nouveau : l'aide répond à « ça marche hors ligne ? », « comment changer les couleurs ou la taille du texte ? » et « comment exporter ou partager une conversation ? ».
+- Amélioré : chercher « dictée », « mode sombre » ou « sauvegarder mes réglages » trouve maintenant la bonne réponse.
+- Corrigé : l'aide ne parle plus d'Android, cette app est faite pour l'iPhone et l'iPad.
+
 ## 3.0.199 — 21 novembre 2026 — Aide : la recherche comprend vos questions
 - Amélioré : dans « Aide et guides », écrivez votre question comme elle vient (« comment créer un agent », « combien ça coûte ») : les petits mots ne font plus échouer la recherche.
 - Amélioré : le pluriel et la forme du verbe ne comptent plus (« clés » trouve « clé », « supprimer » trouve « supprimez »).
