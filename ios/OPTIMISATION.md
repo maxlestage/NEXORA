@@ -1696,15 +1696,21 @@ mémoire 32k tokens, consigne 3 000 car.
   « Retirer la photo 2 sur 3 », « Ajout des photos ». Zone touchable 34 → 44 pt.
   Tests : 612 → 614.
 
+- 3.0.209 (interface, photo illisible) : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `PhotoAttachButton` (session de l'agent, nouvelle session) : une photo choisie
+  impossible à lire (`try? loadTransferable`, `ChatPhotoDraft.make`) disparaissait sans
+  message ; maintenant avis d'erreur (`onFailed` → toast), même texte que le chat
+  (`PhotoDraftDisplay.failedMessage`, qui dit quoi faire). Bouton 34 → 44 pt
+  (`attachTapSide`). Échecs muets : 2 écrans → 0. Tests : 614 → 615.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.208 : bande des photos à envoyer) →
+(interface faite en 3.0.209 : photo illisible signalée chez l'agent) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : photo impossible à charger (`try? loadTransferable` : aucun message, chat et
-`PhotoAttachButton`), `PhotoAttachButton` 34 pt (+5), Réglages › Données en très grand texte (à vérifier seulement), accueil,
+Interface ensuite : Réglages › Données en très grand texte (à vérifier seulement), accueil,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 

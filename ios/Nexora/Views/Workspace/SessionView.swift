@@ -426,7 +426,7 @@ struct SessionView: View {
                 PhotoDraftStrip(photos: $photos, loading: loadingPhotos)
             }
             HStack(spacing: 8) {
-                PhotoAttachButton(photos: $photos, loading: $loadingPhotos)
+                PhotoAttachButton(photos: $photos, loading: $loadingPhotos, onFailed: { toast = Toast(text: $0, error: true) })
                 TextField(
                     busy ? "Préciser pendant le travail…" : "Nouvelle instruction pour cette session",
                     text: $input,

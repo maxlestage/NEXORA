@@ -93,6 +93,17 @@ public enum PhotoDraftDisplay {
     /// Le côté de la zone touchable de la croix : le minimum conseillé par Apple.
     public static let removeTapSide: Double = 44
 
+    /// Le côté de la zone touchable du bouton « Joindre des photos ».
+    public static let attachTapSide: Double = 44
+
+    /// Ce qu'on dit quand des photos choisies n'ont pas pu être lues (rien s'il n'y en a pas).
+    public static func failedMessage(count: Int) -> String? {
+        guard count > 0 else { return nil }
+        return count > 1
+            ? "\(count) photos n'ont pas pu être lues. Réessayez ou choisissez-en d'autres."
+            : "Une photo n'a pas pu être lue. Réessayez ou choisissez-en une autre."
+    }
+
     /// Ce que VoiceOver dit d'une vignette : « Photo », ou « Photo 2 sur 3 ».
     public static func label(index: Int, count: Int) -> String {
         count > 1 ? "Photo \(ImageViewerDisplay.title(index: index, count: count))" : "Photo"

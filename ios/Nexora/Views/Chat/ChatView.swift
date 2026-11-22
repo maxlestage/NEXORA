@@ -496,9 +496,7 @@ struct ChatView: View {
             photos.append(draft)
         }
         loadingPhotos = false
-        if failed > 0 {
-            notice = failed > 1 ? "\(failed) photos n'ont pas pu être lues." : "Une photo n'a pas pu être lue."
-        }
+        if let message = PhotoDraftDisplay.failedMessage(count: failed) { notice = message }
     }
 
     /// La photo prise avec l'appareil photo.
