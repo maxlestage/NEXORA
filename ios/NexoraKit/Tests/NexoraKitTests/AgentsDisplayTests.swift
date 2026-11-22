@@ -102,4 +102,16 @@ struct AgentEditorDisplayTests {
         #expect(AgentEditorDisplay.leaveMessage(isNew: true, missing: "Donnez un nom pour enregistrer.")
             == "L'agent ne sera pas créé. Donnez un nom pour enregistrer.")
     }
+
+    @Test func adresseDImportVerifiee() {
+        #expect(AgentsDisplay.importAddress("  https://github.com/a/b/blob/main/x.md \n") == "https://github.com/a/b/blob/main/x.md")
+        #expect(AgentsDisplay.importAddress("github.com/a/b/blob/main/x.md") == "https://github.com/a/b/blob/main/x.md")
+        #expect(AgentsDisplay.importAddress("HTTP://exemple.fr/agent.md") == "HTTP://exemple.fr/agent.md")
+        #expect(AgentsDisplay.importAddress("") == nil)
+        #expect(AgentsDisplay.importAddress("   ") == nil)
+        #expect(AgentsDisplay.importAddress("mon agent.md") == nil)
+        #expect(AgentsDisplay.importAddress("ftp://exemple.fr/a.md") == nil)
+        #expect(AgentsDisplay.importAddress("agent") == nil)
+        #expect(AgentsDisplay.importAddress("https://") == nil)
+    }
 }

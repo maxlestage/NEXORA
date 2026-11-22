@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.222 — 22 novembre 2026 — Import d'agent par adresse vérifié
+
+- Amélioré : Agents › Importer depuis une adresse — « Importer » reste éteint tant que l'adresse est vide ou inutilisable, au lieu d'échouer avec une erreur réseau.
+- Amélioré : un lien collé sans « https:// » (par ex. github.com/…/agent.md) fonctionne, et la correction automatique ne modifie plus l'adresse tapée.
+
 ## 3.0.221 — 22 novembre 2026 — Client ID GitHub vérifié avant l'enregistrement
 
 - Amélioré : dans Réglages › GitHub › Avancé, « OK » reste éteint si le Client ID collé est inutilisable (adresse, secret collé à la place, caractères interdits).

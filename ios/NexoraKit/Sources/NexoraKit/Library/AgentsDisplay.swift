@@ -59,6 +59,20 @@ public enum AgentsDisplay {
         case .skill, .command: "Vous pourrez la réinstaller depuis la bibliothèque."
         }
     }
+
+    /// L'adresse d'import d'un agent, prête à télécharger : espaces retirés, « https:// »
+    /// ajouté s'il manque (« github.com/… » collé sans), nil si elle est inutilisable
+    /// (vide, espace au milieu, autre protocole, hôte sans point) : « Importer » s'éteint
+    /// au lieu d'échouer avec une erreur réseau obscure.
+    public static func importAddress(_ raw: String) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty, !s.contains(where: \.isWhitespace) else { return nil }
+        if !s.contains("://") { s = "https://" + s }
+        guard let c = URLComponents(string: s), let scheme = c.scheme?.lowercased(),
+              scheme == "http" || scheme == "https", let host = c.host,
+              host.contains("."), !host.hasPrefix("."), !host.hasSuffix(".") else { return nil }
+        return s
+    }
 }
 
 /// Logique d'affichage du choix de l'agent d'une conversation (AgentPickerSheet),
