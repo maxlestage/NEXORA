@@ -1740,8 +1740,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (≈ 22 pt, à élargir si la ligne ne grossit pas) ; l'avis « Routine enregistrée » est posé
   sur la fiche qui se ferme (à vérifier sur appareil).
 
+- 3.0.214 (interface, croix « Retirer ») : passage TOKENS sans piste à plus de 2 %, donc
+  interface. Fiche d'une routine : la croix d'un dépôt n'offrait que ≈ 22 pt → 44 pt
+  (comme NewSessionView), balayage « Retirer » ajouté, nom du dépôt sur une ligne (coupé au
+  milieu). Chat, pastille d'un fichier joint (`attachmentChips`) : croix ≈ 12 pt → 36 × 44 pt ;
+  la pastille garde son dessin (fond en retrait de 8 pt), la bande grandit d'environ 16 pt
+  (à vérifier sur appareil). Aucune logique nouvelle, tests inchangés (619).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.213 : fiche d'une routine, « Enregistrer et lancer ») →
+(interface faite en 3.0.214 : croix « Retirer » des routines et des fichiers joints) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

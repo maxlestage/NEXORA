@@ -207,14 +207,24 @@ struct RoutineEditorView: View {
                 ForEach(r.repos, id: \.self) { spec in
                     HStack {
                         Text(spec).font(.body.monospaced())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                         Spacer()
                         Button {
                             r.repos.removeAll { $0 == spec }
                         } label: {
+                            // Une petite croix, mais 44 points à toucher.
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Retirer \(spec)")
+                    }
+                    .swipeActions {
+                        Button("Retirer", systemImage: "xmark", role: .destructive) {
+                            r.repos.removeAll { $0 == spec }
+                        }
                     }
                 }
                 Button("Ajouter un dépôt", systemImage: "plus") { pickingRepo = true }

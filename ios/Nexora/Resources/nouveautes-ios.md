@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.214 — 22 novembre 2026 — Retirer un dépôt ou un fichier joint : plus facile à toucher
+
+- Amélioré : dans la fiche d'une routine, la croix qui retire un dépôt est bien plus facile à toucher, et tu peux aussi balayer la ligne vers la gauche.
+- Amélioré : dans le chat, la croix qui retire un fichier joint est plus facile à toucher.
+- Amélioré : un nom de dépôt très long tient sur une ligne au lieu de pousser la croix.
+
 ## 3.0.213 — 22 novembre 2026 — Routines : lancer ce que tu viens de régler
 
 - Amélioré : dans la fiche d'une routine, si tu as changé quelque chose, le bouton devient « Enregistrer et lancer » ; avant, « Lancer maintenant » lançait l'ancienne version sans le dire.
