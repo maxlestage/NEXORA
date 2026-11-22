@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.219 — 22 novembre 2026 — Brouillons : plus de retouches perdues en fermant
+
+- Corrigé : en modifiant à la main un fichier écrit par l'agent, balayer la fenêtre ou toucher « Annuler » ne perd plus vos retouches sans prévenir. L'app demande : Enregistrer, Abandonner ou Continuer à modifier.
+- Amélioré : « Enregistrer » ne s'allume que s'il y a vraiment une retouche ; une fenêtre non modifiée se ferme toujours d'un geste.
+
 ## 3.0.218 — 22 novembre 2026 — Agents cloud : plus d'instruction perdue en fermant
 
 - Corrigé : balayer la fenêtre de lancement d'un agent cloud ou toucher « Annuler » ne fait plus perdre une instruction déjà écrite ; l'app demande avant d'abandonner.
