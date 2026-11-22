@@ -185,9 +185,9 @@ public enum ChatLibrary {
               let re = suggestionPattern.get(),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
         let ns = text as NSString
-        let q = ns.substring(with: m.range(at: 2)).lowercased()
+        let q = ns.substring(with: m.range(at: 2))
         if ns.substring(with: m.range(at: 1)) == "/" {
-            return library.commands.filter { q.isEmpty || $0.name.lowercased().contains(q) }.map { c in
+            return ranked(library.commands, query: q, name: \.name).map { c in
                 ChatSuggestion(
                     insert: "/\(c.name) ",
                     title: "/\(c.name)\(c.argumentHint.isEmpty ? "" : " \(c.argumentHint)")",
@@ -196,11 +196,27 @@ public enum ChatLibrary {
             }
         }
         // Le nom de chaque agent mis en forme une seule fois (c'était trois).
-        return agents.compactMap { a in
-            let s = slug(a.name)
-            guard q.isEmpty || s.contains(q) else { return nil }
-            return ChatSuggestion(insert: "@\(s) ", title: "\(a.emoji) @\(s)", subtitle: a.description)
+        return ranked(agents.map { (agent: $0, slug: slug($0.name)) }, query: q, name: \.slug).map { a, s in
+            ChatSuggestion(insert: "@\(s) ", title: "\(a.emoji) @\(s)", subtitle: a.description)
         }
+    }
+
+    /// Les éléments dont le nom contient la saisie, sans tenir compte des majuscules ni
+    /// des accents (« @red » trouve « @rédacteur ») ; ceux dont le nom COMMENCE par la
+    /// saisie passent devant, l'ordre d'origine étant gardé dans chaque groupe.
+    static func ranked<T>(_ items: [T], query q: String, name: (T) -> String) -> [T] {
+        if q.isEmpty { return items }
+        let loose: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        var starts: [T] = [], inside: [T] = []
+        for item in items {
+            let n = name(item)
+            if n.range(of: q, options: loose.union(.anchored)) != nil {
+                starts.append(item)
+            } else if n.range(of: q, options: loose) != nil {
+                inside.append(item)
+            }
+        }
+        return starts + inside
     }
 
     /// `/commande` ou `@agent` en cours de frappe. Une `NSRegularExpression` ne
