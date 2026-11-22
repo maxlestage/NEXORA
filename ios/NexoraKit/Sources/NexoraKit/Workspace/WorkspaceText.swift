@@ -177,11 +177,13 @@ public enum WorkspaceText {
     }
 
     /// Le sous-titre d'une session dans la liste (sans les lignes ni la date).
+    /// « Arrêté » et « Envoyé » sont écrits : l'icône colorée ne suffit pas à le
+    /// dire (daltonisme, coup d'œil rapide). « Terminé » n'ajoute rien.
     public static func tileSubtitle(_ status: SessionStatus, reposLabel: String) -> String {
         switch status {
         case .review: status.label
-        case .running: "\(reposLabel) · \(status.label)"
-        default: reposLabel
+        case .running, .stopped, .shipped: "\(reposLabel) · \(status.label)"
+        case .done: reposLabel
         }
     }
 

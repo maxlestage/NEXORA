@@ -225,7 +225,11 @@ struct SessionTile: View {
             }
         }
         .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(SessionsDisplay.tileAccessibility(
+            task: run.task, status: status, reposLabel: run.reposLabel,
+            added: stats.added, removed: stats.removed, ago: WorkspaceText.ago(run.updatedAt)
+        ))
     }
 
     private func subtitle(_ status: SessionStatus, _ added: Int, _ removed: Int) -> Text {

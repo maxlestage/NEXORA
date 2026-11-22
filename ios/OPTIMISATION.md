@@ -1681,8 +1681,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (35 questions). Tests : 611 (+1, `chaqueQuestionSousSonTheme`). `CreditsView` vérifié :
   « Flutter et Dart — L'application Android » est un crédit exact, laissé.
 
+- 3.0.207 (interface) : onglet Code, liste des sessions (3e passage) — dans « Récentes », une
+  session arrêtée ou envoyée n'était dite que par la couleur de l'icône. `WorkspaceText.tileSubtitle`
+  écrit « site · Arrêté » / « site · Envoyé » (Terminé : rien de plus) ; `SessionsDisplay.tileAccessibility`
+  donne à VoiceOver une phrase (mission, état, dépôt, « 12 lignes ajoutées, 1 retirée », date) au
+  lieu du nom du symbole et de « +12 −3 ». États dits par la seule couleur : 2 → 0.
+  Tests : 611 → 612.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.206 : rangement des thèmes de l'aide) →
+(interface faite en 3.0.207 : état écrit dans la liste des sessions) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

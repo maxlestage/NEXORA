@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.207 — 22 novembre 2026 — Sessions : l'état écrit en toutes lettres
+- Amélioré : dans la liste des sessions, « Arrêté » et « Envoyé » sont écrits à côté du dépôt, plus seulement indiqués par la couleur de l'icône.
+- Amélioré : VoiceOver annonce chaque session en une phrase claire (mission, état, dépôt, lignes ajoutées et retirées, date).
+
 ## 3.0.206 — 22 novembre 2026 — Aide : chaque question sous son thème
 - Amélioré : dans l'aide, la dictée et la lecture à voix haute sont maintenant dans « Bien démarrer », plus dans « GitHub ».
 - Amélioré : « Skills, sous-agents, commandes » et « Le travail continue-t-il en arrière-plan ? » sont rangés avec les agents.

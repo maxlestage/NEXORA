@@ -141,4 +141,22 @@ public enum SessionsDisplay {
     public static func pullAccessibility(_ fullName: String) -> String {
         "Ouvrir la pull request de " + (fullName.split(separator: "/").last.map(String.init) ?? fullName) + " sur GitHub"
     }
+
+    /// Ce que VoiceOver annonce pour une session de la liste, en une phrase :
+    /// la mission, l'état en toutes lettres (l'icône seule ne dit rien), le dépôt,
+    /// les lignes (« +12 −3 » se lit mal) et la date.
+    public static func tileAccessibility(
+        task: String, status: SessionStatus, reposLabel: String, added: Int, removed: Int, ago: String
+    ) -> String {
+        var parts = [task, status.label]
+        if status != .review {
+            parts.append(reposLabel)
+            if added + removed > 0 {
+                parts.append("\(added) ligne\(added > 1 ? "s" : "") ajoutée\(added > 1 ? "s" : ""), "
+                    + "\(removed) retirée\(removed > 1 ? "s" : "")")
+            }
+        }
+        parts.append(ago)
+        return parts.joined(separator: ", ")
+    }
 }
