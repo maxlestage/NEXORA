@@ -22,6 +22,8 @@ struct HelpDisplayTests {
             "comment avoir une clé gratuite", "supprimer mes données", "pourquoi ça coûte", "combien ça coûte",
             "comment créer un agent", "pull requests", "comment lancer les tests", "modèles gratuits",
             "c'est quoi un agent", "mes clés sont où",
+            "ça marche hors ligne", "sans connexion", "dictée", "changer la couleur", "mode sombre",
+            "taille du texte", "exporter mes conversations", "partager un chat", "sauvegarder mes réglages",
         ] {
             #expect(!Help.search(q).isEmpty, "rien pour « \(q) »")
         }
@@ -35,7 +37,7 @@ struct HelpDisplayTests {
         let few = Help.search("routines")
         #expect(HelpDisplay.count(few) == 3)
         #expect(HelpDisplay.autoExpand(few, searching: true))
-        #expect(HelpDisplay.count(all) == 32)
+        #expect(HelpDisplay.count(all) == 35)
     }
 
     @Test func textesCourts() {

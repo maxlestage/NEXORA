@@ -104,6 +104,14 @@ public enum Help {
                 "Comment changer de modèle au milieu d'une conversation ?",
                 "Touchez la puce du modèle sous le titre de la conversation. L'historique est conservé et envoyé au nouveau modèle."
             ),
+            HelpTopic(
+                "Est-ce que ça marche hors ligne, sans connexion ?",
+                "Vos conversations restent **lisibles sans Internet** : elles sont enregistrées sur l'iPhone. Pour une nouvelle réponse, il faut une connexion vers le fournisseur. Seule exception : **Ollama** sur votre ordinateur, qui répond avec le Wi-Fi de la maison, même sans Internet."
+            ),
+            HelpTopic(
+                "Comment changer les couleurs, le thème ou la taille du texte ?",
+                "**Réglages → Personnaliser** : choisissez une couleur, le mode **sombre, clair ou automatique**, le noir pur pour les écrans OLED, et réglez la **taille du texte** avec le curseur. Tout s'applique tout de suite."
+            ),
         ]),
         HelpSection("🔑", "Clés et modèles", [
             HelpTopic(
@@ -112,7 +120,7 @@ public enum Help {
             ),
             HelpTopic(
                 "Où sont rangées mes clés ? Sont-elles en sécurité ?",
-                "Dans le **trousseau sécurisé** de votre téléphone (Keychain sur iPhone, Keystore sur Android). NEXORA n'a pas de serveur : vos clés ne partent que chez le fournisseur concerné, au moment d'un message."
+                "Dans le **trousseau sécurisé** de votre iPhone (Keychain). NEXORA n'a pas de serveur : vos clés ne partent que chez le fournisseur concerné, au moment d'un message."
             ),
             HelpTopic(
                 "Le test dit « Clé refusée »",
@@ -179,7 +187,7 @@ public enum Help {
         ]),
         HelpSection("🐙", "GitHub", [
             HelpTopic(
-                "Parler à l'assistant et l'entendre répondre",
+                "Parler à l'assistant (dictée) et l'entendre répondre",
                 "Touchez le **micro** de la barre de saisie et parlez : le texte s'écrit en direct et part à la fin de votre phrase. La réponse est alors **lue à voix haute**, phrase par phrase (le code est affiché, pas lu). Vous pouvez aussi écrire « réponds-moi à voix haute ». En **conversation vocale**, l'assistant vous écoute de nouveau après chaque réponse : touchez « Terminer » pour arrêter. Réglages dans **Personnaliser → Voix**. La première fois, autorisez le micro et la reconnaissance vocale."
             ),
             HelpTopic(
@@ -188,7 +196,7 @@ public enum Help {
             ),
             HelpTopic(
                 "Le travail continue-t-il en arrière-plan ?",
-                "Oui : une session d'agent ou une réponse continue quand vous quittez l'app ou verrouillez le téléphone. Sur **Android**, une notification « NEXORA travaille… » reste affichée pendant le travail (acceptez les notifications). Sur **iPhone avec iOS 26 ou plus (iOS 27 compris)**, la progression apparaît dans le système ; avec un iOS plus ancien, iOS n'accorde qu'environ 30 secondes : la session reprend quand vous revenez. Une notification prévient quand c'est fini."
+                "Oui : une session d'agent ou une réponse continue quand vous quittez l'app ou verrouillez le téléphone. Avec **iOS 26 ou plus (iOS 27 compris)**, la progression apparaît dans le système ; avec un iOS plus ancien, iOS n'accorde qu'environ 30 secondes : la session reprend quand vous revenez. Une notification prévient quand c'est fini."
             ),
             HelpTopic(
                 "Les sessions (plusieurs dépôts, comme Claude Code)",
@@ -225,6 +233,10 @@ public enum Help {
             HelpTopic(
                 "Où vont mes conversations ?",
                 "Elles restent **sur votre téléphone**. Chaque message part uniquement chez le fournisseur que vous avez choisi, qui applique sa propre politique (certaines offres gratuites peuvent servir à améliorer les modèles). Pour une confidentialité totale, utilisez Ollama sur votre ordinateur."
+            ),
+            HelpTopic(
+                "Comment exporter, partager ou sauvegarder une conversation ?",
+                "Dans la conversation (le chat), touchez **⋯** en haut à droite : **Copier en Markdown** met tout le texte dans le presse-papiers, **Partager** l'envoie vers Notes, Mail, Fichiers ou une autre app. Pour vos **réglages** : Réglages → Personnaliser → Exporter mes réglages (sans vos clés). Pour vos **agents** : Réglages → Données → Exporter mes agents."
             ),
             HelpTopic(
                 "Comment tout effacer ?",
