@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.223 — 22 novembre 2026 — Nom de branche vérifié
+
+- Amélioré : dans « Nouvelle session », « OK » reste éteint tant que le nom de la branche de travail serait refusé par git (espace, « .. », « : »…), au lieu d'une session qui échoue plus tard.
+- Nouveau : l'alerte rappelle les caractères permis.
+
 ## 3.0.222 — 22 novembre 2026 — Import d'agent par adresse vérifié
 
 - Amélioré : Agents › Importer depuis une adresse — « Importer » reste éteint tant que l'adresse est vide ou inutilisable, au lieu d'échouer avec une erreur réseau.
