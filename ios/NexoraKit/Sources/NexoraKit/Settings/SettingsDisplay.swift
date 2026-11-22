@@ -98,10 +98,30 @@ public enum SettingsDisplay {
     }
 
     /// Résumé du Client ID OAuth (réglage rare, rangé dans « Avancé »).
-    public static func clientIdDetail(_ clientId: String) -> String {
+    /// Vide : l'app utilise son propre Client ID (`builtIn`), d'où « Celui de l'app » plutôt
+    /// qu'un « Non renseigné » qui laissait croire la connexion impossible.
+    public static func clientIdDetail(_ clientId: String, builtIn: Bool = false) -> String {
         let id = clientId.trimmingCharacters(in: .whitespacesAndNewlines)
-        return id.isEmpty ? "Non renseigné" : id
+        if !id.isEmpty { return id }
+        return builtIn ? "Celui de l'app" : "Non renseigné"
     }
+
+    /// Le Client ID collé, nettoyé (espaces et retours à la ligne retirés, fréquents quand on
+    /// copie depuis github.com) ; "" = revenir à celui de l'app ; nil = inutilisable (caractères
+    /// interdits, longueur hors 6…64, ou secret de 40 caractères hexadécimaux collé à la place),
+    /// et « OK » reste éteint au lieu d'enregistrer un identifiant qui ferait échouer la connexion.
+    public static func clientId(_ raw: String) -> String? {
+        let id = raw.filter { !$0.isWhitespace }
+        if id.isEmpty { return "" }
+        guard (6...64).contains(id.count),
+              id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) })
+        else { return nil }
+        if id.count == 40, id.allSatisfy(\.isHexDigit) { return nil }
+        return id
+    }
+
+    /// Explication de la fenêtre de saisie du Client ID (214 → 150 caractères).
+    public static let clientIdMessage = "Sur github.com/settings/applications/new, créez une OAuth App avec « Enable Device Flow », puis collez son Client ID (pas le secret). Vide : celui de l'app."
 
     /// Ligne « À propos de NEXORA » des Réglages : la version seule (le reste, rare — auteur,
     /// crédits, liens, présentation —, est sur la page qu'elle ouvre).

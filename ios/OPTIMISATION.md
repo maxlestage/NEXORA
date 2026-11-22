@@ -1802,14 +1802,23 @@ mémoire 32k tokens, consigne 3 000 car.
   sous le formulaire), `serverName` (l'hôte si le nom est vide), « Ajouter » éteint sinon.
   Serveurs inutilisables enregistrables : oui → non. Tests : 624 → 625.
 
+- 3.0.221 (interface, Réglages › GitHub › Avancé › Client ID OAuth) : passage TOKENS sans
+  piste à plus de 2 %, donc interface. Réglages › Données en très grand texte vérifié (ligne de
+  place : texte qui passe à la ligne, bouton 44 pt ; rien à faire). Client ID : « OK »
+  enregistrait n'importe quel texte collé (espaces, URL, secret de 40 hex) → connexion GitHub
+  en échec obscur → `SettingsDisplay.clientId` (espaces retirés, "" = celui de l'app, nil si
+  inutilisable : « OK » éteint) ; `clientIdDetail(_:builtIn:)` « Celui de l'app » au lieu de
+  « Non renseigné » ; `clientIdMessage` 214 → 150 car. Identifiants inutilisables
+  enregistrables : oui → non. Tests : 625 → 626.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.220 : serveur personnalisé) →
+(interface faite en 3.0.221 : Client ID GitHub) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : Réglages › Données en très grand texte (à vérifier seulement), accueil,
+Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 

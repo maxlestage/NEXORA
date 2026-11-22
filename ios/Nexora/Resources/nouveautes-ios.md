@@ -5,6 +5,13 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.221 — 22 novembre 2026 — Client ID GitHub vérifié avant l'enregistrement
+
+- Amélioré : dans Réglages › GitHub › Avancé, « OK » reste éteint si le Client ID collé est inutilisable (adresse, secret collé à la place, caractères interdits).
+- Amélioré : les espaces et retours à la ligne copiés avec le Client ID sont retirés tout seuls.
+- Corrigé : sans Client ID personnel, la ligne affiche « Celui de l'app » au lieu de « Non renseigné ».
+- Amélioré : l'explication de la fenêtre est plus courte.
+
 ## 3.0.220 — 22 novembre 2026 — Serveur perso : adresse vérifiée avant l'ajout
 - Amélioré : « Ajouter » reste éteint tant que l'adresse du serveur est vide ou invalide, avec un message clair sous le formulaire.
 - Amélioré : « 192.168.1.10:8080/v1 » suffit, « http:// » est ajouté tout seul et le « / » final retiré.
