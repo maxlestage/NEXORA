@@ -186,4 +186,32 @@ public enum AgentEditorDisplay {
         default: return nil
         }
     }
+
+    /// Fermer la fiche ferait perdre une saisie : l'agent n'est plus celui de l'ouverture.
+    /// Des espaces ajoutés autour d'un texte ne comptent pas.
+    public static func losesChanges(original: Agent, edited: Agent) -> Bool {
+        func tidy(_ a: Agent) -> Agent {
+            var b = a
+            b.name = a.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            b.description = a.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            b.emoji = a.emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+            b.systemPrompt = a.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            b.category = a.category.trimmingCharacters(in: .whitespacesAndNewlines)
+            b.tools = a.tools.sorted()
+            return b
+        }
+        return tidy(original) != tidy(edited)
+    }
+
+    /// Le titre de la question posée avant de fermer une fiche modifiée.
+    public static func leaveTitle(isNew: Bool) -> String {
+        isNew ? "Abandonner ce nouvel agent ?" : "Abandonner les modifications ?"
+    }
+
+    /// Ce que l'on perd en abandonnant, et pourquoi « Enregistrer » manque s'il manque.
+    public static func leaveMessage(isNew: Bool, missing: String?) -> String {
+        let lost = isNew ? "L'agent ne sera pas créé." : "L'agent restera comme avant."
+        guard let missing else { return lost }
+        return lost + " " + missing
+    }
 }
