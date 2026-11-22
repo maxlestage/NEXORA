@@ -500,10 +500,21 @@ struct DraftDiffView: View {
 
 /// Modifier un brouillon à la main.
 struct DraftEditor: View {
-    @State var text: String
+    /// Le texte à l'ouverture : sert à savoir s'il y a des retouches à perdre.
+    private let original: String
     let onSave: (String) -> Void
 
+    @State private var text: String
+    @State private var confirmLeave = false
     @Environment(\.dismiss) private var dismiss
+
+    init(text: String, onSave: @escaping (String) -> Void) {
+        original = text
+        self.onSave = onSave
+        _text = State(initialValue: text)
+    }
+
+    private var losesEdit: Bool { DraftsDisplay.losesEdit(original: original, text: text) }
 
     var body: some View {
         NavigationStack {
@@ -515,14 +526,31 @@ struct DraftEditor: View {
                 .navigationTitle("Modifier le brouillon")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Enregistrer") {
-                            onSave(text)
-                            dismiss()
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Annuler") {
+                            if losesEdit { confirmLeave = true } else { dismiss() }
                         }
                     }
+                    ToolbarItem(placement: .confirmationAction) {
+                        // Rien de retouché : rien à enregistrer (ni faux avis « Brouillon modifié »).
+                        Button("Enregistrer") { save() }
+                            .disabled(!losesEdit)
+                    }
+                }
+                // Des retouches en cours : un balayage ne ferme plus la fenêtre sans demander.
+                .interactiveDismissDisabled(losesEdit)
+                .confirmationDialog(DraftsDisplay.leaveEditTitle, isPresented: $confirmLeave, titleVisibility: .visible) {
+                    Button("Enregistrer") { save() }
+                    Button("Abandonner", role: .destructive) { dismiss() }
+                    Button("Continuer à modifier", role: .cancel) {}
+                } message: {
+                    Text(DraftsDisplay.leaveEditMessage)
                 }
         }
+    }
+
+    private func save() {
+        onSave(text)
+        dismiss()
     }
 }

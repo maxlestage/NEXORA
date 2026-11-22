@@ -53,4 +53,19 @@ struct DraftsDisplayTests {
         #expect(DraftsDisplay.uncheckedPill == "décoché")
         #expect(DraftsDisplay.loadErrorTitle.count < 40)
     }
+
+    @Test func editeurRetouchesAPerdre() {
+        // Rien de changé, ou seulement la fin de fichier : on ferme d'un geste.
+        #expect(!DraftsDisplay.losesEdit(original: "let a = 1\n", text: "let a = 1\n"))
+        #expect(!DraftsDisplay.losesEdit(original: "let a = 1\n", text: "let a = 1"))
+        #expect(!DraftsDisplay.losesEdit(original: "let a = 1", text: "let a = 1\n\n  "))
+        #expect(!DraftsDisplay.losesEdit(original: "", text: "\n"))
+        // Une retouche, même d'un caractère ou d'une indentation en tête, se protège.
+        #expect(DraftsDisplay.losesEdit(original: "let a = 1\n", text: "let a = 2\n"))
+        #expect(DraftsDisplay.losesEdit(original: "let a = 1\n", text: "  let a = 1\n"))
+        #expect(DraftsDisplay.losesEdit(original: "a\nb\n", text: "a\n\nb\n"))
+        #expect(DraftsDisplay.losesEdit(original: "a\n", text: ""))
+        #expect(DraftsDisplay.leaveEditTitle.hasSuffix("?"))
+        #expect(DraftsDisplay.leaveEditMessage.count < 60)
+    }
 }

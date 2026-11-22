@@ -1784,8 +1784,17 @@ mémoire 32k tokens, consigne 3 000 car.
   modifié seul n'est pas protégé (peu à perdre). Pertes sans avis : 1 → 0. Tests : 622 → 623.
   Restent à voir : message d'envoi de DraftReviewView, « Personnaliser », ProvidersView.
 
+- 3.0.219 (interface, validation des brouillons › éditeur) : passage TOKENS sans piste à plus
+  de 2 %, donc interface. `DraftEditor` (retouche à la main d'un fichier écrit par l'agent) :
+  balayer ou « Annuler » perdait les retouches → `DraftsDisplay.losesEdit` (fin de fichier
+  ignorée) + `interactiveDismissDisabled` + question Enregistrer / Abandonner / Continuer à
+  modifier (`leaveEditTitle`, `leaveEditMessage`) ; « Enregistrer » éteint sans retouche (plus
+  de faux avis « Brouillon modifié »). Pertes sans avis : 1 → 0. Tests : 623 → 624.
+  Vu sans y toucher : message de commit de `ShipSheet` (prérempli, une ligne : peu à perdre).
+  Restent à voir : « Personnaliser », ProvidersView.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.218 : lancement d'un agent cloud) →
+(interface faite en 3.0.219 : éditeur de brouillon) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

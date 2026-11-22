@@ -85,4 +85,30 @@ public enum DraftsDisplay {
     /// Le titre quand les changements d'un brouillon ne peuvent pas être montrés
     /// (le détail technique passe dessous, en petit).
     public static let loadErrorTitle = "Changements impossibles à afficher"
+
+    // MARK: Modifier un brouillon à la main
+
+    /// Fermer l'éditeur ferait-il perdre des retouches ? Le texte doit différer de celui
+    /// de l'ouverture ; les fins de ligne en bout de fichier ne comptent pas (l'app en
+    /// remet une à l'enregistrement).
+    public static func losesEdit(original: String, text: String) -> Bool {
+        trimmedEnd(original) != trimmedEnd(text)
+    }
+
+    /// La question posée avant de fermer un éditeur modifié.
+    public static let leaveEditTitle = "Enregistrer vos retouches ?"
+
+    /// Ce qui se passe si on abandonne (une phrase, mots simples).
+    public static let leaveEditMessage = "Sinon ce fichier reste tel que l'agent l'a écrit."
+
+    /// Le texte sans les fins de ligne ni les espaces qui le terminent.
+    private static func trimmedEnd(_ text: String) -> Substring {
+        var end = text.endIndex
+        while end > text.startIndex {
+            let before = text.index(before: end)
+            guard text[before].isWhitespace else { break }
+            end = before
+        }
+        return text[..<end]
+    }
 }
