@@ -44,6 +44,9 @@ struct RepoPickerSheet: View {
     @State private var query = ""
     @State private var creating = false
 
+    /// Même recherche que la liste des dépôts : mots dans n'importe quel ordre, sans accents.
+    private var shown: [Repo] { ReposDisplay.filter(github.repos, query: query) }
+
     var body: some View {
         NavigationStack {
             List {
@@ -52,8 +55,31 @@ struct RepoPickerSheet: View {
                 } label: {
                     Label("Créer un nouveau dépôt", systemImage: "folder.badge.plus")
                 }
-                if github.loading { ProgressView() }
-                ForEach(github.repos.filter { query.isEmpty || $0.fullName.localizedCaseInsensitiveContains(query) }) { r in
+                switch ReposDisplay.pickerNote(shown: shown.count, total: github.repos.count,
+                                               loading: github.loading, error: github.error, query: query) {
+                case .loading:
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Chargement des dépôts…").foregroundStyle(.secondary)
+                    }
+                case .failed(let message):
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Chargement impossible", systemImage: "wifi.exclamationmark")
+                        Text(message).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    Button("Réessayer", systemImage: "arrow.clockwise") {
+                        Task { await github.loadRepos() }
+                    }
+                case .empty:
+                    Text(ReposDisplay.pickerEmptyText).foregroundStyle(.secondary)
+                case .noMatch(let title):
+                    Text(title).foregroundStyle(.secondary)
+                    Button("Effacer la recherche", systemImage: "xmark.circle") { query = "" }
+                case nil:
+                    EmptyView()
+                }
+                ForEach(shown) { r in
                     Button {
                         onPick(r)
                         dismiss()
@@ -61,17 +87,19 @@ struct RepoPickerSheet: View {
                         HStack(spacing: 10) {
                             Image(systemName: r.isPrivate ? "lock" : "globe")
                                 .foregroundStyle(Color.accentColor)
+                                .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(r.fullName).foregroundStyle(.primary)
+                                Text(ReposDisplay.title(r, login: github.user?.login)).foregroundStyle(.primary)
                                 if let d = r.description, !d.isEmpty {
                                     Text(d).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
                         }
                     }
+                    .accessibilityLabel(ReposDisplay.accessibility(r, login: github.user?.login))
                 }
             }
-            .searchable(text: $query, prompt: "Choisir un dépôt")
+            .searchable(text: $query, prompt: "Nom, description ou langage")
             .navigationTitle("Dépôt")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.204 — 22 novembre 2026 — Choix du dépôt : plus jamais de feuille blanche
+- Amélioré : quand vous choisissez un dépôt pour l'agent ou une routine, la recherche trouve vos mots dans n'importe quel ordre, dans le nom, la description ou le langage, sans tenir compte des accents.
+- Nouveau : la feuille dit ce qui se passe — « Chargement des dépôts… », « Chargement impossible » avec Réessayer, ou « Aucun dépôt pour… » avec Effacer la recherche.
+- Amélioré : vos propres dépôts s'affichent par leur nom seul, et VoiceOver lit le nom, « privé » et la description.
+
 ## 3.0.203 — 22 novembre 2026 — Chat : « / » et « @ » sans accents
 - Amélioré : dans le chat, après « @ » ou « / », les accents et les majuscules ne comptent plus (« @red » propose « @rédacteur », « /resu » propose « /Résumé »).
 - Amélioré : les agents et les commandes dont le nom commence par ce que vous tapez sont proposés en premier.

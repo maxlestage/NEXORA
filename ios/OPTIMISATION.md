@@ -1657,19 +1657,25 @@ mémoire 32k tokens, consigne 3 000 car.
   (0,04 → 0,05 ms par frappe, négligeable). Tests : 609 (un test étendu). Tokens : pistes
   sûres épuisées, rien forcé.
 
+- 3.0.204 (interface, choix du dépôt) : la feuille « Dépôt » (`RepoPickerSheet`, nouvelle
+  session, routines, agents) filtrait avec `localizedCaseInsensitiveContains` sur le nom
+  seul et restait blanche si rien à montrer. Maintenant `ReposDisplay.filter` (mots dans
+  n'importe quel ordre, nom + description + langage, sans accents) et
+  `ReposDisplay.pickerNote` : chargement, échec + Réessayer, compte vide, recherche vide +
+  Effacer. Mesure : états sans aucune explication 4 → 0. Tests : 610 (+1). Tokens : rien forcé.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.203 : propositions « / » et « @ » du chat sans accents) →
+(interface faite en 3.0.204 : feuille de choix du dépôt) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : `AgentsDisplay.matches` et `ModelPickerDisplay.matches` ignorent déjà
-les accents (vérifié en 3.0.203). Restent : le choix du dépôt (`WorkspaceParts.swift` ligne 56,
-`localizedCaseInsensitiveContains` → `AgentsDisplay.matches`), `ErrorHelp` ligne 50 qui
-parle d'« iPhone ou Android » et `BackgroundJobs` « notification Android » (textes de
-parité, sans doute jamais affichés sur iOS : à vérifier), sujet voix rangé dans le thème
-« GitHub » de l'aide, Réglages › Données en très grand texte (à vérifier seulement), accueil.
+Interface ensuite : `ErrorHelp` ligne 50 qui parle d'« iPhone ou Android » et
+`BackgroundJobs` « notification Android » (textes de parité, sans doute jamais affichés sur
+iOS : à vérifier), sujet voix rangé dans le thème « GitHub » de l'aide, Réglages › Données
+en très grand texte (à vérifier seulement), accueil. Plus aucun
+`localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
 Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers
 app/assets) peut manquer dans `.build/…/NexoraKit_NexoraKit.resources` et 2 tests de
