@@ -1819,8 +1819,16 @@ mémoire 32k tokens, consigne 3 000 car.
   skill, dépôt de la bibliothèque. Adresses inutilisables importables : oui → non.
   Tests : 626 → 627.
 
+- 3.0.223 (interface, Nouvelle session › alerte « Branche de travail ») : passage TOKENS sans
+  piste à plus de 2 %, donc interface. « OK » acceptait un nom refusé par git (espace, « .. »,
+  « : », « - » au début…) → la session échouait plus tard ; un champ vide ne faisait rien sans
+  le dire. `WorkspaceText.branchProblem` (déjà utilisé par la feuille d'envoi) éteint « OK »,
+  message des caractères permis. Saisies vérifiées sans rien à faire : solde/budget (QuotaSheet),
+  nom de routine, nom de nouveau dépôt, titre d'issue, commentaire. Noms de branche invalides
+  acceptés : oui → non. Tests : 627 (4 attentes ajoutées).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.222 : import d'agent par adresse) →
+(interface faite en 3.0.223 : nom de branche de Nouvelle session) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

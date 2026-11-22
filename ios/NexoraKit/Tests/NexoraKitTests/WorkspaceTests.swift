@@ -844,6 +844,11 @@ struct DraftsTests {
         #expect(WorkspaceText.branchProblem("fix:x") != nil)
         #expect(WorkspaceText.branchProblem("nexora/") != nil)
         #expect(WorkspaceText.branchProblem("x.lock") != nil)
+        // Alerte « Branche de travail » de Nouvelle session : mêmes règles.
+        #expect(WorkspaceText.branchProblem("main") == nil)
+        #expect(WorkspaceText.branchProblem("feature/fix_1.2") == nil)
+        #expect(WorkspaceText.branchProblem("-x") != nil)
+        #expect(WorkspaceText.branchProblem("a~1") != nil)
         let t = RepoTarget("o", "r", "main")
         #expect(WorkspaceText.shipToast([ShipResult(t, "abcdef123")], hasPull: false) == "Commit abcdef1 envoyé ✅")
         #expect(WorkspaceText.shipToast([ShipResult(t, "https://github.com/o/r/pull/1")], hasPull: false) == "Pull request ouverte 🎉")

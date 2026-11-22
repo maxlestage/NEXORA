@@ -215,6 +215,10 @@ struct NewSessionView: View {
                 if let i = list.firstIndex(where: { $0.id == p.id }) { list[i].branch = b }
                 repos = list
             }
+            // Un nom refusé par git (espace, « .. », « : »…) ferait échouer la session plus tard.
+            .disabled(WorkspaceText.branchProblem(branchText) != nil)
+        } message: {
+            Text("Lettres, chiffres, « - », « _ », « / » et « . », sans espace.")
         }
         .onChange(of: task) { _, text in
             if let keep = NewSessionDisplay.draftToSave(text) {
