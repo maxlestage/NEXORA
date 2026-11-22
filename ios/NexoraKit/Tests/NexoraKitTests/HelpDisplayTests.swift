@@ -68,4 +68,20 @@ struct HelpDisplayTests {
         #expect(!HelpDisplay.autoExpand(github, searching: false, theme: "GitHub"))
         #expect(!HelpDisplay.autoExpand(all, searching: false, theme: nil))
     }
+
+    /// Chaque question est rangée sous le thème où on la cherche : la dictée n'est pas un
+    /// sujet « GitHub », ni les skills, ni l'arrière-plan.
+    @Test func chaqueQuestionSousSonTheme() {
+        func theme(_ mot: String) -> String? {
+            Help.sections.first { $0.topics.contains { $0.question.contains(mot) } }?.title
+        }
+        #expect(theme("dictée") == "Bien démarrer")
+        #expect(theme("Skills, sous-agents") == "Agents")
+        #expect(theme("arrière-plan") == "Agents")
+        #expect(theme("Les sessions") == "GitHub")
+        // Le thème GitHub commence par la connexion, sans laquelle rien d'autre ne marche.
+        let github = Help.sections.first { $0.title == "GitHub" }
+        #expect(github?.topics.first?.question == "Comment connecter GitHub ?")
+        #expect(github?.topics.count == 4)
+    }
 }

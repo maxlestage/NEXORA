@@ -29,7 +29,7 @@ public struct HelpSection: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Le centre d'aide de NEXORA : des réponses courtes, rangées par thème (même texte
+/// Le centre d'aide de NEXORA : des réponses courtes, rangées par thème (mêmes réponses
 /// que l'app Flutter, `data/help_content.dart`).
 public enum Help {
     /// Le texte sans majuscules ni accents, pour chercher « cle » dans « Clé ».
@@ -112,6 +112,10 @@ public enum Help {
                 "Comment changer les couleurs, le thème ou la taille du texte ?",
                 "**Réglages → Personnaliser** : choisissez une couleur, le mode **sombre, clair ou automatique**, le noir pur pour les écrans OLED, et réglez la **taille du texte** avec le curseur. Tout s'applique tout de suite."
             ),
+            HelpTopic(
+                "Parler à l'assistant (dictée) et l'entendre répondre",
+                "Touchez le **micro** de la barre de saisie et parlez : le texte s'écrit en direct et part à la fin de votre phrase. La réponse est alors **lue à voix haute**, phrase par phrase (le code est affiché, pas lu). Vous pouvez aussi écrire « réponds-moi à voix haute ». En **conversation vocale**, l'assistant vous écoute de nouveau après chaque réponse : touchez « Terminer » pour arrêter. Réglages dans **Personnaliser → Voix**. La première fois, autorisez le micro et la reconnaissance vocale."
+            ),
         ]),
         HelpSection("🔑", "Clés et modèles", [
             HelpTopic(
@@ -173,6 +177,10 @@ public enum Help {
                 "Un assistant spécialisé : une consigne (son « rôle »), éventuellement un modèle préféré et des outils. Choisissez-en un avec la puce « Assistant » dans une conversation."
             ),
             HelpTopic(
+                "Skills, sous-agents, commandes : à quoi ça sert ?",
+                "- **Sous-agent** : un spécialiste (sécurité, Rust, design…) avec sa propre consigne. Dans le chat, écrivez **@nom** au début du message pour qu'il réponde ; dans une session, l'agent peut lui **déléguer** une sous-tâche, qu'il fait à part avant de rendre un rapport.\n- **Skill** : un savoir-faire (créer un PDF, faire du TDD, une revue…). L'assistant ne voit que son nom et sa description, et la **charge quand elle sert** : peu de contexte utilisé, des réponses plus justes.\n- **Commande** : un message tout prêt, lancé avec **/nom**.\n- **Plugin** : un paquet de tout ça.\nInstallez-les depuis **Agents → Bibliothèque** : sources recommandées en un geste, ou n'importe quel dépôt GitHub."
+            ),
+            HelpTopic(
                 "Comment installer des agents depuis GitHub ?",
                 "Agents → icône de téléchargement → entrez un dépôt (`propriétaire/dépôt`) ou touchez une suggestion. NEXORA trouve les fichiers d'agents (format `.claude/agents/*.md`) ; cochez ceux que vous voulez puis « Installer »."
             ),
@@ -181,30 +189,22 @@ public enum Help {
                 "Sur un dépôt GitHub, il explore, lit et modifie des fichiers **en brouillon**. Vous voyez chaque étape, puis vous décidez : commit, ou nouvelle branche avec pull request. Rien n'est envoyé sans votre accord. Les grands modèles (Qwen3 Coder, Llama 3.3 70B, Gemini, Claude) donnent les meilleurs résultats."
             ),
             HelpTopic(
+                "Le travail continue-t-il en arrière-plan ?",
+                "Oui : une session d'agent ou une réponse continue quand vous quittez l'app ou verrouillez le téléphone. Avec **iOS 26 ou plus (iOS 27 compris)**, la progression apparaît dans le système ; avec un iOS plus ancien, iOS n'accorde qu'environ 30 secondes : la session reprend quand vous revenez. Une notification prévient quand c'est fini."
+            ),
+            HelpTopic(
                 "Et les agents cloud ?",
                 "Claude Code, Gemini CLI, Codex ou Aider travaillent sur les serveurs de GitHub. Installez le workflow depuis Agents → Cloud GitHub, ajoutez la clé indiquée dans les secrets du dépôt (bouton « Secret »), puis envoyez vos instructions depuis l'app. Le résultat arrive en pull request."
             ),
         ]),
         HelpSection("🐙", "GitHub", [
             HelpTopic(
-                "Parler à l'assistant (dictée) et l'entendre répondre",
-                "Touchez le **micro** de la barre de saisie et parlez : le texte s'écrit en direct et part à la fin de votre phrase. La réponse est alors **lue à voix haute**, phrase par phrase (le code est affiché, pas lu). Vous pouvez aussi écrire « réponds-moi à voix haute ». En **conversation vocale**, l'assistant vous écoute de nouveau après chaque réponse : touchez « Terminer » pour arrêter. Réglages dans **Personnaliser → Voix**. La première fois, autorisez le micro et la reconnaissance vocale."
-            ),
-            HelpTopic(
-                "Skills, sous-agents, commandes : à quoi ça sert ?",
-                "- **Sous-agent** : un spécialiste (sécurité, Rust, design…) avec sa propre consigne. Dans le chat, écrivez **@nom** au début du message pour qu'il réponde ; dans une session, l'agent peut lui **déléguer** une sous-tâche, qu'il fait à part avant de rendre un rapport.\n- **Skill** : un savoir-faire (créer un PDF, faire du TDD, une revue…). L'assistant ne voit que son nom et sa description, et la **charge quand elle sert** : peu de contexte utilisé, des réponses plus justes.\n- **Commande** : un message tout prêt, lancé avec **/nom**.\n- **Plugin** : un paquet de tout ça.\nInstallez-les depuis **Agents → Bibliothèque** : sources recommandées en un geste, ou n'importe quel dépôt GitHub."
-            ),
-            HelpTopic(
-                "Le travail continue-t-il en arrière-plan ?",
-                "Oui : une session d'agent ou une réponse continue quand vous quittez l'app ou verrouillez le téléphone. Avec **iOS 26 ou plus (iOS 27 compris)**, la progression apparaît dans le système ; avec un iOS plus ancien, iOS n'accorde qu'environ 30 secondes : la session reprend quand vous revenez. Une notification prévient quand c'est fini."
+                "Comment connecter GitHub ?",
+                "Onglet Code → **Créer un jeton** (droits repo, workflow, read:user, gist) → copiez-le → collez-le → Valider. Le bouton « Se connecter avec GitHub » marche aussi, une fois le Client ID d'une OAuth App renseigné dans Réglages."
             ),
             HelpTopic(
                 "Les sessions (plusieurs dépôts, comme Claude Code)",
                 "Onglet Code → **Sessions** → **Nouvelle session** : décrivez la mission, ajoutez **un ou plusieurs dépôts** (chacun devient un dossier pour l'agent), choisissez le modèle et le niveau, lancez. La session continue si vous quittez l'écran et reste enregistrée. La liste montre l'état de chacune : en cours, **en attente de votre validation** (point bleu), envoyée (pull request), avec les lignes ajoutées et retirées. Ouvrez une session pour lui donner une **nouvelle instruction** : les envois suivants mettent à jour la même pull request."
-            ),
-            HelpTopic(
-                "Comment connecter GitHub ?",
-                "Onglet Code → **Créer un jeton** (droits repo, workflow, read:user, gist) → copiez-le → collez-le → Valider. Le bouton « Se connecter avec GitHub » marche aussi, une fois le Client ID d'une OAuth App renseigné dans Réglages."
             ),
             HelpTopic(
                 "Comment modifier un fichier et faire un commit ?",

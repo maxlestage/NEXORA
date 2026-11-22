@@ -1673,21 +1673,28 @@ mémoire 32k tokens, consigne 3 000 car.
   « (notification Android) » retiré. Mesure : mentions d'Android dans les textes affichés
   2 → 0. Tests : 610 (deux tests étendus).
 
+- 3.0.206 (interface, aide) : passage TOKENS sans piste à plus de 2 %, donc interface. Le
+  thème « GitHub » de l'aide contenait 3 sujets sans rapport (dictée, skills/sous-agents,
+  arrière-plan) et s'ouvrait sur la dictée. Dictée → « Bien démarrer » ; skills et
+  arrière-plan → « Agents » ; « GitHub » commence par « Comment connecter GitHub ? ».
+  Mesure : sujets mal rangés 3 → 0 ; thème GitHub 7 → 4 questions. Textes inchangés
+  (35 questions). Tests : 611 (+1, `chaqueQuestionSousSonTheme`). `CreditsView` vérifié :
+  « Flutter et Dart — L'application Android » est un crédit exact, laissé.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.205 : textes d'erreur « navigateur » / Android) →
+(interface faite en 3.0.206 : rangement des thèmes de l'aide) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : sujet voix rangé dans le thème « GitHub » de l'aide, Réglages › Données
-en très grand texte (à vérifier seulement), accueil ; `CreditsView` cite « L'application
-Android » pour Flutter (à vérifier : crédit encore juste pour l'app Swift ?). Plus aucun
+Interface ensuite : Réglages › Données en très grand texte (à vérifier seulement), accueil,
+aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
 Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers
 app/assets) peut manquer dans `.build/…/NexoraKit_NexoraKit.resources` et 2 tests de
-catalogue échouent ; `cp -L Sources/NexoraKit/Resources/models.json <ce dossier>/` puis
+catalogue échouent (parfois un lien pendant y reste : `rm` d'abord) ; `cp -L Sources/NexoraKit/Resources/models.json <ce dossier>/` puis
 `swift test --skip-build`.
 
 ## Pistes tokens à faire
