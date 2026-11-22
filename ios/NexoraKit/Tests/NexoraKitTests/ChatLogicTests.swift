@@ -200,6 +200,22 @@ struct StoreTests {
         #expect(await store.index().map(\.title) == ["Cuisine", "Rust"])
         #expect(await store.load(a.id)?.messages.first?.content == "Les lifetimes ?")
         #expect(await store.search("lifetimes").map(\.id) == [a.id])
+        // Chaque mot, dans n'importe quel ordre, sans accents ni majuscules, d'un message à l'autre.
+        var c = Conversation(title: "Dîner de samedi", updated: Date().addingTimeInterval(20))
+        c.messages = [ChatMessage(role: .user, content: "Une idée de recette ?"),
+                      ChatMessage(role: .assistant, content: "Un gâteau à la crème brûlée.")]
+        try await store.save(c)
+        for q in ["recette gateau", "GATEAU recette", "creme  brulee", "diner brulee", "idee samedi", " crème dîner "] {
+            #expect(await store.search(q).map(\.id) == [c.id], "« \(q) »")
+        }
+        #expect(await store.search("recette lifetimes").isEmpty)
+        #expect(await store.search("tarte").map(\.id) == [b.id])
+        // Une recherche prolongée d'un mot ne perd rien, raccourcie non plus.
+        #expect(await store.search("une").map(\.id) == [c.id, b.id])
+        #expect(await store.search("une tarte").map(\.id) == [b.id])
+        #expect(await store.search("une").map(\.id) == [c.id, b.id])
+        #expect(await store.search("   ").count == 3)
+        try await store.delete(c.id)
         try await store.delete(b.id)
         #expect(await store.index().map(\.id) == [a.id])
         try await store.deleteAll()

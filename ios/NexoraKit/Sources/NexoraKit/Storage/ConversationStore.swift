@@ -224,19 +224,36 @@ public actor ConversationStore {
         return files.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
     }
 
-    /// Cherche un texte dans toutes les conversations (titre, aperçu et messages).
+    /// Un texte sans majuscules ni accents, pour que « resume » trouve « Résumé ».
+    static func folded(_ s: String) -> String {
+        s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    /// Cherche dans toutes les conversations (titre, aperçu et messages) : chaque mot de la
+    /// recherche doit s'y trouver, dans n'importe quel ordre et où que ce soit dans la
+    /// conversation (« tarte recette » trouve « Une recette de tarte »), sans tenir compte
+    /// des majuscules ni des accents.
     public func search(_ query: String) -> [Meta] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty { return index() }
+        let words = Self.folded(query).split(whereSeparator: \.isWhitespace).map(String.init)
+        if words.isEmpty { return index() }
+        let q = words.joined(separator: " ")
         var list = index()
-        // Ce qui contient la nouvelle recherche contient aussi la précédente.
+        // Ce qui contient la nouvelle recherche contient aussi la précédente : chaque mot
+        // de la précédente est alors un morceau d'un mot de la nouvelle.
         if let last = lastSearch, q.contains(last.query) {
             list = list.filter { last.ids.contains($0.id) }
         }
         let found = list.filter { m in
-            if m.title.lowercased().contains(q) || m.preview.lowercased().contains(q) { return true }
+            let head = Self.folded(m.title + "\n" + m.preview)
+            var left = words.filter { !head.contains($0) }
+            if left.isEmpty { return true }
             guard let c = load(m.id) else { return false }
-            return c.messages.contains { $0.content.lowercased().contains(q) }
+            for message in c.messages {
+                let text = Self.folded(message.content)
+                left.removeAll { text.contains($0) }
+                if left.isEmpty { return true }
+            }
+            return false
         }
         lastSearch = (q, Set(found.map(\.id)))
         return found
