@@ -98,7 +98,9 @@ struct SettingsView: View {
                             clientId = settings.githubClientId
                             editingClientId = true
                         } label: {
-                            LabeledContent("Client ID OAuth", value: SettingsDisplay.clientIdDetail(settings.githubClientId))
+                            LabeledContent("Client ID OAuth", value: SettingsDisplay.clientIdDetail(
+                                settings.githubClientId,
+                                builtIn: !((Bundle.main.object(forInfoDictionaryKey: "GitHubClientID") as? String) ?? "").isEmpty))
                         }
                     }
                 }
@@ -219,9 +221,13 @@ struct SettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 Button("Annuler", role: .cancel) {}
-                Button("OK") { settings.githubClientId = clientId.trimmingCharacters(in: .whitespacesAndNewlines) }
+                // Identifiant inutilisable (secret collé, URL…) : « OK » éteint.
+                Button("OK") {
+                    if let id = SettingsDisplay.clientId(clientId) { settings.githubClientId = id }
+                }
+                .disabled(SettingsDisplay.clientId(clientId) == nil)
             } message: {
-                Text("GitHub → Settings → Developer settings → OAuth Apps → New. Cochez « Enable Device Flow », puis collez le Client ID (pas de secret nécessaire). L'app se crée sur github.com/settings/applications/new.")
+                Text(SettingsDisplay.clientIdMessage)
             }
             .toast($toast)
             .sensoryFeedback(.success, trigger: done) { _, _ in settings.haptics }

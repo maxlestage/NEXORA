@@ -55,6 +55,18 @@ struct SettingsDisplayTests {
         #expect(SettingsDisplay.signOutMessage.contains("gardées"))
         #expect(SettingsDisplay.clientIdDetail("  ") == "Non renseigné")
         #expect(SettingsDisplay.clientIdDetail(" Iv1.abc ") == "Iv1.abc")
+        #expect(SettingsDisplay.clientIdDetail("", builtIn: true) == "Celui de l'app")
+    }
+
+    @Test func clientIdColle() {
+        #expect(SettingsDisplay.clientId("  ") == "")
+        #expect(SettingsDisplay.clientId(" Ov23li AbC123\n") == "Ov23liAbC123")
+        #expect(SettingsDisplay.clientId("Iv1.0123456789abcdef") == "Iv1.0123456789abcdef")
+        #expect(SettingsDisplay.clientId("abc") == nil)
+        #expect(SettingsDisplay.clientId("https://github.com/x") == nil)
+        #expect(SettingsDisplay.clientId(String(repeating: "a1", count: 20)) == nil)
+        #expect(SettingsDisplay.clientId("é" + String(repeating: "a", count: 10)) == nil)
+        #expect(SettingsDisplay.clientIdMessage.count <= 160)
     }
 
     @Test func about() {
