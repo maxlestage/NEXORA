@@ -85,5 +85,16 @@ struct PhotoDraftDisplayTests {
     @Test("la croix se touche sur 44 points au moins")
     func tapSide() {
         #expect(PhotoDraftDisplay.removeTapSide >= 44)
+        #expect(PhotoDraftDisplay.attachTapSide >= 44)
+    }
+
+    @Test("une photo illisible est dite, avec quoi faire ; rien quand tout est lu")
+    func failed() {
+        #expect(PhotoDraftDisplay.failedMessage(count: 0) == nil)
+        #expect(PhotoDraftDisplay.failedMessage(count: -1) == nil)
+        #expect(PhotoDraftDisplay.failedMessage(count: 1)
+            == "Une photo n'a pas pu être lue. Réessayez ou choisissez-en une autre.")
+        #expect(PhotoDraftDisplay.failedMessage(count: 3)
+            == "3 photos n'ont pas pu être lues. Réessayez ou choisissez-en d'autres.")
     }
 }

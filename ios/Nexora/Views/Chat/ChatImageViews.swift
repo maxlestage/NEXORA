@@ -171,6 +171,8 @@ struct PhotoDraftStrip: View {
 struct PhotoAttachButton: View {
     @Binding var photos: [ChatPhotoDraft]
     @Binding var loading: Bool
+    /// Appelé quand des photos choisies n'ont pas pu être lues, avec le message à montrer.
+    var onFailed: @MainActor (String) -> Void = { _ in }
 
     @State private var items: [PhotosPickerItem] = []
 
@@ -183,8 +185,8 @@ struct PhotoAttachButton: View {
         ) {
             Image(systemName: "photo.badge.plus")
                 .font(.title3)
-                .frame(width: 34, height: 34)
-                .contentShape(Rectangle().inset(by: -5))
+                .frame(width: PhotoDraftDisplay.attachTapSide, height: PhotoDraftDisplay.attachTapSide)
+                .contentShape(Rectangle())
         }
         .disabled(photos.count >= ChatImages.maxPerMessage || loading)
         .accessibilityLabel("Joindre des photos")
@@ -197,13 +199,17 @@ struct PhotoAttachButton: View {
 
     private func add(_ picked: [PhotosPickerItem]) async {
         loading = true
+        var failed = 0
         for item in picked {
             guard photos.count < ChatImages.maxPerMessage else { break }
             if let raw = try? await item.loadTransferable(type: Data.self), let draft = await ChatPhotoDraft.make(raw) {
                 photos.append(draft)
+            } else {
+                failed += 1
             }
         }
         loading = false
+        if let message = PhotoDraftDisplay.failedMessage(count: failed) { onFailed(message) }
     }
 }
 

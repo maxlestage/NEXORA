@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.209 — 22 novembre 2026 — Agent : une photo illisible est signalée
+- Corrigé : dans une session de l'agent (et à sa création), une photo choisie qui ne pouvait pas être lue disparaissait sans un mot. Un message le dit maintenant, comme dans le chat.
+- Amélioré : le message dit quoi faire (réessayer ou choisir une autre photo).
+- Amélioré : le bouton « Joindre des photos » de l'agent est plus facile à toucher.
+
 ## 3.0.208 — 22 novembre 2026 — Photos à envoyer : une croix facile à toucher
 - Amélioré : la croix qui retire une photo avant l'envoi se touche sur une zone plus large (44 points au lieu de 34), dans le chat comme dans les sessions de l'agent.
 - Amélioré : VoiceOver dit de quelle photo il s'agit (« Photo 2 sur 3 », « Retirer la photo 2 sur 3 ») et annonce l'ajout en cours.

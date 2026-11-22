@@ -260,7 +260,7 @@ struct NewSessionView: View {
     /// Des photos (maquette, capture d'écran…) envoyées avec la mission.
     private var missionPhotos: some View {
         HStack(spacing: 8) {
-            PhotoAttachButton(photos: $photos, loading: $loadingPhotos)
+            PhotoAttachButton(photos: $photos, loading: $loadingPhotos, onFailed: { toast = Toast(text: $0, error: true) })
             if photos.isEmpty && !loadingPhotos {
                 Text("Joindre des photos (maquette, capture…)")
                     .font(.footnote)
