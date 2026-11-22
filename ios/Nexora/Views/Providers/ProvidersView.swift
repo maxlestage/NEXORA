@@ -237,7 +237,11 @@ private struct AddServerSheet: View {
                     .pickerStyle(.segmented)
                     Toggle("Nécessite une clé", isOn: $needsKey)
                 } footer: {
-                    Text("llama.cpp, vLLM, LocalAI, Jan, text-generation-webui, un autre Ollama… ou n'importe quelle API compatible OpenAI.")
+                    if let hint = ProviderDetailDisplay.serverAddressHint(url) {
+                        Text(hint).foregroundStyle(.red)
+                    } else {
+                        Text("llama.cpp, vLLM, LocalAI, Jan, text-generation-webui, un autre Ollama… ou n'importe quelle API compatible OpenAI.")
+                    }
                 }
             }
             .navigationTitle("Serveur personnalisé")
@@ -246,9 +250,10 @@ private struct AddServerSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ajouter") {
+                        guard let address = ProviderDetailDisplay.serverAddress(url) else { return }
                         var p = settings.addCustomProvider()
-                        p.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        p.baseUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
+                        p.name = ProviderDetailDisplay.serverName(name, address: address)
+                        p.baseUrl = address
                         p.kind = kind
                         p.listing = kind == .ollama ? .ollama : .openai
                         p.needsKey = needsKey
@@ -256,6 +261,7 @@ private struct AddServerSheet: View {
                         dismiss()
                         onAdded(p.id)
                     }
+                    .disabled(ProviderDetailDisplay.serverAddress(url) == nil)
                 }
             }
         }

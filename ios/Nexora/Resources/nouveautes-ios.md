@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.220 — 22 novembre 2026 — Serveur perso : adresse vérifiée avant l'ajout
+- Amélioré : « Ajouter » reste éteint tant que l'adresse du serveur est vide ou invalide, avec un message clair sous le formulaire.
+- Amélioré : « 192.168.1.10:8080/v1 » suffit, « http:// » est ajouté tout seul et le « / » final retiré.
+- Corrigé : un serveur ajouté sans nom prend le nom de son adresse au lieu d'une ligne sans titre.
+
 ## 3.0.219 — 22 novembre 2026 — Brouillons : plus de retouches perdues en fermant
 
 - Corrigé : en modifiant à la main un fichier écrit par l'agent, balayer la fenêtre ou toucher « Annuler » ne perd plus vos retouches sans prévenir. L'app demande : Enregistrer, Abandonner ou Continuer à modifier.
