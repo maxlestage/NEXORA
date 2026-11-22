@@ -116,4 +116,14 @@ struct SessionsDisplayTests {
             task: "Ajouter un test", status: .review, reposLabel: "site", added: 4, removed: 0, ago: "à l'instant"
         ) == "Ajouter un test, En attente de votre validation, à l'instant")
     }
+
+    @Test("liste : un dessin différent par état, la roue pendant le travail")
+    func tileSymbols() {
+        let ended: [SessionStatus] = [.review, .shipped, .done, .stopped]
+        let symbols = ended.compactMap { SessionsDisplay.tileSymbol($0) }
+        // À relire et Terminé ne partagent plus le même rond vide.
+        #expect(Set(symbols).count == ended.count)
+        #expect(SessionsDisplay.tileSymbol(.done) == "checkmark.circle")
+        #expect(SessionsDisplay.tileSymbol(.running) == nil)
+    }
 }

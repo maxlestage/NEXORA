@@ -1720,8 +1720,14 @@ mémoire 32k tokens, consigne 3 000 car.
   `pickerAccessibility`). Touchers perdus : 1 → 0 ; échec muet (routine) : 1 → 0.
   Tests : 616 → 617. La feuille de l'onglet Agents (agents cloud) n'a pas de dépôt choisi.
 
+- 3.0.212 (interface, liste des sessions) : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `SessionTile` : « À relire » et « Terminé » avaient le même rond vide gris ;
+  `SessionsDisplay.tileSymbol` donne un dessin par état (crayon accent, coche verte, fusion
+  violette, point d'exclamation rouge ; roue pendant le travail). États au même dessin :
+  2 → 0. Tests : 617 → 618.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.211 : feuille « Dépôt », dépôts déjà ajoutés cochés) →
+(interface faite en 3.0.212 : liste des sessions, un dessin par état) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

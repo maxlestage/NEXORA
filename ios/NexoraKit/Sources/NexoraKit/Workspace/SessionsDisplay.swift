@@ -159,4 +159,17 @@ public enum SessionsDisplay {
         parts.append(ago)
         return parts.joined(separator: ", ")
     }
+
+    /// Le symbole d'une session dans la liste : un dessin par état, pour le
+    /// reconnaître d'un coup d'œil sans lire (« À relire » et « Terminé » avaient
+    /// le même rond vide). `nil` : l'agent travaille, la roue tourne à la place.
+    public static func tileSymbol(_ status: SessionStatus) -> String? {
+        switch status {
+        case .running: nil
+        case .review: "pencil.circle"
+        case .shipped: "arrow.triangle.merge"
+        case .done: "checkmark.circle"
+        case .stopped: "exclamationmark.circle"
+        }
+    }
 }

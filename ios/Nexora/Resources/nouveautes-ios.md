@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.212 — 22 novembre 2026 — Sessions de l'agent : un dessin par état
+
+- Amélioré : dans la liste des sessions, une session terminée porte une coche verte et une session à relire un crayon ; avant, les deux avaient le même rond vide.
+- Les sessions envoyées et arrêtées gardent leur dessin, et la roue tourne toujours pendant que l'agent travaille.
+
 ## 3.0.211 — 22 novembre 2026 — Choix d'un dépôt : ceux déjà ajoutés sont cochés
 
 - Amélioré : en ajoutant un dépôt à une session de l'agent ou à une routine, ceux déjà ajoutés sont cochés et marqués « Déjà ajouté » ; plus besoin de se souvenir lesquels sont pris.

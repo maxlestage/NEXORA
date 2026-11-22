@@ -202,11 +202,10 @@ struct SessionTile: View {
         let stats = run.stats
         HStack(spacing: 12) {
             Group {
-                switch status {
-                case .running: ProgressView().controlSize(.small)
-                case .shipped: Image(systemName: "arrow.triangle.merge").foregroundStyle(Theme.violet)
-                case .stopped: Image(systemName: "exclamationmark.circle").foregroundStyle(Theme.red)
-                default: Image(systemName: "circle").foregroundStyle(.secondary)
+                if let symbol = SessionsDisplay.tileSymbol(status) {
+                    Image(systemName: symbol).foregroundStyle(symbolColor(status))
+                } else {
+                    ProgressView().controlSize(.small)
                 }
             }
             .frame(width: 24)
@@ -230,6 +229,17 @@ struct SessionTile: View {
             task: run.task, status: status, reposLabel: run.reposLabel,
             added: stats.added, removed: stats.removed, ago: WorkspaceText.ago(run.updatedAt)
         ))
+    }
+
+    /// La couleur du dessin : l'état est aussi écrit ou dessiné, jamais dit par elle seule.
+    private func symbolColor(_ status: SessionStatus) -> Color {
+        switch status {
+        case .review: Color.accentColor
+        case .shipped: Theme.violet
+        case .done: Theme.green
+        case .stopped: Theme.red
+        case .running: Color.secondary
+        }
     }
 
     private func subtitle(_ status: SessionStatus, _ added: Int, _ removed: Int) -> Text {
