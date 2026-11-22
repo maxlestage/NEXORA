@@ -1726,8 +1726,22 @@ mémoire 32k tokens, consigne 3 000 car.
   violette, point d'exclamation rouge ; roue pendant le travail). États au même dessin :
   2 → 0. Tests : 617 → 618.
 
+- 3.0.213 (interface, fiche d'une routine) : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `RoutineEditorView` : « Lancer maintenant » lançait la version enregistrée en
+  ignorant sans le dire les modifications en cours ; `RoutinesDisplay.hasChanges(saved:edited:)`
+  (espaces, `lastRun` et `lastSession` ignorés) → le bouton devient « Enregistrer et lancer »
+  (`runLabel(launching:modified:)`, enregistre puis lance, reste sur la fiche) et
+  « Enregistrer » est grisé quand rien n'a changé (reste actif après un refus de GitHub,
+  pour réessayer). Bug corrigé : enregistrer la fiche après un lancement remettait l'ancien
+  `lastRun` (la routine repassait trop tôt) ; `store()` reprend celui du carnet.
+  Lancements de l'ancienne version sans le dire : 1 → 0. Tests : 618 → 619.
+  Vu sans y toucher : retour arrière avec des modifications non enregistrées (perdues sans
+  avis ; l'intercepter ferait perdre le balayage de retour) ; croix « Retirer » d'un dépôt
+  (≈ 22 pt, à élargir si la ligne ne grossit pas) ; l'avis « Routine enregistrée » est posé
+  sur la fiche qui se ferme (à vérifier sur appareil).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.212 : liste des sessions, un dessin par état) →
+(interface faite en 3.0.213 : fiche d'une routine, « Enregistrer et lancer ») →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

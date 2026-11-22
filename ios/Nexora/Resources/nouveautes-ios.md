@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.213 — 22 novembre 2026 — Routines : lancer ce que tu viens de régler
+
+- Amélioré : dans la fiche d'une routine, si tu as changé quelque chose, le bouton devient « Enregistrer et lancer » ; avant, « Lancer maintenant » lançait l'ancienne version sans le dire.
+- Amélioré : « Enregistrer » est grisé tant que rien n'a changé, pour voir d'un coup d'œil s'il reste quelque chose à enregistrer.
+- Corrigé : enregistrer une routine juste après l'avoir lancée ne la fait plus repasser trop tôt.
+
 ## 3.0.212 — 22 novembre 2026 — Sessions de l'agent : un dessin par état
 
 - Amélioré : dans la liste des sessions, une session terminée porte une coche verte et une session à relire un crayon ; avant, les deux avaient le même rond vide.
