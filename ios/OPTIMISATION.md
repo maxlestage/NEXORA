@@ -1703,8 +1703,17 @@ mémoire 32k tokens, consigne 3 000 car.
   (`PhotoDraftDisplay.failedMessage`, qui dit quoi faire). Bouton 34 → 44 pt
   (`attachTapSide`). Échecs muets : 2 écrans → 0. Tests : 614 → 615.
 
+- 3.0.210 (interface, barre de saisie du chat) : passage TOKENS sans piste à plus de 2 %,
+  donc interface. Les boutons les plus utilisés de l'app (trombone, micro, Envoyer, Arrêter)
+  n'offraient que 38 pt, les flèches de défilement 40 pt. Zone de 44 pt autour du même rond
+  (`ChatDisplay.composerTapSide` / `composerIconSide` / `composerInset`) : espacement 6 → 0 et
+  marge 4 → 1, donc ronds à la même place, barre de même hauteur (50 pt), champ 6 pt plus
+  large. Zones < 44 pt dans le chat : 6 → 0. Tests : 615 → 616.
+  Restent sous 44 pt de cadre (mais avec `contentShape` élargi à 44) : actions sous une bulle
+  (MessageBubble, 34 pt) ; SettingsView l.47 (40 pt) à vérifier.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.209 : photo illisible signalée chez l'agent) →
+(interface faite en 3.0.210 : barre de saisie du chat à 44 pt) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

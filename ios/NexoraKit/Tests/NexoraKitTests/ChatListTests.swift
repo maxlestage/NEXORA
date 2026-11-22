@@ -56,6 +56,15 @@ struct ChatListTests {
         #expect(ChatDisplay.canSend("salut", photos: 0))
     }
 
+    @Test func barreDeSaisieFacileAToucher() {
+        // Zones touchables au minimum conseillé, sans grossir ni déplacer le rond dessiné :
+        // son bord reste à 4 pt du bord de la barre.
+        #expect(ChatDisplay.composerTapSide >= 44)
+        #expect(ChatDisplay.composerIconSide <= ChatDisplay.composerTapSide)
+        #expect(ChatDisplay.composerInset >= 0)
+        #expect(ChatDisplay.composerInset + (ChatDisplay.composerTapSide - ChatDisplay.composerIconSide) / 2 == 4)
+    }
+
     @Test func accueil() {
         // Pluriels justes, et une invitation quand aucun fournisseur n'est prêt.
         #expect(ChatDisplay.homeSubtitle(emoji: "🌸", model: "Pollinations", ready: 3) == "🌸 Pollinations · 3 fournisseurs prêts")

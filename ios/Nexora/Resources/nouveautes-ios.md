@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.210 — 22 novembre 2026 — Chat : des boutons plus faciles à toucher
+
+- Amélioré : le trombone, le micro et les boutons Envoyer et Arrêter du chat se touchent plus facilement (44 points au lieu de 38), sans avoir changé de taille ni de place.
+- Amélioré : les flèches « Tout en haut » et « Tout en bas » aussi (44 points au lieu de 40).
+
 ## 3.0.209 — 22 novembre 2026 — Agent : une photo illisible est signalée
 - Corrigé : dans une session de l'agent (et à sa création), une photo choisie qui ne pouvait pas être lue disparaissait sans un mot. Un message le dit maintenant, comme dans le chat.
 - Amélioré : le message dit quoi faire (réessayer ou choisir une autre photo).
