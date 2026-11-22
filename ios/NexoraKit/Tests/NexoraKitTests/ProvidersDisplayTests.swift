@@ -152,4 +152,21 @@ struct ProviderDetailDisplayTests {
                 == "« Serveur perso » et sa clé seront supprimés. C'est votre modèle par défaut : un autre sera utilisé à sa place.")
         #expect(ProviderDetailDisplay.testSuccess(model: "o3", ms: 3000, answer: "") == "Ça marche : o3 a répondu en 3,0 s.")
     }
+
+    @Test func adresseDUnNouveauServeur() {
+        typealias D = ProviderDetailDisplay
+        #expect(D.serverAddress("  http://192.168.1.10:8080/v1/ ") == "http://192.168.1.10:8080/v1")
+        #expect(D.serverAddress("192.168.1.10:8080/v1") == "http://192.168.1.10:8080/v1")
+        #expect(D.serverAddress("https://api.exemple.fr/v1") == "https://api.exemple.fr/v1")
+        #expect(D.serverAddress("localhost:11434") == "http://localhost:11434")
+        #expect(D.serverAddress("") == nil)
+        #expect(D.serverAddress("http://") == nil)
+        #expect(D.serverAddress("ftp://serveur/v1") == nil)
+        #expect(D.serverAddress("http://mon serveur/v1") == nil)
+        #expect(D.serverAddressHint("http://192.168.1.10:8080/v1") == nil)
+        #expect(D.serverAddressHint(" ")?.hasPrefix("Indiquez") == true)
+        #expect(D.serverAddressHint("ftp://x")?.hasPrefix("Adresse invalide") == true)
+        #expect(D.serverName("  Mon Mac ", address: "http://10.0.0.2:8080") == "Mon Mac")
+        #expect(D.serverName(" ", address: "http://10.0.0.2:8080") == "10.0.0.2")
+    }
 }

@@ -1793,8 +1793,17 @@ mémoire 32k tokens, consigne 3 000 car.
   Vu sans y toucher : message de commit de `ShipSheet` (prérempli, une ligne : peu à perdre).
   Restent à voir : « Personnaliser », ProvidersView.
 
+- 3.0.220 (interface, Modèles › « Serveur personnalisé ») : passage TOKENS sans piste à plus
+  de 2 %, donc interface. « Personnaliser » vérifié : les champs de l'assistant s'enregistrent
+  en quittant (rien à faire) ; la clé d'un fournisseur aussi (`unsaved`). `AddServerSheet` :
+  « Ajouter » acceptait une adresse vide ou invalide (serveur inutilisable, à corriger dans la
+  fiche) et un nom vide (ligne sans titre) → `ProviderDetailDisplay.serverAddress` (http/https,
+  hôte obligatoire, « http:// » ajouté, « / » final retiré), `serverAddressHint` (message rouge
+  sous le formulaire), `serverName` (l'hôte si le nom est vide), « Ajouter » éteint sinon.
+  Serveurs inutilisables enregistrables : oui → non. Tests : 624 → 625.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.219 : éditeur de brouillon) →
+(interface faite en 3.0.220 : serveur personnalisé) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

@@ -185,6 +185,36 @@ public enum ProviderDetailDisplay {
         return clean(key) != clean(storedKey ?? "") || clean(url) != clean(baseUrl)
     }
 
+    /// L'adresse d'un nouveau serveur perso, prête à enregistrer : sans espaces autour ni
+    /// « / » final, complétée de « http:// » si l'utilisateur n'a tapé que
+    /// « 192.168.1.10:8080/v1 ». `nil` si elle est inutilisable (vide, espaces, pas d'hôte,
+    /// autre protocole que http/https) : « Ajouter » reste alors éteint.
+    public static func serverAddress(_ raw: String) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty, !s.contains(where: \.isWhitespace) else { return nil }
+        if !s.contains("://") { s = "http://" + s }
+        while s.hasSuffix("/") && !s.hasSuffix("://") { s.removeLast() }
+        guard let c = URLComponents(string: s), let scheme = c.scheme?.lowercased(),
+              scheme == "http" || scheme == "https", let host = c.host, !host.isEmpty else { return nil }
+        return s
+    }
+
+    /// Le nom enregistré pour un nouveau serveur : celui tapé, sinon l'hôte de l'adresse
+    /// (un nom vide laissait une ligne sans titre dans la liste).
+    public static func serverName(_ raw: String, address: String) -> String {
+        let n = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !n.isEmpty { return n }
+        return URLComponents(string: address)?.host ?? "Serveur perso"
+    }
+
+    /// Ce qui s'affiche sous le formulaire quand l'adresse ne convient pas (rien si elle va).
+    public static func serverAddressHint(_ raw: String) -> String? {
+        guard serverAddress(raw) == nil else { return nil }
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Indiquez l'adresse du serveur, par ex. http://192.168.1.10:8080/v1"
+            : "Adresse invalide : elle doit ressembler à http://192.168.1.10:8080/v1"
+    }
+
     /// Message de confirmation avant de supprimer un serveur perso.
     public static func deleteConfirmation(name: String, isDefault: Bool) -> String {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
