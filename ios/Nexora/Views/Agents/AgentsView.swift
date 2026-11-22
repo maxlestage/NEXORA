@@ -166,10 +166,11 @@ struct AgentsView: View {
             .alert("Importer depuis une adresse", isPresented: $showURL) {
                 TextField("https://github.com/…/agent.md", text: $importURL)
                     .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .keyboardType(.URL)
                 Button("Annuler", role: .cancel) {}
                 Button("Importer") {
-                    let url = importURL
+                    guard let url = AgentsDisplay.importAddress(importURL) else { return }
                     Task {
                         do {
                             let a = try await agents.importURL(url)
@@ -180,6 +181,7 @@ struct AgentsView: View {
                         }
                     }
                 }
+                .disabled(AgentsDisplay.importAddress(importURL) == nil)
             } message: {
                 Text("Un fichier Markdown d'agent (format .claude/agents de Claude Code), sur GitHub ou ailleurs.")
             }

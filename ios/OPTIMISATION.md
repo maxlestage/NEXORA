@@ -1811,8 +1811,16 @@ mémoire 32k tokens, consigne 3 000 car.
   « Non renseigné » ; `clientIdMessage` 214 → 150 car. Identifiants inutilisables
   enregistrables : oui → non. Tests : 625 → 626.
 
+- 3.0.222 (interface, Agents › Importer depuis une adresse) : passage TOKENS sans piste à
+  plus de 2 %, donc interface. « Importer » acceptait un champ vide ou une adresse sans hôte
+  → erreur réseau obscure ; `AgentsDisplay.importAddress` (espaces retirés, « https:// »
+  ajouté si absent, nil si inutilisable : bouton éteint), correction automatique coupée.
+  Saisies vérifiées sans rien à faire : nom de dépôt, chemin de nouveau fichier, lien de
+  skill, dépôt de la bibliothèque. Adresses inutilisables importables : oui → non.
+  Tests : 626 → 627.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.221 : Client ID GitHub) →
+(interface faite en 3.0.222 : import d'agent par adresse) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
