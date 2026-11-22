@@ -1766,8 +1766,19 @@ mémoire 32k tokens, consigne 3 000 car.
   Vu sans y toucher : « Commenter » (IssueDetailView) garde le texte en cas d'échec (bien) ;
   le balayage « Relancer » est offert sur toutes les exécutions, même réussies (voulu ?).
 
+- 3.0.217 (interface, fiche d'un agent, traitée pour la dernière fois en 3.0.104) : passage
+  TOKENS sans piste à plus de 2 %, donc interface. `AgentEditorView` : balayer la fenêtre ou
+  toucher « Annuler » perdait la consigne en cours (souvent le texte le plus long saisi dans
+  l'app) → `AgentEditorDisplay.losesChanges` (compare à l'agent de l'ouverture, espaces et
+  ordre des outils ignorés) + `interactiveDismissDisabled` + question Enregistrer / Abandonner /
+  Continuer à modifier (`leaveTitle`, `leaveMessage`, mêmes mots que les routines).
+  Pertes sans avis : 1 → 0. Tests : 621 → 622.
+  Restent sans protection de saisie (à voir) : ajout d'un fournisseur (ProvidersView, clé
+  collée : peu à perdre), lancement d'un agent cloud (CloudAgentsView), message d'envoi de
+  DraftReviewView, « Personnaliser » (enregistré au fil de l'eau ? à vérifier).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.216 : fenêtre « Nouvelle issue ») →
+(interface faite en 3.0.217 : fiche d'un agent) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

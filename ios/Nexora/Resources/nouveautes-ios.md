@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.217 — 22 novembre 2026 — Fiche d'un agent : plus de consigne perdue en fermant
+
+- Corrigé : balayer la fiche d'un agent ou toucher « Annuler » ne fait plus perdre une consigne en cours d'écriture ; l'app demande : Enregistrer, Abandonner ou Continuer à modifier.
+- Amélioré : une fiche que vous n'avez pas modifiée se ferme toujours d'un geste, sans question.
+
 ## 3.0.216 — 22 novembre 2026 — Nouvelle issue : une seule création, rien de perdu
 - Corrigé : toucher « Créer » deux fois ne crée plus la même issue en double ; le bouton affiche « Création… » pendant l'envoi.
 - Amélioré : une issue commencée ne se perd plus en balayant la fenêtre ; « Annuler » demande avant d'abandonner le texte saisi.

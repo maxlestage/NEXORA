@@ -71,4 +71,35 @@ struct AgentEditorDisplayTests {
         #expect(AgentEditorDisplay.missing(name: " ", prompt: "Rôle") == "Donnez un nom pour enregistrer.")
         #expect(AgentEditorDisplay.missing(name: "A", prompt: "Rôle") == nil)
     }
+
+    @Test func fermerUneFicheModifieeDemandeAvant() {
+        let a = Agent(id: "x", name: "Relecteur", systemPrompt: "Relis le code.", tools: ["read_file", "github"])
+        // Rien de changé : la fiche se ferme d'un geste.
+        #expect(!AgentEditorDisplay.losesChanges(original: a, edited: a))
+        var b = a
+        b.systemPrompt = "Relis le code. \n"
+        b.tools = ["github", "read_file"]
+        #expect(!AgentEditorDisplay.losesChanges(original: a, edited: b))
+        // Une consigne, un outil ou un modèle changé : on demande.
+        b.systemPrompt = "Relis le code et les tests."
+        #expect(AgentEditorDisplay.losesChanges(original: a, edited: b))
+        var c = a
+        c.tools = ["read_file"]
+        #expect(AgentEditorDisplay.losesChanges(original: a, edited: c))
+        var d = a
+        d.model = "anthropic::claude"
+        #expect(AgentEditorDisplay.losesChanges(original: a, edited: d))
+        // Un nouvel agent encore vide ne pose pas de question ; commencé, si.
+        let vide = Agent(id: "n", name: "", systemPrompt: "")
+        var commence = vide
+        commence.name = "  "
+        #expect(!AgentEditorDisplay.losesChanges(original: vide, edited: commence))
+        commence.name = "Testeur"
+        #expect(AgentEditorDisplay.losesChanges(original: vide, edited: commence))
+        #expect(AgentEditorDisplay.leaveTitle(isNew: true) == "Abandonner ce nouvel agent ?")
+        #expect(AgentEditorDisplay.leaveTitle(isNew: false) == "Abandonner les modifications ?")
+        #expect(AgentEditorDisplay.leaveMessage(isNew: false, missing: nil) == "L'agent restera comme avant.")
+        #expect(AgentEditorDisplay.leaveMessage(isNew: true, missing: "Donnez un nom pour enregistrer.")
+            == "L'agent ne sera pas créé. Donnez un nom pour enregistrer.")
+    }
 }

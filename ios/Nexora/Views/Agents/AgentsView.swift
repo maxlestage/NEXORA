@@ -667,6 +667,24 @@ struct AgentEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pickModel = false
     @State private var showTools = false
+    /// L'agent tel qu'il était à l'ouverture, pour savoir s'il y a une saisie à perdre.
+    @State private var original: Agent?
+    @State private var confirmLeave = false
+
+    /// Fermer maintenant ferait perdre une saisie.
+    private var losesChanges: Bool {
+        guard let original else { return false }
+        return AgentEditorDisplay.losesChanges(original: original, edited: agent)
+    }
+
+    /// L'agent n'existe pas encore dans la bibliothèque.
+    private var isNew: Bool { !agents.all.contains { $0.id == agent.id } }
+
+    private func save() {
+        if agent.emoji.isEmpty { agent.emoji = "🤖" }
+        agents.save(agent)
+        dismiss()
+    }
 
     /// Coche ou décoche un outil de l'agent.
     private func toolBinding(_ t: String) -> Binding<Bool> {
@@ -744,15 +762,27 @@ struct AgentEditorView: View {
             .navigationTitle(agent.name.isEmpty ? "Nouvel agent" : agent.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Enregistrer") {
-                        if agent.emoji.isEmpty { agent.emoji = "🤖" }
-                        agents.save(agent)
-                        dismiss()
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        if losesChanges { confirmLeave = true } else { dismiss() }
                     }
-                    .disabled(AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt) != nil)
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Enregistrer") { save() }
+                        .disabled(AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt) != nil)
+                }
+            }
+            .onAppear { if original == nil { original = agent } }
+            .interactiveDismissDisabled(losesChanges)
+            .confirmationDialog(AgentEditorDisplay.leaveTitle(isNew: isNew), isPresented: $confirmLeave, titleVisibility: .visible) {
+                if AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt) == nil {
+                    Button("Enregistrer") { save() }
+                }
+                Button("Abandonner", role: .destructive) { dismiss() }
+                Button("Continuer à modifier", role: .cancel) {}
+            } message: {
+                Text(AgentEditorDisplay.leaveMessage(
+                    isNew: isNew, missing: AgentEditorDisplay.missing(name: agent.name, prompt: agent.systemPrompt)))
             }
             .sheet(isPresented: $pickModel) {
                 ModelPickerSheet(selected: settings.resolve(agent.model)) { agent.model = $0.key }
