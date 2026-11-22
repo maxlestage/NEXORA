@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.206 — 22 novembre 2026 — Aide : chaque question sous son thème
+- Amélioré : dans l'aide, la dictée et la lecture à voix haute sont maintenant dans « Bien démarrer », plus dans « GitHub ».
+- Amélioré : « Skills, sous-agents, commandes » et « Le travail continue-t-il en arrière-plan ? » sont rangés avec les agents.
+- Amélioré : le thème « GitHub » commence par « Comment connecter GitHub ? » et ne garde que ce qui concerne GitHub.
+
 ## 3.0.205 — 22 novembre 2026 — Erreurs : un conseil qui vaut pour l'iPhone
 - Corrigé : quand un fournisseur exige une vérification faite pour un navigateur web, l'app ne vous conseille plus « d'utiliser l'application iPhone ou Android » (vous y êtes déjà) ni ne parle de « navigateur » dans le titre.
 - Amélioré : le message dit maintenant qui bloque (« Bloqué par … ») et quoi faire : choisir un autre modèle ou un autre fournisseur.
