@@ -45,9 +45,11 @@ public struct ErrorHelp: Sendable, Hashable {
         func has(_ needle: String) -> Bool { s.contains(needle) }
 
         if has("turnstile") || has("cors") || has("xmlhttprequest") {
-            return ErrorHelp(.browser, "Bloqué dans le navigateur", [
-                "Ce fournisseur refuse les appels faits depuis une page web.",
-                "Utilisez l'application iPhone ou Android, ou choisissez un autre fournisseur.",
+            // Texte propre à l'app native : ici on n'est jamais dans une page web, et
+            // conseiller « l'application iPhone » à qui l'utilise déjà n'aide pas.
+            return ErrorHelp(.browser, "Bloqué par \(name)", [
+                "Ce fournisseur exige une vérification prévue pour un navigateur web : l'app ne peut pas la passer.",
+                "Choisissez un autre modèle ou un autre fournisseur.",
             ])
         }
         if status == 402 || has("insufficient") || has("credit") || has("balance") || has("billing")

@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.205 — 22 novembre 2026 — Erreurs : un conseil qui vaut pour l'iPhone
+- Corrigé : quand un fournisseur exige une vérification faite pour un navigateur web, l'app ne vous conseille plus « d'utiliser l'application iPhone ou Android » (vous y êtes déjà) ni ne parle de « navigateur » dans le titre.
+- Amélioré : le message dit maintenant qui bloque (« Bloqué par … ») et quoi faire : choisir un autre modèle ou un autre fournisseur.
+- Corrigé : plus aucune mention d'Android dans les messages de l'app.
+
 ## 3.0.204 — 22 novembre 2026 — Choix du dépôt : plus jamais de feuille blanche
 - Amélioré : quand vous choisissez un dépôt pour l'agent ou une routine, la recherche trouve vos mots dans n'importe quel ordre, dans le nom, la description ou le langage, sans tenir compte des accents.
 - Nouveau : la feuille dit ce qui se passe — « Chargement des dépôts… », « Chargement impossible » avec Réessayer, ou « Aucun dépôt pour… » avec Effacer la recherche.
