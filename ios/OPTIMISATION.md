@@ -1639,18 +1639,28 @@ mémoire 32k tokens, consigne 3 000 car.
   seul mot donne exactement le même résultat qu'avant. Tokens : rien de nouveau à plus
   de 2 %, rien forcé.
 
+- 3.0.202 (interface, liste des conversations) : `ConversationStore.search` cherchait la
+  recherche entière d'un seul tenant, accents compris. Maintenant chaque mot doit se
+  trouver dans le titre, l'aperçu ou l'un des messages (dans n'importe quel ordre, d'un
+  message à l'autre), sans majuscules ni accents (`folded`). `lastSearch` reste juste : si
+  la nouvelle recherche (mots joints par une espace) contient la précédente, chaque ancien
+  mot est un morceau d'un nouveau. Mesure : 6 recherches (mots inversés, sans accents, sur
+  deux messages), échecs 6 → 0 ; banc « recherche tapée (7 frappes) » ≈ 1 200 ms → ≈ 1 160 ms
+  (inchangé, compilation de test). Tests : 609 (un test étendu). Tokens : rien de nouveau à
+  plus de 2 %, rien forcé.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.201 : recherche mot par mot des listes) → prochain passage : TOKENS,
-mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
-d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
+(interface faite en 3.0.202 : recherche des conversations mot par mot, sans accents) →
+prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
+MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
+à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : recherche des conversations (`ConversationStore.search` : texte d'un
-seul tenant, à mesurer ; attention à `lastSearch`), sujet voix rangé dans le thème
-« GitHub » de l'aide (le déplacer vers « Bien démarrer » si la parité le permet),
-`ErrorHelp` ligne 50 parle encore d'« iPhone ou Android » (cas navigateur, sans doute
-jamais affiché sur iOS : à vérifier), Réglages › Données en très grand texte (à vérifier
-seulement), accueil.
+Interface ensuite : `AgentsDisplay.matches` et `ProvidersDisplay.matches` ignorent-ils bien
+les accents partout (à vérifier), sujet voix rangé dans le thème « GitHub » de l'aide (le
+déplacer vers « Bien démarrer » si la parité le permet), `ErrorHelp` ligne 50 parle encore
+d'« iPhone ou Android » (cas navigateur, sans doute jamais affiché sur iOS : à vérifier),
+Réglages › Données en très grand texte (à vérifier seulement), accueil.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

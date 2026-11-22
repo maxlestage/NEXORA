@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.202 — 22 novembre 2026 — Conversations : une recherche qui pardonne
+- Amélioré : la recherche des conversations trouve vos mots dans n'importe quel ordre, même s'ils sont dans des messages différents (« recette gâteau » trouve la conversation où l'on parle d'une recette, puis d'un gâteau).
+- Amélioré : les accents et les majuscules ne comptent plus (« creme brulee » trouve « crème brûlée »).
+
 ## 3.0.201 — 22 novembre 2026 — Recherche : les mots dans n'importe quel ordre
 - Amélioré : dans les listes (agents, compétences, commandes, sessions de l'agent, dépôts, bibliothèque), la recherche trouve chaque mot séparément : « code revue » trouve « Revue de code ».
 - Amélioré : les mots peuvent venir du nom et de la description à la fois (« relecteur swift »).
