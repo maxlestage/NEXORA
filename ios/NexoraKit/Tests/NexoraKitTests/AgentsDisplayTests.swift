@@ -19,6 +19,13 @@ struct AgentsDisplayTests {
         #expect(AgentsDisplay.matches("ecrire", "Écrire des tests"))
         #expect(AgentsDisplay.matches(" REVUE ", "Agent", "Fait une revue de code"))
         #expect(!AgentsDisplay.matches("python", "Relecteur", "Revue de code Swift"))
+        // Plusieurs mots : dans n'importe quel ordre, répartis entre les textes.
+        #expect(AgentsDisplay.matches("code revue", "Relecteur", "Revue de code Swift"))
+        #expect(AgentsDisplay.matches("relecteur swift", "Relecteur", "Revue de code Swift"))
+        #expect(AgentsDisplay.matches("revue  swift", "Relecteur", "Revue de code Swift"))
+        #expect(AgentsDisplay.matches("tests écrire", "Écrire des tests"))
+        #expect(AgentsDisplay.matches("revue de code", "Relecteur", "Revue de code Swift"))
+        #expect(!AgentsDisplay.matches("revue python", "Relecteur", "Revue de code Swift"))
     }
 
     @Test func outilsEnMotsSimples() {

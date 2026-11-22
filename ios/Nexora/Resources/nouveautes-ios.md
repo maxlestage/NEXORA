@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.201 — 22 novembre 2026 — Recherche : les mots dans n'importe quel ordre
+- Amélioré : dans les listes (agents, compétences, commandes, sessions de l'agent, dépôts, bibliothèque), la recherche trouve chaque mot séparément : « code revue » trouve « Revue de code ».
+- Amélioré : les mots peuvent venir du nom et de la description à la fois (« relecteur swift »).
+
 ## 3.0.200 — 22 novembre 2026 — Aide : trois réponses qui manquaient
 - Nouveau : l'aide répond à « ça marche hors ligne ? », « comment changer les couleurs ou la taille du texte ? » et « comment exporter ou partager une conversation ? ».
 - Amélioré : chercher « dictée », « mode sombre » ou « sauvegarder mes réglages » trouve maintenant la bonne réponse.
