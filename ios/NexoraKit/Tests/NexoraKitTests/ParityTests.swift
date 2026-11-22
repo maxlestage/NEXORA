@@ -68,6 +68,10 @@ struct HelpTests {
         #expect(ErrorHelp.explain("HTTP 503 · overloaded", provider: groq).kind == .server)
         #expect(ErrorHelp.explain("HTTP 400 · maximum context length exceeded", provider: groq).kind == .tooLong)
         #expect(ErrorHelp.explain("HTTP 403 · Missing Turnstile token").kind == .browser)
+        // App native : ni « navigateur » dans le titre, ni conseil d'installer l'app.
+        let blocked = ErrorHelp.explain("HTTP 403 · Missing Turnstile token", provider: groq)
+        #expect(blocked.title == "Bloqué par \(groq.name)" && blocked.suggestOtherModel)
+        #expect(!blocked.advice.joined().contains("Android") && !blocked.advice.joined().contains("iPhone"))
         #expect(ErrorHelp.explain("Le modèle a planté").kind == .other)
         let key = ErrorHelp.explain("HTTP 401 · nope", provider: groq)
         #expect(key.title == "Clé refusée par Groq" || key.title.hasPrefix("Clé refusée par"))

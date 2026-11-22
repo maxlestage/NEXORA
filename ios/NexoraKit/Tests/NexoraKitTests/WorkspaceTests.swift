@@ -671,6 +671,7 @@ struct BackgroundTests {
         #expect(BackgroundStatus(mode: "legacy", error: "refus").note?.text == "Arrière-plan court (~30 s) : refus.")
         #expect(BackgroundStatus(mode: "legacy").note?.text == "Arrière-plan court (~30 s).")
         #expect(BackgroundStatus(mode: "idle").note == nil)
+        #expect(BackgroundStatus(mode: "service").note?.text == "Continue en arrière-plan.")
     }
 
     @Test("une session qui travaille garde l'app en vie, et prévient à la fin")

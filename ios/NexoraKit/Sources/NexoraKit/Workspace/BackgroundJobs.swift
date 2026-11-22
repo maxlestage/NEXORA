@@ -54,7 +54,7 @@ public struct BackgroundStatus: Sendable, Equatable {
     public var note: (text: String, tone: Tone, symbol: String)? {
         switch mode {
         case "continued": ("Continue en arrière-plan : iOS suit la tâche.", .good, "checkmark.circle")
-        case "service": ("Continue en arrière-plan (notification Android).", .good, "checkmark.circle")
+        case "service": ("Continue en arrière-plan.", .good, "checkmark.circle")
         case "submitted": ("Arrière-plan demandé à iOS…", .warn, "hourglass")
         case "expired": ("iOS a arrêté la tâche de fond : la session reprend quand vous revenez.", .warn, "pause.circle")
         case "legacy": ("Arrière-plan court (~30 s)\(error.isEmpty ? "" : " : \(error)").", .warn, "timer")

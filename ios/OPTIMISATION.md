@@ -1664,17 +1664,25 @@ mémoire 32k tokens, consigne 3 000 car.
   `ReposDisplay.pickerNote` : chargement, échec + Réessayer, compte vide, recherche vide +
   Effacer. Mesure : états sans aucune explication 4 → 0. Tests : 610 (+1). Tokens : rien forcé.
 
+- 3.0.205 (interface, textes d'erreur) : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `ErrorHelp.explain` (erreur « turnstile » / « cors ») affichait le texte de
+  l'app Flutter web : « Bloqué dans le navigateur », « Utilisez l'application iPhone ou
+  Android » — faux dans l'app native, et atteignable (un 403 « Missing Turnstile token »
+  d'un fournisseur). Maintenant « Bloqué par <fournisseur> » + « Choisissez un autre modèle
+  ou un autre fournisseur ». `BackgroundStatus` mode « service » (jamais produit par iOS) :
+  « (notification Android) » retiré. Mesure : mentions d'Android dans les textes affichés
+  2 → 0. Tests : 610 (deux tests étendus).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.204 : feuille de choix du dépôt) →
+(interface faite en 3.0.205 : textes d'erreur « navigateur » / Android) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : `ErrorHelp` ligne 50 qui parle d'« iPhone ou Android » et
-`BackgroundJobs` « notification Android » (textes de parité, sans doute jamais affichés sur
-iOS : à vérifier), sujet voix rangé dans le thème « GitHub » de l'aide, Réglages › Données
-en très grand texte (à vérifier seulement), accueil. Plus aucun
+Interface ensuite : sujet voix rangé dans le thème « GitHub » de l'aide, Réglages › Données
+en très grand texte (à vérifier seulement), accueil ; `CreditsView` cite « L'application
+Android » pour Flutter (à vérifier : crédit encore juste pour l'app Swift ?). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
 Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers
