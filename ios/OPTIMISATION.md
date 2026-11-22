@@ -1631,18 +1631,26 @@ mémoire 32k tokens, consigne 3 000 car.
   `mkdir -p ios/app/assets && cp app/assets/models.json ios/app/assets/`, relancer, puis
   `rm -rf ios/app`.
 
+- 3.0.201 (interface) : recherche des listes — `AgentsDisplay.matches(query, textes…)`
+  (agents, compétences, commandes, agents cloud, sessions, dépôts, fichiers, tickets,
+  bibliothèque, fournisseurs) exigeait la recherche entière d'un seul tenant dans UN
+  texte ; maintenant chaque mot doit se trouver dans l'un des textes, dans n'importe
+  quel ordre. Mesure : 6 recherches à plusieurs mots, échecs 4 → 0 ; une recherche d'un
+  seul mot donne exactement le même résultat qu'avant. Tokens : rien de nouveau à plus
+  de 2 %, rien forcé.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.200 : contenu du centre d'aide) → prochain passage : TOKENS, mais
-les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût d'une
-session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer. Ne
-pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
+(interface faite en 3.0.201 : recherche mot par mot des listes) → prochain passage : TOKENS,
+mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
+d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
+Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : mêmes mots vides et terminaisons pour les autres recherches (agents,
-modèles, conversations : vérifier d'abord par une mesure qu'elles échouent), sujet voix
-rangé dans le thème « GitHub » de l'aide (le déplacer vers « Bien démarrer » si la parité
-le permet), `ErrorHelp` ligne 50 parle encore d'« iPhone ou Android » (cas navigateur,
-sans doute jamais affiché sur iOS : à vérifier), Réglages › Données en très grand texte
-(à vérifier seulement), accueil.
+Interface ensuite : recherche des conversations (`ConversationStore.search` : texte d'un
+seul tenant, à mesurer ; attention à `lastSearch`), sujet voix rangé dans le thème
+« GitHub » de l'aide (le déplacer vers « Bien démarrer » si la parité le permet),
+`ErrorHelp` ligne 50 parle encore d'« iPhone ou Android » (cas navigateur, sans doute
+jamais affiché sur iOS : à vérifier), Réglages › Données en très grand texte (à vérifier
+seulement), accueil.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

@@ -3,12 +3,14 @@ import Foundation
 /// L'écran Agents, rendu simple : une recherche qui pardonne les accents et la casse,
 /// et les outils d'un agent résumés en mots simples au lieu d'une liste technique.
 public enum AgentsDisplay {
-    /// Vrai si la recherche est vide, ou si l'un des textes la contient
-    /// (sans tenir compte des majuscules, des accents ni des espaces autour).
+    /// Vrai si la recherche est vide, ou si chacun de ses mots se trouve dans l'un des
+    /// textes, dans n'importe quel ordre (« code revue » trouve « Revue de code »),
+    /// sans tenir compte des majuscules, des accents ni des espaces autour.
     public static func matches(_ query: String, _ texts: String...) -> Bool {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if q.isEmpty { return true }
-        return texts.contains { $0.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        let words = query.split(whereSeparator: \.isWhitespace)
+        return words.allSatisfy { w in
+            texts.contains { $0.range(of: w, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        }
     }
 
     /// « 1 outil », « 5 outils », ou rien s'il n'y en a pas.
