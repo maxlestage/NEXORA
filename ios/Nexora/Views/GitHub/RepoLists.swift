@@ -243,6 +243,8 @@ struct IssueDetailView: View {
     }
 }
 
+/// Nouvelle issue : le titre a le clavier dès l'ouverture, « Créer » ne part qu'une fois
+/// (« Création… » pendant l'envoi) et une saisie commencée ne se perd pas d'un geste.
 struct NewIssueSheet: View {
     let repo: Repo
     let onCreated: () -> Void
@@ -251,31 +253,57 @@ struct NewIssueSheet: View {
     @State private var title = ""
     @State private var body_ = ""
     @State private var error: String?
+    /// L'envoi est en cours : pas de second envoi, pas de fermeture.
+    @State private var busy = false
+    @State private var confirmDiscard = false
+    @FocusState private var titleFocused: Bool
+
+    private var losesDraft: Bool { IssuesDisplay.losesDraft(title: title, body: body_) }
 
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Titre", text: $title)
+                    .focused($titleFocused)
+                    .submitLabel(.next)
                 TextField("Description (Markdown)", text: $body_, axis: .vertical).lineLimit(5...20)
                 if let error { Text(error).foregroundStyle(Theme.red) }
             }
             .navigationTitle("Nouvelle issue")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") {
-                        Task {
-                            do {
-                                _ = try await github.api.createIssue(repo.owner.login, repo.name, title: title, body: body_)
-                                onCreated()
-                                dismiss()
-                            } catch { self.error = error.localizedDescription }
-                        }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        if losesDraft { confirmDiscard = true } else { dismiss() }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(busy)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(IssuesDisplay.createLabel(busy: busy)) { create() }
+                        .disabled(!IssuesDisplay.canCreate(title: title, busy: busy))
                 }
             }
+            .confirmationDialog(IssuesDisplay.discardQuestion, isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Abandonner", role: .destructive) { dismiss() }
+                Button("Continuer à écrire", role: .cancel) {}
+            }
+        }
+        .interactiveDismissDisabled(busy || losesDraft)
+        .onAppear { titleFocused = true }
+    }
+
+    private func create() {
+        guard IssuesDisplay.canCreate(title: title, busy: busy) else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                _ = try await github.api.createIssue(repo.owner.login, repo.name,
+                                                     title: IssuesDisplay.cleanTitle(title), body: body_)
+                onCreated()
+                dismiss()
+            } catch { self.error = error.localizedDescription }
         }
     }
 }

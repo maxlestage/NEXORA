@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.216 — 22 novembre 2026 — Nouvelle issue : une seule création, rien de perdu
+- Corrigé : toucher « Créer » deux fois ne crée plus la même issue en double ; le bouton affiche « Création… » pendant l'envoi.
+- Amélioré : une issue commencée ne se perd plus en balayant la fenêtre ; « Annuler » demande avant d'abandonner le texte saisi.
+- Amélioré : le clavier est déjà sur le titre à l'ouverture.
+
 ## 3.0.215 — 22 novembre 2026 — Routines : plus de modifications perdues en revenant en arrière
 
 - Amélioré : quitter la fiche d'une routine avec des modifications non enregistrées pose la question — Enregistrer, Abandonner ou Continuer à modifier — au lieu de tout perdre sans rien dire.
