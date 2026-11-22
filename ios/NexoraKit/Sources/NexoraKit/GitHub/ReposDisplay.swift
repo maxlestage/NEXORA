@@ -74,6 +74,28 @@ public enum ReposDisplay {
     /// Le texte quand le compte n'a aucun dépôt.
     public static let pickerEmptyText = "Aucun dépôt sur ce compte. Créez-en un ci-dessus."
 
+    /// La mention d'un dépôt déjà choisi dans la feuille « Dépôt » (session à plusieurs dépôts,
+    /// routine) : il reste visible, coché, mais ne se touche plus.
+    public static let pickerChosenText = "Déjà ajouté"
+
+    /// Ce dépôt est-il déjà choisi ? `chosen` : des noms complets (« max/nexora ») ou des
+    /// cibles de routine (« max/nexora@main »), sans tenir compte des majuscules.
+    public static func isChosen(_ repo: Repo, among chosen: [String]) -> Bool {
+        chosen.contains {
+            let name = $0.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? $0
+            return name.caseInsensitiveCompare(repo.fullName) == .orderedSame
+        }
+    }
+
+    /// Ce que VoiceOver lit pour un dépôt de la feuille « Dépôt » : « nexora, déjà ajouté, … ».
+    public static func pickerAccessibility(_ repo: Repo, login: String?, chosen: Bool,
+                                           now: Date = Date()) -> String {
+        let base = accessibility(repo, login: login, now: now)
+        guard chosen else { return base }
+        let name = title(repo, login: login)
+        return name + ", déjà ajouté" + base.dropFirst(name.count)
+    }
+
     /// L'en-tête de la liste : « 12 dépôts », « 1 dépôt », ou « 3 sur 12 » pendant une recherche.
     public static func header(shown: Int, total: Int) -> String {
         if shown < total { return "\(shown) sur \(total)" }

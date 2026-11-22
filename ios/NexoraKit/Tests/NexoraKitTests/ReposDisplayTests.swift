@@ -92,4 +92,18 @@ struct ReposDisplayTests {
         #expect(note(0, 0, error: "") == .empty)
         #expect(note(0, 0) == .empty)
     }
+
+    @Test func depotDejaAjouteCocheDansLaFeuille() throws {
+        let r = try repo("Nexora", description: "Assistant")
+        #expect(ReposDisplay.isChosen(r, among: ["max/nexora"]))
+        // Les cibles d'une routine portent la branche.
+        #expect(ReposDisplay.isChosen(r, among: ["autre/site@main", "MAX/Nexora@main"]))
+        #expect(!ReposDisplay.isChosen(r, among: []))
+        #expect(!ReposDisplay.isChosen(r, among: ["max/nexora-site", "autre/nexora"]))
+        #expect(ReposDisplay.pickerAccessibility(r, login: "max", chosen: false)
+            == ReposDisplay.accessibility(r, login: "max"))
+        #expect(ReposDisplay.pickerAccessibility(r, login: "max", chosen: true) == "Nexora, déjà ajouté, Assistant")
+        #expect(ReposDisplay.pickerAccessibility(r, login: "autre", chosen: true) == "max/Nexora, déjà ajouté, Assistant")
+        #expect(ReposDisplay.pickerChosenText == "Déjà ajouté")
+    }
 }

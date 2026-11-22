@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.211 — 22 novembre 2026 — Choix d'un dépôt : ceux déjà ajoutés sont cochés
+
+- Amélioré : en ajoutant un dépôt à une session de l'agent ou à une routine, ceux déjà ajoutés sont cochés et marqués « Déjà ajouté » ; plus besoin de se souvenir lesquels sont pris.
+- Corrigé : dans une routine, toucher un dépôt déjà ajouté fermait la fenêtre sans rien dire ni rien faire.
+
 ## 3.0.210 — 22 novembre 2026 — Chat : des boutons plus faciles à toucher
 
 - Amélioré : le trombone, le micro et les boutons Envoyer et Arrêter du chat se touchent plus facilement (44 points au lieu de 38), sans avoir changé de taille ni de place.

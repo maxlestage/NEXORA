@@ -37,6 +37,8 @@ func toolSymbol(_ tool: String?) -> String {
 
 /// Une demande de choix de dépôt : `pickRepo` de l'app Flutter.
 struct RepoPickerSheet: View {
+    /// Les dépôts déjà choisis (« max/nexora » ou « max/nexora@main ») : cochés, non touchables.
+    var chosen: [String] = []
     let onPick: (Repo) -> Void
 
     @Environment(GitHubSession.self) private var github
@@ -80,23 +82,34 @@ struct RepoPickerSheet: View {
                     EmptyView()
                 }
                 ForEach(shown) { r in
+                    let already = ReposDisplay.isChosen(r, among: chosen)
                     Button {
                         onPick(r)
                         dismiss()
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: r.isPrivate ? "lock" : "globe")
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(already ? Color.secondary : Color.accentColor)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(ReposDisplay.title(r, login: github.user?.login)).foregroundStyle(.primary)
-                                if let d = r.description, !d.isEmpty {
+                                Text(ReposDisplay.title(r, login: github.user?.login))
+                                    .foregroundStyle(already ? Color.secondary : Color.primary)
+                                if already {
+                                    Text(ReposDisplay.pickerChosenText).font(.caption).foregroundStyle(.secondary)
+                                } else if let d = r.description, !d.isEmpty {
                                     Text(d).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
+                            if already {
+                                Spacer(minLength: 8)
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                            }
                         }
                     }
-                    .accessibilityLabel(ReposDisplay.accessibility(r, login: github.user?.login))
+                    .disabled(already)
+                    .accessibilityLabel(ReposDisplay.pickerAccessibility(r, login: github.user?.login, chosen: already))
                 }
             }
             .searchable(text: $query, prompt: "Nom, description ou langage")
