@@ -350,7 +350,7 @@ struct RoutineEditorView: View {
             Text(RoutinesDisplay.deleteMessage((routine ?? r).runner))
         }
         .sheet(isPresented: $pickingRepo) {
-            RepoPickerSheet { repo in
+            RepoPickerSheet(chosen: r.repos) { repo in
                 let spec = "\(repo.fullName)@\(repo.branch)"
                 if !r.repos.contains(where: { $0.components(separatedBy: "@").first == repo.fullName }) {
                     r.repos.append(spec)

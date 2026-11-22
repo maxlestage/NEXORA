@@ -1712,8 +1712,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Restent sous 44 pt de cadre (mais avec `contentShape` élargi à 44) : actions sous une bulle
   (MessageBubble, 34 pt) ; SettingsView l.47 (40 pt) à vérifier.
 
+- 3.0.211 (interface, feuille « Dépôt ») : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `RepoPickerSheet(chosen:)` (nouvelle session à plusieurs dépôts, routine) : un
+  dépôt déjà ajouté s'affichait comme les autres ; le toucher fermait la feuille pour un avis
+  « déjà dans la session » (session) ou sans rien dire ni faire (routine). Maintenant coché,
+  « Déjà ajouté », grisé et non touchable (`ReposDisplay.isChosen` / `pickerChosenText` /
+  `pickerAccessibility`). Touchers perdus : 1 → 0 ; échec muet (routine) : 1 → 0.
+  Tests : 616 → 617. La feuille de l'onglet Agents (agents cloud) n'a pas de dépôt choisi.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.210 : barre de saisie du chat à 44 pt) →
+(interface faite en 3.0.211 : feuille « Dépôt », dépôts déjà ajoutés cochés) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

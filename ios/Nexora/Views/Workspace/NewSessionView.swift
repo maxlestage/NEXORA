@@ -194,7 +194,7 @@ struct NewSessionView: View {
         }
         .toast($toast)
         .sheet(isPresented: $pickingRepo) {
-            RepoPickerSheet { add($0) }
+            RepoPickerSheet(chosen: picks.map(\.repo.fullName)) { add($0) }
         }
         .sheet(isPresented: $creatingRepo) {
             CreateRepoSheet { add($0) }
