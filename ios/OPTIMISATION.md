@@ -1747,8 +1747,17 @@ mémoire 32k tokens, consigne 3 000 car.
   la pastille garde son dessin (fond en retrait de 8 pt), la bande grandit d'environ 16 pt
   (à vérifier sur appareil). Aucune logique nouvelle, tests inchangés (619).
 
+- 3.0.215 (interface, fiche d'une routine : retour arrière) : passage TOKENS sans piste à plus
+  de 2 %, donc interface. Quitter la fiche avec des modifications les perdait sans avis (noté en
+  3.0.213). Même modèle que l'éditeur de fichier (RepoView) : tant qu'il y a une saisie à perdre
+  (`RoutinesDisplay.losesWorkOnLeave` : routine enregistrée modifiée, ou nouvelle routine avec un
+  nom, une mission ou un dépôt), le bouton de retour devient « Retour » et demande
+  (`leaveTitle`/`leaveMessage`) : Enregistrer / Abandonner / Continuer à modifier. Une nouvelle
+  fiche vide garde le retour normal et le balayage. Pertes sans avis : 1 → 0. Tests : 619 → 620.
+  À vérifier sur appareil : le bouton de retour qui change à la première frappe.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.214 : croix « Retirer » des routines et des fichiers joints) →
+(interface faite en 3.0.215 : retour arrière de la fiche d'une routine) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

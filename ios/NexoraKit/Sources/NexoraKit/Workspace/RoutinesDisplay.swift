@@ -97,6 +97,25 @@ public enum RoutinesDisplay {
         return comparable(saved) != comparable(edited)
     }
 
+    /// Quitter la fiche ferait-il perdre quelque chose ? Une routine enregistrée : dès
+    /// qu'un réglage a changé. Une nouvelle : seulement si un nom, une mission ou un dépôt
+    /// a été saisi (une fiche vide se quitte sans question).
+    public static func losesWorkOnLeave(saved: Routine?, edited: Routine) -> Bool {
+        guard saved == nil else { return hasChanges(saved: saved, edited: edited) }
+        let typed = edited.name + edited.task
+        return !typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !edited.repos.isEmpty
+    }
+
+    /// Titre de la question posée avant de quitter une fiche modifiée.
+    public static func leaveTitle(isNew: Bool) -> String {
+        isNew ? "Abandonner cette nouvelle routine ?" : "Quitter sans enregistrer ?"
+    }
+
+    /// Ce que l'on perd en quittant, en une phrase.
+    public static func leaveMessage(isNew: Bool) -> String {
+        isNew ? "Elle n'est pas encore enregistrée." : "Vos modifications seront perdues."
+    }
+
     private static func comparable(_ r: Routine) -> Routine {
         var c = r
         c.name = r.name.trimmingCharacters(in: .whitespacesAndNewlines)
