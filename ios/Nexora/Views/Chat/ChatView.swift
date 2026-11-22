@@ -558,15 +558,18 @@ struct ChatView: View {
                         Button {
                             attachments.removeAll { $0.id == a.id }
                         } label: {
+                            // Une petite croix, mais 44 points de haut à toucher : la pastille
+                            // garde sa taille, c'est la zone autour qui grandit.
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                                .frame(width: 36, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Retirer \(a.fileName)")
                     }
                     .font(.caption)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.fill.tertiary, in: .capsule)
+                    .padding(.leading, 10)
+                    .background { Capsule().fill(.fill.tertiary).padding(.vertical, 8) }
                 }
             }
         }
