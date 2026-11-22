@@ -220,7 +220,7 @@ struct ChatView: View {
     /// Deux flèches pour aller tout en haut ou tout en bas ; chacune n'apparaît que
     /// si elle sert.
     private var scrollArrows: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             arrow("arrow.up.to.line", "Tout en haut", visible: metrics.fromTop > 400) {
                 position.scrollTo(edge: .top)
             }
@@ -229,8 +229,8 @@ struct ChatView: View {
                 position.scrollTo(edge: .bottom)
             }
         }
-        .padding(.trailing, 14)
-        .padding(.bottom, 12)
+        .padding(.trailing, 12)
+        .padding(.bottom, 10)
     }
 
     private func arrow(_ symbol: String, _ label: String, visible: Bool, action: @escaping () -> Void) -> some View {
@@ -240,6 +240,9 @@ struct ChatView: View {
                 .frame(width: 40, height: 40)
                 .background(.regularMaterial, in: .circle)
                 .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+                // Zone touchable de 44 pt autour du rond de 40 pt.
+                .frame(width: ChatDisplay.composerTapSide, height: ChatDisplay.composerTapSide)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .scaleEffect(visible ? 1 : 0.01)
@@ -296,7 +299,8 @@ struct ChatView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 6) {
+        // Les boutons se touchent (zones de 44 pt) : les ronds dessinés gardent leur place.
+        HStack(alignment: .bottom, spacing: 0) {
             attachMenu
             TextField("Écrivez une instruction…", text: $input, axis: .vertical)
                 .lineLimit(1...8)
@@ -322,8 +326,10 @@ struct ChatView: View {
                     Image(systemName: "stop.fill")
                         .font(.body.weight(.bold))
                         .foregroundStyle(.white)
-                        .frame(width: 38, height: 38)
+                        .frame(width: ChatDisplay.composerIconSide, height: ChatDisplay.composerIconSide)
                         .background(Theme.red, in: .circle)
+                        .frame(width: ChatDisplay.composerTapSide, height: ChatDisplay.composerTapSide)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Arrêter la réponse")
                 .transition(.scale.combined(with: .opacity))
@@ -335,9 +341,11 @@ struct ChatView: View {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.bold))
                         .foregroundStyle(.white)
-                        .frame(width: 38, height: 38)
+                        .frame(width: ChatDisplay.composerIconSide, height: ChatDisplay.composerIconSide)
                         .background(Theme.gradient(settings.accent), in: .circle)
                         .opacity(ready ? 1 : 0.35)
+                        .frame(width: ChatDisplay.composerTapSide, height: ChatDisplay.composerTapSide)
+                        .contentShape(Rectangle())
                 }
                 .disabled(!ready)
                 .accessibilityLabel("Envoyer")
@@ -345,7 +353,8 @@ struct ChatView: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: running)
-        .padding(4)
+        .padding(.horizontal, ChatDisplay.composerInset)
+        .padding(.vertical, 3)
         .background(scheme == .dark ? Theme.panel2 : Color.white, in: .rect(cornerRadius: 26))
         .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(scheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.08)))
         .shadow(color: Theme.violet.opacity(0.12), radius: 12, y: 8)
@@ -361,9 +370,11 @@ struct ChatView: View {
             Image(systemName: on ? "mic.fill" : "mic")
                 .font(.title3)
                 .foregroundStyle(on ? Theme.red : .secondary)
-                .frame(width: 38, height: 38)
+                .frame(width: ChatDisplay.composerIconSide, height: ChatDisplay.composerIconSide)
                 .background(on ? Theme.red.opacity(0.15) : .clear, in: .circle)
                 .shadow(color: on ? Theme.red.opacity(0.45) : .clear, radius: 3 + speech.level * 9)
+                .frame(width: ChatDisplay.composerTapSide, height: ChatDisplay.composerTapSide)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(on ? "Arrêter la dictée" : "Parler")
@@ -421,7 +432,8 @@ struct ChatView: View {
             Image(systemName: "paperclip")
                 .font(.title3)
                 .foregroundStyle(.secondary)
-                .frame(width: 38, height: 38)
+                .frame(width: ChatDisplay.composerTapSide, height: ChatDisplay.composerTapSide)
+                .contentShape(Rectangle())
         }
         .menuOrder(.fixed)
         .accessibilityLabel("Joindre ou créer")

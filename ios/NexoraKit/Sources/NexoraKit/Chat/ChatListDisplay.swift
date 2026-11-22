@@ -74,4 +74,15 @@ extension ChatDisplay {
     public static func canSend(_ text: String, photos: Int) -> Bool {
         photos > 0 || text.contains { !$0.isWhitespace }
     }
+
+    /// Le côté de la zone touchable des boutons de la barre de saisie (trombone, micro,
+    /// envoyer, arrêter) et des flèches de défilement : le minimum conseillé par Apple.
+    public static let composerTapSide: Double = 44
+
+    /// Le côté du rond dessiné dans cette zone (le dessin ne grossit pas).
+    public static let composerIconSide: Double = 38
+
+    /// La marge autour de la barre de saisie : celle qui garde le rond à la même place
+    /// qu'avant (4 pt du bord) maintenant que sa zone touchable le dépasse.
+    public static var composerInset: Double { 4 - (composerTapSide - composerIconSide) / 2 }
 }
