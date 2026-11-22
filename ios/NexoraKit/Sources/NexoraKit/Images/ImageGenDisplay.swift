@@ -87,3 +87,21 @@ public enum ImageViewerDisplay {
         count > 1 ? "Enregistrer les \(count) images" : nil
     }
 }
+
+/// Les photos prêtes à partir avec un message (bande au-dessus de la saisie).
+public enum PhotoDraftDisplay {
+    /// Le côté de la zone touchable de la croix : le minimum conseillé par Apple.
+    public static let removeTapSide: Double = 44
+
+    /// Ce que VoiceOver dit d'une vignette : « Photo », ou « Photo 2 sur 3 ».
+    public static func label(index: Int, count: Int) -> String {
+        count > 1 ? "Photo \(ImageViewerDisplay.title(index: index, count: count))" : "Photo"
+    }
+
+    /// Le bouton qui retire une photo : dit laquelle quand il y en a plusieurs.
+    public static func removeLabel(index: Int, count: Int) -> String {
+        count > 1
+            ? "Retirer la photo \(ImageViewerDisplay.title(index: index, count: count))"
+            : "Retirer la photo"
+    }
+}

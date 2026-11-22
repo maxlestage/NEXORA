@@ -1688,14 +1688,23 @@ mémoire 32k tokens, consigne 3 000 car.
   lieu du nom du symbole et de « +12 −3 ». États dits par la seule couleur : 2 → 0.
   Tests : 611 → 612.
 
+- 3.0.208 (interface, photos à envoyer) : passage TOKENS sans piste à plus de 2 %, donc
+  interface. `PhotoDraftStrip` (chat, nouvelle session, session) : la croix qui retire une
+  photo n'offrait que 34 pt (18 + 2×8), dont une partie coupée par le défilement, et
+  VoiceOver disait « image » et « Retirer la photo » sans dire laquelle. Maintenant zone de
+  44 pt entièrement dans la bande (`PhotoDraftDisplay.removeTapSide`), « Photo 2 sur 3 »,
+  « Retirer la photo 2 sur 3 », « Ajout des photos ». Zone touchable 34 → 44 pt.
+  Tests : 612 → 614.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.207 : état écrit dans la liste des sessions) →
+(interface faite en 3.0.208 : bande des photos à envoyer) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : Réglages › Données en très grand texte (à vérifier seulement), accueil,
+Interface ensuite : photo impossible à charger (`try? loadTransferable` : aucun message, chat et
+`PhotoAttachButton`), `PhotoAttachButton` 34 pt (+5), Réglages › Données en très grand texte (à vérifier seulement), accueil,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 

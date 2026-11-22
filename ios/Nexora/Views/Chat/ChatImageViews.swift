@@ -123,27 +123,34 @@ struct PhotoDraftStrip: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(photos) { p in
+                ForEach(Array(photos.enumerated()), id: \.element.id) { i, p in
                     Image(uiImage: p.preview)
                         .resizable()
                         .scaledToFill()
                         .frame(width: 58, height: 58)
                         .clipShape(.rect(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.primary.opacity(0.1)))
+                        .accessibilityLabel(PhotoDraftDisplay.label(index: i, count: photos.count))
                         .overlay(alignment: .topTrailing) {
                             Button {
                                 withAnimation(.easeOut(duration: 0.15)) { photos.removeAll { $0.id == p.id } }
                             } label: {
+                                // Une petite croix dans le coin, mais 44 points à toucher, tous
+                                // à l'intérieur de la bande (rien n'est coupé par le défilement).
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 18))
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.white, .black.opacity(0.6))
-                                    // Une petite croix, mais une zone touchable plus grande.
-                                    .contentShape(Rectangle().inset(by: -8))
+                                    .frame(
+                                        width: PhotoDraftDisplay.removeTapSide,
+                                        height: PhotoDraftDisplay.removeTapSide,
+                                        alignment: .topTrailing
+                                    )
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .offset(x: 5, y: -5)
-                            .accessibilityLabel("Retirer la photo")
+                            .accessibilityLabel(PhotoDraftDisplay.removeLabel(index: i, count: photos.count))
                         }
                         .padding(.top, 5)
                         .padding(.trailing, 5)
@@ -152,6 +159,7 @@ struct PhotoDraftStrip: View {
                     ProgressView()
                         .frame(width: 58, height: 58)
                         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+                        .accessibilityLabel("Ajout des photos")
                 }
             }
         }
