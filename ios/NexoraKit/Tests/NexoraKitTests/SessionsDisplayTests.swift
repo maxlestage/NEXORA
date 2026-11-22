@@ -98,4 +98,22 @@ struct SessionsDisplayTests {
         #expect(SessionsDisplay.sessionMenu(busy: true) == [.copyTask])
         #expect(SessionsDisplay.sessionMenu(busy: false) == [.copyTask, .delete])
     }
+
+    @Test("liste : l'état est écrit, et VoiceOver l'annonce en une phrase")
+    func tileStatus() {
+        // Arrêté et Envoyé ne sont plus dits par la seule couleur de l'icône.
+        #expect(WorkspaceText.tileSubtitle(.stopped, reposLabel: "site") == "site · Arrêté")
+        #expect(WorkspaceText.tileSubtitle(.shipped, reposLabel: "site") == "site · Envoyé")
+        #expect(WorkspaceText.tileSubtitle(.done, reposLabel: "site") == "site")
+        #expect(SessionsDisplay.tileAccessibility(
+            task: "Corriger le menu", status: .stopped, reposLabel: "site", added: 12, removed: 1, ago: "il y a 2 h"
+        ) == "Corriger le menu, Arrêté, site, 12 lignes ajoutées, 1 retirée, il y a 2 h")
+        #expect(SessionsDisplay.tileAccessibility(
+            task: "Lire le code", status: .done, reposLabel: "site", added: 0, removed: 0, ago: "hier"
+        ) == "Lire le code, Terminé, site, hier")
+        // À relire : comme à l'écran, l'état remplace le dépôt et les lignes.
+        #expect(SessionsDisplay.tileAccessibility(
+            task: "Ajouter un test", status: .review, reposLabel: "site", added: 4, removed: 0, ago: "à l'instant"
+        ) == "Ajouter un test, En attente de votre validation, à l'instant")
+    }
 }
