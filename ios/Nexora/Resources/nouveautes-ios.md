@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.208 — 22 novembre 2026 — Photos à envoyer : une croix facile à toucher
+- Amélioré : la croix qui retire une photo avant l'envoi se touche sur une zone plus large (44 points au lieu de 34), dans le chat comme dans les sessions de l'agent.
+- Amélioré : VoiceOver dit de quelle photo il s'agit (« Photo 2 sur 3 », « Retirer la photo 2 sur 3 ») et annonce l'ajout en cours.
+
 ## 3.0.207 — 22 novembre 2026 — Sessions : l'état écrit en toutes lettres
 - Amélioré : dans la liste des sessions, « Arrêté » et « Envoyé » sont écrits à côté du dépôt, plus seulement indiqués par la couleur de l'icône.
 - Amélioré : VoiceOver annonce chaque session en une phrase claire (mission, état, dépôt, lignes ajoutées et retirées, date).

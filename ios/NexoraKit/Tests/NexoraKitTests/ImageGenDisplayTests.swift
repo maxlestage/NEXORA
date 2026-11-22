@@ -69,3 +69,21 @@ struct ImageViewerDisplayTests {
         #expect(ImageViewerDisplay.saveAllLabel(count: 3) == "Enregistrer les 3 images")
     }
 }
+
+@Suite("Photos à envoyer : affichage")
+struct PhotoDraftDisplayTests {
+    @Test("chaque vignette et chaque croix disent de quelle photo il s'agit")
+    func labels() {
+        #expect(PhotoDraftDisplay.label(index: 0, count: 1) == "Photo")
+        #expect(PhotoDraftDisplay.label(index: 1, count: 3) == "Photo 2 sur 3")
+        #expect(PhotoDraftDisplay.removeLabel(index: 0, count: 1) == "Retirer la photo")
+        #expect(PhotoDraftDisplay.removeLabel(index: 2, count: 3) == "Retirer la photo 3 sur 3")
+        // Un indice hors liste ne donne jamais « 5 sur 3 ».
+        #expect(PhotoDraftDisplay.removeLabel(index: 4, count: 3) == "Retirer la photo 3 sur 3")
+    }
+
+    @Test("la croix se touche sur 44 points au moins")
+    func tapSide() {
+        #expect(PhotoDraftDisplay.removeTapSide >= 44)
+    }
+}
