@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.203 — 22 novembre 2026 — Chat : « / » et « @ » sans accents
+- Amélioré : dans le chat, après « @ » ou « / », les accents et les majuscules ne comptent plus (« @red » propose « @rédacteur », « /resu » propose « /Résumé »).
+- Amélioré : les agents et les commandes dont le nom commence par ce que vous tapez sont proposés en premier.
+
 ## 3.0.202 — 22 novembre 2026 — Conversations : une recherche qui pardonne
 - Amélioré : la recherche des conversations trouve vos mots dans n'importe quel ordre, même s'ils sont dans des messages différents (« recette gâteau » trouve la conversation où l'on parle d'une recette, puis d'un gâteau).
 - Amélioré : les accents et les majuscules ne comptent plus (« creme brulee » trouve « crème brûlée »).

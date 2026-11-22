@@ -1649,18 +1649,32 @@ mémoire 32k tokens, consigne 3 000 car.
   (inchangé, compilation de test). Tests : 609 (un test étendu). Tokens : rien de nouveau à
   plus de 2 %, rien forcé.
 
+- 3.0.203 (interface, chat) : les propositions après « / » et « @ » (`ChatLibrary.suggestions`)
+  comparaient en minuscules, accents compris (« @red » ne trouvait pas « @rédacteur »).
+  Nouveau `ChatLibrary.ranked` : sans majuscules ni accents, et les noms qui COMMENCENT par
+  la saisie passent devant (ordre d'origine gardé dans chaque groupe). Mesure : 4 saisies
+  sans accents, échecs 4 → 0 ; banc « ChatLibrary.suggestions × 4000 » ≈ 165 ms → ≈ 200 ms
+  (0,04 → 0,05 ms par frappe, négligeable). Tests : 609 (un test étendu). Tokens : pistes
+  sûres épuisées, rien forcé.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.202 : recherche des conversations mot par mot, sans accents) →
+(interface faite en 3.0.203 : propositions « / » et « @ » du chat sans accents) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : `AgentsDisplay.matches` et `ProvidersDisplay.matches` ignorent-ils bien
-les accents partout (à vérifier), sujet voix rangé dans le thème « GitHub » de l'aide (le
-déplacer vers « Bien démarrer » si la parité le permet), `ErrorHelp` ligne 50 parle encore
-d'« iPhone ou Android » (cas navigateur, sans doute jamais affiché sur iOS : à vérifier),
-Réglages › Données en très grand texte (à vérifier seulement), accueil.
+Interface ensuite : `AgentsDisplay.matches` et `ModelPickerDisplay.matches` ignorent déjà
+les accents (vérifié en 3.0.203). Restent : le choix du dépôt (`WorkspaceParts.swift` ligne 56,
+`localizedCaseInsensitiveContains` → `AgentsDisplay.matches`), `ErrorHelp` ligne 50 qui
+parle d'« iPhone ou Android » et `BackgroundJobs` « notification Android » (textes de
+parité, sans doute jamais affichés sur iOS : à vérifier), sujet voix rangé dans le thème
+« GitHub » de l'aide, Réglages › Données en très grand texte (à vérifier seulement), accueil.
+
+Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers
+app/assets) peut manquer dans `.build/…/NexoraKit_NexoraKit.resources` et 2 tests de
+catalogue échouent ; `cp -L Sources/NexoraKit/Resources/models.json <ce dossier>/` puis
+`swift test --skip-build`.
 
 ## Pistes tokens à faire
 - Tokens ÉCRITS par le modèle (×5 chez Anthropic, jamais traités avant 3.0.173) : le champ

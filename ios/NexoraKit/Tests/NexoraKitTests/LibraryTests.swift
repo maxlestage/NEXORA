@@ -199,6 +199,23 @@ struct LibraryTests {
         #expect(ChatLibrary.suggestions(for: "/", library: lib, agents: agents)?.first?.insert == "/Review ")
         #expect(ChatLibrary.suggestions(for: "@exp", library: lib, agents: agents)?.map(\.insert) == ["@expert-rust "])
         #expect(ChatLibrary.suggestions(for: "@zz", library: lib, agents: agents)?.isEmpty == true)
+        // Sans accents ni majuscules, et le nom qui commence par la saisie passe devant.
+        var fr = UserLibrary()
+        fr.commands = [
+            SlashCommand(id: "1", name: "pré-résumé", description: "", body: "x"),
+            SlashCommand(id: "2", name: "Résumé", description: "", body: "x"),
+            SlashCommand(id: "3", name: "tests", description: "", body: "x"),
+        ]
+        let team = [
+            Agent(id: "1", name: "Correcteur de rédaction", systemPrompt: "x", emoji: "✏️"),
+            Agent(id: "2", name: "Rédacteur", systemPrompt: "x", emoji: "📝"),
+        ]
+        #expect(ChatLibrary.suggestions(for: "/resu", library: fr, agents: team)?.map(\.insert) == ["/Résumé ", "/pré-résumé "])
+        #expect(ChatLibrary.suggestions(for: "/RÉSU", library: fr, agents: team)?.count == 2)
+        #expect(ChatLibrary.suggestions(for: "/", library: fr, agents: team)?.count == 3)
+        #expect(ChatLibrary.suggestions(for: "@red", library: fr, agents: team)?.map(\.insert) == ["@rédacteur ", "@correcteur-de-rédaction "])
+        #expect(ChatLibrary.suggestions(for: "@Réd", library: fr, agents: team)?.count == 2)
+        #expect(ChatLibrary.suggestions(for: "@", library: fr, agents: team)?.map(\.insert) == ["@correcteur-de-rédaction ", "@rédacteur "])
         #expect(ChatLibrary.suggestions(for: "/review src", library: lib, agents: agents) == nil)
         #expect(ChatLibrary.suggestions(for: "bonjour", library: lib, agents: agents) == nil)
         #expect(ChatLibrary.noSuggestion(for: "/x").contains("Bibliothèque"))
