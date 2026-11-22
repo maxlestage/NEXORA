@@ -46,6 +46,34 @@ public enum ReposDisplay {
     /// Le bouton de cet avis : l'étape suivante la plus probable, sans chercher le dépôt.
     public static let createdAction = "Lancer l'agent"
 
+    /// Ce que la feuille « Dépôt » (choix d'un dépôt pour l'agent, une routine) montre à la
+    /// place de la liste quand elle est vide ; avant, elle restait blanche sans explication.
+    public enum PickerNote: Equatable, Sendable {
+        /// Les dépôts arrivent.
+        case loading
+        /// Le chargement a échoué : le message, avec « Réessayer ».
+        case failed(String)
+        /// Le compte n'a aucun dépôt.
+        case empty
+        /// La recherche ne trouve rien : le titre, avec « Effacer la recherche ».
+        case noMatch(String)
+    }
+
+    /// `nil` : il y a des dépôts à montrer. Une erreur ne cache jamais une liste déjà chargée.
+    public static func pickerNote(shown: Int, total: Int, loading: Bool, error: String?,
+                                  query: String) -> PickerNote? {
+        if shown > 0 { return nil }
+        if total > 0 {
+            return .noMatch("Aucun dépôt pour « \(query.trimmingCharacters(in: .whitespacesAndNewlines)) »")
+        }
+        if loading { return .loading }
+        if let error, !error.isEmpty { return .failed(error) }
+        return .empty
+    }
+
+    /// Le texte quand le compte n'a aucun dépôt.
+    public static let pickerEmptyText = "Aucun dépôt sur ce compte. Créez-en un ci-dessus."
+
     /// L'en-tête de la liste : « 12 dépôts », « 1 dépôt », ou « 3 sur 12 » pendant une recherche.
     public static func header(shown: Int, total: Int) -> String {
         if shown < total { return "\(shown) sur \(total)" }

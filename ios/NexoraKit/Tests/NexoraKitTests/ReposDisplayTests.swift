@@ -77,4 +77,19 @@ struct ReposDisplayTests {
         let p = try JSONDecoder().decode(Repo.self, from: JSONSerialization.data(withJSONObject: j))
         #expect(ReposDisplay.accessibility(p, login: "max", now: now) == "o/p, privé")
     }
+
+    @Test func feuilleDepotJamaisBlanche() {
+        func note(_ shown: Int, _ total: Int, loading: Bool = false, error: String? = nil,
+                  query: String = "") -> ReposDisplay.PickerNote? {
+            ReposDisplay.pickerNote(shown: shown, total: total, loading: loading, error: error, query: query)
+        }
+        #expect(note(3, 12) == nil)
+        // Une liste déjà chargée reste affichée pendant un rechargement ou après une erreur.
+        #expect(note(3, 12, loading: true, error: "Hors ligne") == nil)
+        #expect(note(0, 12, query: " zzz ") == .noMatch("Aucun dépôt pour « zzz »"))
+        #expect(note(0, 0, loading: true, error: "Hors ligne") == .loading)
+        #expect(note(0, 0, error: "Hors ligne") == .failed("Hors ligne"))
+        #expect(note(0, 0, error: "") == .empty)
+        #expect(note(0, 0) == .empty)
+    }
 }
