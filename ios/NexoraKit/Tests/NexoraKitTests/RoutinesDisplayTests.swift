@@ -100,6 +100,32 @@ struct RoutinesDisplayTests {
         #expect(RoutinesDisplay.runNotice(app, error: nil) == ("Décrivez la mission de la routine.", true))
     }
 
+    @Test func quitterLaFicheSansPerdreSonTravail() {
+        let saved = Routine(id: "1", name: "Bugs", task: "corrige", repos: ["a/b@main"], startMinute: 11 * 60)
+        // Routine enregistrée : rien à perdre tant que rien n'a changé.
+        #expect(!RoutinesDisplay.losesWorkOnLeave(saved: saved, edited: saved))
+        var edited = saved
+        edited.task = "corrige et teste"
+        #expect(RoutinesDisplay.losesWorkOnLeave(saved: saved, edited: edited))
+        // Nouvelle routine : une fiche vide se quitte sans question, même avec des espaces
+        // ou une heure changée ; dès qu'un texte ou un dépôt est saisi, on demande.
+        var fresh = Routine(id: "2", name: "", task: "", repos: [], startMinute: 11 * 60)
+        #expect(!RoutinesDisplay.losesWorkOnLeave(saved: nil, edited: fresh))
+        fresh.task = "  \n"
+        fresh.startMinute = 9 * 60
+        #expect(!RoutinesDisplay.losesWorkOnLeave(saved: nil, edited: fresh))
+        fresh.task = "relis les PR"
+        #expect(RoutinesDisplay.losesWorkOnLeave(saved: nil, edited: fresh))
+        fresh.task = ""
+        fresh.repos = ["a/b@main"]
+        #expect(RoutinesDisplay.losesWorkOnLeave(saved: nil, edited: fresh))
+        // Les mots de la question.
+        #expect(RoutinesDisplay.leaveTitle(isNew: false) == "Quitter sans enregistrer ?")
+        #expect(RoutinesDisplay.leaveTitle(isNew: true) == "Abandonner cette nouvelle routine ?")
+        #expect(RoutinesDisplay.leaveMessage(isNew: false) == "Vos modifications seront perdues.")
+        #expect(RoutinesDisplay.leaveMessage(isNew: true) == "Elle n'est pas encore enregistrée.")
+    }
+
     @Test func ficheModifieeOuNon() {
         let saved = Routine(id: "1", name: "Bugs", task: "corrige", repos: ["a/b@main"], startMinute: 11 * 60)
         // Une nouvelle routine a toujours quelque chose à enregistrer.

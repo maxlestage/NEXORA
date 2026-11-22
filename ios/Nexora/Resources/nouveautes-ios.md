@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.215 — 22 novembre 2026 — Routines : plus de modifications perdues en revenant en arrière
+
+- Amélioré : quitter la fiche d'une routine avec des modifications non enregistrées pose la question — Enregistrer, Abandonner ou Continuer à modifier — au lieu de tout perdre sans rien dire.
+- Une nouvelle routine encore vide se quitte toujours d'un geste, sans question.
+
 ## 3.0.214 — 22 novembre 2026 — Retirer un dépôt ou un fichier joint : plus facile à toucher
 
 - Amélioré : dans la fiche d'une routine, la croix qui retire un dépôt est bien plus facile à toucher, et tu peux aussi balayer la ligne vers la gauche.

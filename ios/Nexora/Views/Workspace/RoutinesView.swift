@@ -152,6 +152,7 @@ struct RoutineEditorView: View {
     @State private var toast: Toast?
     @State private var started: String?
     @State private var confirmDelete = false
+    @State private var confirmLeave = false
 
     init(routine: Routine?) {
         self.routine = routine
@@ -183,6 +184,8 @@ struct RoutineEditorView: View {
         let agents = Catalog.cloudAgents
         let agent = agents.first { $0.id == r.cloudAgent } ?? agents.first
         let modified = RoutinesDisplay.hasChanges(saved: saved, edited: r)
+        // Quitter maintenant ferait-il perdre une saisie ? (Une nouvelle fiche vide : non.)
+        let atRisk = RoutinesDisplay.losesWorkOnLeave(saved: saved, edited: r)
         var preview = r
         preview.endMinute = window ? (r.endMinute ?? 23 * 60) : nil
         return Form {
@@ -343,7 +346,15 @@ struct RoutineEditorView: View {
         }
         .navigationTitle(routine == nil ? "Nouvelle routine" : "Routine")
         .navigationBarTitleDisplayMode(.inline)
+        // Modifications non enregistrées : on demande avant de les perdre.
+        .navigationBarBackButtonHidden(atRisk)
         .toolbar {
+            if atRisk {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Retour") { confirmLeave = true }
+                        .disabled(saving || launching)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 if saving {
                     ProgressView()
@@ -365,6 +376,13 @@ struct RoutineEditorView: View {
             Button("Annuler", role: .cancel) {}
         } message: {
             Text(RoutinesDisplay.deleteMessage((routine ?? r).runner))
+        }
+        .confirmationDialog(RoutinesDisplay.leaveTitle(isNew: saved == nil), isPresented: $confirmLeave, titleVisibility: .visible) {
+            Button("Enregistrer") { Task { await save() } }
+            Button("Abandonner", role: .destructive) { dismiss() }
+            Button("Continuer à modifier", role: .cancel) {}
+        } message: {
+            Text(RoutinesDisplay.leaveMessage(isNew: saved == nil))
         }
         .sheet(isPresented: $pickingRepo) {
             RepoPickerSheet(chosen: r.repos) { repo in
