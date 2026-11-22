@@ -269,7 +269,10 @@ struct CloudLaunchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var instruction = ""
     @State private var model = "openrouter/qwen/qwen3-coder:free"
+    @State private var confirmDiscard = false
     @FocusState private var focused: Bool
+
+    private var losesInstruction: Bool { CloudAgentsDisplay.losesInstruction(instruction) }
 
     var body: some View {
         NavigationStack {
@@ -302,14 +305,24 @@ struct CloudLaunchSheet: View {
             .navigationTitle("\(agent.emoji) \(agent.name)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        if losesInstruction { confirmDiscard = true } else { dismiss() }
+                    }
+                }
                 // Toujours visible, même clavier ouvert.
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lancer", action: send).disabled(!CloudAgentsDisplay.canLaunch(instruction))
                 }
             }
             .onAppear { focused = true }
+            .confirmationDialog(CloudAgentsDisplay.discardQuestion, isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Abandonner", role: .destructive) { dismiss() }
+                Button("Continuer à écrire", role: .cancel) {}
+            }
         }
+        // Un balayage ne fait plus perdre une instruction commencée.
+        .interactiveDismissDisabled(losesInstruction)
     }
 
     private func send() {

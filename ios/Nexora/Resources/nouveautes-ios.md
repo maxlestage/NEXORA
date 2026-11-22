@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.218 — 22 novembre 2026 — Agents cloud : plus d'instruction perdue en fermant
+
+- Corrigé : balayer la fenêtre de lancement d'un agent cloud ou toucher « Annuler » ne fait plus perdre une instruction déjà écrite ; l'app demande avant d'abandonner.
+- Amélioré : une fenêtre où rien n'est écrit se ferme toujours d'un geste, sans question.
+
 ## 3.0.217 — 22 novembre 2026 — Fiche d'un agent : plus de consigne perdue en fermant
 
 - Corrigé : balayer la fiche d'un agent ou toucher « Annuler » ne fait plus perdre une consigne en cours d'écriture ; l'app demande : Enregistrer, Abandonner ou Continuer à modifier.
