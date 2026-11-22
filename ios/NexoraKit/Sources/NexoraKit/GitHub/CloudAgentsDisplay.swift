@@ -93,6 +93,14 @@ public enum CloudAgentsDisplay {
         !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// Fermer la fenêtre de lancement ferait perdre une instruction déjà écrite.
+    public static func losesInstruction(_ instruction: String) -> Bool {
+        canLaunch(instruction)
+    }
+
+    /// La question posée avant d'abandonner une instruction commencée.
+    public static let discardQuestion = "Abandonner cette instruction ? Le texte saisi sera perdu."
+
     /// Les agents installés d'abord (ceux qu'on lance), sinon l'ordre du catalogue.
     public static func ordered(_ agents: [CloudAgent], installed: Set<String>?) -> [CloudAgent] {
         guard let installed else { return agents }

@@ -28,6 +28,16 @@ struct CloudAgentsDisplayTests {
         #expect(CloudAgentsDisplay.intro.count < 120)
     }
 
+    @Test func instructionCommenceeProtegee() {
+        // Rien d'écrit (ou seulement des espaces) : la fenêtre se ferme d'un geste, sans question.
+        #expect(!CloudAgentsDisplay.losesInstruction(""))
+        #expect(!CloudAgentsDisplay.losesInstruction("  \n "))
+        // Une instruction commencée : on demande avant de la perdre.
+        #expect(CloudAgentsDisplay.losesInstruction("ajoute un mode sombre"))
+        #expect(CloudAgentsDisplay.discardQuestion.hasSuffix("sera perdu."))
+        #expect(CloudAgentsDisplay.discardQuestion.count < 70)
+    }
+
     @Test func appelEnCoursEtRefusDuLancement() {
         #expect(CloudAgentsDisplay.busyLabel(.installing, installed: false) == "Installation…")
         #expect(CloudAgentsDisplay.busyLabel(.installing, installed: true) == "Mise à jour…")

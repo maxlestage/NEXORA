@@ -1777,8 +1777,15 @@ mémoire 32k tokens, consigne 3 000 car.
   collée : peu à perdre), lancement d'un agent cloud (CloudAgentsView), message d'envoi de
   DraftReviewView, « Personnaliser » (enregistré au fil de l'eau ? à vérifier).
 
+- 3.0.218 (interface, Agents cloud, 4e passage) : passage TOKENS sans piste à plus de 2 %,
+  donc interface. `CloudLaunchSheet` : balayer ou « Annuler » perdait l'instruction écrite →
+  `CloudAgentsDisplay.losesInstruction` + `discardQuestion` + `interactiveDismissDisabled` +
+  question Abandonner / Continuer à écrire (mêmes mots que la nouvelle issue). Le modèle aider
+  modifié seul n'est pas protégé (peu à perdre). Pertes sans avis : 1 → 0. Tests : 622 → 623.
+  Restent à voir : message d'envoi de DraftReviewView, « Personnaliser », ProvidersView.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.217 : fiche d'un agent) →
+(interface faite en 3.0.218 : lancement d'un agent cloud) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
