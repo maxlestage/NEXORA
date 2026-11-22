@@ -81,8 +81,29 @@ public enum RoutinesDisplay {
     }
 
     /// Libellé de « Lancer maintenant » : pendant l'appel à GitHub, on le voit.
-    public static func runLabel(launching: Bool) -> String {
-        launching ? "Lancement…" : "Lancer maintenant"
+    /// `modified` : la fiche a des modifications pas encore enregistrées ; le bouton
+    /// les enregistre d'abord, et le dit (sinon c'est l'ancienne version qui partirait).
+    public static func runLabel(launching: Bool, modified: Bool = false) -> String {
+        if launching { return "Lancement…" }
+        return modified ? "Enregistrer et lancer" : "Lancer maintenant"
+    }
+
+    /// La fiche a-t-elle quelque chose à enregistrer ? Une nouvelle routine (`saved` nil) :
+    /// toujours. Sinon, on compare ce que l'utilisateur règle, sans les espaces autour du
+    /// nom et de la mission, et sans ce que l'app note toute seule (dernier passage,
+    /// dernière session).
+    public static func hasChanges(saved: Routine?, edited: Routine) -> Bool {
+        guard let saved else { return true }
+        return comparable(saved) != comparable(edited)
+    }
+
+    private static func comparable(_ r: Routine) -> Routine {
+        var c = r
+        c.name = r.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        c.task = r.task.trimmingCharacters(in: .whitespacesAndNewlines)
+        c.lastRun = nil
+        c.lastSession = nil
+        return c
     }
 
     /// L'avis après « Lancer maintenant » quand aucune session ne s'ouvre : dit ce qui

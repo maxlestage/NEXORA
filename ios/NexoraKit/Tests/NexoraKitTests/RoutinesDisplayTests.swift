@@ -99,4 +99,37 @@ struct RoutinesDisplayTests {
         app.task = "  "
         #expect(RoutinesDisplay.runNotice(app, error: nil) == ("Décrivez la mission de la routine.", true))
     }
+
+    @Test func ficheModifieeOuNon() {
+        let saved = Routine(id: "1", name: "Bugs", task: "corrige", repos: ["a/b@main"], startMinute: 11 * 60)
+        // Une nouvelle routine a toujours quelque chose à enregistrer.
+        #expect(RoutinesDisplay.hasChanges(saved: nil, edited: saved))
+        #expect(!RoutinesDisplay.hasChanges(saved: saved, edited: saved))
+        // Les espaces autour et ce que l'app note toute seule ne comptent pas.
+        var same = saved
+        same.name = " Bugs "
+        same.task = "corrige\n"
+        same.lastRun = Date(timeIntervalSince1970: 1_700_000_000)
+        same.lastSession = "42"
+        #expect(!RoutinesDisplay.hasChanges(saved: saved, edited: same))
+        // Chaque réglage compte.
+        var edited = saved
+        edited.task = "corrige et teste"
+        #expect(RoutinesDisplay.hasChanges(saved: saved, edited: edited))
+        edited = saved
+        edited.everyMinutes = 120
+        #expect(RoutinesDisplay.hasChanges(saved: saved, edited: edited))
+        edited = saved
+        edited.endMinute = 23 * 60
+        #expect(RoutinesDisplay.hasChanges(saved: saved, edited: edited))
+        edited = saved
+        edited.repos.append("a/c@main")
+        #expect(RoutinesDisplay.hasChanges(saved: saved, edited: edited))
+        edited = saved
+        edited.enabled.toggle()
+        #expect(RoutinesDisplay.hasChanges(saved: saved, edited: edited))
+        // Le bouton dit qu'il enregistre d'abord.
+        #expect(RoutinesDisplay.runLabel(launching: false, modified: true) == "Enregistrer et lancer")
+        #expect(RoutinesDisplay.runLabel(launching: true, modified: true) == "Lancement…")
+    }
 }

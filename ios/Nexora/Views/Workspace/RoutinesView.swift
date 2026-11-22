@@ -142,6 +142,9 @@ struct RoutineEditorView: View {
     @Environment(GitHubSession.self) private var github
     @Environment(\.dismiss) private var dismiss
     @State private var r: Routine
+    /// La version enregistrée (nil : routine pas encore créée) : dit s'il reste
+    /// quelque chose à enregistrer.
+    @State private var saved: Routine?
     @State private var window: Bool
     @State private var saving = false
     @State private var launching = false
@@ -156,6 +159,7 @@ struct RoutineEditorView: View {
             id: String(Int(Date().timeIntervalSince1970 * 1000)), name: "", task: "", repos: [], startMinute: 11 * 60
         )
         _r = State(initialValue: r)
+        _saved = State(initialValue: routine)
         _window = State(initialValue: r.endMinute != nil)
     }
 
@@ -178,6 +182,7 @@ struct RoutineEditorView: View {
         let level = ThinkLevel.named(r.level) ?? settings.defaultLevel
         let agents = Catalog.cloudAgents
         let agent = agents.first { $0.id == r.cloudAgent } ?? agents.first
+        let modified = RoutinesDisplay.hasChanges(saved: saved, edited: r)
         var preview = r
         preview.endMinute = window ? (r.endMinute ?? 23 * 60) : nil
         return Form {
@@ -309,12 +314,12 @@ struct RoutineEditorView: View {
                             } else {
                                 Image(systemName: "play.fill")
                             }
-                            Text(RoutinesDisplay.runLabel(launching: launching))
+                            Text(RoutinesDisplay.runLabel(launching: launching, modified: modified))
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(launching)
+                    .disabled(launching || saving)
                     Button(role: .destructive) {
                         confirmDelete = true
                     } label: {
@@ -335,6 +340,8 @@ struct RoutineEditorView: View {
                 } else {
                     Button("Enregistrer") { Task { await save() } }
                         .fontWeight(.semibold)
+                        // Rien de modifié : rien à enregistrer, et cela se voit.
+                        .disabled(!modified || launching)
                 }
             }
         }
@@ -362,37 +369,56 @@ struct RoutineEditorView: View {
     }
 
     private func save() async {
+        guard await store() else { return }
+        toast = Toast(text: "Routine enregistrée")
+        dismiss()
+    }
+
+    /// Vérifie puis enregistre la fiche ; faux (avec un avis) si ce n'est pas fait.
+    private func store() async -> Bool {
         if let problem = RoutinesDisplay.saveProblem(task: r.task, repos: r.repos) {
             toast = Toast(text: problem, error: true)
-            return
+            return false
         }
         let task = r.task.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = r.name.trimmingCharacters(in: .whitespacesAndNewlines)
         r.name = name.isEmpty ? RoutinesDisplay.defaultName(task) : name
         r.task = task
         r.endMinute = window ? (r.endMinute ?? 23 * 60) : nil
-        // Une nouvelle routine part du prochain créneau (pas de rattrapage).
-        if routine == nil { r.lastRun = Date() }
+        if routine == nil {
+            // Une nouvelle routine part du prochain créneau (pas de rattrapage).
+            r.lastRun = Date()
+        } else if let current = routines.routines.first(where: { $0.id == r.id }) {
+            // Un passage a pu avoir lieu pendant que la fiche était ouverte : on garde
+            // sa trace, sinon la routine repasserait trop tôt.
+            r.lastRun = current.lastRun
+            r.lastSession = current.lastSession
+        }
         saving = true
         let err = await routines.save(r)
         saving = false
         if let err {
+            // `saved` ne change pas : « Enregistrer » reste actif pour réessayer.
             toast = Toast(text: "Enregistrée, mais GitHub a refusé : \(err)", error: true)
-            return
+            return false
         }
-        toast = Toast(text: "Routine enregistrée")
-        dismiss()
+        saved = r
+        return true
     }
 
     private func runNow() async {
         guard !launching else { return }
         launching = true
         defer { launching = false }
+        // Des modifications en cours : on les enregistre d'abord (le bouton le dit),
+        // sinon c'est l'ancienne version de la routine qui partirait.
+        if RoutinesDisplay.hasChanges(saved: saved, edited: r) {
+            guard await store() else { return }
+        }
         if let run = await routines.runNow(r.id) {
             started = run.id
         } else {
-            // La routine enregistrée est celle qui est lancée (pas les modifications en cours).
-            let notice = RoutinesDisplay.runNotice(routine ?? r, error: routines.errors[r.id])
+            let notice = RoutinesDisplay.runNotice(saved ?? r, error: routines.errors[r.id])
             toast = Toast(text: notice.text, error: notice.isError)
         }
     }
