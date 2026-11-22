@@ -110,4 +110,30 @@ public enum IssuesDisplay {
     public static func commentsHeader(_ n: Int) -> String {
         comments(n) ?? "Commentaires"
     }
+
+    // MARK: Nouvelle issue
+
+    /// Le titre tel qu'il est envoyé : sans espaces ni retours à la ligne autour.
+    public static func cleanTitle(_ title: String) -> String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// « Créer » n'est offert qu'avec un titre, et pas pendant l'envoi (un second toucher
+    /// créerait la même issue deux fois).
+    public static func canCreate(title: String, busy: Bool) -> Bool {
+        !busy && !cleanTitle(title).isEmpty
+    }
+
+    /// Le bouton de création : « Création… » pendant l'envoi.
+    public static func createLabel(busy: Bool) -> String {
+        busy ? "Création…" : "Créer"
+    }
+
+    /// Fermer la fenêtre ferait perdre une saisie : un titre ou une description déjà écrits.
+    public static func losesDraft(title: String, body: String) -> Bool {
+        !cleanTitle(title).isEmpty || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// La question posée avant d'abandonner une issue commencée.
+    public static let discardQuestion = "Abandonner cette issue ? Le texte saisi sera perdu."
 }

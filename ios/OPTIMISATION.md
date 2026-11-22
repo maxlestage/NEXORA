@@ -1756,8 +1756,18 @@ mémoire 32k tokens, consigne 3 000 car.
   fiche vide garde le retour normal et le balayage. Pertes sans avis : 1 → 0. Tests : 619 → 620.
   À vérifier sur appareil : le bouton de retour qui change à la première frappe.
 
+- 3.0.216 (interface, « Nouvelle issue », RepoLists traité pour la dernière fois en 3.0.65) :
+  passage TOKENS sans piste à plus de 2 %, donc interface. `NewIssueSheet` : « Créer » touché
+  deux fois créait deux issues (aucun état d'envoi) → `IssuesDisplay.canCreate` + « Création… »
+  (`createLabel`) ; une saisie commencée se perdait en balayant la fenêtre →
+  `interactiveDismissDisabled` tant que `losesDraft`, et « Annuler » demande (`discardQuestion`) ;
+  clavier sur le titre à l'ouverture ; titre envoyé sans espaces autour (`cleanTitle`).
+  Issues en double possibles : 1 → 0 ; pertes sans avis : 1 → 0. Tests : 620 → 621.
+  Vu sans y toucher : « Commenter » (IssueDetailView) garde le texte en cas d'échec (bien) ;
+  le balayage « Relancer » est offert sur toutes les exécutions, même réussies (voulu ?).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.215 : retour arrière de la fiche d'une routine) →
+(interface faite en 3.0.216 : fenêtre « Nouvelle issue ») →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

@@ -55,4 +55,17 @@ struct IssuesDisplayTests {
         #expect(IssuesDisplay.commentsHeader(0) == "Commentaires")
         #expect(IssuesDisplay.commentsHeader(2) == "2 commentaires")
     }
+
+    @Test func nouvelleIssueSansDoubleEnvoiNiSaisiePerdue() {
+        #expect(!IssuesDisplay.canCreate(title: "  \n ", busy: false))
+        #expect(IssuesDisplay.canCreate(title: " Bug ", busy: false))
+        #expect(!IssuesDisplay.canCreate(title: "Bug", busy: true))
+        #expect(IssuesDisplay.cleanTitle("  Bug d'affichage \n") == "Bug d'affichage")
+        #expect(IssuesDisplay.createLabel(busy: false) == "Créer")
+        #expect(IssuesDisplay.createLabel(busy: true) == "Création…")
+        #expect(!IssuesDisplay.losesDraft(title: " ", body: "\n"))
+        #expect(IssuesDisplay.losesDraft(title: "Bug", body: ""))
+        #expect(IssuesDisplay.losesDraft(title: "", body: "Étapes"))
+        #expect(IssuesDisplay.discardQuestion.hasSuffix("."))
+    }
 }
