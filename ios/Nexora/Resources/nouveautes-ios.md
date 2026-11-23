@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.231 — 23 novembre 2026 — Fiche d'agent mieux rangée
+
+- Amélioré : en enregistrant un agent, les espaces en trop autour du nom, de la description et de la consigne sont retirés.
+- Corrigé : une catégorie tapée « revue » ou « Revue  » rejoint la catégorie « Revue » existante au lieu de créer un second groupe dans la liste des agents.
+- Amélioré : une catégorie laissée vide range l'agent dans « Perso ».
+
 ## 3.0.230 — 23 novembre 2026 — Renommer une conversation plus simplement
 
 - Amélioré : en renommant une conversation, OK reste grisé tant que le titre est vide ou inchangé (avant, l'appui ne faisait rien, sans explication).
