@@ -1884,7 +1884,11 @@ MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench),
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
+Passage du 23/11 (après 3.0.231) : rien à faire. Toutes les saisies de l'app relues et déjà
+contrôlées (import d'agent par adresse, nouvelle issue, serveur perso, Client ID OAuth, nouveau
+dépôt, skills, routines) : ne plus les rechercher. Pistes restantes : VoiceOver/Dynamic Type
+d'un écran entier (SessionView, ProvidersView), états vides.
+Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire),
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
