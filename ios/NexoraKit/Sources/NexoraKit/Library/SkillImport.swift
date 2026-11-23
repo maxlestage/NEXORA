@@ -42,6 +42,14 @@ public enum SkillImport {
         return parts.joined(separator: "/")
     }
 
+    /// Message à afficher sous le champ « Lien GitHub » : nil tant que le champ est vide
+    /// ou que le lien est reconnu (le bouton Installer n'est actif que dans ce cas).
+    public static func linkProblem(_ input: String) -> String? {
+        if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
+        if spec(from: input) != nil { return nil }
+        return "Lien non reconnu : collez propriétaire/dépôt ou un lien github.com."
+    }
+
     /// Les skills d'un dépôt lu, à installer.
     public static func skills(in scan: RepoScan) -> [LibraryItem] {
         scan.of(.skill).sorted { $0.path < $1.path }

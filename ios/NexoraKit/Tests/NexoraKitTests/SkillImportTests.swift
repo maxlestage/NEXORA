@@ -16,6 +16,16 @@ struct SkillImportTests {
         #expect(SkillImport.spec(from: "") == nil)
     }
 
+    @Test("lien non reconnu signalé sous le champ")
+    func linkProblem() {
+        #expect(SkillImport.linkProblem("") == nil)
+        #expect(SkillImport.linkProblem("  \n") == nil)
+        #expect(SkillImport.linkProblem("anthropics/skills") == nil)
+        #expect(SkillImport.linkProblem("https://github.com/anthropics/skills") == nil)
+        #expect(SkillImport.linkProblem("pas un lien")?.contains("propriétaire/dépôt") == true)
+        #expect(SkillImport.linkProblem("anthropics") != nil)
+    }
+
     @Test("une skill installée redevient un élément à mettre à jour")
     func updateItem() throws {
         let sk = Skill(id: "s", name: "pdf", description: "", body: "x", owner: "anthropics", repo: "skills", ref: "main", dir: "skills/pdf", files: ["a.py"])
