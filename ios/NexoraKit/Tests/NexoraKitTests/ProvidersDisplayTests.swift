@@ -168,6 +168,8 @@ struct ProviderDetailDisplayTests {
         #expect(D.serverAddressHint("ftp://x")?.hasPrefix("Adresse invalide") == true)
         #expect(D.serverName("  Mon Mac ", address: "http://10.0.0.2:8080") == "Mon Mac")
         #expect(D.serverName(" ", address: "http://10.0.0.2:8080") == "10.0.0.2")
+        // Nom effacé dans la fiche d'un serveur perso : jamais de fournisseur sans nom.
+        #expect(D.serverName("", address: "") == "Serveur perso")
     }
 
     @Test func adresseModifieeDansLaFiche() {
