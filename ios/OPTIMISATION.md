@@ -1941,9 +1941,16 @@ mémoire 32k tokens, consigne 3 000 car.
   (l'import le cachait) ; pitfalls lit aussi src/lib.rs. Fonction vraiment dans lib.rs ou
   importée d'une autre dépendance : rien. Avant : test qui ne compile pas, tours de
   réparation renvoyant tout l'historique. Tests : 649 → 651.
+- 3.0.242 (parité, agent ; passage INTERFACE : rien d'urgent, cf. ci-dessous) : port de
+  Flutter 2.2.80 — `dartLints` dans `tidyCode` (TidyCode.swift) : « ${nom} » → « $nom » dans
+  les textes Dart non bruts écrits par l'agent (pas si suivi de lettre, chiffre, « _ », « $ »),
+  « /// » de tête rattaché à rien → « // » (sauf `library` ou tête identique à l'origine) ;
+  lignes du fichier d'origine intactes. Les « \" » inutiles (tests 134-189 de
+  tidy_code_test.dart) viennent d'une version plus récente : à porter avec elle. Avant : CI
+  rouge sur flutter analyze, tour de réparation renvoyant tout l'historique. Tests : 651 → 658.
 
-## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.79 à 2.2.111 non portées (corrections de l'agent, souvent
+## Prochain passage : TOKENS (ou parité)
+Parité Flutter en retard : 2.2.81 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
