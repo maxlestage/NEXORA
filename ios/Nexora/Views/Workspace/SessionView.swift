@@ -601,6 +601,20 @@ struct ToolCard: View {
         .contentShape(.rect(cornerRadius: 12))
         .onTapGesture { if !out.isEmpty { open.toggle() } }
         .onLongPressGesture { if !out.isEmpty { full = FullTextItem(title: "\(verb) \(target)", text: out) } }
+        // VoiceOver : une seule phrase (action, cible, état), un bouton qui déplie, et
+        // « Tout lire » dans les actions (l'appui long n'y est pas accessible).
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WorkspaceText.toolAccessibility(
+            tool: tool.tool, target: target, pending: pending, failed: failed, done: result != nil
+        ))
+        // Le résultat visible (déplié, ou l'erreur) reste lu, comme à l'écran.
+        .accessibilityValue(open || failed ? String(out.prefix(600)) : "")
+        .accessibilityHint(WorkspaceText.toolHint(hasResult: !out.isEmpty, open: open))
+        .accessibilityAddTraits(out.isEmpty ? [] : .isButton)
+        .accessibilityAction { if !out.isEmpty { open.toggle() } }
+        .accessibilityAction(named: "Tout lire") {
+            if !out.isEmpty { full = FullTextItem(title: "\(verb) \(target)", text: out) }
+        }
         .padding(.vertical, 1)
     }
 }
