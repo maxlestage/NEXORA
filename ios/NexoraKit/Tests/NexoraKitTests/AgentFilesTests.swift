@@ -191,10 +191,13 @@ struct AgentFilesTests {
 
     """
 
-    func search(_ query: String, _ files: [String: String], task: String = "Trouve les pages", path: String? = nil) async throws -> String {
+    func search(
+        _ query: String, _ files: [String: String], task: String = "Trouve les pages", path: String? = nil,
+        before: [[String: Any]] = []
+    ) async throws -> String {
         var args: [String: Any] = ["query": query]
         if let path { args["path"] = path }
-        let llm = ScriptLLM([
+        let llm = ScriptLLM(before.map { act($0) } + [
             act(["tool": "search_code", "args": args]),
             act(["tool": "finish", "args": ["summary": "Cherché"]]),
         ])
@@ -293,5 +296,83 @@ struct AgentFilesTests {
         #expect(!inDir.contains("mot plus court"))
         let word = try await search("octets", files, task: task)
         #expect(word.contains("mot plus court"))
+    }
+
+    static let depMainRs = """
+        use paquets::prelude::*;
+
+        async fn sitemap(_req: Request) -> Response {
+            Response::new()
+                .header("content-type", "application/xml; charset=utf-8")
+                .body(String::new())
+        }
+
+        async fn robots(_req: Request) -> String {
+            "User-agent: *".into()
+        }
+
+        fn app() -> App {
+            let mut app = App::new();
+            app.get("/sitemap.xml", sitemap);
+            app.get("/robots.txt", robots);
+            app
+        }
+
+        """
+
+    @Test("le nom dont on cherche la définition")
+    func definedName() {
+        #expect(AgentRun.definedName("pub struct Response") == "Response")
+        #expect(AgentRun.definedName("struct Response") == "Response")
+        #expect(AgentRun.definedName("pub(crate) enum Mode {") == "Mode")
+        #expect(AgentRun.definedName("pub async fn sante(") == "sante")
+        #expect(AgentRun.definedName("trait Handler") == "Handler")
+        #expect(AgentRun.definedName("abstract class Store") == "Store")
+        #expect(AgentRun.definedName("class Foo<T>") == nil)
+        #expect(AgentRun.definedName("Response") == nil)
+        #expect(AgentRun.definedName("async fn .* -> String") == nil)
+        #expect(AgentRun.definedName("fn app() -> App") == nil)
+        #expect(AgentRun.definedName("the struct is here") == nil)
+    }
+
+    @Test("essai réel : un type venu d'une dépendance n'est plus cherché en boucle, l'usage est montré")
+    func dependencyType() async throws {
+        let task = "Dans site/, ajoute une route /sante qui répond ok en texte brut"
+        let r = try await search("pub struct Response", [
+            "site/src/main.rs": Self.depMainRs, "site/Cargo.toml": "[dependencies]\npaquets = \"1\"\n",
+        ], task: task)
+        #expect(r.contains("« Response » vient d'une dépendance"))
+        #expect(r.contains("Ne la cherche plus"))
+        #expect(r.contains(">4:     Response::new()"))
+        #expect(r.contains(".header(\"content-type\""))
+        #expect(!r.contains("Essaie un mot plus court"))
+        let inDir = try await search("struct Response", ["site/src/main.rs": Self.depMainRs], task: task, path: "site/src")
+        #expect(inDir.contains("« Response » vient d'une dépendance"))
+        // Un nom inconnu partout : réponse habituelle ; une définition présente : trouvée.
+        let unknown = try await search("fn sante", ["site/src/main.rs": Self.depMainRs], task: task)
+        #expect(unknown.contains("Aucune ligne ne contient « fn sante »"))
+        #expect(!unknown.contains("dépendance"))
+        let found = try await search("async fn robots", ["site/src/main.rs": Self.depMainRs], task: task)
+        #expect(found.contains("1 ligne(s) contiennent « async fn robots »"))
+    }
+
+    @Test("un nom que seul un brouillon utilise est à créer")
+    func draftedName() async throws {
+        let r = try await search(
+            "async fn sante", ["site/src/main.rs": Self.depMainRs],
+            task: "Dans site/, ajoute une route /sante qui répond ok en texte brut",
+            before: [[
+                "tool": "edit_file",
+                "args": [
+                    "path": "site/src/main.rs",
+                    "old": "    app.get(\"/robots.txt\", robots);\n",
+                    "new": "    app.get(\"/robots.txt\", robots);\n    app.get(\"/sante\", sante);\n",
+                ],
+            ]]
+        )
+        #expect(r.contains("« sante » n'est défini nulle part"))
+        #expect(r.contains("app.get(\"/sante\", sante);"))
+        #expect(r.contains("crée sa définition maintenant"))
+        #expect(!r.contains("vient d'une dépendance"))
     }
 }
