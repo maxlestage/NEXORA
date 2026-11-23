@@ -104,6 +104,10 @@ struct ChatListTests {
         #expect(ChatDisplay.deletedToast(title: "  ") == "Conversation supprimée")
         let long = ChatDisplay.deletedToast(title: String(repeating: "a", count: 40))
         #expect(long == "« " + String(repeating: "a", count: 27) + "… » supprimée")
+        #expect(ChatDisplay.renamed("  Vacances\n  été ", current: "Ancien") == "Vacances été")
+        #expect(ChatDisplay.renamed("   ", current: "Ancien") == nil)
+        #expect(ChatDisplay.renamed(" Ancien ", current: "Ancien") == nil)
+        #expect(ChatDisplay.renamed(String(repeating: "b", count: 120), current: "")?.count == ChatDisplay.titleLimit)
         let metas = ["a", "b", "c"].map {
             ConversationStore.Meta(id: $0, title: $0, updated: now)
         }

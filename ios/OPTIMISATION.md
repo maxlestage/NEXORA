@@ -1865,8 +1865,14 @@ mémoire 32k tokens, consigne 3 000 car.
   message rouge sous le champ), Installer grisé tant que `SkillImport.spec(from:)` est nil (avant :
   actif dès un caractère, erreur seulement après l'appui), libellé VoiceOver. Tests : 631 → 632.
 
+- 3.0.230 (interface ; passage TOKENS sauté : pistes sûres épuisées, aucune > 2 %) : alerte
+  « Renommer » (liste des conversations et chat) — `ChatDisplay.renamed(_:current:)` (espaces et
+  retours à la ligne réduits, 80 car. au plus, nil si vide ou inchangé) : OK grisé au lieu d'un
+  appui sans effet, avis « Conversation renommée », libellé VoiceOver ; logique dédoublonnée
+  entre les deux vues. Appui OK sans effet ni retour : oui → non. Tests : 632 (4 attentes).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.229 : lien des skills ; 3.0.228 : modèle d'aider) →
+(interface faite en 3.0.230 : renommer une conversation ; 3.0.229 : lien des skills) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

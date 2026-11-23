@@ -162,11 +162,15 @@ struct ConversationsView: View {
             }
             .alert("Renommer", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
                 TextField("Titre", text: $newTitle)
+                    .accessibilityLabel("Nouveau titre de la conversation")
                 Button("Annuler", role: .cancel) {}
                 Button("OK") {
-                    let t = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let r = renaming, !t.isEmpty { chats.rename(r.id, t) }
+                    if let r = renaming, let t = ChatDisplay.renamed(newTitle, current: r.title) {
+                        chats.rename(r.id, t)
+                        toast = Toast(text: "Conversation renommée")
+                    }
                 }
+                .disabled(ChatDisplay.renamed(newTitle, current: renaming?.title ?? "") == nil)
             }
             // Au-dessus du bouton « Nouveau chat » flottant : l'avis ne le cache pas.
             .toast($toast, bottom: 84)
