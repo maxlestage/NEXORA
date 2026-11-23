@@ -76,7 +76,7 @@ struct SessionView: View {
                             ToolCard(tool: s, result: result, pending: run.running && result == nil, full: $full)
                         case let .ci(s, _):
                             NoteCard(
-                                symbol: "flask", color: Theme.violet,
+                                symbol: "flask", color: Theme.violet, kind: "CI",
                                 text: WorkspaceText.plain(s.text.replacingOccurrences(of: "🧪 ", with: "")), full: $full
                             )
                         case let .step(s, _):
@@ -509,11 +509,14 @@ struct StepTile: View {
                 }
             }
             .onLongPressGesture { full = FullTextItem(title: "Ce que l'agent a compris", text: text) }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(WorkspaceText.noteAccessibility("Ce que l'agent a compris", text))
+            .accessibilityAction(named: "Tout lire") { full = FullTextItem(title: "Ce que l'agent a compris", text: text) }
             .padding(.vertical, 2)
         case .thought:
             ThoughtRow(text: text, full: $full)
         case .error:
-            NoteCard(symbol: "exclamationmark.circle", color: Theme.red, text: WorkspaceText.plain(text), full: $full)
+            NoteCard(symbol: "exclamationmark.circle", color: Theme.red, kind: "Erreur", text: WorkspaceText.plain(text), full: $full)
         case .user:
             // Votre message : une bulle à droite.
             HStack {
@@ -525,10 +528,12 @@ struct StepTile: View {
                     .padding(.vertical, 10)
                     .background(Color.accentColor.opacity(0.16), in: .rect(cornerRadius: 16))
                     .onLongPressGesture { full = FullTextItem(title: "Votre message", text: text) }
+                    .accessibilityLabel(WorkspaceText.noteAccessibility("Votre message", text))
+                    .accessibilityAction(named: "Tout lire") { full = FullTextItem(title: "Votre message", text: text) }
             }
             .padding(.vertical, 2)
         case .result:
-            NoteCard(symbol: "arrow.turn.down.right", color: .gray, text: text, full: $full)
+            NoteCard(symbol: "arrow.turn.down.right", color: .gray, kind: "Résultat", text: text, full: $full)
         case .done, .tool:
             // Fin : le résumé, bien lisible.
             VStack(alignment: .leading, spacing: 6) {
@@ -543,6 +548,9 @@ struct StepTile: View {
             .background(Theme.green.opacity(0.10), in: .rect(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.green.opacity(0.4)))
             .onLongPressGesture { full = FullTextItem(title: "Résumé", text: text) }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(WorkspaceText.noteAccessibility("Terminé", WorkspaceText.plain(text)))
+            .accessibilityAction(named: "Tout lire") { full = FullTextItem(title: "Résumé", text: text) }
             .padding(.vertical, 2)
         }
     }
@@ -623,6 +631,8 @@ struct ToolCard: View {
 struct NoteCard: View {
     let symbol: String
     let color: Color
+    /// Le genre de note, lu par VoiceOver en tête (« Erreur », « CI »…).
+    let kind: String
     let text: String
     @Binding var full: FullTextItem?
 
@@ -639,6 +649,11 @@ struct NoteCard: View {
         .background(color.opacity(0.10), in: .rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(color.opacity(0.35)))
         .onLongPressGesture { full = FullTextItem(title: "Détail", text: text) }
+        // VoiceOver : « Erreur : … » en un élément (avant : l'icône lue à part), et
+        // « Tout lire » dans les actions (l'appui long n'y est pas accessible).
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WorkspaceText.noteAccessibility(kind, text))
+        .accessibilityAction(named: "Tout lire") { full = FullTextItem(title: "Détail", text: text) }
         .padding(.vertical, 2)
     }
 }
@@ -661,6 +676,9 @@ struct ThoughtRow: View {
         .contentShape(.rect)
         .onTapGesture { open.toggle() }
         .onLongPressGesture { full = FullTextItem(title: "Réflexion", text: text) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WorkspaceText.noteAccessibility("Réflexion", WorkspaceText.plain(text)))
+        .accessibilityAction(named: "Tout lire") { full = FullTextItem(title: "Réflexion", text: text) }
         .padding(.vertical, 2)
     }
 }

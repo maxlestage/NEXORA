@@ -888,4 +888,11 @@ struct DraftsTests {
         #expect(WorkspaceText.toolHint(hasResult: true, open: false).contains("afficher"))
         #expect(WorkspaceText.toolHint(hasResult: true, open: true).contains("replier"))
     }
+
+    @Test("Notes du journal : genre puis texte sur une ligne, coupé pour VoiceOver")
+    func noteAccessibility() {
+        #expect(WorkspaceText.noteAccessibility("Erreur", "Fichier\n\n  introuvable ") == "Erreur : Fichier introuvable")
+        #expect(WorkspaceText.noteAccessibility("Réflexion", " \n ") == "Réflexion")
+        #expect(WorkspaceText.noteAccessibility("CI", String(repeating: "a", count: 20), limit: 10) == "CI : aaaaaaaaa…")
+    }
 }

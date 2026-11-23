@@ -68,6 +68,20 @@ public enum WorkspaceText {
         return open ? "Touchez deux fois pour replier le résultat." : "Touchez deux fois pour afficher le résultat."
     }
 
+    /// Ce que VoiceOver lit pour une note du journal (erreur, CI, réflexion, résumé…) :
+    /// « Erreur : le fichier n'existe pas ». Avant : l'icône lue à part, sans dire de quoi il
+    /// s'agissait. Le texte est mis sur une ligne et coupé à `limit` caractères (« Tout lire »
+    /// donne le reste).
+    public static func noteAccessibility(_ kind: String, _ text: String, limit: Int = 600) -> String {
+        let flat = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        guard !flat.isEmpty else { return kind }
+        let body = flat.count > limit ? String(flat.prefix(max(limit - 1, 0))) + "…" : flat
+        return "\(kind) : \(body)"
+    }
+
     /// Ce que l'agent fait en ce moment, sous le journal pendant le travail : « Lit
     /// App.swift… » quand une action attend son résultat, sinon « Réfléchit… » (il attend
     /// la réponse du modèle). Avant : une roue seule, muette pour VoiceOver.

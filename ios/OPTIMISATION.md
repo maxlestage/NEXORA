@@ -1883,15 +1883,21 @@ mémoire 32k tokens, consigne 3 000 car.
   (icône, verbe, cible, coche « checkmark »), trait bouton, résultat déplié lu en valeur,
   action « Tout lire » (l'appui long n'était pas accessible). Tests : 633 → 634.
 
+- 3.0.233 (interface ; passage TOKENS sauté : pistes sûres épuisées) : session de l'agent ›
+  VoiceOver du reste du journal — `WorkspaceText.noteAccessibility(_:_:limit:)` (« Erreur : … »,
+  texte sur une ligne, coupé à 600 car.) pour `ThoughtRow`, `NoteCard` (nouveau champ `kind` :
+  Erreur, Résultat, CI), objectif, message de l'utilisateur et résumé « Terminé » ; un élément
+  au lieu de l'icône lue à part, action « Tout lire » partout (appui long seul avant).
+  Tests : 634 → 635.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.232 : cartes d'action de la session) → prochain passage : TOKENS,
+(interface faite en 3.0.233 : journal de la session entier pour VoiceOver) → prochain passage : TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`. Saisies de l'app toutes déjà
 contrôlées : ne plus les rechercher.
-Interface ensuite : VoiceOver du reste de SessionView (`ThoughtRow`, `NoteCard`, carte de
-résumé : appui long seul, sans action « Tout lire »), puis ProvidersView (déjà bien
+Interface ensuite : SessionView fini pour VoiceOver (3.0.233) ; puis ProvidersView (déjà bien
 étiqueté, vu en 3.0.232 : rien d'urgent), états vides. Accueil (HomeShell vu en 3.0.221 :
 rien à faire), aide (thème « Agents » : 6 questions). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
