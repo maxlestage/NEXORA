@@ -111,11 +111,15 @@ struct ChatView: View {
         }
         .alert("Renommer", isPresented: $renaming) {
             TextField("Titre", text: $newTitle)
+                .accessibilityLabel("Nouveau titre de la conversation")
             Button("Annuler", role: .cancel) {}
             Button("OK") {
-                let t = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !t.isEmpty { chats.rename(conversationId, t) }
+                if let t = ChatDisplay.renamed(newTitle, current: conversation?.title ?? "") {
+                    chats.rename(conversationId, t)
+                    toast = Toast(text: "Conversation renommée")
+                }
             }
+            .disabled(ChatDisplay.renamed(newTitle, current: conversation?.title ?? "") == nil)
         }
         .sheet(isPresented: $pickingFile) {
             RepoFilePickerSheet { f in

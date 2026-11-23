@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.230 — 23 novembre 2026 — Renommer une conversation plus simplement
+
+- Amélioré : en renommant une conversation, OK reste grisé tant que le titre est vide ou inchangé (avant, l'appui ne faisait rien, sans explication).
+- Amélioré : un avis « Conversation renommée » confirme le changement ; les retours à la ligne et espaces en trop collés dans le titre sont retirés.
+
 ## 3.0.229 — 23 novembre 2026 — Lien des skills vérifié
 - Amélioré : dans Agents, le champ « Lien GitHub » des skills signale en rouge un lien non reconnu, avant tout envoi.
 - Amélioré : le bouton Installer ne s'active que pour un lien valide (propriétaire/dépôt ou lien github.com).

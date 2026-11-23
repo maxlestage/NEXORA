@@ -147,6 +147,20 @@ public enum ChatDisplay {
         return "« \(short) » supprimée"
     }
 
+    /// Le titre à enregistrer quand on renomme une conversation : espaces et retours à la
+    /// ligne réduits à un seul espace, coupé à `titleLimit` caractères ; nil si vide ou
+    /// identique à l'actuel (le bouton OK de l'alerte reste alors grisé).
+    public static func renamed(_ text: String, current: String) -> String? {
+        let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+        var t = words.joined(separator: " ")
+        if t.count > titleLimit { t = String(t.prefix(titleLimit)).trimmingCharacters(in: .whitespaces) }
+        if t.isEmpty || t == current.trimmingCharacters(in: .whitespacesAndNewlines) { return nil }
+        return t
+    }
+
+    /// Longueur maximale d'un titre de conversation (il tient sur deux lignes de la liste).
+    public static let titleLimit = 80
+
     /// La liste sans les conversations en attente de suppression (cachées tout de
     /// suite, effacées après `undoSeconds`).
     public static func hiding(_ list: [ConversationStore.Meta], _ ids: Set<String>) -> [ConversationStore.Meta] {
