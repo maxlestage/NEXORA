@@ -1871,8 +1871,14 @@ mémoire 32k tokens, consigne 3 000 car.
   appui sans effet, avis « Conversation renommée », libellé VoiceOver ; logique dédoublonnée
   entre les deux vues. Appui OK sans effet ni retour : oui → non. Tests : 632 (4 attentes).
 
+- 3.0.231 (interface ; passage TOKENS sauté : pistes sûres épuisées, aucune > 2 %) : fiche
+  d'agent › Enregistrer — `AgentEditorDisplay.tidied(_:categories:)` (nom sur une ligne, textes
+  sans espaces autour, émoji par défaut, catégorie vide → « Perso », catégorie existante reprise
+  sans tenir compte de la casse). Groupe en double pour « revue » / « Revue  » : oui → non.
+  Tests : 632 → 633.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.230 : renommer une conversation ; 3.0.229 : lien des skills) →
+(interface faite en 3.0.231 : fiche d'agent ; 3.0.230 : renommer une conversation) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
