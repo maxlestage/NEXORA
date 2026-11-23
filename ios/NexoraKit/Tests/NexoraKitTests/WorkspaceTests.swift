@@ -878,4 +878,14 @@ struct DraftsTests {
         #expect(WorkspaceText.composerButton(busy: true, text: "", photos: 1) == .send)
         #expect(WorkspaceText.composerButton(busy: false, text: "suite", photos: 0) == .send)
     }
+
+    @Test("carte d'action : une seule phrase pour VoiceOver, avec l'état")
+    func toolAccessibility() {
+        #expect(WorkspaceText.toolAccessibility(tool: "read_file", target: "Sources/App.swift\nlignes 1-40", pending: false, failed: false, done: true) == "Lit Sources/App.swift, réussi")
+        #expect(WorkspaceText.toolAccessibility(tool: "edit_file", target: "a.swift", pending: true, failed: false, done: false) == "Modifie a.swift, en cours")
+        #expect(WorkspaceText.toolAccessibility(tool: "ci", target: "  ", pending: false, failed: true, done: true) == "CI, échec")
+        #expect(WorkspaceText.toolHint(hasResult: false, open: false).isEmpty)
+        #expect(WorkspaceText.toolHint(hasResult: true, open: false).contains("afficher"))
+        #expect(WorkspaceText.toolHint(hasResult: true, open: true).contains("replier"))
+    }
 }

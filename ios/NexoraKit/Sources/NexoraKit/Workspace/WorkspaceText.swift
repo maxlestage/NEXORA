@@ -50,6 +50,24 @@ public enum WorkspaceText {
         }
     }
 
+    /// Ce que VoiceOver lit pour une carte d'action de l'agent : « Lit App.swift, réussi ».
+    /// Avant : l'icône, le verbe, la cible et une coche lus un par un, sans dire qu'on
+    /// pouvait toucher la carte. Seule la première ligne de la cible compte (le chemin).
+    public static func toolAccessibility(tool: String?, target: String, pending: Bool, failed: Bool, done: Bool) -> String {
+        let line = target.split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        var parts = [line.isEmpty ? toolVerb(tool) : "\(toolVerb(tool)) \(line)"]
+        if pending { parts.append("en cours") }
+        else if failed { parts.append("échec") }
+        else if done { parts.append("réussi") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// L'indice VoiceOver d'une carte d'action : vide s'il n'y a rien à déplier.
+    public static func toolHint(hasResult: Bool, open: Bool) -> String {
+        guard hasResult else { return "" }
+        return open ? "Touchez deux fois pour replier le résultat." : "Touchez deux fois pour afficher le résultat."
+    }
+
     /// Ce que l'agent fait en ce moment, sous le journal pendant le travail : « Lit
     /// App.swift… » quand une action attend son résultat, sinon « Réfléchit… » (il attend
     /// la réponse du modèle). Avant : une roue seule, muette pour VoiceOver.

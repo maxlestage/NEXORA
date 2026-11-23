@@ -1877,19 +1877,23 @@ mémoire 32k tokens, consigne 3 000 car.
   sans tenir compte de la casse). Groupe en double pour « revue » / « Revue  » : oui → non.
   Tests : 632 → 633.
 
+- 3.0.232 (interface ; passage TOKENS sauté : pistes sûres épuisées) : session de l'agent ›
+  cartes d'action (`ToolCard`) pour VoiceOver — `WorkspaceText.toolAccessibility` (« Lit
+  App.swift, réussi » / « en cours » / « échec ») et `toolHint` ; un seul élément au lieu de 4
+  (icône, verbe, cible, coche « checkmark »), trait bouton, résultat déplié lu en valeur,
+  action « Tout lire » (l'appui long n'était pas accessible). Tests : 633 → 634.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.231 : fiche d'agent ; 3.0.230 : renommer une conversation) →
-prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
-MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
-à l'interface sans rien forcer.
+(interface faite en 3.0.232 : cartes d'action de la session) → prochain passage : TOKENS,
+mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
+d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
-github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Passage du 23/11 (après 3.0.231) : rien à faire. Toutes les saisies de l'app relues et déjà
-contrôlées (import d'agent par adresse, nouvelle issue, serveur perso, Client ID OAuth, nouveau
-dépôt, skills, routines) : ne plus les rechercher. Pistes restantes : VoiceOver/Dynamic Type
-d'un écran entier (SessionView, ProvidersView), états vides.
-Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire),
-aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
+github, pitfalls, `max_tokens`, images, titres ni `jobLog`. Saisies de l'app toutes déjà
+contrôlées : ne plus les rechercher.
+Interface ensuite : VoiceOver du reste de SessionView (`ThoughtRow`, `NoteCard`, carte de
+résumé : appui long seul, sans action « Tout lire »), puis ProvidersView (déjà bien
+étiqueté, vu en 3.0.232 : rien d'urgent), états vides. Accueil (HomeShell vu en 3.0.221 :
+rien à faire), aide (thème « Agents » : 6 questions). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
 Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers

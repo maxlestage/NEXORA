@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.232 — 23 novembre 2026 — Session de l'agent lisible avec VoiceOver
+
+- Amélioré : chaque action de l'agent est lue en une phrase (« Lit App.swift, réussi ») au lieu de quatre morceaux.
+- Amélioré : VoiceOver annonce qu'on peut déplier le résultat d'un double toucher, et le lit une fois déplié.
+- Nouveau : l'action « Tout lire » ouvre le résultat complet sans appui long.
+
 ## 3.0.231 — 23 novembre 2026 — Fiche d'agent mieux rangée
 
 - Amélioré : en enregistrant un agent, les espaces en trop autour du nom, de la description et de la consigne sont retirés.
