@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.226 — 23 novembre 2026 — Émoji d'agent simple à changer
+
+- Amélioré : dans la fiche d'un agent, taper un émoji remplace directement l'ancien, sans devoir l'effacer d'abord.
+- Corrigé : le champ émoji n'accepte plus de texte (« abc ») ni plusieurs émojis, qui déformaient l'avatar de l'agent.
+- Accessibilité : le champ émoji est annoncé par VoiceOver et sa zone touchable fait 44 pt.
+
 ## 3.0.225 — 23 novembre 2026 — Modèle ajouté par son id vérifié
 - Amélioré : dans la fiche d'un fournisseur, « Ajouter un modèle par son id » refuse un id avec un espace ou déjà présent, et le dit en rouge sous le champ.
 - Amélioré : la touche Terminé du clavier ajoute le modèle, et un message confirme l'ajout.

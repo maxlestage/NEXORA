@@ -708,8 +708,15 @@ struct AgentEditorView: View {
                 Section("Identité") {
                     HStack {
                         TextField("🤖", text: $agent.emoji)
-                            .frame(width: 44)
+                            .frame(width: 44, height: 44)
                             .multilineTextAlignment(.center)
+                            .accessibilityLabel("Émoji de l'agent")
+                            .accessibilityHint("Tapez un émoji pour remplacer l'actuel")
+                            // Un seul émoji : le dernier tapé remplace l'ancien, le texte est refusé.
+                            .onChange(of: agent.emoji) { old, new in
+                                let clean = AgentEditorDisplay.emoji(new, previous: old)
+                                if clean != new { agent.emoji = clean }
+                            }
                         TextField("Nom", text: $agent.name)
                     }
                     TextField("Description courte", text: $agent.description, axis: .vertical)

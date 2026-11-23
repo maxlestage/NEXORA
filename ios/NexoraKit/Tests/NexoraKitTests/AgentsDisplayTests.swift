@@ -49,6 +49,22 @@ struct AgentsDisplayTests {
 
 @Suite("Fiche d'un agent")
 struct AgentEditorDisplayTests {
+    @Test func emojiUnSeulEtVraiment() {
+        // Un nouvel émoji tapé derrière l'ancien le remplace.
+        #expect(AgentEditorDisplay.emoji("🤖🦊", previous: "🤖") == "🦊")
+        #expect(AgentEditorDisplay.emoji("🧑‍💻", previous: "🤖") == "🧑‍💻")
+        #expect(AgentEditorDisplay.emoji("🇫🇷", previous: "🤖") == "🇫🇷")
+        #expect(AgentEditorDisplay.emoji("❤️", previous: "🤖") == "❤️")
+        #expect(AgentEditorDisplay.emoji("1️⃣", previous: "🤖") == "1️⃣")
+        // Du texte sans émoji est refusé ; mêlé à un émoji, seul l'émoji reste.
+        #expect(AgentEditorDisplay.emoji("🤖abc", previous: "🤖") == "🤖")
+        #expect(AgentEditorDisplay.emoji("1", previous: "🦊") == "🦊")
+        #expect(AgentEditorDisplay.emoji("Robot", previous: "🦊") == "🦊")
+        #expect(AgentEditorDisplay.emoji("a🐙b", previous: "🦊") == "🐙")
+        // Vider le champ reste possible (🤖 à l'enregistrement).
+        #expect(AgentEditorDisplay.emoji("", previous: "🦊") == "")
+    }
+
     @Test func outilsLisiblesEtResumes() {
         let all = AgentEditorDisplay.choosableTools(agentToolList.map(\.name))
         #expect(!all.contains("finish"))
