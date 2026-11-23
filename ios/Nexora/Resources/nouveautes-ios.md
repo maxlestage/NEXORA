@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.243 — 23 novembre 2026 — L'agent écrit des lignes que dart format accepte
+- Corrigé : en essai réel, l'agent écrivait une ligne Dart de 86 caractères ; la CI qui vérifie « dart format » échouait en disant seulement « Changed lib/models/chat.dart ».
+- Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture, avec chaque ligne trop longue et la façon de la couper.
+- La largeur du projet (page_width de analysis_options.yaml) est respectée ; imports, commentaires, textes et lignes déjà présentes ne sont pas signalés. Une seule alerte par fichier.
+
 ## 3.0.242 — 23 novembre 2026 — Le Dart de l'agent passe l'analyseur
 - Corrigé : l'agent écrivait '${hours} h' au lieu de '$hours h' et ouvrait parfois un fichier Dart par un commentaire de documentation rattaché à rien. « flutter analyze » refusait les deux et la CI échouait.
 - Ces deux écritures sont corrigées dès le brouillon : moins de tours de réparation, donc moins de tokens.

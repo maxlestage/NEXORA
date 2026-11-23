@@ -1948,12 +1948,20 @@ mémoire 32k tokens, consigne 3 000 car.
   lignes du fichier d'origine intactes. Les « \" » inutiles (tests 134-189 de
   tidy_code_test.dart) viennent d'une version plus récente : à porter avec elle. Avant : CI
   rouge sur flutter analyze, tour de réparation renvoyant tout l'historique. Tests : 651 → 658.
+- 3.0.243 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.81 —
+  `dartFormatHint(…, before:, width:)` + `formatPitfalls` (AgentRun+Checks.swift) : quand un
+  workflow du dépôt passe `dart format … --set-exit-if-changed`, write_file/edit_file d'un .dart
+  aux lignes de code plus longues que page_width (analysis_options.yaml le plus proche, sinon
+  80) → alerte avec 5 lignes au plus et la façon de couper, une fois par fichier. Imports,
+  commentaires, textes, `// dart format off`, lignes d'origine : rien. Avant : CI rouge
+  « Changed lib/x.dart » sans détail, tours de réparation renvoyant tout l'historique.
+  L'alerte d'indentation (`dartIndentHint`) vient d'une version ultérieure. Tests : 658 → 663.
 
-## Prochain passage : TOKENS (ou parité)
-Parité Flutter en retard : 2.2.81 à 2.2.111 non portées (corrections de l'agent, souvent
+## Prochain passage : INTERFACE (ou parité)
+Parité Flutter en retard : 2.2.82 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.244) : INTERFACE, puis TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
