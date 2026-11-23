@@ -937,7 +937,7 @@ extension AgentRun {
             guard let text else {
                 // Fichier nouveau : old vide le crée.
                 if oldText.isEmpty && !changes.contains(p) {
-                    changes.set(p, newText.endsWith("\n") ? newText : newText + "\n")
+                    changes.set(p, tidyCode(p, newText.endsWith("\n") ? newText : newText + "\n"))
                     notifyChanged()
                     return "OK, \(p) créé en brouillon.\(try await pitfalls(p))"
                 }
@@ -962,7 +962,7 @@ extension AgentRun {
                 near: asInt(call.args["line"]) ?? asInt(call.args["near"])
             )
             guard let result = edited.0 else { return "ERREUR : \(edited.1)" }
-            changes.set(p, result)
+            changes.set(p, tidyCode(p, result, before: orig(p) ?? text))
             notifyChanged()
             return "OK, \(p) modifié en brouillon (\(edited.1)). Le reste du fichier "
                 + "est inchangé.\(try await pitfalls(p))"
@@ -1028,7 +1028,7 @@ extension AgentRun {
                     + "edit_file pour ne changer qu'un passage (ou \"force\": true si tu "
                     + "veux vraiment le raccourcir)."
             }
-            changes.set(p, content.endsWith("\n") ? content : content + "\n")
+            changes.set(p, tidyCode(p, content.endsWith("\n") ? content : content + "\n", before: before))
             notifyChanged()
             let hint = before.map { Self.rewriteHint(before: $0, after: content) } ?? ""
             return "OK, \(p) enregistré en brouillon (\(content.len) caractères).\(hint)\(try await pitfalls(p))"
