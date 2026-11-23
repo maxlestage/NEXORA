@@ -72,6 +72,12 @@ struct CloudAgentsView: View {
                         .accessibilityHint("Ouvrir sur GitHub")
                     }
                 }
+            } else if let note = CloudAgentsDisplay.noRunsNote(Catalog.cloudAgents, installed: installed, runs: runs.count) {
+                Section("Dernières missions") {
+                    Label(note, systemImage: "tray")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .navigationTitle("Agents cloud")

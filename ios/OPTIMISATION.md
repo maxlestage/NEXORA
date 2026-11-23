@@ -1896,9 +1896,15 @@ mémoire 32k tokens, consigne 3 000 car.
   « agents/*.md, SKILL.md… » puis liste vide avec « Tout (0) » et un filtre inutile. Éléments
   inutiles à l'écran : 3 → 0. Tests : 635 → 636.
 
+- 3.0.235 (interface ; passage TOKENS sauté : pistes sûres épuisées) : Agents cloud ›
+  « Dernières missions » — `CloudAgentsDisplay.noRunsNote(_:installed:runs:)` : agent installé
+  sans mission → ligne « Aucune mission pour l'instant. Touchez « Lancer »… » (avant : section
+  absente, aucune indication). ModelSheet et CreditsView vérifiés : pas d'état vide possible
+  (le modèle courant est toujours listé ; crédits statiques). Tests : 636 → 637.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.234 : état vide de la Bibliothèque ; restent ModelSheet, CreditsView,
-CloudAgentsView sans état vide explicite à vérifier) → prochain passage : TOKENS,
+(interface faite en 3.0.235 : état vide des missions cloud ; ModelSheet, CreditsView et
+CloudAgentsView vérifiés : plus d'état vide à traiter) → prochain passage : TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

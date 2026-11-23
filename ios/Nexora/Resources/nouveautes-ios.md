@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.235 — 23 novembre 2026 — Agents cloud : missions expliquées
+
+- Amélioré : un agent cloud installé mais jamais lancé affiche « Aucune mission pour l'instant » sous « Dernières missions », avec l'action à faire.
+- Avant, la section restait absente et on ne savait pas où suivre les missions.
+
 ## 3.0.234 — 23 novembre 2026 — Bibliothèque : dépôt vide expliqué
 - Amélioré : un dépôt sans rien à installer affiche une explication simple au lieu d'une alerte technique suivie d'une liste vide.
 - Nouveau : un bouton « Autres sources » ramène tout de suite aux sources recommandées.
