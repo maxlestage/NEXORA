@@ -263,6 +263,39 @@ struct AgentChecksTests {
         #expect(AgentRun.rustTestHint("site/tests/a.rs", Self.versionTest) == nil)
     }
 
+    // Le test réellement écrit pour « ajoute une route /sante en texte brut, avec un
+    // test » : l'import ne rend pas app() visible.
+    static let santeTest = """
+    use nexora_site::app;
+
+    #[tokio::test]
+    async fn sante_route_returns_ok() {
+        let client = app().test().await;
+        let res = client.get("/sante").await;
+        assert_eq!(res.status(), 200);
+    }
+
+    """
+    static let libRs = "use paquets::prelude::*;\n\npub mod contenu;\n"
+
+    @Test("essai réel : « use nom_du_crate::app » ne cache plus qu'app() est dans main.rs")
+    func rustBinCrateImport() {
+        let hint = AgentRun.rustTestHint("site/tests/sante_test.rs", Self.santeTest, cargo: Self.cargo, mainRs: Self.mainRs, libRs: Self.libRs)
+        #expect(hint?.contains("appelle app()") == true)
+        #expect(hint?.contains("site/src/main.rs") == true)
+        #expect(hint?.contains("delete_file") == true)
+        // Pas de src/lib.rs du tout : l'import ne peut pas marcher non plus.
+        #expect(AgentRun.rustTestHint("site/tests/sante_test.rs", Self.santeTest, cargo: Self.cargo, mainRs: Self.mainRs)?.contains("appelle app()") == true)
+    }
+
+    @Test("app() vraiment dans la bibliothèque, ou importé d'une dépendance : rien à signaler")
+    func rustBinInLib() {
+        #expect(AgentRun.rustTestHint("site/tests/sante_test.rs", Self.santeTest, cargo: Self.cargo, mainRs: Self.mainRs,
+                                      libRs: Self.libRs + "\npub fn app() -> App { App::new() }\n") == nil)
+        #expect(AgentRun.rustTestHint("site/tests/a.rs", "use autre_crate::app;\n#[test]\nfn t() { app(); }\n",
+                                      cargo: Self.cargo, mainRs: Self.mainRs, libRs: Self.libRs) == nil)
+    }
+
     func rustHub(main: String?) -> Routes {
         var files = ["site/Cargo.toml": Self.cargo, "site/src/lib.rs": "pub mod slug;\n"]
         if let main { files["site/src/main.rs"] = main }

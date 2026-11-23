@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.241 — 23 novembre 2026 — Les tests Rust de l'agent compilent
+- Corrigé : pour tester une nouvelle route du site, l'agent écrivait un test dans tests/ avec « use nom_du_crate::app; ». Or app() est dans src/main.rs, que ces tests ne voient pas : le test ne pouvait pas compiler, et l'avertissement prévu ne venait pas à cause de l'import.
+- L'agent est maintenant prévenu même dans ce cas : il met le test dans le module de tests de main.rs, du premier coup, sans tour de réparation.
+- Rien ne change quand la fonction est vraiment dans la bibliothèque (src/lib.rs) ou vient d'une autre dépendance.
+
 ## 3.0.240 — 23 novembre 2026 — L'agent ne cherche plus ce qui vient d'une bibliothèque
 - Corrigé : l'agent pouvait chercher des dizaines de fois la définition d'un nom qui vient d'une bibliothèque (comme « Response ») et n'est donc pas dans le dépôt ; la session s'arrêtait sans rien livrer.
 - Il l'apprend maintenant du premier coup et reçoit les endroits où le code existant s'en sert, pour faire pareil : moins de tours, donc moins de tokens.

@@ -1315,10 +1315,10 @@ extension AgentRun {
     /// Un test d'intégration Rust (dossier tests/ d'un crate) compilé à part :
     /// `crate::` n'y désigne pas la bibliothèque, et le test ne compile pas. Rend
     /// l'avertissement à donner au modèle, ou `nil`.
-    public nonisolated static func rustTestHint(_ path: String, _ content: String, cargo: String? = nil, mainRs: String? = nil) -> String? {
+    public nonisolated static func rustTestHint(_ path: String, _ content: String, cargo: String? = nil, mainRs: String? = nil, libRs: String? = nil) -> String? {
         if !rustTest.hasMatch(path) { return nil }
         let crate = cargo.flatMap(rustCrateName)
-        let both = [rustCrateHint(path, content, crate), rustBinHint(path, content, mainRs)].compactMap { $0 }
+        let both = [rustCrateHint(path, content, crate), rustBinHint(path, content, mainRs, libRs: libRs, crate: crate)].compactMap { $0 }
         return both.isEmpty ? nil : both.joined()
     }
 
@@ -1328,12 +1328,20 @@ extension AgentRun {
     /// Un test de tests/ qui appelle une fonction de src/main.rs : un binaire,
     /// invisible depuis tests/. Le test ne compile pas ; sa place est dans le module
     /// de tests de main.rs.
-    nonisolated static func rustBinHint(_ path: String, _ content: String, _ mainRs: String?) -> String? {
+    ///
+    /// Un `use nom_du_crate::app;` n'y change rien quand app() n'est pas dans
+    /// src/lib.rs (essai réel : l'avertissement ne venait plus, et le test écrit
+    /// par l'agent ne pouvait pas compiler).
+    nonisolated static func rustBinHint(_ path: String, _ content: String, _ mainRs: String?, libRs: String? = nil, crate: String? = nil) -> String? {
         guard let mainRs else { return nil }
         let code = content.dsplit("\n").filter { !$0.trim().hasPrefix("//") }.joined(separator: "\n")
         let mine = Set(fnDef.allMatches(code).map { $0[1]! })
-        let imported = code.dsplit("\n").filter { $0.trim().hasPrefix("use ") }.joined(separator: " ")
-        var inMain = Set(fnDef.allMatches(mainRs).map { $0[1]! })
+        let ownCrate = crate.map { DRegex("^use\\s+(::)?\($0)::") }
+        let imported = code.dsplit("\n").map { $0.trim() }
+            .filter { $0.hasPrefix("use ") && !(ownCrate?.hasMatch($0) ?? false) }
+            .joined(separator: " ")
+        let inLib = Set(libRs.map { fnDef.allMatches($0).map { $0[1]! } } ?? [])
+        var inMain = Set(fnDef.allMatches(mainRs).map { $0[1]! }).subtracting(inLib)
         inMain.remove("main")
         var used: [String] = []
         for m in callRe.allMatches(code) {
@@ -1387,7 +1395,8 @@ extension AgentRun {
         let i = p.lastIndexOf("tests/")
         let (cargo, _) = try await current(p.sub(0, i) + "Cargo.toml")
         let (mainRs, _) = try await current(p.sub(0, i) + "src/main.rs")
-        return Self.rustTestHint(p, text, cargo: cargo, mainRs: mainRs) ?? ""
+        let (libRs, _) = try await current(p.sub(0, i) + "src/lib.rs")
+        return Self.rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ?? ""
     }
 
     /// Un fichier Dart qui ne compilera pas : signalé tout de suite, au lieu
