@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.229 — 23 novembre 2026 — Lien des skills vérifié
+- Amélioré : dans Agents, le champ « Lien GitHub » des skills signale en rouge un lien non reconnu, avant tout envoi.
+- Amélioré : le bouton Installer ne s'active que pour un lien valide (propriétaire/dépôt ou lien github.com).
+- Accessibilité : le champ est annoncé « Lien GitHub des skills » par VoiceOver.
+
 ## 3.0.228 — 23 novembre 2026 — Modèle d'aider vérifié
 
 - Corrigé : lancer l'agent cloud aider avec le champ Modèle vidé envoyait un modèle vide ; le modèle gratuit par défaut part désormais.

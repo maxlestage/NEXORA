@@ -291,6 +291,7 @@ struct AgentsView: View {
         Section {
             HStack(spacing: 8) {
                 TextField("Lien GitHub : dépôt, dossier ou SKILL.md", text: $skillLink)
+                    .accessibilityLabel("Lien GitHub des skills")
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -301,10 +302,12 @@ struct AgentsView: View {
                 } else {
                     Button("Installer") { installSkillLink() }
                         .buttonStyle(.borderedProminent)
-                        .disabled(skillLink.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(SkillImport.spec(from: skillLink) == nil)
                 }
             }
-            if let skillNotice {
+            if let problem = SkillImport.linkProblem(skillLink) {
+                Text(problem).font(.footnote).foregroundStyle(Theme.red)
+            } else if let skillNotice {
                 Text(skillNotice).font(.footnote).foregroundStyle(.secondary)
             }
             ScrollView(.horizontal, showsIndicators: false) {
@@ -331,7 +334,7 @@ struct AgentsView: View {
 
     private func installSkillLink() {
         let link = skillLink
-        guard !link.trimmingCharacters(in: .whitespaces).isEmpty, !skillBusy else { return }
+        guard SkillImport.spec(from: link) != nil, !skillBusy else { return }
         skillBusy = true
         skillNotice = nil
         let api = github.api

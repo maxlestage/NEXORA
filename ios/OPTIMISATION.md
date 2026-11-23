@@ -1860,8 +1860,13 @@ mémoire 32k tokens, consigne 3 000 car.
   Lancer grisé), en-tête « Modèle » au lieu du libellé répété, pied « Laissé vide : … »,
   libellé VoiceOver. Modèle vide envoyé au workflow : oui → non. Tests : 630 → 631.
 
+- 3.0.229 (interface ; passage TOKENS sauté : pistes sûres épuisées, aucune > 2 %) : Agents ›
+  champ « Lien GitHub » des skills — `SkillImport.linkProblem` (vide ou reconnu → rien ; sinon
+  message rouge sous le champ), Installer grisé tant que `SkillImport.spec(from:)` est nil (avant :
+  actif dès un caractère, erreur seulement après l'appui), libellé VoiceOver. Tests : 631 → 632.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.228 : modèle d'aider ; 3.0.227 : nom du serveur perso) →
+(interface faite en 3.0.229 : lien des skills ; 3.0.228 : modèle d'aider) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
