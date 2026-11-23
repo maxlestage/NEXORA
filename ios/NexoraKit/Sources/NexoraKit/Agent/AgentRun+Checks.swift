@@ -1390,7 +1390,10 @@ extension AgentRun {
     /// modèle (vide s'il n'y en a pas).
     func pitfalls(_ p: String) async throws -> String {
         guard let text = draft(p) else { return "" }
-        if p.hasSuffix(".dart") { return await dartPitfalls(p, text) }
+        if p.hasSuffix(".dart") {
+            let syntax = await dartPitfalls(p, text)
+            return syntax + (await formatPitfalls(p, text))
+        }
         if !Self.rustTest.hasMatch(p) { return "" }
         let i = p.lastIndexOf("tests/")
         let (cargo, _) = try await current(p.sub(0, i) + "Cargo.toml")
@@ -1406,6 +1409,101 @@ extension AgentRun {
         guard let hint = Self.dartSyntaxHint(p, text) else { return "" }
         if let before = try? await original(p), dartSyntaxError(before) != nil { return "" }
         return hint
+    }
+
+    /// En essai réel, l'agent écrivait des lignes Dart de plus de 80 caractères.
+    /// Quand la CI du dépôt passe `dart format --set-exit-if-changed`, elle échoue
+    /// alors sans dire quoi changer (« Changed lib/x.dart »). Le modèle est prévenu
+    /// dès l'écriture, avec les lignes à couper (une fois par fichier).
+    func formatPitfalls(_ p: String, _ text: String) async -> String {
+        guard p.hasSuffix(".dart"), !longWarned.contains(p) else { return "" }
+        guard await checksDartFormat(p) else { return "" }
+        let before: String? = (try? await original(p)) ?? nil
+        let width = await pageWidth(p)
+        guard let hint = Self.dartFormatHint(p, text, before: before, width: width) else { return "" }
+        longWarned.insert(p)
+        return hint
+    }
+
+    /// La largeur de ligne de `dart format` pour [p] : `formatter: page_width` du
+    /// analysis_options.yaml le plus proche, sinon 80.
+    func pageWidth(_ p: String) async -> Int {
+        let all = Set(await files())
+        var dir = p
+        while true {
+            let i = dir.lastIndexOf("/")
+            dir = i < 0 ? "" : dir.sub(0, i)
+            let f = (dir.isEmpty ? "" : dir + "/") + "analysis_options.yaml"
+            if all.contains(f) {
+                let t: String? = (try? await current(f))?.0 ?? nil
+                guard let m = Self.pageWidthRe.firstMatch(t ?? ""), let w = Int(m[1] ?? "") else { return 80 }
+                return w
+            }
+            if dir.isEmpty { return 80 }
+        }
+    }
+
+    /// La CI du dépôt de [p] vérifie-t-elle le format Dart ?
+    func checksDartFormat(_ p: String) async -> Bool {
+        guard let where_ = resolve(p) else { return false }
+        let prefix = multi ? mountOf(where_.0) + "/" : ""
+        if let known = formatChecked[prefix] { return known }
+        var found = false
+        for f in await files() where f.hasPrefix(prefix + ".github/workflows/")
+            && (f.hasSuffix(".yml") || f.hasSuffix(".yaml")) {
+            let t: String? = (try? await current(f))?.0 ?? nil
+            if let t, t.contains("dart format"), t.contains("set-exit-if-changed") {
+                found = true
+                break
+            }
+        }
+        formatChecked[prefix] = found
+        return found
+    }
+
+    nonisolated static let pageWidthRe = DRegex(#"page_width:\s*(\d+)"#)
+    nonisolated static let formatMarkRe = DRegex(#"^\s*// dart format (off|on)\b"#)
+    nonisolated static let tripleQuoteRe = DRegex(#"'''|""""#)
+    nonisolated static let formatLeftLongRe = DRegex(#"^(//|/\*|\*|import |export |part |r?['"])"#)
+    nonisolated static let dartStringRe = DRegex(##"r?'(?:\\.|[^'\\])*'|r?"(?:\\.|[^"\\])*""##)
+    nonisolated static let endCommentRe = DRegex(#"\s*//.*$"#)
+
+    /// L'avertissement pour les lignes Dart plus longues que [width] écrites par
+    /// l'agent (celles du fichier d'origine ne comptent pas), ou `nil`. Les lignes
+    /// que `dart format` laisse longues ne sont pas signalées : imports,
+    /// commentaires, texte seul sur sa ligne ou dans un texte sur plusieurs lignes.
+    public nonisolated static func dartFormatHint(_ path: String, _ text: String,
+                                                  before: String? = nil, width: Int = 80) -> String? {
+        if !path.hasSuffix(".dart") { return nil }
+        let old = Set(before?.dsplit("\n") ?? [])
+        var long: [String] = []
+        var inLong = false
+        var off = false
+        for (i, line) in text.dsplit("\n").enumerated() {
+            if let mark = formatMarkRe.firstMatch(line) { off = mark[1] == "off" }
+            if off { continue }
+            let quotes = tripleQuoteRe.allMatches(line).count
+            let wasIn = inLong
+            if quotes % 2 == 1 { inLong.toggle() }
+            if wasIn || quotes > 0 || line.len <= width || old.contains(line) { continue }
+            if formatLeftLongRe.hasMatch(line.trimLeft()) { continue }
+            // dart format ne coupe jamais un texte : seule la longueur du code compte.
+            // Ni un commentaire en fin de ligne.
+            let code = endCommentRe.replaceFirst(dartStringRe.replaceAll(line, "''"), "")
+            if code.len <= width { continue }
+            if long.count < 5 {
+                let shown = line.len > 120 ? line.sub(0, 120) + "…" : line
+                long.append("ligne \(i + 1) (\(line.len) caractères) : \(shown.trim())")
+            }
+        }
+        if long.isEmpty { return nil }
+        return "\n\nATTENTION : la CI de ce dépôt vérifie « dart format » (\(width) "
+            + "caractères au plus par ligne) et refusera \(path). Lignes trop longues :\n"
+            + long.joined(separator: "\n") + "\n"
+            + "Coupe-les maintenant avec edit_file, comme dart format : retour à la "
+            + "ligne après « = » ou « => » (4 espaces de plus), un argument par ligne "
+            + "avec une virgule après le dernier (2 espaces de plus), ou chaque « .appel() » "
+            + "d'une chaîne sur sa propre ligne (4 espaces de plus)."
     }
 
     /// Les avertissements des brouillons Dart qui ne compileront pas (et qui

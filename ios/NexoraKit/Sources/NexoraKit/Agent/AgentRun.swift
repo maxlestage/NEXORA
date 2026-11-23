@@ -125,6 +125,11 @@ public final class AgentRun {
     @ObservationIgnored public var fallback: (@MainActor (Error, Set<String>) async -> (ProviderDef, String?, String)?)?
 
     @ObservationIgnored var tried: Set<String> = []
+    /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule fois
+    /// chacun : pas de boucle si le modèle n'y arrive pas).
+    @ObservationIgnored var longWarned: Set<String> = []
+    /// Par dépôt (préfixe de son dossier) : sa CI vérifie-t-elle `dart format` ?
+    @ObservationIgnored var formatChecked: [String: Bool] = [:]
     /// Ce que la session a consommé : tokens envoyés et reçus, et dollars (quand
     /// le prix du modèle est connu). Mis à jour à chaque réponse, affiché en direct.
     public internal(set) var spentIn = 0
