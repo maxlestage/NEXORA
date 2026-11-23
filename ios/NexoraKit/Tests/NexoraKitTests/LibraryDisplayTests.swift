@@ -42,6 +42,14 @@ struct LibraryDisplayTests {
         #expect(LibraryDisplay.intro.count < 120)
     }
 
+    @Test func depotVideExplique() {
+        let e = LibraryDisplay.emptyRepo(RepoScan(owner: "o", repo: "r", ref: "main", items: [], plugins: []))
+        #expect(e.title == "Rien à installer ici")
+        #expect(e.detail.hasPrefix("o/r ne contient"))
+        #expect(!e.detail.contains("SKILL.md"))
+        #expect(e.detail.count < 120)
+    }
+
     @Test func selectionSansLesInstalles() {
         let a = item(.agent, "agents/a.md"), b = item(.agent, "agents/b.md"), c = item(.skill, "skills/c/SKILL.md")
         let installed: Set<String> = [a.key]

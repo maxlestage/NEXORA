@@ -188,87 +188,110 @@ struct InstallAgentsView: View {
         let target = LibraryDisplay.selectable(shown, isInstalled: agents.isInstalled)
         let allSelected = !target.isEmpty && target.allSatisfy { selected.contains($0.key) }
         let installedCount = shown.count(where: agents.isInstalled)
-        return List {
-            Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        chip("Tout (\(scan.items.count))", symbol: nil, on: kind == nil) { kind = nil }
-                        ForEach(LibraryItemKind.allCases, id: \.self) { k in
-                            let n = scan.of(k).count
-                            if n > 0 {
-                                chip("\(k.label(plural: true)) (\(n))", symbol: k.symbol, on: kind == k) { kind = k }
-                            }
-                        }
-                    }
-                }
-                TextField("Filtrer (python, react, sécurité, pdf…)", text: $filter)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .frame(minHeight: 44)
-            }
-            if shown.isEmpty && plugins.isEmpty && !scan.isEmpty {
-                Section {
-                    VStack(spacing: 10) {
-                        Text(LibraryDisplay.noMatch).foregroundStyle(.secondary)
-                        Button("Tout afficher") {
-                            filter = ""
-                            kind = nil
-                        }
-                        .frame(minHeight: 44)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                }
-            }
-            if !plugins.isEmpty {
-                Section {
-                    ForEach(plugins.prefix(150)) { p in
-                        Button {
-                            Task { await browse(p.spec, push: true) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                if !bigText { Image(systemName: "shippingbox").foregroundStyle(Color.accentColor) }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(p.name).font(.headline).foregroundStyle(.primary)
-                                    if !p.description.isEmpty {
-                                        Text(p.description).font(.caption).foregroundStyle(.secondary)
-                                            .lineLimit(AgentPickerDisplay.descriptionLines(bigText: bigText))
+        return Group {
+            if scan.isEmpty {
+                emptyRepo(scan)
+            } else {
+                List {
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                chip("Tout (\(scan.items.count))", symbol: nil, on: kind == nil) { kind = nil }
+                                ForEach(LibraryItemKind.allCases, id: \.self) { k in
+                                    let n = scan.of(k).count
+                                    if n > 0 {
+                                        chip("\(k.label(plural: true)) (\(n))", symbol: k.symbol, on: kind == k) { kind = k }
                                     }
                                 }
+                            }
+                        }
+                        TextField("Filtrer (python, react, sécurité, pdf…)", text: $filter)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .frame(minHeight: 44)
+                    }
+                    if shown.isEmpty && plugins.isEmpty && !scan.isEmpty {
+                        Section {
+                            VStack(spacing: 10) {
+                                Text(LibraryDisplay.noMatch).foregroundStyle(.secondary)
+                                Button("Tout afficher") {
+                                    filter = ""
+                                    kind = nil
+                                }
+                                .frame(minHeight: 44)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    if !plugins.isEmpty {
+                        Section {
+                            ForEach(plugins.prefix(150)) { p in
+                                Button {
+                                    Task { await browse(p.spec, push: true) }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        if !bigText { Image(systemName: "shippingbox").foregroundStyle(Color.accentColor) }
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(p.name).font(.headline).foregroundStyle(.primary)
+                                            if !p.description.isEmpty {
+                                                Text(p.description).font(.caption).foregroundStyle(.secondary)
+                                                    .lineLimit(AgentPickerDisplay.descriptionLines(bigText: bigText))
+                                            }
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .disabled(busy)
+                            }
+                        } header: {
+                            Text("Plugins (\(plugins.count))")
+                        } footer: {
+                            Text("Un plugin regroupe des sous-agents, des skills et des commandes : touchez-en un pour voir son contenu et l'installer.")
+                        }
+                    }
+                    if !shown.isEmpty {
+                        Section {
+                            ForEach(shown.prefix(400)) { item in
+                                itemRow(item)
+                            }
+                        } header: {
+                            HStack {
+                                Text(LibraryDisplay.itemsHeader(shown.count, installed: installedCount))
                                 Spacer()
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                                Button(LibraryDisplay.selectAllLabel(target: target.count, shown: shown.count, allSelected: allSelected)) {
+                                    if allSelected {
+                                        selected.subtract(target.map(\.key))
+                                    } else {
+                                        selected.formUnion(target.map(\.key))
+                                    }
+                                }
+                                .font(.caption)
+                                .textCase(nil)
+                                .frame(minHeight: 44)
                             }
                         }
-                        .disabled(busy)
-                    }
-                } header: {
-                    Text("Plugins (\(plugins.count))")
-                } footer: {
-                    Text("Un plugin regroupe des sous-agents, des skills et des commandes : touchez-en un pour voir son contenu et l'installer.")
-                }
-            }
-            if !shown.isEmpty {
-                Section {
-                    ForEach(shown.prefix(400)) { item in
-                        itemRow(item)
-                    }
-                } header: {
-                    HStack {
-                        Text(LibraryDisplay.itemsHeader(shown.count, installed: installedCount))
-                        Spacer()
-                        Button(LibraryDisplay.selectAllLabel(target: target.count, shown: shown.count, allSelected: allSelected)) {
-                            if allSelected {
-                                selected.subtract(target.map(\.key))
-                            } else {
-                                selected.formUnion(target.map(\.key))
-                            }
-                        }
-                        .font(.caption)
-                        .textCase(nil)
-                        .frame(minHeight: 44)
                     }
                 }
             }
+        }
+    }
+
+    /// Dépôt sans rien d'installable : une explication et le retour aux sources.
+    private func emptyRepo(_ scan: RepoScan) -> some View {
+        let e = LibraryDisplay.emptyRepo(scan)
+        return ContentUnavailableView {
+            Label(e.title, systemImage: "tray")
+        } description: {
+            Text(e.detail)
+        } actions: {
+            Button("Autres sources") {
+                stack.removeAll()
+                selected.removeAll()
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(minHeight: 44)
         }
     }
 
@@ -354,9 +377,6 @@ struct InstallAgentsView: View {
             selected.removeAll()
             kind = nil
             filter = ""
-            if found.isEmpty {
-                message = "Rien trouvé : ni sous-agents (agents/*.md), ni skills (SKILL.md), ni commandes (commands/*.md), ni plugins."
-            }
         } catch {
             message = error.localizedDescription
         }

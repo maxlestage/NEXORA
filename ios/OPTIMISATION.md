@@ -1890,8 +1890,15 @@ mémoire 32k tokens, consigne 3 000 car.
   au lieu de l'icône lue à part, action « Tout lire » partout (appui long seul avant).
   Tests : 634 → 635.
 
+- 3.0.234 (interface ; passage TOKENS sauté : pistes sûres épuisées) : Bibliothèque › dépôt
+  sans rien d'installable — `LibraryDisplay.emptyRepo(_:)` (« Rien à installer ici », phrase
+  sans chemins techniques) en `ContentUnavailableView` avec « Autres sources » ; avant : alerte
+  « agents/*.md, SKILL.md… » puis liste vide avec « Tout (0) » et un filtre inutile. Éléments
+  inutiles à l'écran : 3 → 0. Tests : 635 → 636.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.233 : journal de la session entier pour VoiceOver) → prochain passage : TOKENS,
+(interface faite en 3.0.234 : état vide de la Bibliothèque ; restent ModelSheet, CreditsView,
+CloudAgentsView sans état vide explicite à vérifier) → prochain passage : TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
