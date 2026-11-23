@@ -17,6 +17,18 @@ struct CloudAgentsDisplayTests {
             == "Mode sombre, Échouée · NEXORA Aider")
     }
 
+    @Test func aucuneMissionExpliquee() {
+        let agents = Catalog.cloudAgents
+        let file = agents[0].workflowFile
+        #expect(CloudAgentsDisplay.noRunsNote(agents, installed: nil, runs: 0) == nil)
+        #expect(CloudAgentsDisplay.noRunsNote(agents, installed: [], runs: 0) == nil)
+        #expect(CloudAgentsDisplay.noRunsNote(agents, installed: ["autre.yml"], runs: 0) == nil)
+        #expect(CloudAgentsDisplay.noRunsNote(agents, installed: [file], runs: 2) == nil)
+        let note = CloudAgentsDisplay.noRunsNote(agents, installed: [file], runs: 0)
+        #expect(note?.contains("« Lancer »") == true)
+        #expect(note?.hasPrefix("Aucune mission") == true)
+    }
+
     @Test func actionsEtMessages() {
         #expect(CloudAgentsDisplay.primaryAction(installed: false) == "Installer")
         #expect(CloudAgentsDisplay.primaryAction(installed: true) == "Lancer")

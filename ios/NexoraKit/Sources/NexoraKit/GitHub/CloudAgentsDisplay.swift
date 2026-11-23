@@ -48,6 +48,15 @@ public enum CloudAgentsDisplay {
         installed ? "Lancer" : "Installer"
     }
 
+    /// La ligne affichée sous « Dernières missions » quand au moins un agent est installé
+    /// mais qu'aucune mission n'a encore été lancée (avant : rien du tout, on ne savait
+    /// pas où les missions apparaîtraient). `nil` sinon (chargement, rien d'installé,
+    /// ou des missions à montrer).
+    public static func noRunsNote(_ agents: [CloudAgent], installed: Set<String>?, runs: Int) -> String? {
+        guard runs == 0, let installed, agents.contains(where: { installed.contains($0.workflowFile) }) else { return nil }
+        return "Aucune mission pour l'instant. Touchez « \(primaryAction(installed: true)) » sur un agent pour lui donner une instruction : elle apparaîtra ici."
+    }
+
     /// Le message quand les workflows du dépôt n'ont pas pu être lus (avant : tous les
     /// agents passaient à « non installé » sans explication).
     public static func loadProblem(_ message: String) -> String {
