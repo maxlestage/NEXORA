@@ -7,7 +7,9 @@ private let wordToken = DRegex(#"[\p{L}\p{N}_]+"#)
 
 /// Remplace `old` par `replacement` dans `text`. Rend (texte modifié, résumé) ou
 /// (`nil`, explication de l'échec). Tolère les fins de ligne et les espaces de fin.
-public func applyEdit(_ text: String, _ old: String, _ replacement: String, all: Bool = false) -> (String?, String) {
+/// `near` : numéro de ligne qui désigne la copie à modifier quand `old` revient
+/// plusieurs fois (la plus proche ; refus si deux le sont autant).
+public func applyEdit(_ text: String, _ old: String, _ replacement: String, all: Bool = false, near: Int? = nil) -> (String?, String) {
     if old.isEmpty {
         let sep = text.isEmpty || text.endsWith("\n") ? "" : "\n"
         return (text + sep + replacement + (replacement.endsWith("\n") ? "" : "\n"), "ajout à la fin")
@@ -44,17 +46,21 @@ public func applyEdit(_ text: String, _ old: String, _ replacement: String, all:
                     + "ligne) :\n\(near!)")
         )
     }
+    // Un passage qui revient plusieurs fois (« ]; », « } »…) : en essai réel,
+    // l'agent recevait sept refus de suite sans savoir où étaient les copies.
+    // Il voit maintenant chacune avec sa ligne, et choisit avec "line".
+    var at = source.indexOf(needle)
     if n > 1 && !all {
-        return (
-            nil,
-            "le passage apparaît \(n) fois : ajoute des lignes autour pour qu'il soit "
-                + "unique, ou \"all\": true pour tout remplacer."
-        )
+        let spots = editOccurrences(source, needle)
+        guard let near, let chosen = closestSpot(spots, near) else {
+            return (nil, ambiguousEdit(source, needle, spots, near))
+        }
+        at = chosen.at
     }
+    let single = n == 1 || !all
     // Un passage recopié à moitié, coupé au milieu d'un mot (« …", men » pour
     // « …", mentions); ») : remplacé tel quel, l'ajout atterrissait au milieu du
     // mot (« men⏎ app.get(…);tions); ») et le code ne compilait plus.
-    let at = source.indexOf(needle)
     let end = at + needle.len
     func isWord(_ c: String) -> Bool { wordChar.hasMatch(c) }
     let cutEnd = end < source.len && isWord(needle.at(needle.len - 1)) && isWord(source.at(end))
@@ -63,7 +69,7 @@ public func applyEdit(_ text: String, _ old: String, _ replacement: String, all:
         let lineEnd = source.indexOf("\n", end)
         let rest = source.sub(end, lineEnd < 0 ? source.len : lineEnd)
         let added: String? = replacement.startsWith(needle) ? replacement.sub(needle.len) : nil
-        if !all && n == 1, let added, added.startsWith("\n") {
+        if !all && single, let added, added.startsWith("\n") {
             // Le modèle voulait ajouter des lignes après celle-ci : elles vont après
             // la ligne entière, qui reste intacte.
             return (
@@ -95,11 +101,73 @@ public func applyEdit(_ text: String, _ old: String, _ replacement: String, all:
             )
         }
     }
-    if !all && n == 1, let moved = insertAboveDocs(source, at, needle, replacement) {
-        return moved
+    let whereLine = n > 1 && !all ? " (ligne \(lineOfSpot(source, at)))" : ""
+    if !all && single, let moved = insertAboveDocs(source, at, needle, replacement) {
+        return (moved.0, moved.1 + whereLine)
     }
-    let out = all ? source.replaceAll(needle, replacement) : source.replaceFirst(needle, replacement)
-    return (out, all && n > 1 ? "\(n) remplacements" : "1 remplacement")
+    let out = all ? source.replaceAll(needle, replacement) : source.replaceRange(at, at + needle.len, replacement)
+    return (out, all && n > 1 ? "\(n) remplacements" : "1 remplacement" + whereLine)
+}
+
+/// Numéro (à partir de 1) de la ligne où commence vraiment un passage trouvé à
+/// `at` (ses retours à la ligne de tête sautés).
+private func lineOfSpot(_ source: String, _ at: Int) -> Int {
+    var i = at
+    while i < source.len && source.at(i) == "\n" { i += 1 }
+    return source.sub(0, i).occurrences("\n") + 1
+}
+
+/// Chaque copie (sans chevauchement) de `needle` : position et ligne.
+private func editOccurrences(_ source: String, _ needle: String) -> [(at: Int, line: Int)] {
+    var out: [(at: Int, line: Int)] = []
+    var pos = source.indexOf(needle)
+    while pos >= 0 {
+        out.append((pos, lineOfSpot(source, pos)))
+        pos = source.indexOf(needle, pos + needle.len)
+    }
+    return out
+}
+
+/// La copie la plus proche de la ligne `near` ; `nil` si deux le sont autant.
+private func closestSpot(_ spots: [(at: Int, line: Int)], _ near: Int) -> (at: Int, line: Int)? {
+    let sorted = spots.sorted { abs($0.line - near) < abs($1.line - near) }
+    guard let first = sorted.first else { return nil }
+    if sorted.count > 1 && abs(sorted[1].line - near) == abs(first.line - near) { return nil }
+    return first
+}
+
+/// L'explication d'un passage ambigu : où est chaque copie, avec ses voisines,
+/// et comment choisir la bonne.
+private func ambiguousEdit(_ source: String, _ needle: String, _ spots: [(at: Int, line: Int)], _ near: Int?) -> String {
+    let lines = source.dsplit("\n")
+    let span = needle.trim().occurrences("\n")
+    let shown = 6
+    var b = "le passage apparaît \(spots.count) fois (ligne\(spots.count > 1 ? "s" : "") "
+        + spots.prefix(12).map { String($0.line) }.joined(separator: ", ")
+        + (spots.count > 12 ? "…" : "") + "). "
+    if let near { b += "La ligne \(near) est à égale distance de deux copies. " }
+    b += "Pour modifier une seule copie, ajoute dans args \"line\": son numéro "
+        + "(celui ci-dessous), ou mets dans old aussi une ligne voisine qui la "
+        + "distingue (et la même dans new). \"all\": true remplace toutes les copies."
+    for spot in spots.prefix(shown) {
+        let line = spot.line
+        b += "\nCopie de la ligne \(line) :"
+        let from = min(max(line - 2, 1), lines.count)
+        let to = min(max(line + span + 1, 1), lines.count)
+        if from <= to {
+            for l in from...to {
+                let mark = l >= line && l <= line + span ? ">" : " "
+                var text = lines[l - 1]
+                if text.len > 160 { text = text.sub(0, 160) + "…" }
+                b += "\n\(mark)\(l): \(text)"
+            }
+        }
+    }
+    if spots.count > shown {
+        b += "\n… et \(spots.count - shown) autres : ce passage est trop courant, "
+            + "mets dans old des lignes plus parlantes (find_in_file pour les voir)."
+    }
+    return b
 }
 
 /// Un ajout de code juste AVANT une déclaration (new = ajout + old) : placé entre

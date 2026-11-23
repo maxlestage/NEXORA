@@ -957,7 +957,10 @@ extension AgentRun {
                 return "Déjà fait : ce texte est déjà à la fin de \(p) (rien n'a été "
                     + "ajouté une deuxième fois). Si la demande est remplie, appelle finish."
             }
-            let edited = applyEdit(text, oldText, newText, all: isTrue(call.args["all"]))
+            let edited = applyEdit(
+                text, oldText, newText, all: isTrue(call.args["all"]),
+                near: asInt(call.args["line"]) ?? asInt(call.args["near"])
+            )
             guard let result = edited.0 else { return "ERREUR : \(edited.1)" }
             changes.set(p, result)
             notifyChanged()
