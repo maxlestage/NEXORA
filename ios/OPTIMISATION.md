@@ -1902,9 +1902,14 @@ mémoire 32k tokens, consigne 3 000 car.
   absente, aucune indication). ModelSheet et CreditsView vérifiés : pas d'état vide possible
   (le modèle courant est toujours listé ; crédits statiques). Tests : 636 → 637.
 
+- 3.0.236 (interface ; passage TOKENS sauté : pistes sûres épuisées) : Routines › ligne de
+  la liste pour VoiceOver — `RoutinesDisplay.rowAccessibility(_:error:launching:)` (« Bugs,
+  sur GitHub, <horaire>, prochain passage …, Erreur : … ») ; un élément au lieu de 4 (icône
+  lue « iPhone », nom, détail, erreur), l'interrupteur reste à part. Tests : 637 → 638.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.235 : état vide des missions cloud ; ModelSheet, CreditsView et
-CloudAgentsView vérifiés : plus d'état vide à traiter) → prochain passage : TOKENS,
+(interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
+des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

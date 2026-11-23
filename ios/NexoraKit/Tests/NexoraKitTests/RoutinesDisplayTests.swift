@@ -21,6 +21,18 @@ struct RoutinesDisplayTests {
         #expect(RoutinesDisplay.rowDetail(r, now: now, calendar: utc) == "\(r.scheduleLabel) · désactivée")
     }
 
+    @Test func ligneLueEnUneFoisParVoiceOver() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var r = Routine(id: "1", name: "Bugs", task: "corrige", repos: ["a/b@main"], startMinute: 11 * 60)
+        r.enabled = false
+        #expect(RoutinesDisplay.rowAccessibility(r, error: nil, now: now, calendar: utc)
+            == "Bugs, sur ce téléphone, \(r.scheduleLabel), désactivée")
+        r.runner = .github
+        let ko = RoutinesDisplay.rowAccessibility(r, error: "Secret manquant", launching: true, now: now, calendar: utc)
+        #expect(ko == "Bugs, sur GitHub, \(r.scheduleLabel), désactivée, Lancement…, Erreur : Secret manquant")
+        #expect(!RoutinesDisplay.rowAccessibility(r, error: "", now: now, calendar: utc).contains("Erreur"))
+    }
+
     @Test func nomParDefaut() {
         #expect(RoutinesDisplay.defaultName("\n  Corrige les bugs  \npuis teste") == "Corrige les bugs")
         let long = RoutinesDisplay.defaultName("Optimise l'application, corrige tous les bugs et vérifie que tout fonctionne")

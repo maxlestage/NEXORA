@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.236 — 23 novembre 2026 — Routines plus claires avec VoiceOver
+- Amélioré : dans la liste des Routines, VoiceOver lit chaque routine en une seule phrase : son nom, où elle tourne (sur ce téléphone ou sur GitHub), son horaire et son état.
+- Amélioré : une erreur ou un lancement en cours est lu dans la même phrase, au lieu de quatre éléments séparés et d'une icône lue « iPhone ».
+
 ## 3.0.235 — 23 novembre 2026 — Agents cloud : missions expliquées
 
 - Amélioré : un agent cloud installé mais jamais lancé affiche « Aucune mission pour l'instant » sous « Dernières missions », avec l'action à faire.
