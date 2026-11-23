@@ -18,6 +18,20 @@ public enum RoutinesDisplay {
         return "\(r.scheduleLabel) · \(state)"
     }
 
+    /// Ce que VoiceOver lit pour une ligne de la liste, en une phrase : nom, où elle
+    /// tourne (l'icône seule était lue « iPhone »), horaire et état, puis l'erreur.
+    /// Avant : 4 éléments séparés (icône, nom, détail, erreur).
+    public static func rowAccessibility(
+        _ r: Routine, error: String?, launching: Bool = false,
+        now: Date = Date(), calendar: Calendar = .current
+    ) -> String {
+        let place = r.runner == .github ? "sur GitHub" : "sur ce téléphone"
+        var parts = [r.name, place, rowDetail(r, now: now, calendar: calendar).replacingOccurrences(of: " · ", with: ", ")]
+        if launching { parts.append(runLabel(launching: true)) }
+        if let error, !error.isEmpty { parts.append("Erreur : \(error)") }
+        return parts.joined(separator: ", ")
+    }
+
     /// L'ordre de la liste : les routines actives d'abord, la prochaine à passer en
     /// tête ; puis les désactivées, par nom. (Avant : l'ordre de création.)
     public static func sorted(_ list: [Routine], calendar: Calendar = .current) -> [Routine] {

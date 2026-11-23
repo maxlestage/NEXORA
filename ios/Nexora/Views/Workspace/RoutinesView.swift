@@ -109,22 +109,27 @@ struct RoutineRow: View {
     var body: some View {
         let r = routine
         HStack(spacing: 12) {
-            if launching {
-                ProgressView().accessibilityLabel(RoutinesDisplay.runLabel(launching: true))
-            } else {
-                Image(systemName: r.runner == .github ? "icloud.and.arrow.up" : "iphone")
-                    .foregroundStyle(Color.accentColor)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(r.name).fontWeight(.bold)
-                Text(RoutinesDisplay.rowDetail(r))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                if let error {
-                    Text(error).font(.caption).foregroundStyle(Theme.red).lineLimit(2)
+            HStack(spacing: 12) {
+                if launching {
+                    ProgressView()
+                } else {
+                    Image(systemName: r.runner == .github ? "icloud.and.arrow.up" : "iphone")
+                        .foregroundStyle(Color.accentColor)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.name).fontWeight(.bold)
+                    Text(RoutinesDisplay.rowDetail(r))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                    if let error {
+                        Text(error).font(.caption).foregroundStyle(Theme.red).lineLimit(2)
+                    }
                 }
             }
+            // Une seule phrase pour VoiceOver (avant : icône, nom, détail et erreur à part).
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(RoutinesDisplay.rowAccessibility(r, error: error, launching: launching))
             Spacer(minLength: 0)
             Toggle("Active", isOn: Binding(get: { r.enabled }, set: { onToggle($0) }))
                 .labelsHidden()
