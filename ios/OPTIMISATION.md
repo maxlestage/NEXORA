@@ -1835,14 +1835,20 @@ mémoire 32k tokens, consigne 3 000 car.
   `serverAddressHint` + « (non enregistrée) » en pied de section. Adresses inutilisables
   enregistrables : oui → non. Tests : 627 → 628.
 
+- 3.0.225 (interface ; passage TOKENS sauté : aucune piste mesurée > 2 %) : fiche
+  fournisseur, « Ajouter un modèle par son id » — `ProviderDetailDisplay.manualModel` /
+  `manualModelHint` (id nettoyé des guillemets et « ` », refus d'un espace ou d'un doublon,
+  message rouge sous le champ), touche Terminé du clavier = ajouter, toast de confirmation.
+  Ids invalides ou en double acceptés : oui → non. Tests : 628 → 629.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.224 : adresse de la fiche fournisseur) →
+(interface faite en 3.0.225 : id de modèle ajouté à la main ; 3.0.224 : adresse) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : id de modèle ajouté à la main (ProvidersView « Ajouter un modèle par son id »), emoji d'agent, accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
+Interface ensuite : emoji d'agent, accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 

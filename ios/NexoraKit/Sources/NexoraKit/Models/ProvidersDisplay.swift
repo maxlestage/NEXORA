@@ -224,6 +224,27 @@ public enum ProviderDetailDisplay {
             : "Adresse invalide : elle doit ressembler à http://192.168.1.10:8080/v1"
     }
 
+    /// L'id d'un modèle ajouté à la main, prêt à enregistrer : sans espaces autour ni
+    /// guillemets ou « ` » collés avec. `nil` s'il est vide, contient un espace (aucun id
+    /// de modèle n'en a : c'est une faute de frappe) ou figure déjà dans la liste.
+    public static func manualModel(_ raw: String, existing: [String]) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "\"'`«» "))
+        guard !s.isEmpty, !s.contains(where: \.isWhitespace), !existing.contains(s) else { return nil }
+        return s
+    }
+
+    /// Ce qui s'affiche sous le champ quand l'id tapé ne peut pas être ajouté (rien si le
+    /// champ est vide ou si l'id convient).
+    public static func manualModelHint(_ raw: String, existing: [String]) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "\"'`«» "))
+        guard !s.isEmpty, manualModel(raw, existing: existing) == nil else { return nil }
+        return existing.contains(s)
+            ? "\(s) est déjà dans la liste."
+            : "Un id de modèle n'a pas d'espace, par ex. gpt-4o-mini."
+    }
+
     /// Message de confirmation avant de supprimer un serveur perso.
     public static func deleteConfirmation(name: String, isDefault: Bool) -> String {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)

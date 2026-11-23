@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.225 — 23 novembre 2026 — Modèle ajouté par son id vérifié
+- Amélioré : dans la fiche d'un fournisseur, « Ajouter un modèle par son id » refuse un id avec un espace ou déjà présent, et le dit en rouge sous le champ.
+- Amélioré : la touche Terminé du clavier ajoute le modèle, et un message confirme l'ajout.
+- Corrigé : un id collé avec des guillemets ou des « ` » est nettoyé avant d'être enregistré.
+
 ## 3.0.224 — 23 novembre 2026 — Adresse d'un fournisseur vérifiée
 - Corrigé : dans la fiche d'un fournisseur, une adresse vidée ou mal tapée n'est plus enregistrée (elle rendait le fournisseur inutilisable sans rien dire).
 - Amélioré : un message rouge sous le champ explique ce qui ne va pas ; « http:// » est ajouté s'il manque et le « / » final retiré.

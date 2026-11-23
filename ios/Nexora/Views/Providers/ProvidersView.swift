@@ -480,21 +480,29 @@ struct ProviderDetailView: View {
                         }
                     }
                     // Action rare : en bas de la liste, sous les modèles.
+                    let ids = models.map(\.id)
+                    let manualId = ProviderDetailDisplay.manualModel(manual, existing: ids)
                     HStack {
                         TextField("Ajouter un modèle par son id", text: $manual)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .font(.callout.monospaced())
+                            .submitLabel(.done)
+                            .onSubmit { addManual(manualId, to: p) }
                         Button {
-                            settings.addModel(manual, to: p.id)
-                            manual = ""
+                            addManual(manualId, to: p)
                         } label: {
                             Image(systemName: "plus.circle.fill").foregroundStyle(.tint)
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                         .buttonStyle(.borderless)
-                        .disabled(manual.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(manualId == nil)
                         .accessibilityLabel("Ajouter le modèle")
+                    }
+                    if let hint = ProviderDetailDisplay.manualModelHint(manual, existing: ids) {
+                        Text(hint)
+                            .font(.caption)
+                            .foregroundStyle(Theme.red)
                     }
                 } header: {
                     HStack {
@@ -641,6 +649,14 @@ struct ProviderDetailView: View {
         } catch {
             toast = Toast(text: error.localizedDescription, error: true)
         }
+    }
+
+    /// Ajoute l'id tapé à la main (déjà nettoyé et vérifié) et le confirme d'un toast.
+    private func addManual(_ id: String?, to p: ProviderDef) {
+        guard let id else { return }
+        settings.addModel(id, to: p.id)
+        manual = ""
+        toast = Toast(text: "\(id) ajouté à la liste")
     }
 
     private func deleteModel(_ p: ProviderDef, _ model: String) async {
