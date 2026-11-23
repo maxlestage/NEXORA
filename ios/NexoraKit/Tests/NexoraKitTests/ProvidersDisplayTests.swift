@@ -181,4 +181,18 @@ struct ProviderDetailDisplayTests {
                 == "http://192.168.1.20:11434")
         #expect(D.editedAddress("https://proxy.exemple.fr/v1/", current: base) == "https://proxy.exemple.fr/v1")
     }
+
+    @Test func modeleAjouteALaMain() {
+        typealias D = ProviderDetailDisplay
+        let list = ["gpt-4o", "gpt-4o-mini"]
+        #expect(D.manualModel("  o3-pro \n", existing: list) == "o3-pro")
+        #expect(D.manualModel("`o3-pro`", existing: list) == "o3-pro")
+        #expect(D.manualModel("", existing: list) == nil)
+        #expect(D.manualModel("gpt 4o", existing: list) == nil)
+        #expect(D.manualModel(" gpt-4o ", existing: list) == nil)
+        #expect(D.manualModelHint("", existing: list) == nil)
+        #expect(D.manualModelHint("o3-pro", existing: list) == nil)
+        #expect(D.manualModelHint("gpt-4o", existing: list) == "gpt-4o est déjà dans la liste.")
+        #expect(D.manualModelHint("gpt 4o", existing: list)?.hasPrefix("Un id") == true)
+    }
 }
