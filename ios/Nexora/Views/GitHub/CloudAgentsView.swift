@@ -268,11 +268,16 @@ struct CloudLaunchSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var instruction = ""
-    @State private var model = "openrouter/qwen/qwen3-coder:free"
+    @State private var model = CloudAgentsDisplay.defaultAiderModel
     @State private var confirmDiscard = false
     @FocusState private var focused: Bool
 
     private var losesInstruction: Bool { CloudAgentsDisplay.losesInstruction(instruction) }
+    /// L'instruction est écrite et, pour aider, le modèle est un id valide.
+    private var canSend: Bool {
+        CloudAgentsDisplay.canLaunch(instruction)
+            && (agent.id != "aider-free" || CloudAgentsDisplay.aiderModel(model) != nil)
+    }
 
     var body: some View {
         NavigationStack {
@@ -286,11 +291,19 @@ struct CloudLaunchSheet: View {
                 .lineLimit(3...8)
                 .focused($focused)
                 if agent.id == "aider-free" {
-                    Section("Modèle (format aider)") {
-                        TextField("Modèle (format aider)", text: $model)
+                    Section {
+                        TextField("Modèle", text: $model, prompt: Text(CloudAgentsDisplay.defaultAiderModel))
                             .font(.system(size: 13, design: .monospaced))
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                            .accessibilityLabel("Modèle utilisé par aider")
+                        if let hint = CloudAgentsDisplay.aiderModelHint(model) {
+                            Text(hint).font(.caption).foregroundStyle(.red)
+                        }
+                    } header: {
+                        Text("Modèle")
+                    } footer: {
+                        Text("Laissé vide : le modèle gratuit par défaut.")
                     }
                 }
                 Section {
@@ -298,7 +311,7 @@ struct CloudLaunchSheet: View {
                         Label("Lancer l'agent", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!CloudAgentsDisplay.canLaunch(instruction))
+                    .disabled(!canSend)
                     .listRowBackground(Color.clear)
                 }
             }
@@ -312,7 +325,7 @@ struct CloudLaunchSheet: View {
                 }
                 // Toujours visible, même clavier ouvert.
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Lancer", action: send).disabled(!CloudAgentsDisplay.canLaunch(instruction))
+                    Button("Lancer", action: send).disabled(!canSend)
                 }
             }
             .onAppear { focused = true }
@@ -326,8 +339,8 @@ struct CloudLaunchSheet: View {
     }
 
     private func send() {
-        guard CloudAgentsDisplay.canLaunch(instruction) else { return }
+        guard canSend else { return }
         dismiss()
-        onLaunch(instruction, model)
+        onLaunch(instruction, CloudAgentsDisplay.aiderModel(model) ?? CloudAgentsDisplay.defaultAiderModel)
     }
 }

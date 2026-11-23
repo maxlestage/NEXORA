@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.228 — 23 novembre 2026 — Modèle d'aider vérifié
+
+- Corrigé : lancer l'agent cloud aider avec le champ Modèle vidé envoyait un modèle vide ; le modèle gratuit par défaut part désormais.
+- Amélioré : un id de modèle collé avec des guillemets est nettoyé ; un id avec un espace est signalé en rouge et le lancement attend la correction.
+
 ## 3.0.227 — 23 novembre 2026 — Serveur perso jamais sans nom
 
 - Corrigé : effacer le nom d'un serveur perso le laissait sans nom dans les listes et le choix du modèle ; il prend maintenant l'adresse du serveur (par ex. « 192.168.1.10 ») jusqu'à ce que vous en tapiez un.

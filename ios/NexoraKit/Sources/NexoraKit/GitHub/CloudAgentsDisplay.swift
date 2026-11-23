@@ -93,6 +93,24 @@ public enum CloudAgentsDisplay {
         !instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// Modèle proposé à l'agent aider (gratuit via OpenRouter).
+    public static let defaultAiderModel = "openrouter/qwen/qwen3-coder:free"
+
+    /// Modèle envoyé à aider : guillemets et « ` » collés retirés ; vide → modèle par défaut
+    /// (avant, un champ vidé lançait l'agent sans modèle) ; nil si l'id contient un espace.
+    public static func aiderModel(_ text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`“”‘’"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return defaultAiderModel }
+        return t.contains(where: \.isWhitespace) ? nil : t
+    }
+
+    /// Message affiché sous le champ quand le modèle n'est pas un id valide.
+    public static func aiderModelHint(_ text: String) -> String? {
+        aiderModel(text) == nil ? "Un id de modèle ne contient pas d'espace (ex. : \(defaultAiderModel))." : nil
+    }
+
     /// Fermer la fenêtre de lancement ferait perdre une instruction déjà écrite.
     public static func losesInstruction(_ instruction: String) -> Bool {
         canLaunch(instruction)

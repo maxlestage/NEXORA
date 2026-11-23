@@ -28,6 +28,19 @@ struct CloudAgentsDisplayTests {
         #expect(CloudAgentsDisplay.intro.count < 120)
     }
 
+    @Test func modeleAiderVerifie() {
+        let d = CloudAgentsDisplay.defaultAiderModel
+        // Champ vidé : le modèle par défaut part (avant : un modèle vide).
+        #expect(CloudAgentsDisplay.aiderModel("  ") == d)
+        #expect(CloudAgentsDisplay.aiderModelHint("") == nil)
+        // Collé avec guillemets ou « ` » : nettoyé.
+        #expect(CloudAgentsDisplay.aiderModel(" `openai/gpt-4o` ") == "openai/gpt-4o")
+        #expect(CloudAgentsDisplay.aiderModel("\"deepseek/deepseek-chat\"") == "deepseek/deepseek-chat")
+        // Espace au milieu : refusé, avec un message.
+        #expect(CloudAgentsDisplay.aiderModel("gpt 4o") == nil)
+        #expect(CloudAgentsDisplay.aiderModelHint("gpt 4o") != nil)
+    }
+
     @Test func instructionCommenceeProtegee() {
         // Rien d'écrit (ou seulement des espaces) : la fenêtre se ferme d'un geste, sans question.
         #expect(!CloudAgentsDisplay.losesInstruction(""))
