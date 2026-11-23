@@ -686,7 +686,8 @@ struct AgentEditorView: View {
     private var isNew: Bool { !agents.all.contains { $0.id == agent.id } }
 
     private func save() {
-        if agent.emoji.isEmpty { agent.emoji = "🤖" }
+        // Textes nettoyés, catégorie existante reprise telle quelle (pas de groupe en double).
+        agent = AgentEditorDisplay.tidied(agent, categories: agents.all.map(\.category))
         agents.save(agent)
         dismiss()
     }
