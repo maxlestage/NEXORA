@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.224 — 23 novembre 2026 — Adresse d'un fournisseur vérifiée
+- Corrigé : dans la fiche d'un fournisseur, une adresse vidée ou mal tapée n'est plus enregistrée (elle rendait le fournisseur inutilisable sans rien dire).
+- Amélioré : un message rouge sous le champ explique ce qui ne va pas ; « http:// » est ajouté s'il manque et le « / » final retiré.
+
 ## 3.0.223 — 22 novembre 2026 — Nom de branche vérifié
 
 - Amélioré : dans « Nouvelle session », « OK » reste éteint tant que le nom de la branche de travail serait refusé par git (espace, « .. », « : »…), au lieu d'une session qui échoue plus tard.

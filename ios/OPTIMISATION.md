@@ -1827,14 +1827,22 @@ mémoire 32k tokens, consigne 3 000 car.
   nom de routine, nom de nouveau dépôt, titre d'issue, commentaire. Noms de branche invalides
   acceptés : oui → non. Tests : 627 (4 attentes ajoutées).
 
+- 3.0.224 (interface, Modèles › fiche d'un fournisseur › Adresse) : passage TOKENS sans
+  piste à plus de 2 %, donc interface. `save` enregistrait l'adresse telle quelle : champ vidé
+  → `overrides[id] = ""` (fournisseur intégré cassé sans avis), faute de frappe idem.
+  `ProviderDetailDisplay.editedAddress(_:current:)` (réutilise `serverAddress` de 3.0.220 :
+  nettoyée, « http:// » ajouté, nil si inutilisable ou inchangée) ; message rouge
+  `serverAddressHint` + « (non enregistrée) » en pied de section. Adresses inutilisables
+  enregistrables : oui → non. Tests : 627 → 628.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.223 : nom de branche de Nouvelle session) →
+(interface faite en 3.0.224 : adresse de la fiche fournisseur) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
+Interface ensuite : id de modèle ajouté à la main (ProvidersView « Ajouter un modèle par son id »), emoji d'agent, accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 

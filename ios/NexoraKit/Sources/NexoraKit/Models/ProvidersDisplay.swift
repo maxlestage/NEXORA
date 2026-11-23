@@ -199,6 +199,15 @@ public enum ProviderDetailDisplay {
         return s
     }
 
+    /// L'adresse à enregistrer quand on quitte la fiche d'un fournisseur : la nouvelle,
+    /// nettoyée, si elle est utilisable ET différente de l'actuelle ; sinon `nil` (rien n'est
+    /// enregistré). Avant, un champ vidé ou une faute de frappe était enregistré tel quel et
+    /// rendait le fournisseur inutilisable sans rien dire.
+    public static func editedAddress(_ raw: String, current: String) -> String? {
+        guard let address = serverAddress(raw) else { return nil }
+        return address == (serverAddress(current) ?? current) ? nil : address
+    }
+
     /// Le nom enregistré pour un nouveau serveur : celui tapé, sinon l'hôte de l'adresse
     /// (un nom vide laissait une ligne sans titre dans la liste).
     public static func serverName(_ raw: String, address: String) -> String {

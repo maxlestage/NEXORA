@@ -169,4 +169,16 @@ struct ProviderDetailDisplayTests {
         #expect(D.serverName("  Mon Mac ", address: "http://10.0.0.2:8080") == "Mon Mac")
         #expect(D.serverName(" ", address: "http://10.0.0.2:8080") == "10.0.0.2")
     }
+
+    @Test func adresseModifieeDansLaFiche() {
+        typealias D = ProviderDetailDisplay
+        let base = "https://api.openai.com/v1"
+        #expect(D.editedAddress("", current: base) == nil)
+        #expect(D.editedAddress("https://api.openai.com/v1/", current: base) == nil)
+        #expect(D.editedAddress(" https://api.openai.com/v1 ", current: base) == nil)
+        #expect(D.editedAddress("htps//mauvais adresse", current: base) == nil)
+        #expect(D.editedAddress("192.168.1.20:11434", current: "http://localhost:11434")
+                == "http://192.168.1.20:11434")
+        #expect(D.editedAddress("https://proxy.exemple.fr/v1/", current: base) == "https://proxy.exemple.fr/v1")
+    }
 }

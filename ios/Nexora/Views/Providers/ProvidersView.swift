@@ -386,7 +386,9 @@ struct ProviderDetailView: View {
                 } header: {
                     Text("Adresse")
                 } footer: {
-                    if p.local {
+                    if let hint = ProviderDetailDisplay.serverAddressHint(url) {
+                        Text(hint + " (non enregistrée)").foregroundStyle(Theme.red)
+                    } else if p.local {
                         Text(isOllama
                             ? "Sur l'ordinateur : OLLAMA_HOST=0.0.0.0 ollama serve, puis l'adresse IP locale (ex. http://192.168.1.20:11434)."
                             : "Activez l'écoute sur le réseau local dans le serveur.")
@@ -591,7 +593,11 @@ struct ProviderDetailView: View {
 
     private func save(_ p: ProviderDef) {
         settings.setKey(key, for: p.id)
-        if url.trimmingCharacters(in: .whitespacesAndNewlines) != p.baseUrl { settings.setBaseUrl(url, for: p.id) }
+        // Adresse vide ou invalide : non enregistrée (le message rouge sous le champ le dit).
+        if let address = ProviderDetailDisplay.editedAddress(url, current: p.baseUrl) {
+            settings.setBaseUrl(address, for: p.id)
+            url = address
+        }
     }
 
     /// Enregistre, puis pose une vraie question au premier modèle et chronomètre la réponse.
