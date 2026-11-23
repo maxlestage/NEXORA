@@ -88,6 +88,26 @@ struct AgentEditorDisplayTests {
         #expect(AgentEditorDisplay.missing(name: "A", prompt: "Rôle") == nil)
     }
 
+    @Test func lAgentEstNettoyeAvantDEtreEnregistre() {
+        var a = Agent(id: "x", name: "  Relecteur\n de code ", systemPrompt: " Relis le code.\n")
+        a.description = " Relit. "
+        a.emoji = " "
+        a.category = " revue  "
+        let t = AgentEditorDisplay.tidied(a, categories: ["Perso", "Revue"])
+        #expect(t.name == "Relecteur de code")
+        #expect(t.systemPrompt == "Relis le code.")
+        #expect(t.description == "Relit.")
+        #expect(t.emoji == "🤖")
+        // La catégorie existante est reprise avec son orthographe : pas de second groupe.
+        #expect(t.category == "Revue")
+        a.category = "  "
+        #expect(AgentEditorDisplay.tidied(a, categories: []).category == "Perso")
+        a.category = "Sécurité  web"
+        #expect(AgentEditorDisplay.tidied(a, categories: ["Revue"]).category == "Sécurité web")
+        // Rien à nettoyer : l'agent est inchangé.
+        #expect(AgentEditorDisplay.tidied(t, categories: ["Revue"]) == t)
+    }
+
     @Test func fermerUneFicheModifieeDemandeAvant() {
         let a = Agent(id: "x", name: "Relecteur", systemPrompt: "Relis le code.", tools: ["read_file", "github"])
         // Rien de changé : la fiche se ferme d'un geste.

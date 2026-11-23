@@ -235,6 +235,28 @@ public enum AgentEditorDisplay {
         return tidy(original) != tidy(edited)
     }
 
+    /// L'agent tel qu'il sera enregistré : textes sans espaces autour, nom sur une ligne,
+    /// émoji par défaut, catégorie vide → « Perso », et catégorie déjà existante reprise
+    /// avec son orthographe (« revue » rejoint « Revue » au lieu de créer un second groupe).
+    public static func tidied(_ agent: Agent, categories: [String]) -> Agent {
+        var a = agent
+        let ws = CharacterSet.whitespacesAndNewlines
+        a.name = agent.name.components(separatedBy: ws).filter { !$0.isEmpty }.joined(separator: " ")
+        a.description = agent.description.trimmingCharacters(in: ws)
+        a.systemPrompt = agent.systemPrompt.trimmingCharacters(in: ws)
+        a.emoji = agent.emoji.trimmingCharacters(in: ws)
+        if a.emoji.isEmpty { a.emoji = "🤖" }
+        let category = agent.category.components(separatedBy: ws).filter { !$0.isEmpty }.joined(separator: " ")
+        if category.isEmpty {
+            a.category = "Perso"
+        } else if let known = categories.first(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) {
+            a.category = known
+        } else {
+            a.category = category
+        }
+        return a
+    }
+
     /// Le titre de la question posée avant de fermer une fiche modifiée.
     public static func leaveTitle(isNew: Bool) -> String {
         isNew ? "Abandonner ce nouvel agent ?" : "Abandonner les modifications ?"
