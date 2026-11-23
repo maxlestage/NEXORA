@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.239 — 23 novembre 2026 — Le code de l'agent passe le formateur
+- Corrigé : dans le Rust et le Dart écrits par l'agent, deux lignes vides de suite (ou une ligne vide en fin de fichier) faisaient échouer « cargo fmt --check » ou « dart format » en CI.
+- Ces lignes vides en trop sont ramenées à une seule dès le brouillon : moins de tours pour réparer la CI, donc moins de tokens.
+- Les textes entre guillemets ne sont jamais touchés, et un fichier d'origine déjà aéré ainsi est laissé tel quel.
+
 ## 3.0.238 — 23 novembre 2026 — L'agent sait quelle copie modifier
 - Corrigé : quand le passage à modifier revenait plusieurs fois dans un fichier (« ]; », « } »), l'agent recevait refus sur refus sans savoir où étaient les copies.
 - Le refus montre maintenant chaque copie avec son numéro de ligne et les lignes autour : moins d'essais, donc moins de tokens.

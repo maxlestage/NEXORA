@@ -1920,8 +1920,16 @@ mémoire 32k tokens, consigne 3 000 car.
   Avant : « ajoute des lignes autour » seul (7 refus de suite en essai réel, chacun
   renvoyant tout l'historique). Tests : 639 → 640.
 
+- 3.0.239 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.77 —
+  `tidyCode(_:_:before:)` (Agent/TidyCode.swift) appliqué aux brouillons d'edit_file et
+  write_file : dans un .rs ou .dart, plusieurs lignes vides entre deux lignes de code → une
+  seule, ligne vide finale retirée (sauf fichier d'origine déjà aéré ; textes entre guillemets
+  intacts). Avant : `cargo fmt --check` refusait le code, un tour de réparation de plus
+  (tout l'historique renvoyé). Remarques `flutter analyze` (_dartLints, versions Flutter
+  ultérieures) pas encore portées. Tests : 640 → 646.
+
 ## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.77 à 2.2.111 non portées (corrections de l'agent, souvent
+Parité Flutter en retard : 2.2.78 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
