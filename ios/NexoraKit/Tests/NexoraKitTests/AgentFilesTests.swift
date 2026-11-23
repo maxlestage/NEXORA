@@ -191,9 +191,11 @@ struct AgentFilesTests {
 
     """
 
-    func search(_ query: String, _ files: [String: String], task: String = "Trouve les pages") async throws -> String {
+    func search(_ query: String, _ files: [String: String], task: String = "Trouve les pages", path: String? = nil) async throws -> String {
+        var args: [String: Any] = ["query": query]
+        if let path { args["path"] = path }
         let llm = ScriptLLM([
-            act(["tool": "search_code", "args": ["query": query]]),
+            act(["tool": "search_code", "args": args]),
             act(["tool": "finish", "args": ["summary": "Cherché"]]),
         ])
         let run = makeRun(llm, hub: repoHub(files), repo: "nexora", task: task, checks: false)
@@ -270,5 +272,26 @@ struct AgentFilesTests {
         #expect(r3.hasPrefix("Résultat de search_code"))
         #expect(r3.contains("ligne(s) contiennent « agent », avec le code"))
         #expect(!r3.contains("le mot lui-même"))
+    }
+
+    @Test("un nom de code introuvable partout est signalé « à créer », un simple mot non")
+    func newName() async throws {
+        #expect(AgentRun.isNewName("format_octets"))
+        #expect(AgentRun.isNewName("formatDuree"))
+        #expect(AgentRun.isNewName("Slug::new"))
+        #expect(!AgentRun.isNewName("duree"))
+        #expect(!AgentRun.isNewName("format octets"))
+        #expect(!AgentRun.isNewName("_x"))
+        let files = ["app/lib/models/agent.dart": Self.agentDart]
+        let task = "Ajoute format_octets dans app/lib/utils/"
+        let r = try await search("format_octets", files, task: task)
+        #expect(r.contains("tout le dépôt) : « format_octets » n'existe pas encore."))
+        #expect(r.contains("crée-le maintenant"))
+        #expect(!r.contains("mot plus court"))
+        let inDir = try await search("format_octets", files, task: task, path: "app/lib/models")
+        #expect(inDir.contains("n'existe pas encore"))
+        #expect(!inDir.contains("mot plus court"))
+        let word = try await search("octets", files, task: task)
+        #expect(word.contains("mot plus court"))
     }
 }

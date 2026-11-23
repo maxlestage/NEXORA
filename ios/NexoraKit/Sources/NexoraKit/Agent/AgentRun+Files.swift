@@ -457,6 +457,17 @@ extension AgentRun {
         return DRegex(#"[\p{L}\p{N}_]+"#).allMatches(rest).map(\.text).filter { $0.lowercased().contains(q) }
     }
 
+    /// `query` est un nom de code composé (« format_octets », « formatDuree »,
+    /// « Slug::new ») et non un simple mot ou une phrase : introuvable, il n'existe
+    /// pas encore.
+    public nonisolated static func isNewName(_ query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard DRegex(#"^[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*$"#).hasMatch(q) else {
+            return false
+        }
+        return DRegex(#"[A-Za-z0-9]_[A-Za-z0-9]|[a-z0-9][A-Z]|::"#).hasMatch(q)
+    }
+
     /// Cherche un texte dans le contenu des fichiers (comme grep), sans dépendre de la
     /// recherche de GitHub (qui exige un compte, ignore les branches et les dépôts
     /// récents).
@@ -465,6 +476,11 @@ extension AgentRun {
         // Peu de résultats dans un dossier : la définition est souvent ailleurs.
         if !prefix.isEmpty && here.1 <= 2 {
             let all = await grepIn(query, "")
+            // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
+            // à créer est signalé comme tel, pas seulement « dans ce dossier »).
+            if here.1 == 0 && all.1 == 0 && Self.isNewName(query) {
+                return all.0
+            }
             if all.1 > here.1 {
                 return "\(here.0)\n\nDans tout le dépôt (pas seulement \(prefix)) :\n\(all.0)"
             }
@@ -588,6 +604,20 @@ extension AgentRun {
                     + "\nNe refais pas cette recherche : si la demande l'implique, crée-le "
                     + "(write_file), en suivant l'organisation des fichiers existants."
                     + limited,
+                0
+            )
+        }
+        // Un nom de code (« format_octets », « formatDuree ») introuvable dans tout
+        // le dépôt n'existe pas encore : c'est souvent ce que la demande dit de créer.
+        // « Essaie un mot plus court » faisait chercher encore ce qu'il fallait écrire.
+        if hits.isEmpty && prefix.isEmpty && files.count <= Self.searchLimit && Self.isNewName(query) {
+            return (
+                "Aucune ligne ne contient « \(query) » (\(texts.count) fichiers "
+                    + "parcourus, tout le dépôt) : « \(query) » n'existe pas encore."
+                    + (names.isEmpty ? "" : "\nFichiers dont le nom correspond :\n\(names.joined(separator: "\n"))")
+                    + "\nNe le cherche plus : si la demande dit de le créer, crée-le "
+                    + "maintenant (write_file ou edit_file), à l'endroit demandé ou en "
+                    + "suivant l'organisation des fichiers existants.",
                 0
             )
         }

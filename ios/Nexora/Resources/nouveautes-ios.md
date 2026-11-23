@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.237 — 23 novembre 2026 — L'agent sait quand un nom est à créer
+- Corrigé : pour « ajoute une fonction format_octets », l'agent cherchait d'abord ce nom ; ne le trouvant pas, on lui conseillait « essaie un mot plus court », et il cherchait encore ce qu'il devait justement écrire.
+- Un nom de code (format_octets, formatDuree, Slug::new…) absent de tout le dépôt lui est maintenant signalé clairement : « n'existe pas encore », à créer tout de suite à l'endroit demandé.
+- Amélioré : moins de recherches inutiles, donc moins de tokens par session. Rien ne change pour un simple mot ou une phrase.
+
 ## 3.0.236 — 23 novembre 2026 — Routines plus claires avec VoiceOver
 - Amélioré : dans la liste des Routines, VoiceOver lit chaque routine en une seule phrase : son nom, où elle tourne (sur ce téléphone ou sur GitHub), son horaire et son état.
 - Amélioré : une erreur ou un lancement en cours est lu dans la même phrase, au lieu de quatre éléments séparés et d'une icône lue « iPhone ».

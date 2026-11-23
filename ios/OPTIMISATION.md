@@ -1907,7 +1907,15 @@ mémoire 32k tokens, consigne 3 000 car.
   sur GitHub, <horaire>, prochain passage …, Erreur : … ») ; un élément au lieu de 4 (icône
   lue « iPhone », nom, détail, erreur), l'interrupteur reste à part. Tests : 637 → 638.
 
-## Prochain passage : TOKENS
+- 3.0.237 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.75 —
+  `AgentRun.isNewName` ; search_code d'un nom de code composé introuvable dans tout le dépôt
+  → « n'existe pas encore, crée-le maintenant » au lieu de « Essaie un mot plus court »
+  (qui relançait des recherches, chacune renvoyant tout l'historique) ; recherche limitée à
+  un dossier : réponse du dépôt entier si rien nulle part. Tests : 638 → 639.
+
+## Prochain passage : INTERFACE (ou parité)
+Parité Flutter en retard : 2.2.76 à 2.2.111 non portées (corrections de l'agent, souvent
+moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
