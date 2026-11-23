@@ -170,6 +170,24 @@ public enum AgentEditorDisplay {
         }
     }
 
+    /// Le champ émoji de la fiche : garde le DERNIER émoji tapé (en taper un nouveau
+    /// remplace l'ancien, sans devoir l'effacer) ; du texte sans émoji (« abc ») est
+    /// refusé et l'émoji précédent reste ; un champ vidé reste vide (🤖 à l'enregistrement).
+    public static func emoji(_ typed: String, previous: String) -> String {
+        if typed.isEmpty { return "" }
+        return typed.last(where: isEmoji).map(String.init) ?? previous
+    }
+
+    /// Un caractère affiché comme émoji (drapeaux, familles et « 1️⃣ » compris ;
+    /// pas les chiffres ni les lettres seuls).
+    static func isEmoji(_ c: Character) -> Bool {
+        let scalars = c.unicodeScalars
+        guard let first = scalars.first else { return false }
+        if scalars.contains(where: { $0.properties.isEmojiPresentation }) { return true }
+        return first.properties.isEmoji
+            && (first.value > 0x2000 || scalars.contains { $0.value == 0xFE0F || $0.value == 0x20E3 })
+    }
+
     /// Les outils que l'on peut cocher (« finish » est toujours permis).
     public static func choosableTools(_ all: [String]) -> [String] {
         all.filter { $0 != "finish" }

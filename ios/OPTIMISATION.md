@@ -1841,14 +1841,19 @@ mémoire 32k tokens, consigne 3 000 car.
   message rouge sous le champ), touche Terminé du clavier = ajouter, toast de confirmation.
   Ids invalides ou en double acceptés : oui → non. Tests : 628 → 629.
 
+- 3.0.226 (interface) : émoji de la fiche d'agent — `AgentEditorDisplay.emoji(_:previous:)`
+  garde le dernier émoji tapé (remplace l'ancien sans l'effacer), refuse le texte (« abc »
+  ou plusieurs émojis déformaient l'avatar) ; champ 44 × 44 pt, libellé VoiceOver.
+  Texte accepté dans le champ émoji : oui → non. Tests : 629 → 630.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.225 : id de modèle ajouté à la main ; 3.0.224 : adresse) →
+(interface faite en 3.0.226 : émoji d'agent ; 3.0.225 : id de modèle ajouté à la main) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`.
-Interface ensuite : emoji d'agent, accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
+Interface ensuite : accueil (HomeShell vu en 3.0.221 : rien à faire), autres saisies sans contrôle,
 aide (thème « Agents » : 6 questions, à relire si elle grossit). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
