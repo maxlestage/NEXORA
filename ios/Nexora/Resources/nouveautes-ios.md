@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.240 — 23 novembre 2026 — L'agent ne cherche plus ce qui vient d'une bibliothèque
+- Corrigé : l'agent pouvait chercher des dizaines de fois la définition d'un nom qui vient d'une bibliothèque (comme « Response ») et n'est donc pas dans le dépôt ; la session s'arrêtait sans rien livrer.
+- Il l'apprend maintenant du premier coup et reçoit les endroits où le code existant s'en sert, pour faire pareil : moins de tours, donc moins de tokens.
+- Un nom que seuls ses brouillons utilisent (une fonction branchée mais pas encore écrite) lui est signalé comme à créer tout de suite.
+
 ## 3.0.239 — 23 novembre 2026 — Le code de l'agent passe le formateur
 - Corrigé : dans le Rust et le Dart écrits par l'agent, deux lignes vides de suite (ou une ligne vide en fin de fichier) faisaient échouer « cargo fmt --check » ou « dart format » en CI.
 - Ces lignes vides en trop sont ramenées à une seule dès le brouillon : moins de tours pour réparer la CI, donc moins de tokens.

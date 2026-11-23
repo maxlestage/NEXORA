@@ -1928,8 +1928,16 @@ mémoire 32k tokens, consigne 3 000 car.
   (tout l'historique renvoyé). Remarques `flutter analyze` (_dartLints, versions Flutter
   ultérieures) pas encore portées. Tests : 640 → 646.
 
+- 3.0.240 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.78 —
+  `AgentRun.definedName` ; search_code d'une définition introuvable (« pub struct Response »)
+  dont le nom est utilisé par le code existant → « vient d'une dépendance, ne la cherche
+  plus » + 4 usages avec leurs voisines ; nom utilisé seulement par les brouillons → « crée sa
+  définition maintenant ». Avant : « Essaie un mot plus court » (dizaines de recherches en
+  essai réel, chacune renvoyant tout l'historique, session arrêtée sans rien livrer).
+  Tests : 646 → 649.
+
 ## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.78 à 2.2.111 non portées (corrections de l'agent, souvent
+Parité Flutter en retard : 2.2.79 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,

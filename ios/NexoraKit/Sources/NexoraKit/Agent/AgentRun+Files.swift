@@ -468,6 +468,16 @@ extension AgentRun {
         return DRegex(#"[A-Za-z0-9]_[A-Za-z0-9]|[a-z0-9][A-Z]|::"#).hasMatch(q)
     }
 
+    /// Le nom dont `query` cherche la définition (« pub struct Response », « fn sante »,
+    /// « class Foo » → Response, sante, Foo) ; nil sinon.
+    public nonisolated static func definedName(_ query: String) -> String? {
+        DRegex(
+            #"^(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:abstract\s+)?"#
+                + #"(?:struct|enum|trait|fn|type|union|class|mixin|extension|interface|def|"#
+                + #"function|typedef)\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<({:]?\s*$"#
+        ).firstMatch(query.trimmingCharacters(in: .whitespacesAndNewlines))?[1]
+    }
+
     /// Cherche un texte dans le contenu des fichiers (comme grep), sans dépendre de la
     /// recherche de GitHub (qui exige un compte, ignore les branches et les dépôts
     /// récents).
@@ -478,7 +488,9 @@ extension AgentRun {
             let all = await grepIn(query, "")
             // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
             // à créer est signalé comme tel, pas seulement « dans ce dossier »).
-            if here.1 == 0 && all.1 == 0 && Self.isNewName(query) {
+            if here.1 == 0 && all.1 == 0
+                && (Self.isNewName(query)
+                    || (Self.definedName(query) != nil && !here.0.hasPrefix("Aucune définition"))) {
                 return all.0
             }
             if all.1 > here.1 {
@@ -620,6 +632,51 @@ extension AgentRun {
                     + "suivant l'organisation des fichiers existants.",
                 0
             )
+        }
+        // « pub struct Response » : la définition d'un nom que le code utilise mais qui
+        // vient d'une dépendance (Paquets, un paquet pub…). Essai réel (« ajoute une
+        // route /sante en texte brut ») : l'agent cherchait cette définition des
+        // dizaines de fois sans la trouver et la session s'arrêtait sans rien livrer,
+        // alors que l'usage existant montrait comment faire.
+        if hits.isEmpty && !stopFlag, let defined = Self.definedName(query) {
+            let word = DRegex("(?<![A-Za-z0-9_])\(DRegex.escape(defined))(?![A-Za-z0-9_])")
+            var uses: [String] = []
+            var drafted: [String] = []
+            for (path, lines) in texts {
+                let before = changes.contains(path) ? orig(path) : lines.joined(separator: "\n")
+                let had = Set((before ?? "").dsplit("\n").filter { word.hasMatch($0) }.map { $0.trim() })
+                for (n, l) in lines.enumerated() where word.hasMatch(l) {
+                    if !had.contains(l.trim()) {
+                        drafted.append("\(path):\(n + 1): \(l.trim())")
+                        continue
+                    }
+                    if uses.count >= 4 { continue }
+                    let from = max(0, n - 2), to = min(lines.count - 1, n + 3)
+                    let shown = (from...to).map { k in "\(k == n ? ">" : " ")\(k + 1): \(lines[k])" }
+                    uses.append("\(path) :\n\(shown.joined(separator: "\n"))")
+                }
+            }
+            if !uses.isEmpty {
+                return (
+                    "Aucune définition de « \(defined) » dans le dépôt "
+                        + "(\(texts.count) fichiers parcourus), mais le code existant "
+                        + "l'utilise : « \(defined) » vient d'une dépendance (bibliothèque "
+                        + "externe), sa définition n'est pas ici. Ne la cherche plus : "
+                        + "fais comme le code existant, qui montre comment "
+                        + "l'utiliser :\n\(uses.joined(separator: "\n\n"))"
+                        + "\nPuis fais la modification demandée (edit_file).",
+                    0
+                )
+            }
+            if !drafted.isEmpty {
+                return (
+                    "« \(defined) » n'est défini nulle part : seuls tes brouillons "
+                        + "l'utilisent :\n\(drafted.prefix(5).joined(separator: "\n"))\nNe le cherche "
+                        + "plus : crée sa définition maintenant (edit_file), à côté du "
+                        + "code semblable du même fichier.",
+                    0
+                )
+            }
         }
         if hits.isEmpty {
             return (
