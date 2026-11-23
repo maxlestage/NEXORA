@@ -1854,8 +1854,14 @@ mémoire 32k tokens, consigne 3 000 car.
   adresse de serveur, montants de quota, nom de routine. Serveur sans nom possible : oui → non.
   Tests : 630 (1 attente ajoutée).
 
+- 3.0.228 (interface ; passage TOKENS sauté : aucune piste mesurée > 2 %) : Agents cloud ›
+  lancement d'aider, champ Modèle — `CloudAgentsDisplay.aiderModel` / `aiderModelHint` (vide →
+  modèle gratuit par défaut, guillemets et « ` » retirés, espace refusé avec message rouge,
+  Lancer grisé), en-tête « Modèle » au lieu du libellé répété, pied « Laissé vide : … »,
+  libellé VoiceOver. Modèle vide envoyé au workflow : oui → non. Tests : 630 → 631.
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.227 : nom du serveur perso ; 3.0.226 : émoji d'agent) →
+(interface faite en 3.0.228 : modèle d'aider ; 3.0.227 : nom du serveur perso) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.
