@@ -10,6 +10,13 @@ public enum LibraryDisplay {
     /// Ce qui s'affiche quand le filtre ne trouve rien.
     public static let noMatch = "Aucun élément ne correspond au filtre."
 
+    /// L'état vide d'un dépôt qui ne contient rien à installer (avant : une alerte
+    /// technique, puis une liste vide avec « Tout (0) » et un filtre inutile).
+    public static func emptyRepo(_ scan: RepoScan) -> (title: String, detail: String) {
+        ("Rien à installer ici",
+         "\(scan.owner)/\(scan.repo) ne contient ni sous-agent, ni skill, ni commande, ni plugin au format de Claude Code.")
+    }
+
     /// Vrai si le texte est le lien d'un seul fichier d'agent (`https://…/x.md`) :
     /// on l'installe directement au lieu de parcourir un dépôt.
     public static func isFileLink(_ text: String) -> Bool {
