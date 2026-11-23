@@ -1846,8 +1846,16 @@ mémoire 32k tokens, consigne 3 000 car.
   ou plusieurs émojis déformaient l'avatar) ; champ 44 × 44 pt, libellé VoiceOver.
   Texte accepté dans le champ émoji : oui → non. Tests : 629 → 630.
 
+- 3.0.227 (interface ; passage TOKENS sauté : aucune piste mesurée > 2 %) : fiche d'un
+  serveur perso — le champ Nom (lié directement à `updateCustom`) enregistrait un nom vide ;
+  désormais état local `customName`, enregistré via `ProviderDetailDisplay.serverName`
+  (vide → hôte de l'adresse, affiché en indication), libellé VoiceOver. Saisies vérifiées et
+  déjà contrôlées : branches (NewSession, DraftReview), chemin de fichier, nom de dépôt,
+  adresse de serveur, montants de quota, nom de routine. Serveur sans nom possible : oui → non.
+  Tests : 630 (1 attente ajoutée).
+
 ## Prochain passage : TOKENS
-(interface faite en 3.0.226 : émoji d'agent ; 3.0.225 : id de modèle ajouté à la main) →
+(interface faite en 3.0.227 : nom du serveur perso ; 3.0.226 : émoji d'agent) →
 prochain passage : TOKENS, mais les pistes sûres sont épuisées : ne garder qu'une piste
 MESURÉE à plus de 2 % du coût d'une session de 40 étapes (bancs TokenBench), sinon passer
 à l'interface sans rien forcer.

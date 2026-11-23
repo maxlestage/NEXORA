@@ -280,6 +280,8 @@ struct ProviderDetailView: View {
     @State private var key = ""
     @State private var showKey = false
     @State private var url = ""
+    /// Nom tapé du serveur perso ; vide, il est enregistré sous l'hôte de l'adresse.
+    @State private var customName = ""
     @State private var testing = false
     @State private var result: String?
     @State private var ok = false
@@ -539,6 +541,7 @@ struct ProviderDetailView: View {
             .onAppear {
                 key = Keychain.get("key:\(p.id)") ?? ""
                 url = p.baseUrl
+                customName = p.name
             }
             .onDisappear {
                 // Clé collée puis retour sans « Entrée » : on l'enregistre quand même.
@@ -591,7 +594,14 @@ struct ProviderDetailView: View {
     @ViewBuilder
     private func customSection(_ p: ProviderDef) -> some View {
         Section("Serveur perso") {
-            TextField("Nom", text: Binding(get: { p.name }, set: { var q = p; q.name = $0; settings.updateCustom(q) }))
+            // Un nom effacé laisserait le fournisseur sans nom partout : on garde alors l'hôte.
+            TextField(ProviderDetailDisplay.serverName("", address: p.baseUrl), text: $customName)
+                .onChange(of: customName) { _, typed in
+                    var q = p
+                    q.name = ProviderDetailDisplay.serverName(typed, address: q.baseUrl)
+                    if q.name != p.name { settings.updateCustom(q) }
+                }
+                .accessibilityLabel("Nom du serveur")
             Picker("Protocole", selection: Binding(get: { p.kind }, set: { var q = p; q.kind = $0; q.listing = $0 == .ollama ? .ollama : .openai; settings.updateCustom(q) })) {
                 ForEach(ApiKind.allCases, id: \.self) { Text($0.label).tag($0) }
             }

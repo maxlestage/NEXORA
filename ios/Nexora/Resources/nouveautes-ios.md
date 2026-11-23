@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.227 — 23 novembre 2026 — Serveur perso jamais sans nom
+
+- Corrigé : effacer le nom d'un serveur perso le laissait sans nom dans les listes et le choix du modèle ; il prend maintenant l'adresse du serveur (par ex. « 192.168.1.10 ») jusqu'à ce que vous en tapiez un.
+- Amélioré : le champ affiche ce nom par défaut et se lit « Nom du serveur » avec VoiceOver.
+
 ## 3.0.226 — 23 novembre 2026 — Émoji d'agent simple à changer
 
 - Amélioré : dans la fiche d'un agent, taper un émoji remplace directement l'ancien, sans devoir l'effacer d'abord.
