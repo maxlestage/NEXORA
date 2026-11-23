@@ -53,4 +53,74 @@ struct TidyCodeTests {
         #expect(tidyCode("src/lib.rs", out ?? "", before: src)
             == "pub const A: u8 = 1;\n\npub fn n() {}\n\n#[cfg(test)]\nmod t {}\n")
     }
+
+    // Remarques de flutter analyze dans le Dart de l'agent (port de Flutter 2.2.80).
+
+    @Test("Dart : accolades inutiles et doc en tête de fichier (essai réel)")
+    func dartLintsRealRun() {
+        let agent = "/// Utility functions for duration formatting.\n\n"
+            + "/// Formats a [Duration].\n"
+            + "String formatDuree(Duration d) {\n"
+            + "  final hours = d.inHours;\n"
+            + "  final minutesStr = '${d.inMinutes % 60}'.padLeft(2, '0');\n"
+            + "  return '${hours} h ${minutesStr} min';\n"
+            + "}\n"
+        #expect(tidyCode("app/lib/utils/duration_utils.dart", agent)
+            == "// Utility functions for duration formatting.\n\n"
+            + "/// Formats a [Duration].\n"
+            + "String formatDuree(Duration d) {\n"
+            + "  final hours = d.inHours;\n"
+            + "  final minutesStr = '${d.inMinutes % 60}'.padLeft(2, '0');\n"
+            + "  return '$hours h $minutesStr min';\n"
+            + "}\n")
+    }
+
+    @Test("Dart : les accolades utiles restent")
+    func dartLintsUsefulBraces() {
+        let agent = "final a = '${n}s ${n}_x ${o.p} ${f()} ${n}$m';\n"
+            + "final b = '\\${n} ';\n"
+        #expect(tidyCode("lib/a.dart", agent) == agent)
+    }
+
+    @Test("Dart : jamais dans une chaîne brute ni hors d'un texte")
+    func dartLintsRawAndCode() {
+        let agent = "final a = r'${n} ';\n"
+            + "final b = r\"\"\"\n${n} \n\"\"\";\n"
+            + "// voir ${n} ici\n"
+            + "final c = '''\n${n} ok''';\n"
+        #expect(tidyCode("lib/a.dart", agent)
+            == "final a = r'${n} ';\n"
+            + "final b = r\"\"\"\n${n} \n\"\"\";\n"
+            + "// voir ${n} ici\n"
+            + "final c = '''\n$n ok''';\n")
+    }
+
+    @Test("Dart : interpolations imbriquées")
+    func dartLintsNested() {
+        let agent = "final s = '${ok ? '${a} !' : \"${b}.\"} ${c}';\n"
+        #expect(tidyCode("lib/a.dart", agent) == "final s = '${ok ? '$a !' : \"$b.\"} $c';\n")
+    }
+
+    @Test("Dart : les lignes du fichier d'origine restent telles quelles")
+    func dartLintsKeepOriginal() {
+        let before = "/// Outils.\n\nfinal a = '${x} ';\n"
+        let agent = "/// Outils.\n\nfinal a = '${x} ';\nfinal b = '${y} ';\n"
+        #expect(tidyCode("lib/a.dart", agent, before: before)
+            == "/// Outils.\n\nfinal a = '${x} ';\nfinal b = '$y ';\n")
+    }
+
+    @Test("Dart : une doc rattachée à quelque chose reste une doc")
+    func dartLintsAttachedDoc() {
+        let lib = "/// La bibliothèque.\nlibrary;\n\nimport 'a.dart';\n"
+        let fn = "/// Compte.\nint n() => 0;\n"
+        #expect(tidyCode("lib/a.dart", lib) == lib)
+        #expect(tidyCode("lib/b.dart", fn) == fn)
+        #expect(tidyCode("lib/c.dart", "/// Outils.\nimport 'a.dart';\n") == "// Outils.\nimport 'a.dart';\n")
+    }
+
+    @Test("Dart : le Rust n'est pas concerné")
+    func dartLintsNotRust() {
+        let rust = "/// Doc.\n\nfn f() { format!(\"${x}\"); }\n"
+        #expect(tidyCode("src/lib.rs", rust) == rust)
+    }
 }
