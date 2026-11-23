@@ -1935,6 +1935,12 @@ mémoire 32k tokens, consigne 3 000 car.
   définition maintenant ». Avant : « Essaie un mot plus court » (dizaines de recherches en
   essai réel, chacune renvoyant tout l'historique, session arrêtée sans rien livrer).
   Tests : 646 → 649.
+- 3.0.241 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.79 —
+  `rustBinHint(…, libRs:, crate:)` ; un test de tests/ qui importe app() par le nom du crate
+  (« use nexora_site::app; ») alors qu'app() est dans src/main.rs est maintenant signalé
+  (l'import le cachait) ; pitfalls lit aussi src/lib.rs. Fonction vraiment dans lib.rs ou
+  importée d'une autre dépendance : rien. Avant : test qui ne compile pas, tours de
+  réparation renvoyant tout l'historique. Tests : 649 → 651.
 
 ## Prochain passage : INTERFACE (ou parité)
 Parité Flutter en retard : 2.2.79 à 2.2.111 non portées (corrections de l'agent, souvent
