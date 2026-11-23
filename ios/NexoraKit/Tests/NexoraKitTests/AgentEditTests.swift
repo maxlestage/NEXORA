@@ -42,6 +42,26 @@ struct AgentEditTests {
         #expect(llm.prompt(1).contains("1801: .atelier"))
     }
 
+    @Test("passage en plusieurs copies : chacune montrée avec sa ligne, choisie par \"line\"")
+    func ambiguousCopies() {
+        let src = "const A: [u8; 2] = [\n    1, 2,\n];\n\nconst B: [u8; 2] = [\n    3, 4,\n];\n\nfn main() {}\n"
+        // Sans ligne : refus qui situe chaque copie avec ses voisines.
+        let refused = applyEdit(src, "];\n", "];\n\nfn f() {}\n")
+        #expect(refused.0 == nil)
+        #expect(refused.1.contains("apparaît 2 fois (lignes 3, 7)"))
+        #expect(refused.1.contains("Copie de la ligne 7 :"))
+        #expect(refused.1.contains(">7: ];"))
+        #expect(refused.1.contains(" 6:     3, 4,"))
+        // Avec "line" : seule la copie la plus proche change.
+        let chosen = applyEdit(src, "];\n", "];\nfn f() {}\n", near: 8)
+        #expect(chosen.0 == src.replacingOccurrences(of: "    3, 4,\n];\n", with: "    3, 4,\n];\nfn f() {}\n"))
+        #expect(chosen.1 == "1 remplacement (ligne 7)")
+        // À égale distance de deux copies : rien n'est modifié au hasard.
+        let tie = applyEdit(src, "];\n", "]; // x\n", near: 5)
+        #expect(tie.0 == nil)
+        #expect(tie.1.contains("La ligne 5 est à égale distance de deux copies."))
+    }
+
     @Test("remplacement ciblé : passage unique, espaces de fin tolérés")
     func targeted() {
         #expect(applyEdit(Self.css, ".atelier", ".x").0 != nil)

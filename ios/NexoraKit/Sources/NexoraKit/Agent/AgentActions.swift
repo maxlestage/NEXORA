@@ -24,7 +24,8 @@ public let agentToolList: [(name: String, help: String)] = [
     ("edit_file",
      "Modifie un passage d'un fichier sans le réécrire (idéal pour les longs "
         + "fichiers) : remplace exactement « old » par « new ». old doit être unique "
-        + "dans le fichier (ajoute des lignes autour sinon) ; \"all\": true remplace "
+        + "dans le fichier (ajoute des lignes autour sinon, ou \"line\": le numéro de "
+        + "la ligne visée) ; \"all\": true remplace "
         + "toutes les occurrences ; old vide ajoute new à la fin (avec \"at_end\": true pour du code). args: "
         + "{\"path\": \"…\"} puis DEUX blocs de code après le JSON : d'abord old, puis new "
         + "(ou \"old\" et \"new\" dans args)."),

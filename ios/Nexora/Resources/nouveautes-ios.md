@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.238 — 23 novembre 2026 — L'agent sait quelle copie modifier
+- Corrigé : quand le passage à modifier revenait plusieurs fois dans un fichier (« ]; », « } »), l'agent recevait refus sur refus sans savoir où étaient les copies.
+- Le refus montre maintenant chaque copie avec son numéro de ligne et les lignes autour : moins d'essais, donc moins de tokens.
+- L'agent peut désigner la copie voulue par son numéro de ligne : seule celle-ci change ; à égale distance de deux copies, rien n'est modifié au hasard.
+
 ## 3.0.237 — 23 novembre 2026 — L'agent sait quand un nom est à créer
 - Corrigé : pour « ajoute une fonction format_octets », l'agent cherchait d'abord ce nom ; ne le trouvant pas, on lui conseillait « essaie un mot plus court », et il cherchait encore ce qu'il devait justement écrire.
 - Un nom de code (format_octets, formatDuree, Slug::new…) absent de tout le dépôt lui est maintenant signalé clairement : « n'existe pas encore », à créer tout de suite à l'endroit demandé.

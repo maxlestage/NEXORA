@@ -1913,8 +1913,15 @@ mémoire 32k tokens, consigne 3 000 car.
   (qui relançait des recherches, chacune renvoyant tout l'historique) ; recherche limitée à
   un dossier : réponse du dépôt entier si rien nulle part. Tests : 638 → 639.
 
+- 3.0.238 (parité, agent ; passage TOKENS : pistes sûres épuisées) : port de Flutter 2.2.76 —
+  `applyEdit(…, near:)` ; passage d'edit_file présent plusieurs fois → refus qui liste les
+  lignes de chaque copie (6 montrées avec leurs voisines, « > » sur la copie) ; "line" (ou
+  "near") choisit la plus proche, refus à égalité ; résumé « 1 remplacement (ligne 7) ».
+  Avant : « ajoute des lignes autour » seul (7 refus de suite en essai réel, chacun
+  renvoyant tout l'historique). Tests : 639 → 640.
+
 ## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.76 à 2.2.111 non portées (corrections de l'agent, souvent
+Parité Flutter en retard : 2.2.77 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → prochain passage : TOKENS,
