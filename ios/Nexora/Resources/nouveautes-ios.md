@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.255 — 24 novembre 2026 — L'agent ajoute du code à la ligne qu'il vise
+- Corrigé : quand le modèle demandait de modifier « la ligne 600 » sans envoyer de texte, NEXORA répondait « il manque le texte » ou « old vide », et plusieurs étapes étaient perdues.
+- Un numéro de ligne seul montre maintenant les lignes autour au modèle, puis insère après cette ligne le texte qu'il envoie juste après ; avec le texte dans la même action, il est inséré tout de suite.
+- Prudent : un numéro de ligne avec un vrai passage à remplacer garde son rôle, une ligne hors du fichier reçoit une erreur claire, et un commentaire « // ... existing code » n'est jamais inséré.
+
 ## 3.0.254 — 24 novembre 2026 — L'agent n'écrit plus « // ... existing code » à la place de votre code
 - Corrigé : une modification qui remplaçait du code par un commentaire de remplissage (« // ... existing code », « # rest of the file », « // reste du code inchangé »…) cassait le fichier ; elle est maintenant refusée avant d'être écrite, et le fichier reste intact.
 - Le modèle apprend tout de suite la bonne méthode pour ajouter une fonction ou un test, sans étapes perdues (chacune renvoie tout l'historique).
