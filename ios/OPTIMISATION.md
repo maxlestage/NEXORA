@@ -1957,11 +1957,19 @@ mémoire 32k tokens, consigne 3 000 car.
   « Changed lib/x.dart » sans détail, tours de réparation renvoyant tout l'historique.
   L'alerte d'indentation (`dartIndentHint`) vient d'une version ultérieure. Tests : 658 → 663.
 
+- 3.0.244 (parité, agent ; passage INTERFACE : rien d'urgent) : port de Flutter 2.2.82 —
+  `AgentRun.erasedLines` + `eraseRefusal` (AgentRun+Files.swift) ; write_file dont le contenu
+  effacerait plus de la moitié des lignes de code d'origine encore présentes (5 au moins) →
+  rien n'est écrit, 3 lignes perdues montrées et la façon d'ajouter (edit_file, at_end) ;
+  "force": true passe. Le fichier d'origine est lu même s'il ne l'a pas été. L'ajout
+  automatique à la fin (`pureAddition`) vient d'une version ultérieure. Avant : brouillon
+  amputé, CI rouge puis tours de réparation renvoyant tout l'historique. Tests : 663 → 668.
+
 ## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.82 à 2.2.111 non portées (corrections de l'agent, souvent
+Parité Flutter en retard : 2.2.83 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.244) : INTERFACE, puis TOKENS,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.245) : TOKENS (sinon parité 2.2.83), puis INTERFACE,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

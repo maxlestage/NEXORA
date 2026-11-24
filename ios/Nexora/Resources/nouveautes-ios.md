@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.244 — 24 novembre 2026 — L'agent n'efface plus le code existant
+- Corrigé : pour « ajoute une fonction dans diff.dart », l'agent pouvait réécrire le fichier avec seulement la nouvelle fonction ; tout le reste disparaissait du brouillon, sans alerte.
+- Quand un contenu effacerait la plupart du code d'un fichier existant, rien n'est écrit : l'agent apprend quelles lignes il allait perdre et comment ajouter son code (à un endroit précis, ou à la fin).
+- Le fichier d'origine est vérifié même quand l'agent ne l'a pas lu avant de l'écrire. Rien ne change pour une réécriture qui garde le code ni pour un nouveau fichier.
+
 ## 3.0.243 — 23 novembre 2026 — L'agent écrit des lignes que dart format accepte
 - Corrigé : en essai réel, l'agent écrivait une ligne Dart de 86 caractères ; la CI qui vérifie « dart format » échouait en disant seulement « Changed lib/models/chat.dart ».
 - Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture, avec chaque ligne trop longue et la façon de la couper.
