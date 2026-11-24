@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.249 — 24 novembre 2026 — Une réflexion qui radote est coupée tout de suite
+- Amélioré : quand le modèle répète la même chose dans sa réflexion (le même motif des dizaines de fois, ou la même phrase ligne après ligne), NEXORA coupe la réponse aussitôt au lieu d'attendre sa limite de longueur.
+- Moins de tokens : en essai réel, une seule de ces boucles consommait jusqu'à 16 000 tokens avant de rendre une réponse vide.
+- L'agent relance aussitôt avec une réflexion courte, ce qui casse la boucle.
+- Prudent : une réflexion normale, du code ou une courte répétition ne sont jamais coupés.
+
 ## 3.0.248 — 24 novembre 2026 — L'agent ne s'arrête plus sur une réflexion qui tourne en rond
 - Corrigé : un modèle dont la réflexion tournait en boucle jusqu'à sa limite renvoyait trois réponses vides, et la session s'arrêtait sans finir.
 - Les deux relances après une réponse vide demandent maintenant une réflexion courte et tirent la réponse autrement, ce qui casse la boucle ; la première demande de chaque étape garde vos réglages.

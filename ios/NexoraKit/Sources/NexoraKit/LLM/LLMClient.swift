@@ -449,9 +449,19 @@ public struct LLMClient: Sendable {
     ) async throws -> (text: String, usage: TokenUsage) {
         var text = ""
         var total = TokenUsage.zero
+        var thinking = ""
+        var thought = 0
+        var checked = 0
         for try await d in stream(provider: provider, apiKey: apiKey, model: model, messages: messages, system: system, options: options) {
             text += d.text
+            thinking += d.thinking
+            thought += d.thinking.utf16.count
             if let u = d.usage { total = total + u }
+            // Réflexion qui tourne en rond avant tout texte : coupée tout de suite.
+            if text.isEmpty, thought - checked >= 400 {
+                checked = thought
+                if thinkingLoops(thinking) { break }
+            }
         }
         if total.total == 0 {
             let input = messages.reduce(0) { $0 + $1.content.count } + (system?.count ?? 0)

@@ -1306,10 +1306,25 @@ public final class AgentRun {
         var text = ""
         var total = TokenUsage.zero
         var stop: String?
+        var thinking = ""
+        var thought = 0
+        var checked = 0
         for try await d in stream {
             text += d.text
+            thinking += d.thinking
+            thought += d.thinking.utf16.count
             if let u = d.usage { total = total + u }
             if let s = d.stop { stop = s }
+            // Une réflexion qui tourne en rond, avant tout texte : on coupe tout de
+            // suite (la réponse est vide, et l'agent relance autrement) au lieu
+            // d'attendre la limite de longueur.
+            if text.isEmpty, thought - checked >= 400 {
+                checked = thought
+                if thinkingLoops(thinking) {
+                    stop = "loop"
+                    break
+                }
+            }
         }
         if let stop { onStop?(stop) }
         let used: TokenUsage

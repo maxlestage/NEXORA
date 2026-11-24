@@ -17,6 +17,8 @@ enum Reply: Sendable {
     case cut(String)
     /// Rien ne vient jamais (jusqu'à l'annulation).
     case hang
+    /// Une réflexion (en morceaux, canal `reasoning`), puis du texte.
+    case think([String], String)
 }
 
 /// Un faux modèle : rend les réponses prévues, dans l'ordre (ou calculées d'après
@@ -152,6 +154,9 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
             })
         case .cut(let t)?:
             text = Self.chunk(["content": t])
+        case .think(let parts, let t)?:
+            text = (parts.map { Self.chunk(["reasoning": $0]) } + [Self.chunk(["content": t], finish: stop), "data: [DONE]\n"])
+                .joined(separator: "\n")
         case .error(let s, let b)?:
             status = s
             text = b

@@ -2001,12 +2001,22 @@ mémoire 32k tokens, consigne 3 000 car.
   (réflexion en boucle), puis changement de modèle ou arrêt, chaque essai renvoyant tout
   l'historique. Tests : 682 → 685 (AgentEmptyRetryTests ; `ScriptLLM.body(_:)` ajouté).
 
-## Prochain passage : TOKENS (sinon parité 2.2.86)
-2.2.85 portée (3.0.248). Puis 2.2.86.
-Parité Flutter en retard : 2.2.85 à 2.2.111 non portées (corrections de l'agent, souvent
+- 3.0.249 (parité, tokens ; passage TOKENS : pistes sûres épuisées) : port de Flutter
+  2.2.86 — `thinkingLoops(_:)` (LLM/StreamParsers.swift) ; dans `AgentRun.complete` et
+  `LLMClient.complete`, tant qu'aucun texte n'est venu, la réflexion est vérifiée tous les
+  400 caractères (UTF-16) : 6 lignes identiques (≥ 8 car.) ou fin périodique (≥ 25
+  répétitions, ≥ 300 car., motif ≤ 80) → flux coupé (arrêt « loop », pas « coupé »),
+  réponse vide, relance calme (3.0.248). Avant : jusqu'à ≈ 16 000 tokens écrits (×5 chez
+  Anthropic) par boucle avant une réponse vide ; après : coupé en ≈ 400 car. de boucle.
+  Test : aucun fichier .swift de Sources/ signalé, vérifié tous les 400 car.
+  `Reply.think` ajouté à ScriptLLM. Tests : 685 → 691 (ThinkingLoopTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.87)
+2.2.86 portée (3.0.249). Puis 2.2.87.
+Parité Flutter en retard : 2.2.87 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.249) : TOKENS (sinon parité 2.2.86), puis INTERFACE,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.250) : INTERFACE (sinon parité 2.2.87), puis TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
