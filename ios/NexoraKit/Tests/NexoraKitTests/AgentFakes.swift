@@ -73,6 +73,11 @@ final class ScriptLLM: HTTPTransport, @unchecked Sendable {
         }
     }
 
+    /// Le corps JSON de la requête n° i.
+    func body(_ i: Int) -> [String: Any] {
+        lock.withLock { bodies[i] }
+    }
+
     /// Les messages bruts de la requête n° i (avec leurs images).
     func rawMessages(_ i: Int) -> [[String: Any]] {
         lock.withLock { bodies[i]["messages"] as? [[String: Any]] ?? [] }

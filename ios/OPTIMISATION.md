@@ -1994,12 +1994,19 @@ mémoire 32k tokens, consigne 3 000 car.
   l'arrêt. Avant : page /faq déjà en place, session arrêtée « en boucle » sans rien dire.
   Tests : 677 → 682 (AgentExistingTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.85)
-2.2.84 entièrement portée (3.0.247). Puis 2.2.85.
+- 3.0.248 (parité, agent ; passage INTERFACE : rien d'urgent, écrans déjà revus) : port de
+  Flutter 2.2.85 — `AgentRun.askOptions(_:calm:)` et `ask(calm:)` ; les deux relances après
+  une réponse vide demandent la réflexion `.faible` et une température de 0,7 (au lieu de
+  0,2 et du niveau choisi), `max_tokens` inchangé. Avant : trois réponses vides de suite
+  (réflexion en boucle), puis changement de modèle ou arrêt, chaque essai renvoyant tout
+  l'historique. Tests : 682 → 685 (AgentEmptyRetryTests ; `ScriptLLM.body(_:)` ajouté).
+
+## Prochain passage : TOKENS (sinon parité 2.2.86)
+2.2.85 portée (3.0.248). Puis 2.2.86.
 Parité Flutter en retard : 2.2.85 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.248) : INTERFACE (sinon parité 2.2.85), puis TOKENS,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.249) : TOKENS (sinon parité 2.2.86), puis INTERFACE,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

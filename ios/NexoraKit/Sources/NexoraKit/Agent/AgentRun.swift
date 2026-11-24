@@ -1273,15 +1273,24 @@ public final class AgentRun {
 
     // MARK: - Appels au modèle
 
-    var llmOptions: LLMOptions {
-        LLMOptions(temperature: 0.2, maxTokens: level == nil || level!.maxTokens < 16000 ? 16000 : level!.maxTokens, level: level)
+    /// Les réglages d'une requête de l'agent. Une relance après une réponse vide
+    /// (`calm`) demande la réflexion la plus courte et tire au sort autrement :
+    /// avec les mêmes réglages, le modèle refaisait la même boucle.
+    static func askOptions(_ level: ThinkLevel?, calm: Bool = false) -> LLMOptions {
+        LLMOptions(
+            temperature: calm ? 0.7 : 0.2,
+            maxTokens: level == nil || level!.maxTokens < 16000 ? 16000 : level!.maxTokens,
+            level: calm ? .faible : level
+        )
     }
+
+    var llmOptions: LLMOptions { Self.askOptions(level) }
 
     /// Toute la réponse du modèle (texte seul), avec ses dépenses et ses en-têtes
     /// attribués au fournisseur qui a répondu.
     func complete(
         _ p: ProviderDef, _ key: String?, _ m: String, _ messages: [LLMMessage], system: String,
-        onStop: (@MainActor (String) -> Void)? = nil
+        options: LLMOptions? = nil, onStop: (@MainActor (String) -> Void)? = nil
     ) async throws -> String {
         var seen: (@Sendable (HTTPHead) -> Void)?
         if let headers = onHeaders {
@@ -1291,7 +1300,7 @@ public final class AgentRun {
             }
         }
         let stream = llm.stream(
-            provider: p, apiKey: key, model: m, messages: messages, system: system, options: llmOptions,
+            provider: p, apiKey: key, model: m, messages: messages, system: system, options: options ?? llmOptions,
             onHeaders: seen
         )
         var text = ""
@@ -1317,8 +1326,10 @@ public final class AgentRun {
 
     /// Une étape : la réponse du modèle, avec de nouveaux essais si le réseau coupe
     /// ou si le fournisseur tarde (la mission ne s'arrête pas pour si peu). `nil` :
-    /// arrêtée par l'utilisateur.
-    func ask() async throws -> String? {
+    /// arrêtée par l'utilisateur. Avec `calm` (relance après une réponse vide) :
+    /// réflexion au plus court et température plus haute, pour sortir d'une
+    /// réflexion qui tourne en rond.
+    func ask(calm: Bool = false) async throws -> String? {
         var attempt = 0
         while true {
             // Le modèle de cet essai : ses dépenses et ses erreurs lui reviennent,
@@ -1336,7 +1347,8 @@ public final class AgentRun {
                 if stopFlag { return nil }
                 let sys = system
                 let msgs = history
-                let call = Task { try await self.complete(p, key, m, msgs, system: sys) }
+                let opts = Self.askOptions(level, calm: calm)
+                let call = Task { try await self.complete(p, key, m, msgs, system: sys, options: opts) }
                 currentCall = call
                 let out = try await call.value
                 if stopFlag { return nil }
