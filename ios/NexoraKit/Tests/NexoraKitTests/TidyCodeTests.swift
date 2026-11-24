@@ -123,4 +123,28 @@ struct TidyCodeTests {
         let rust = "/// Doc.\n\nfn f() { format!(\"${x}\"); }\n"
         #expect(tidyCode("src/lib.rs", rust) == rust)
     }
+
+    @Test("Dart : la barre oblique inutile devant un guillemet de l'autre sorte est retirée (essai réel)")
+    func dartLintsUselessQuoteEscapes() {
+        let agent = #"final body = '''{\"message\": \"Invalid API key\"}''';"# + "\n"
+            + #"final b = "l\'API";"# + "\n" + #"final c = '\"x\"';"# + "\n"
+        #expect(tidyCode("test/a_test.dart", agent)
+            == #"final body = '''{"message": "Invalid API key"}''';"# + "\n"
+            + #"final b = "l'API";"# + "\n" + #"final c = '"x"';"# + "\n")
+    }
+
+    @Test("Dart : barres utiles, chaînes brutes, commentaires et lignes d'origine intacts")
+    func dartLintsUsefulEscapesKept() {
+        let kept = #"final a = 'c\'est';"# + "\n" + #"final b = "un \"mot\"";"# + "\n"
+            + #"final c = r'\"';"# + "\n" + #"// '\"' en commentaire"# + "\n"
+            + #"final d = '\\"';"# + "\n"
+        #expect(tidyCode("lib/a.dart", kept) == kept)
+        let before = #"final a = '\"x\"';"# + "\n"
+        let agent = before + #"final b = '\"y\"';"# + "\n"
+        #expect(tidyCode("lib/a.dart", agent, before: before)
+            == before + #"final b = '"y"';"# + "\n")
+        // Mêlée à une interpolation inutile sur la même ligne.
+        #expect(tidyCode("lib/b.dart", #"final e = '\"${x}\" ok';"# + "\n")
+            == #"final e = '"$x" ok';"# + "\n")
+    }
 }

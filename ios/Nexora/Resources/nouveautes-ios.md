@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.261 — 24 novembre 2026 — Le Dart de l'agent n'échappe plus les guillemets pour rien
+- Corrigé : dans un test Dart, l'agent écrivait parfois '{\"message\": \"…\"}'. Ces barres obliques ne servent à rien et « flutter analyze » les refuse : la CI échouait pour un détail d'écriture.
+- La barre oblique inutile devant un guillemet de l'autre sorte est maintenant retirée dès le brouillon ; le texte reste exactement le même.
+- Prudent : les barres utiles ('c\'est'), les chaînes brutes (r'…'), les commentaires et les lignes déjà présentes dans le fichier ne sont jamais touchés.
+
 ## 3.0.260 — 24 novembre 2026 — Une fonction Rust écrite deux fois est repérée
 - Corrigé : quand l'agent insérait deux fois la même fonction Rust (par exemple le même test « fn test_compter_mots »), NEXORA l'acceptait alors que le fichier ne compile plus ; la CI ne le découvrait que bien plus tard.
 - Une fonction définie deux fois dans le même bloc (même module, même impl) est signalée dès l'écriture, avec les deux numéros de ligne, et l'agent ne peut pas terminer sans corriger.
