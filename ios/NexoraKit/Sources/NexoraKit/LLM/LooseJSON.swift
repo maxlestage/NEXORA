@@ -174,16 +174,31 @@ public enum LooseJSON {
             } else if c == "}" || c == "]" {
                 // Une virgule juste avant la fermeture : retirée (avec les blancs qui
                 // la suivent). Lu depuis la fin, sans recopier tout le texte écrit.
-                var end = out.endIndex
-                while end > out.startIndex {
-                    let before = out.index(before: end)
-                    guard space.contains(out[before]) else { break }
-                    end = before
+                func dropComma() {
+                    var end = out.endIndex
+                    while end > out.startIndex {
+                        let before = out.index(before: end)
+                        guard space.contains(out[before]) else { break }
+                        end = before
+                    }
+                    if end > out.startIndex {
+                        let comma = out.index(before: end)
+                        if out[comma] == "," { out.removeSubrange(comma...) }
+                    }
                 }
-                if end > out.startIndex {
-                    let comma = out.index(before: end)
-                    if out[comma] == "," { out.removeSubrange(comma...) }
+                // Une fermeture qui ne correspond pas à la dernière ouverture : le
+                // modèle en a oublié une juste avant (essai réel : « }]} » au lieu de
+                // « }}]} », l'accolade de l'action jamais fermée, l'écriture perdue :
+                // « je n'ai pas trouvé d'action »). Les fermetures oubliées sont
+                // remises, si l'ouverture correspondante existe (Flutter 2.2.90).
+                let opener: Unicode.Scalar = c == "}" ? "{" : "["
+                if stack.contains(opener) {
+                    while let last = stack.last, last != opener {
+                        dropComma()
+                        out.append(stack.removeLast() == "{" ? "}" : "]")
+                    }
                 }
+                dropComma()
                 out.append(c)
                 if !stack.isEmpty { stack.removeLast() }
                 // Le premier objet est complet : ce qui suit est laissé de côté.

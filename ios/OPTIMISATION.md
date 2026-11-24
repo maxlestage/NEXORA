@@ -2044,15 +2044,19 @@ mémoire 32k tokens, consigne 3 000 car.
   « cette ligne n'existe pas », jusqu'à 5 étapes perdues, chacune renvoyant l'historique.
   Tests : 700 → 704 (AgentLineRangeTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.90)
-2.2.89 portée (3.0.252). Puis 2.2.90 (fermeture « } » ou « ] » oubliée juste avant une
-autre dans le JSON d'action : la remettre ; vérifier si parseToolCalls le fait déjà).
-Parité Flutter en retard : 2.2.90 à 2.2.111 non portées ; en porter une par passage quand
-TOKENS ou INTERFACE n'ont rien. `_awaitInsert` (insertion après une ligne) reste à porter.
-(interface : écrans déjà revus, 3.0.250 et 3.0.252 sans rien d'urgent) → passage suivant
-(3.0.253) : TOKENS, puis INTERFACE ;
-mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
-d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
+- 3.0.253 (parité 2.2.90) : `LooseJSON.repair` — une fermeture qui ne correspond pas à la
+  dernière ouverture remet d'abord celles oubliées (si l'ouverture existe), virgule finale
+  retirée à chaque fois. Avant : « }]} » au lieu de « }}]} » → aucune action, contenu du
+  fichier perdu, une étape de plus (tout l'historique renvoyé) ; après : action lue du
+  premier coup. Tokens : passage TOKENS sans piste > 2 % (épuisées), donc parité.
+  Tests : 704 → 710 (MismatchedClosersTests ; échouaient avant).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.91)
+2.2.90 portée (3.0.253). Parité Flutter en retard : 2.2.91 à 2.2.111 non portées ; en
+porter une par passage quand TOKENS ou INTERFACE n'ont rien. `_awaitInsert` (insertion
+après une ligne) reste à porter. Passage suivant (3.0.254) : INTERFACE, puis TOKENS ;
+pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
+d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`. Saisies de l'app toutes déjà
 contrôlées : ne plus les rechercher.
@@ -2061,9 +2065,10 @@ Interface ensuite : SessionView fini pour VoiceOver (3.0.233) ; puis ProvidersVi
 rien à faire), aide (thème « Agents » : 6 questions). Plus aucun
 `localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
 
-Piège local (Linux, pas la CI) : après un `git stash`, `models.json` (lien symbolique vers
-app/assets) peut manquer dans `.build/…/NexoraKit_NexoraKit.resources` et 2 tests de
-catalogue échouent (parfois un lien pendant y reste : `rm` d'abord) ; `cp -L Sources/NexoraKit/Resources/models.json <ce dossier>/` puis
+Piège local (Linux, pas la CI) : après un `git stash` ou `git checkout` d'un fichier,
+`models.json` (lien symbolique vers app/assets) peut manquer dans
+`.build/…/NexoraKit_NexoraKit.resources` et 2 tests de catalogue échouent (parfois un lien
+pendant y reste : `rm` d'abord) ; `cp -L Sources/NexoraKit/Resources/models.json <ce dossier>/` puis
 `swift test --skip-build`.
 
 ## Pistes tokens à faire
