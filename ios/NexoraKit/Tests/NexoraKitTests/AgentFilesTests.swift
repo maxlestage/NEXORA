@@ -208,6 +208,51 @@ struct AgentFilesTests {
         return try #require(run.history.first { $0.content.hasPrefix("Résultat de search_code") }).content
     }
 
+    // Essai réel (Flutter 2.2.84) : depuis site/src/main.rs, « const FAQ », défini dans
+    // site/src/contenu.rs. La recherche élargie s'arrête à 300 fichiers, parcourus dans
+    // l'ordre du dépôt : ceux de app/ passaient avant, contenu.rs n'était jamais lu.
+    @Test("searchRank : les voisins du fichier visé d'abord")
+    func searchRankOrder() {
+        let near = "site/src/main.rs"
+        #expect(AgentRun.searchRank("site/src/contenu.rs", ["faq"], near) == 1)
+        #expect(AgentRun.searchRank("app/lib/faq_screen.dart", ["faq"], near) == 2)
+        #expect(AgentRun.searchRank("site/tests/iles.rs", ["faq"], near) == 3)
+        #expect(AgentRun.searchRank("app/lib/main.dart", ["faq"], near) == 4)
+        // Un dossier visé : ses fichiers d'abord.
+        #expect(AgentRun.searchRank("site/src/a.rs", [], "site/src") == 1)
+        #expect(AgentRun.searchRank("site/src/a.rs", [], "site/src/") == 1)
+        #expect(AgentRun.searchRank("site/tests/a.rs", [], "site/src") == 3)
+        // Sans fichier visé : le nom, puis le reste, comme avant.
+        #expect(AgentRun.searchRank("site/faq.rs", ["faq"], "") == 2)
+        #expect(AgentRun.searchRank("site/a.rs", ["faq"], "") == 4)
+    }
+
+    @Test("cherché dans main.rs, trouvé dans contenu.rs malgré 320 fichiers dans app/")
+    func wideSearchNeighbors() async throws {
+        var files: [String: String] = [:]
+        for i in 0..<320 { files["app/lib/f\(String(format: "%03d", i)).dart"] = "void f() {}\n" }
+        files["site/src/contenu.rs"] = "/// La FAQ.\npub const FAQ: [(&str, &str); 1] = [(\"Q\", \"R\")];\n"
+        files["site/src/main.rs"] = "fn faq() {\n    faq_liste(&FAQ);\n}\n"
+        let r = try await search("const FAQ", files, task: "Ajoute une page /faq au site", path: "site/src/main.rs")
+        #expect(r.contains("Dans tout le dépôt"))
+        #expect(r.contains("site/src/contenu.rs :"))
+        #expect(r.contains(">2: pub const FAQ"))
+    }
+
+    @Test("cherché dans chat_state.dart, défini dans models/chat.dart : pas de « dépendance »")
+    func wideSearchDefinition() async throws {
+        let r = try await search("class Conversation", [
+            "app/lib/state/chat_state.dart":
+                "import '../models/chat.dart';\n\nclass ChatState {\n  final List<Conversation> _conversations = [];\n}\n",
+            "app/lib/models/chat.dart": "/// Une conversation.\nclass Conversation {\n  String title = '';\n}\n",
+        ], path: "app/lib/state/chat_state.dart")
+        #expect(!r.contains("dépendance"))
+        #expect(!r.contains("Ne la cherche plus"))
+        #expect(r.contains("Rien dans app/lib/state/chat_state.dart"))
+        #expect(r.contains("app/lib/models/chat.dart :"))
+        #expect(r.contains(">2: class Conversation {"))
+    }
+
     @Test("expressions régulières reconnues ; texte simple gardé")
     func regexes() {
         for q in [#"async fn .* -> String"#, #"fn (accueil|robots)"#, #"^use "#, #"app\.get\("#, #"\bApp\b"#, #"(?i)robots"#, #"Page$"#] {

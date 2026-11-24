@@ -1975,8 +1975,19 @@ mémoire 32k tokens, consigne 3 000 car.
   du dépôt. Avant : trois refus de suite, chacun renvoyant tout l'historique.
   Tests : 668 → 674.
 
-## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.84 à 2.2.111 non portées (corrections de l'agent, souvent
+- 3.0.246 (parité, agent ; passage INTERFACE : rien d'urgent) : port partiel de Flutter
+  2.2.84 — `AgentRun.searchRank(_:_:near)` ; la recherche élargie de `grep` (dossier visé
+  → tout le dépôt) parcourt d'abord le dossier du fichier visé, puis les noms évocateurs,
+  puis le même projet de premier niveau. Rien dans le fichier visé mais trouvé ailleurs →
+  « Rien dans X. Dans tout le dépôt : … » seul (avant : « dépendance, ne la cherche plus »
+  puis la vraie définition). Avant : « const FAQ » introuvable au-delà de 300 fichiers,
+  recherches répétées renvoyant tout l'historique. Tests : 674 → 677.
+
+## Prochain passage : TOKENS (ou parité)
+Reste de 2.2.84 à porter : note « la demande existe peut-être déjà » quand les recherches
+trouvent chaque point demandé (agent_runner.dart ≈ l. 1916), et réponse recopiée du modèle
+retirée de l'historique. Puis 2.2.85.
+Parité Flutter en retard : 2.2.84 (reste) à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
 des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.246) : INTERFACE (sinon parité 2.2.84), puis TOKENS,
