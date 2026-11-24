@@ -237,6 +237,34 @@ extension AgentRun {
         return gone.count * 2 > lines.count ? gone : nil
     }
 
+    /// Un write_file dont le contenu n'est que du code nouveau à ajouter à `before`
+    /// (une fonction, un test ; port de Flutter 2.2.93) : bien plus court que le
+    /// fichier, aucune ligne de code déjà présente (une sur cinq au plus, jamais la
+    /// première), pas d'import, et il commence au premier niveau (sans retrait) dans
+    /// un langage de code où une déclaration peut suivre la fin du fichier (pas la
+    /// documentation, qu'on réécrit souvent en entier). Une vraie réécriture reprend
+    /// des lignes du fichier : elle n'est pas visée.
+    public nonisolated static func pureAddition(_ path: String, before: String, content: String) -> Bool {
+        let ext = path.contains(".") ? String(path[path.index(after: path.lastIndex(of: ".")!)...]).lowercased() : ""
+        let top: Set<String> = ["dart", "rs", "py", "go", "js", "mjs", "cjs", "ts", "tsx", "jsx", "kt", "swift", "rb", "sh"]
+        guard top.contains(ext), !before.trim().isEmpty, !content.trim().isEmpty,
+              content.len * 10 <= before.len * 6 else { return false }
+        func real(_ l: String) -> Bool {
+            l.len >= 4 && l.unicodeScalars.contains {
+                ($0.isASCII && ($0.properties.isAlphabetic || ("0"..."9").contains($0))) || (0xC0...0xFF).contains($0.value)
+            }
+        }
+        let lines = content.components(separatedBy: "\n").filter { !$0.trim().isEmpty }
+        guard let first = lines.first, !first.hasPrefix(" "), !first.hasPrefix("\t") else { return false }
+        // Un import du fichier (au premier niveau) : il irait en tête, pas à la fin.
+        let imports = DRegex(#"^(import|export|library|part|use|package|from|require|#include)\b"#)
+        if lines.contains(where: { imports.hasMatch($0) }) { return false }
+        let known = Set(before.components(separatedBy: "\n").map { $0.trim() })
+        let real0 = lines.map { $0.trim() }.filter(real)
+        guard real0.count >= 2, !known.contains(real0[0]) else { return false }
+        return real0.filter(known.contains).count * 5 <= real0.count
+    }
+
     /// Le refus d'un write_file qui effacerait la plupart du code existant : 3 des
     /// lignes perdues (du code d'abord, les plus longues) et la façon d'ajouter.
     nonisolated static func eraseRefusal(_ p: String, gone: [String], total: Int) -> String {
@@ -1275,11 +1303,19 @@ extension AgentRun {
                     + "ajouter (pas tout le fichier) dans un bloc de code (```), sans "
                     + "bloc JSON : il sera ajouté à la fin, le reste du fichier est gardé."
             }
+            // Ajoute à la fin ; garde les avertissements (syntaxe, format) de edit_file
+            // (port de Flutter 2.2.93).
+            func appendToEnd(_ text: String, _ done: String) async throws -> String {
+                let r = try await exec(ToolCall("edit_file", ["path": p, "old": "", "new": text, "at_end": true], thought: call.thought))
+                guard r.hasPrefix("OK") else { return r }
+                guard let at = r.range(of: "est inchangé.") else { return done }
+                return done + r[at.upperBound...]
+            }
             if let content, append {
-                let r = try await exec(ToolCall("edit_file", ["path": p, "old": "", "new": content, "at_end": true], thought: call.thought))
-                return r.hasPrefix("OK")
-                    ? "OK, texte ajouté à la fin de \(p) en brouillon (\(content.len) caractères). Le reste du fichier est inchangé."
-                    : r
+                return try await appendToEnd(
+                    content,
+                    "OK, texte ajouté à la fin de \(p) en brouillon (\(content.len) caractères). Le reste du fichier est inchangé."
+                )
             }
             guard let content else {
                 // Le contenu viendra au tour suivant : la réponse est attendue.
@@ -1307,7 +1343,25 @@ extension AgentRun {
             // garde-fous ci-dessous) ; GitHub injoignable : écrit sans eux.
             if !changes.contains(p) { _ = try? await original(p) }
             let before = changes.contains(p) ? draft(p) : orig(p)
-            if let before, before.len > 8000, Double(content.len) < Double(before.len) * 0.6, !isTrue(call.args["force"]) {
+            let short = before.map { $0.len > 8000 && Double(content.len) < Double($0.len) * 0.6 } ?? false
+            let gone: [String]? = orig(p).flatMap { o in before.flatMap { Self.erasedLines(o, $0, content) } }
+            // Seulement du code NOUVEAU (une fonction, un test), bien plus court que le
+            // fichier : le modèle voulait l'ajouter, pas tout remplacer (port de Flutter
+            // 2.2.93 ; essai réel : une fonction seule sur un fichier de 19 000
+            // caractères, refusée, puis quatre étapes pour retrouver comment l'ajouter).
+            // Il est ajouté à la fin, rien n'est perdu.
+            if let before, short || gone != nil, !isTrue(call.args["force"]),
+               Self.pureAddition(p, before: before, content: content) {
+                return try await appendToEnd(
+                    content,
+                    "OK, ce texte ne reprend aucune ligne de \(p) : c'est un AJOUT. Il "
+                        + "a été ajouté à la FIN du fichier en brouillon (write_file aurait "
+                        + "remplacé tout le fichier ; le code existant est gardé). S'il doit "
+                        + "aller ailleurs, déplace-le avec edit_file. Le reste du fichier est "
+                        + "inchangé."
+                )
+            }
+            if let before, short, !isTrue(call.args["force"]) {
                 return "ERREUR : \(p) fait \(before.len) caractères et ce contenu "
                     + "\(content.len) : la fin du fichier serait perdue. Utilise "
                     + "edit_file pour ne changer qu'un passage (ou \"force\": true si tu "
@@ -1315,8 +1369,7 @@ extension AgentRun {
             }
             // Le contenu efface la plupart du code existant : le modèle n'a souvent
             // écrit que son ajout (une fonction) et tout le reste disparaîtrait.
-            if let o = orig(p), let before, !isTrue(call.args["force"]),
-               let gone = Self.erasedLines(o, before, content) {
+            if let o = orig(p), let before, !isTrue(call.args["force"]), let gone {
                 return Self.eraseRefusal(p, gone: gone, total: Self.erasedLines(o, before, "")?.count ?? gone.count)
             }
             changes.set(p, tidyCode(p, content.endsWith("\n") ? content : content + "\n", before: before))

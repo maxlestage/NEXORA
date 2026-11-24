@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.256 — 24 novembre 2026 — Une fonction ajoutée n'est plus refusée
+- Corrigé : quand le modèle écrivait un fichier avec seulement sa nouvelle fonction, NEXORA refusait (tout le reste aurait été effacé) et il fallait jusqu'à quatre étapes pour retrouver comment l'ajouter.
+- Quand ce texte n'est que du code nouveau (une fonction, un test, sans import ni ligne déjà dans le fichier), il est maintenant ajouté à la fin du fichier, et le code existant est gardé.
+- Les avertissements (syntaxe, format) restent affichés après un ajout à la fin.
+- Prudent : une vraie réécriture, un texte avec des imports, un morceau de fonction ou la documentation sont toujours refusés ; « force » remplace toujours le fichier.
+
 ## 3.0.255 — 24 novembre 2026 — L'agent ajoute du code à la ligne qu'il vise
 - Corrigé : quand le modèle demandait de modifier « la ligne 600 » sans envoyer de texte, NEXORA répondait « il manque le texte » ou « old vide », et plusieurs étapes étaient perdues.
 - Un numéro de ligne seul montre maintenant les lignes autour au modèle, puis insère après cette ligne le texte qu'il envoie juste après ; avec le texte dans la même action, il est inséré tout de suite.
