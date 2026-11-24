@@ -185,6 +185,9 @@ public final class AgentRun {
     public var summary = ""
     public var commitMessage = ""
     @ObservationIgnored var tree: [String]?
+    /// Une recherche de l'agent a trouvé ce qu'elle cherchait : ce qui est demandé
+    /// existe peut-être déjà (en partie ou en entier).
+    @ObservationIgnored var foundExisting = false
 
     /// Arrêté par l'utilisateur : plus d'envoi, de CI ni de fusion automatiques
     /// jusqu'à sa prochaine instruction.
@@ -630,6 +633,30 @@ public final class AgentRun {
             if !stale && count < reminderBatch { return }
         }
         stripReminders(&history, upTo: history.count)
+    }
+
+    /// Sépare le résultat d'une action de la relance qui suit sa répétition.
+    public nonisolated static let repeatMark = "\n\n— ACTION DÉJÀ FAITE —\n"
+
+    /// Le modèle a recopié sa réponse précédente (même action). Garder cette copie
+    /// dans l'historique renforce la boucle (essai réel : le modèle se recopiait à
+    /// chaque tour malgré les relances) et la renvoie à chaque étape. Elle est donc
+    /// retirée, et la relance est ajoutée sous le résultat de l'action (à la place
+    /// d'une relance précédente et de son rappel) : le modèle relit son action, son
+    /// résultat, puis la consigne.
+    public nonisolated static func repeatNudge(_ history: inout [LLMMessage], _ nudge: String) {
+        let n = history.count
+        guard n >= 2, history[n - 1].role == "assistant", history[n - 2].role == "user" else {
+            history.append(LLMMessage("user", nudge))
+            return
+        }
+        history.removeLast()
+        var base = history[n - 2].content
+        for mark in [repeatMark, reminderMark] {
+            let at = base.indexOf(mark)
+            if at >= 0 { base = base.sub(0, at) }
+        }
+        history[n - 2] = LLMMessage("user", base + repeatMark + nudge)
     }
 
     /// Retire les rappels des messages `0..<end`.
