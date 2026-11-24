@@ -109,6 +109,42 @@ public func isCutStop(_ stop: String?) -> Bool {
     ["length", "max_tokens", "max_output_tokens", "cut"].contains(stop ?? "")
 }
 
+/// Une réflexion qui tourne en rond : sa fin répète le même motif encore et
+/// encore (« '…' '…' '…' => » des centaines de fois, ou la même phrase ligne
+/// après ligne). En essai réel, GPT-OSS réfléchissait ainsi jusqu'à sa limite
+/// sans jamais répondre : attendre la fin ne sert qu'à dépenser des tokens.
+///
+/// Prudent : il faut au moins 25 répétitions d'affilée d'un même motif (et au
+/// moins 300 caractères), ou 6 lignes identiques de suite (d'au moins 8 caractères).
+public func thinkingLoops(_ thinking: String) -> Bool {
+    let u = Array(thinking.utf16.suffix(6000))
+    if u.count < 300 { return false }
+    let t = String(decoding: u, as: UTF16.self)
+    // La même ligne, encore et encore (la dernière, peut-être inachevée, ne compte pas).
+    let lines = t.split(separator: "\n", omittingEmptySubsequences: false)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+    if lines.count >= 7 {
+        let last = lines[(lines.count - 7)..<(lines.count - 1)]
+        if let first = last.first, first.utf16.count >= 8, last.allSatisfy({ $0 == first }) { return true }
+    }
+    // Un même motif répété (sur une seule ligne) : la fin du texte est périodique.
+    var end = u
+    while let c = end.last, c == 0x20 || c == 0x0A || c == 0x0D || c == 0x09 { end.removeLast() }
+    for unit in 1...80 {
+        let n = max(unit * 25, 300)
+        if n + unit > end.count { break }
+        let start = end.count - n
+        var periodic = true
+        for i in start..<end.count where end[i] != end[i - unit] {
+            periodic = false
+            break
+        }
+        if periodic, end[start...].contains(where: { $0 != 0x20 && $0 != 0x0A && $0 != 0x0D && $0 != 0x09 }) { return true }
+    }
+    return false
+}
+
 /// Une erreur d'un fournisseur d'IA.
 public struct LLMError: Error, Sendable, CustomStringConvertible, LocalizedError {
     public let message: String
