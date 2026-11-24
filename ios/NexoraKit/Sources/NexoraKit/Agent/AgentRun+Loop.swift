@@ -415,7 +415,7 @@ extension AgentRun {
                     nudged = true
                     continue
                 }
-                // Un fichier Dart qui ne compilera pas : l'agent est renvoyé le corriger
+                // Un fichier Dart ou Rust qui ne compilera pas : l'agent est renvoyé le corriger
                 // avant de terminer (deux fois au plus), au lieu de laisser la CI échouer.
                 let broken = finish == nil || brokenAsked >= 2 ? [] : await brokenDart()
                 if finish != nil && !broken.isEmpty {

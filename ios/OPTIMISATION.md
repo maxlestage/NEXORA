@@ -2011,12 +2011,23 @@ mémoire 32k tokens, consigne 3 000 car.
   Test : aucun fichier .swift de Sources/ signalé, vérifié tous les 400 car.
   `Reply.think` ajouté à ScriptLLM. Tests : 685 → 691 (ThinkingLoopTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.87)
-2.2.86 portée (3.0.249). Puis 2.2.87.
-Parité Flutter en retard : 2.2.87 à 2.2.111 non portées (corrections de l'agent, souvent
+- 3.0.250 (parité, agent ; passage INTERFACE : rien d'urgent, écrans déjà revus) : port de
+  Flutter 2.2.87 — `rustSyntaxError` (Agent/RustCheck.swift), `AgentRun.syntaxError` /
+  `syntaxHint` (Dart ou Rust), `dartPitfalls` renommé `syntaxPitfalls` ; un brouillon .rs
+  qui ne compile plus (accolade/parenthèse/crochet en trop ou jamais fermé, chaîne jamais
+  fermée) → « ATTENTION … ne compilera pas, ligne N », avec « le décalage commence sans
+  doute ligne M » (première fermeture mal alignée sur sa ligne d'ouverture), et finish
+  refusé (deux fois au plus, `brokenDart` couvre aussi .rs). `orphanNote` (brace_hint.dart)
+  et `rustDuplicateFnError` viennent de versions ultérieures : non portés. Test : aucun
+  fichier .rs de site/ signalé. Avant : accolade en trop vue seulement par la CI, puis tours
+  de réparation renvoyant tout l'historique. Tests : 691 → 696 (RustCheckTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.88)
+2.2.87 portée (3.0.250). Puis 2.2.88.
+Parité Flutter en retard : 2.2.88 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.250) : INTERFACE (sinon parité 2.2.87), puis TOKENS,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.251) : TOKENS (sinon parité 2.2.88), puis INTERFACE ;
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

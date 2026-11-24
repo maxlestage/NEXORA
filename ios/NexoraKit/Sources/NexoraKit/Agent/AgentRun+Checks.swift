@@ -1422,23 +1422,25 @@ extension AgentRun {
     func pitfalls(_ p: String) async throws -> String {
         guard let text = draft(p) else { return "" }
         if p.hasSuffix(".dart") {
-            let syntax = await dartPitfalls(p, text)
+            let syntax = await syntaxPitfalls(p, text)
             return syntax + (await formatPitfalls(p, text))
         }
-        if !Self.rustTest.hasMatch(p) { return "" }
+        if !p.hasSuffix(".rs") { return "" }
+        let syntax = await syntaxPitfalls(p, text)
+        if !Self.rustTest.hasMatch(p) { return syntax }
         let i = p.lastIndexOf("tests/")
         let (cargo, _) = try await current(p.sub(0, i) + "Cargo.toml")
         let (mainRs, _) = try await current(p.sub(0, i) + "src/main.rs")
         let (libRs, _) = try await current(p.sub(0, i) + "src/lib.rs")
-        return Self.rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ?? ""
+        return syntax + (Self.rustTestHint(p, text, cargo: cargo, mainRs: mainRs, libRs: libRs) ?? "")
     }
 
-    /// Un fichier Dart qui ne compilera pas : signalé tout de suite, au lieu
+    /// Un fichier Dart ou Rust qui ne compilera pas : signalé tout de suite, au lieu
     /// d'attendre l'échec de la CI. Une erreur déjà présente dans la version
     /// d'origine n'est pas signalée (rien de certain à corriger).
-    func dartPitfalls(_ p: String, _ text: String) async -> String {
-        guard let hint = Self.dartSyntaxHint(p, text) else { return "" }
-        if let before = try? await original(p), dartSyntaxError(before) != nil { return "" }
+    func syntaxPitfalls(_ p: String, _ text: String) async -> String {
+        guard let hint = Self.syntaxHint(p, text) else { return "" }
+        if let before = try? await original(p), Self.syntaxError(p, before) != nil { return "" }
         return hint
     }
 
@@ -1537,13 +1539,13 @@ extension AgentRun {
             + "d'une chaîne sur sa propre ligne (4 espaces de plus)."
     }
 
-    /// Les avertissements des brouillons Dart qui ne compileront pas (et qui
-    /// compilaient avant).
+    /// Les avertissements des brouillons Dart et Rust qui ne compileront pas (et
+    /// qui compilaient avant).
     func brokenDart() async -> [String] {
         var out: [String] = []
         for e in changes.entries {
-            guard let text = e.value, e.key.hasSuffix(".dart") else { continue }
-            let hint = await dartPitfalls(e.key, text)
+            guard let text = e.value, e.key.hasSuffix(".dart") || e.key.hasSuffix(".rs") else { continue }
+            let hint = await syntaxPitfalls(e.key, text)
             if !hint.isEmpty { out.append(hint) }
         }
         return out
@@ -1552,8 +1554,20 @@ extension AgentRun {
     /// L'avertissement à donner au modèle pour un fichier Dart qui ne compilera pas,
     /// ou `nil`.
     public nonisolated static func dartSyntaxHint(_ path: String, _ content: String) -> String? {
-        if !path.hasSuffix(".dart") { return nil }
-        guard let error = dartSyntaxError(content) else { return nil }
+        path.hasSuffix(".dart") ? syntaxHint(path, content) : nil
+    }
+
+    /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou `nil`.
+    public nonisolated static func syntaxError(_ path: String, _ content: String) -> String? {
+        if path.hasSuffix(".dart") { return dartSyntaxError(content) }
+        if path.hasSuffix(".rs") { return rustSyntaxError(content) }
+        return nil
+    }
+
+    /// L'avertissement à donner au modèle pour un fichier Dart ou Rust qui ne
+    /// compilera pas, ou `nil`.
+    public nonisolated static func syntaxHint(_ path: String, _ content: String) -> String? {
+        guard let error = syntaxError(path, content) else { return nil }
         return "\n\nATTENTION : \(path) ne compilera pas, \(error). Corrige ce passage "
             + "maintenant avec edit_file (recopie la ligne exacte dans \"old\"), sans "
             + "rien changer d'autre."

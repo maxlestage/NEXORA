@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.250 — 24 novembre 2026 — L'agent repère le Rust qui ne compile pas
+- Le code Rust écrit par l'agent est maintenant relu à chaque modification, comme le Dart : accolade, parenthèse ou crochet en trop ou jamais fermé, chaîne jamais fermée. Le modèle est prévenu tout de suite, avec la ligne.
+- L'avertissement montre aussi où le décalage commence (la première fermeture mal alignée), pour corriger au bon endroit du premier coup.
+- L'agent ne peut pas terminer tant que ce code ne compile pas (deux rappels au plus) : moins d'échecs de CI suivis de tours de réparation qui renvoient tout l'historique.
+
 ## 3.0.249 — 24 novembre 2026 — Une réflexion qui radote est coupée tout de suite
 - Amélioré : quand le modèle répète la même chose dans sa réflexion (le même motif des dizaines de fois, ou la même phrase ligne après ligne), NEXORA coupe la réponse aussitôt au lieu d'attendre sa limite de longueur.
 - Moins de tokens : en essai réel, une seule de ces boucles consommait jusqu'à 16 000 tokens avant de rendre une réponse vide.
