@@ -159,6 +159,50 @@ extension AgentRun {
             + ")"
     )
 
+    /// Les lignes du fichier d'origine encore présentes dans sa version actuelle
+    /// (`current`) que `content` ferait disparaître, quand il en efface la plupart
+    /// (port de Flutter 2.2.82) : write_file remplace tout le fichier, et un modèle
+    /// qui n'y met que la fonction ajoutée efface tout le reste. `nil` sinon.
+    /// Seules les lignes porteuses (au moins 4 caractères dont une lettre ou un
+    /// chiffre) comptent ; celles que l'agent a déjà retirées (absentes de
+    /// `current`) ne comptent pas.
+    public nonisolated static func erasedLines(_ original: String, _ current: String, _ content: String) -> [String]? {
+        func real(_ l: String) -> Bool {
+            l.len >= 4 && l.unicodeScalars.contains {
+                ($0.isASCII && ($0.properties.isAlphabetic || ("0"..."9").contains($0))) || (0xC0...0xFF).contains($0.value)
+            }
+        }
+        let kept = Set(content.components(separatedBy: "\n").map { $0.trim() })
+        let now = Set(current.components(separatedBy: "\n").map { $0.trim() })
+        var seen = Set<String>()
+        var lines: [String] = []
+        for raw in original.components(separatedBy: "\n") {
+            let l = raw.trim()
+            if real(l), now.contains(l), seen.insert(l).inserted { lines.append(l) }
+        }
+        if lines.count < 5 { return nil }
+        let gone = lines.filter { !kept.contains($0) }
+        return gone.count * 2 > lines.count ? gone : nil
+    }
+
+    /// Le refus d'un write_file qui effacerait la plupart du code existant : 3 des
+    /// lignes perdues (du code d'abord, les plus longues) et la façon d'ajouter.
+    nonisolated static func eraseRefusal(_ p: String, gone: [String], total: Int) -> String {
+        func note(_ l: String) -> Bool { ["//", "#", "*", "/*", "<!--"].contains { l.hasPrefix($0) } }
+        let shown = gone.enumerated().sorted { a, b in
+            note(a.element) != note(b.element) ? !note(a.element)
+                : a.element.len != b.element.len ? a.element.len > b.element.len : a.offset < b.offset
+        }.prefix(3).map { "« \($0.element) »" }.joined(separator: ", ")
+        return "ERREUR : rien n'est écrit. write_file REMPLACE tout \(p) : ce "
+            + "contenu effacerait \(gone.count) des \(total) lignes de code "
+            + "existantes (\(shown)…). Pour AJOUTER du code, utilise edit_file "
+            + "(dans \"old\" la ligne exacte après laquelle insérer, dans \"new\" "
+            + "cette ligne suivie de l'ajout) ou write_file avec \"at_end\": true "
+            + "et seulement le texte ajouté. Pour réécrire le fichier, donne son "
+            + "contenu COMPLET (le code existant gardé). Seulement si la demande "
+            + "est de supprimer ce code : \"force\": true."
+    }
+
     /// Un fichier existant réécrit en entier par write_file alors que presque tout
     /// est resté identique : une phrase, ajoutée à la confirmation, dit combien de
     /// lignes changent vraiment et rappelle edit_file. Les tokens écrits par le
@@ -1078,12 +1122,21 @@ extension AgentRun {
             guard let place = resolve(p), !place.1.isEmpty else { return mountHint }
             // Garde-fou : remplacer un long fichier par un texte bien plus court est
             // presque toujours une erreur (fichier lu en partie). On refuse.
+            // Le fichier d'origine est lu s'il ne l'a pas encore été (pour les
+            // garde-fous ci-dessous) ; GitHub injoignable : écrit sans eux.
+            if !changes.contains(p) { _ = try? await original(p) }
             let before = changes.contains(p) ? draft(p) : orig(p)
             if let before, before.len > 8000, Double(content.len) < Double(before.len) * 0.6, !isTrue(call.args["force"]) {
                 return "ERREUR : \(p) fait \(before.len) caractères et ce contenu "
                     + "\(content.len) : la fin du fichier serait perdue. Utilise "
                     + "edit_file pour ne changer qu'un passage (ou \"force\": true si tu "
                     + "veux vraiment le raccourcir)."
+            }
+            // Le contenu efface la plupart du code existant : le modèle n'a souvent
+            // écrit que son ajout (une fonction) et tout le reste disparaîtrait.
+            if let o = orig(p), let before, !isTrue(call.args["force"]),
+               let gone = Self.erasedLines(o, before, content) {
+                return Self.eraseRefusal(p, gone: gone, total: Self.erasedLines(o, before, "")?.count ?? gone.count)
             }
             changes.set(p, tidyCode(p, content.endsWith("\n") ? content : content + "\n", before: before))
             notifyChanged()
