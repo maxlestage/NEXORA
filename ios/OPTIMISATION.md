@@ -2051,19 +2051,26 @@ mémoire 32k tokens, consigne 3 000 car.
   premier coup. Tokens : passage TOKENS sans piste > 2 % (épuisées), donc parité.
   Tests : 704 → 710 (MismatchedClosersTests ; échouaient avant).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.91)
-2.2.90 portée (3.0.253). Parité Flutter en retard : 2.2.91 à 2.2.111 non portées ; en
-porter une par passage quand TOKENS ou INTERFACE n'ont rien. `_awaitInsert` (insertion
-après une ligne) reste à porter. Passage suivant (3.0.254) : INTERFACE, puis TOKENS ;
+- 3.0.254 (parité 2.2.91, passage INTERFACE sans rien d'utile : Crédits, Réglages,
+  Personnaliser, Aide, Routines, GitHub relus, tous déjà traités) : `placeholderLine` (ApplyEdit.swift)
+  — edit_file refuse un « new » contenant un commentaire de remplissage absent de « old » et
+  du fichier (« // ... existing code », « # rest of the file »…), hors .md/.txt. Avant : le
+  commentaire écrit tel quel, le corps orphelin, fichier cassé et étapes perdues jusqu'à
+  épuisement ; après : refus avec la bonne méthode, réussite à l'étape suivante. Aucun
+  fichier Swift/Dart/Rust du dépôt n'est visé. Tests : 710 → 715 (PlaceholderEditTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.92)
+2.2.91 portée (3.0.254). Parité Flutter en retard : 2.2.92 à 2.2.111 non portées ; en
+porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.92 = numéro de ligne seul
+→ insertion après la ligne, `_awaitInsert` ; 2.2.93 = code nouveau seul ajouté à la fin).
+Passage suivant (3.0.255) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`. Saisies de l'app toutes déjà
 contrôlées : ne plus les rechercher.
-Interface ensuite : SessionView fini pour VoiceOver (3.0.233) ; puis ProvidersView (déjà bien
-étiqueté, vu en 3.0.232 : rien d'urgent), états vides. Accueil (HomeShell vu en 3.0.221 :
-rien à faire), aide (thème « Agents » : 6 questions). Plus aucun
-`localizedCaseInsensitiveContains` de recherche dans l'app (vérifié en 3.0.204).
+Interface : écrans tous parcourus plusieurs fois (relus en 3.0.254 : rien d'utile) ; ne
+reprendre qu'un défaut précis signalé, sinon parité.
 
 Piège local (Linux, pas la CI) : après un `git stash` ou `git checkout` d'un fichier,
 `models.json` (lien symbolique vers app/assets) peut manquer dans

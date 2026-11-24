@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.254 — 24 novembre 2026 — L'agent n'écrit plus « // ... existing code » à la place de votre code
+- Corrigé : une modification qui remplaçait du code par un commentaire de remplissage (« // ... existing code », « # rest of the file », « // reste du code inchangé »…) cassait le fichier ; elle est maintenant refusée avant d'être écrite, et le fichier reste intact.
+- Le modèle apprend tout de suite la bonne méthode pour ajouter une fonction ou un test, sans étapes perdues (chacune renvoie tout l'historique).
+- Prudent : les vrais commentaires, la documentation et les commentaires déjà présents dans le fichier ne sont jamais visés (vérifié sur les fichiers du dépôt).
+
 ## 3.0.253 — 24 novembre 2026 — Une action à une accolade près n'est plus perdue
 - Corrigé : quand le modèle oubliait une accolade ou un crochet juste avant une autre fermeture (« }]} » au lieu de « }}]} »), NEXORA répondait « je n'ai pas trouvé d'action » et le contenu du fichier à écrire était perdu.
 - La fermeture oubliée est maintenant remise : l'action est faite, son contenu intact, sans tour de plus.
