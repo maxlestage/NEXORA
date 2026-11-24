@@ -290,6 +290,18 @@ extension AgentRun {
     /// entière aux 4 étapes suivantes. Vide (aucun token de plus) pour un fichier
     /// court (moins de `rewriteHintMinLines` lignes ou de 1 500 caractères) ou
     /// quand plus d'un cinquième des lignes change : là, write_file est le bon outil.
+    /// Deux contenus de fichier identiques, aux fins de ligne près (CRLF et sauts
+    /// de ligne de la fin ignorés ; port de Flutter 2.2.100).
+    public nonisolated static func sameText(_ a: String, _ b: String?) -> Bool {
+        guard let b else { return false }
+        func norm(_ s: String) -> String {
+            var t = s.replacingOccurrences(of: "\r\n", with: "\n")
+            while t.hasSuffix("\n") { t.removeLast() }
+            return t
+        }
+        return norm(a) == norm(b)
+    }
+
     public nonisolated static func rewriteHint(before: String, after: String) -> String {
         guard before.count >= 1_500 else { return "" }
         let old = before.split(separator: "\n", omittingEmptySubsequences: false)
@@ -1372,7 +1384,22 @@ extension AgentRun {
             if let o = orig(p), let before, !isTrue(call.args["force"]), let gone {
                 return Self.eraseRefusal(p, gone: gone, total: Self.erasedLines(o, before, "")?.count ?? gone.count)
             }
-            changes.set(p, tidyCode(p, content.endsWith("\n") ? content : content + "\n", before: before))
+            let tidied = tidyCode(p, content.endsWith("\n") ? content : content + "\n", before: before)
+            // Le même contenu, réécrit à l'identique : rien ne change (port de Flutter
+            // 2.2.100 ; essai réel : le même fichier de test réécrit deux fois, lu
+            // « OK, enregistré » à chaque fois, des étapes perdues au lieu de terminer).
+            // L'agent apprend que c'est déjà fait ; les avertissements restent.
+            if Self.sameText(tidied, before) {
+                if changes.contains(p) {
+                    return "Déjà fait : \(p) a déjà exactement ce contenu en brouillon "
+                        + "(rien n'a changé). Si la demande est remplie, appelle finish ; "
+                        + "sinon passe à la suite.\(try await pitfalls(p))"
+                }
+                return "Rien n'a changé : ce contenu est identique à \(p) dans le "
+                    + "dépôt. Si une modification était voulue, écris-la ; sinon passe "
+                    + "à la suite."
+            }
+            changes.set(p, tidied)
             notifyChanged()
             let hint = before.map { Self.rewriteHint(before: $0, after: content) } ?? ""
             return "OK, \(p) enregistré en brouillon (\(content.len) caractères).\(hint)\(try await pitfalls(p))"

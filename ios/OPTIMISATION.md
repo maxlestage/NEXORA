@@ -2125,10 +2125,17 @@ mémoire 32k tokens, consigne 3 000 car.
   renvoyé) ; après : corrigé à l'étape suivante. « ? : », chaînes « .x( », textes sur
   plusieurs lignes, commentaires et lignes d'origine : jamais visés. Tests : 748 → 752.
 
-## Prochain passage : TOKENS (sinon parité 2.2.100)
-2.2.99 portée (3.0.262). Parité Flutter en retard : 2.2.100 à 2.2.111 non portées ; en
+- 3.0.263 (parité 2.2.100, passage TOKENS sans piste mesurée à plus de 2 %) : `sameText`
+  (AgentRun+Files) et write_file — un contenu identique (aux fins de ligne près) au
+  brouillon reçoit « Déjà fait … appelle finish » (avertissements gardés), identique au
+  dépôt « Rien n'a changé » sans brouillon vide. Avant : « OK, enregistré », étapes perdues
+  à réécrire (tout l'historique renvoyé à chacune) ; après : l'agent termine. Tests :
+  752 → 755 (SameRewriteTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.101)
+2.2.100 portée (3.0.263). Parité Flutter en retard : 2.2.101 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.263) : TOKENS, puis INTERFACE ;
+Passage suivant (3.0.264) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

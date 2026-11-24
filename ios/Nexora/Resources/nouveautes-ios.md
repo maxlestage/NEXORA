@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.263 — 24 novembre 2026 — Un fichier réécrit à l'identique n'est plus compté comme un changement
+- Corrigé : quand l'agent réécrivait un fichier avec exactement le même contenu, NEXORA répondait « OK, enregistré » ; l'agent croyait avoir encore du travail et perdait des étapes (et des tokens) au lieu de terminer.
+- Il reçoit maintenant « Déjà fait », avec le conseil de terminer si la demande est remplie ; les avertissements restent affichés.
+- Un contenu identique au fichier du dépôt ne crée plus de brouillon vide. Le moindre vrai changement est écrit comme avant.
+
 ## 3.0.262 — 24 novembre 2026 — L'agent est prévenu d'une indentation que dart format refusera
 - Corrigé : quand le modèle coupait un « RegExp( » sur plusieurs lignes en laissant ses arguments au niveau de la ligne d'ouverture et la fermeture « ) » trop à gauche, rien n'était dit : « dart format » en CI refusait le fichier sans expliquer pourquoi.
 - Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture, avec chaque ligne mal indentée et le nombre d'espaces attendu : la correction se fait à l'étape suivante, sans aller-retour avec la CI (moins de tokens).
