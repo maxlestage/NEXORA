@@ -2082,10 +2082,19 @@ mémoire 32k tokens, consigne 3 000 car.
   tout l'historique renvoyé) ; après : corrigé à l'étape suivante. Macros, modules à soi,
   Command/CARGO_BIN_EXE et src/ : jamais visés. Tests : 725 → 728 (RustSuperHintTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.95)
-2.2.94 portée (3.0.257). Parité Flutter en retard : 2.2.95 à 2.2.111 non portées ; en
+- 3.0.258 (parité 2.2.95, passage INTERFACE sans défaut signalé) : `rustSourcesFor` et
+  `preferTestModule` (AgentRun+Spec) — un NOUVEAU fichier tests/*.rs inventé par la
+  traduction (non nommé par l'utilisateur) devient le module « #[cfg(test)] » existant du
+  seul fichier src/ cité qui en a un (fichiers lus via `current`, 4 au plus) ; son nom seul
+  dans les critères aussi. `fixRustTestPaths` et ces repères voient tout le dépôt (avant :
+  `tree.prefix(300)`). Avant : test écrit dans tests/ qui ne compile pas, étapes perdues sur
+  l'import (tout l'historique renvoyé à chacune) ; après : passe du premier coup.
+  Tests : 728 → 732 (AgentSpecTests, dont une session sur un dépôt de 400+ fichiers).
+
+## Prochain passage : TOKENS (sinon parité 2.2.96)
+2.2.95 portée (3.0.258). Parité Flutter en retard : 2.2.96 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.258) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.259) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

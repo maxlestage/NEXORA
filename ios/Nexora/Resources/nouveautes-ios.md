@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.258 — 24 novembre 2026 — Le test va avec les autres tests du fichier
+- Corrigé : pour « fais reconnaître « Retiré » dans nature() (site/src/contenu.rs)… Ajoute un test », la demande traduite inventait un nouveau fichier site/tests/retrait_test.rs, où l'agent écrivait un test qui ne pouvait pas compiler.
+- Quand le fichier modifié a déjà son module de tests (#[cfg(test)]), la demande traduite y place maintenant le nouveau test, avec les autres : il passe du premier coup.
+- Corrigé aussi : dans un gros dépôt, ces repères sur les tests Rust ne voyaient que les 300 premiers fichiers ; ils voient maintenant tout le dépôt.
+- Prudent : un fichier de tests que vous nommez, un fichier qui existe déjà ou un fichier sans module de tests ne changent pas.
+
 ## 3.0.257 — 24 novembre 2026 — Un test Rust qui ne compile pas est repéré tout de suite
 - Corrigé : un test Rust du dossier tests/ écrit avec « use super::*; » en tête était accepté sans rien dire, alors qu'il ne peut pas compiler ; la CI l'aurait découvert bien plus tard.
 - Il est maintenant signalé dès son écriture, avec la bonne façon d'importer la bibliothèque (« use nom_du_crate::… ») ou de mettre le test dans le module de tests du fichier testé.
