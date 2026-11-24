@@ -2101,10 +2101,18 @@ mémoire 32k tokens, consigne 3 000 car.
   suivante. Exemples déjà présents, ignore/text/compile_fail, main.rs, src/bin/ et imports
   d'un autre crate : jamais visés. Tests : 732 → 741 (RustDocTestHintTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.97)
-2.2.96 portée (3.0.259). Parité Flutter en retard : 2.2.97 à 2.2.111 non portées ; en
+- 3.0.260 (parité 2.2.97, passage INTERFACE sans défaut signalé) : `rustBareCode` et
+  `rustDuplicateFnError` (RustCheck), appelés par `syntaxError` après `rustSyntaxError` —
+  une fonction définie deux fois dans le même bloc (module, impl) est signalée dès son
+  écriture, avec les deux lignes, et finish est refusé tant qu'elle reste. Avant : accepté,
+  « defined multiple times » découvert par la CI (un aller-retour de correction, tout
+  l'historique renvoyé) ; après : corrigé à l'étape suivante. Blocs différents, #[cfg(…)],
+  macros, chaînes et commentaires : jamais visés. Tests : 741 → 746 (RustDuplicateFnTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.98)
+2.2.97 portée (3.0.260). Parité Flutter en retard : 2.2.98 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.260) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.261) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

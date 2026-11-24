@@ -174,3 +174,207 @@ public func rustSyntaxError(_ code: String) -> String? {
     let os = String(utf16CodeUnits: [open.open], count: 1)
     return withSuspect(at(open.line, "« \(os) » jamais fermé (il manque « \(rustCloser(open.open)) »)"))
 }
+
+private func rustIsWord(_ u: UInt16) -> Bool {
+    (u >= 48 && u <= 57) || (u >= 65 && u <= 90) || (u >= 97 && u <= 122) || u == 95
+}
+
+private func rustIsSpace(_ u: UInt16) -> Bool { u == 32 || u == 9 || u == 10 || u == 13 }
+
+private func rustIsHex(_ u: UInt16) -> Bool {
+    (u >= 48 && u <= 57) || (u >= 65 && u <= 70) || (u >= 97 && u <= 102)
+}
+
+/// Le code Rust sans ses commentaires, chaînes et caractères (remplacés par des
+/// espaces, les retours à la ligne gardés) : les accolades et les mots qui restent
+/// sont du vrai code. Port de Flutter 2.2.97.
+func rustBareCode(_ code: String) -> [UInt16] {
+    let t = Array(code.utf16)
+    let n = t.count
+    var out: [UInt16] = []
+    out.reserveCapacity(n)
+    var i = 0
+    func blank(_ end: Int) {
+        let e = min(end, n)
+        var j = i
+        while j < e { out.append(t[j] == 10 ? 10 : 32); j += 1 }
+        i = max(i, e)
+    }
+    func find(_ p: [UInt16], _ from: Int) -> Int {
+        guard !p.isEmpty, from <= n - p.count else { return -1 }
+        var j = from
+        while j <= n - p.count {
+            if t[j] == p[0] && Array(t[j..<(j + p.count)]) == p { return j }
+            j += 1
+        }
+        return -1
+    }
+    let slash: UInt16 = 47, star: UInt16 = 42, quote: UInt16 = 34, apos: UInt16 = 39
+    let back: UInt16 = 92, hash: UInt16 = 35, nl: UInt16 = 10
+    while i < n {
+        let c = t[i]
+        if c == slash && i + 1 < n && t[i + 1] == slash {
+            let end = find([nl], i)
+            blank(end < 0 ? n : end)
+            continue
+        }
+        if c == slash && i + 1 < n && t[i + 1] == star {
+            var j = i + 2
+            var depth = 1
+            while j < n && depth > 0 {
+                if j + 1 < n && t[j] == slash && t[j + 1] == star {
+                    depth += 1; j += 2
+                } else if j + 1 < n && t[j] == star && t[j + 1] == slash {
+                    depth -= 1; j += 2
+                } else {
+                    j += 1
+                }
+            }
+            blank(j)
+            continue
+        }
+        let ident = i > 0 && rustIsWord(t[i - 1])
+        // Chaîne brute : r"…", r#"…"#, br##"…"##…
+        if !ident && (c == 114 || (c == 98 && i + 1 < n && t[i + 1] == 114)) {
+            var j = i + (c == 98 ? 2 : 1)
+            var hashes = 0
+            while j < n && t[j] == hash { hashes += 1; j += 1 }
+            if j < n && t[j] == quote && (hashes > 0 || j == i + 1 || c == 98) {
+                let close = [quote] + Array(repeating: hash, count: hashes)
+                let end = find(close, j + 1)
+                blank(end < 0 ? n : end + close.count)
+                continue
+            }
+        }
+        if c == quote {
+            var j = i + 1
+            while j < n && t[j] != quote {
+                if t[j] == back { j += 1 }
+                j += 1
+            }
+            blank(j + 1)
+            continue
+        }
+        // Caractère : 'a', '\n', '\'', '\x7f', '\u{e9}' (pas une durée de vie 'a).
+        if c == apos && i + 2 < n {
+            var j = i + 1
+            if t[j] == back {
+                j += 1
+                if j + 1 < n && t[j] == 117 && t[j + 1] == 123 {
+                    var k = j + 2
+                    var digits = 0
+                    while k < n && rustIsHex(t[k]) && digits < 7 { digits += 1; k += 1 }
+                    j = digits >= 1 && digits <= 6 && k < n && t[k] == 125 ? k + 1 : -1
+                } else if j + 2 < n && t[j] == 120 && rustIsHex(t[j + 1]) && rustIsHex(t[j + 2]) {
+                    j += 3
+                } else if j < n && t[j] != nl {
+                    j += 1
+                } else {
+                    j = -1
+                }
+            } else if t[j] != apos && t[j] != nl {
+                j += UTF16.isLeadSurrogate(t[j]) && j + 1 < n && UTF16.isTrailSurrogate(t[j + 1]) ? 2 : 1
+            } else {
+                j = -1
+            }
+            if j > 0 && j < n && t[j] == apos {
+                blank(j + 1)
+                continue
+            }
+        }
+        out.append(c)
+        i += 1
+    }
+    return out
+}
+
+/// Une fonction définie deux fois dans le même bloc (le même module, le même
+/// `impl`) : « the name `f` is defined multiple times », le crate ne compile pas.
+/// Essai réel : pour « ajoute compter_mots() avec un test », le modèle insérait
+/// deux fois le même `#[test] fn test_compter_mots()` à la suite.
+///
+/// Rien n'est signalé pour une définition sous `#[cfg(…)]` (variantes selon la
+/// plateforme ou une feature), ni dans une macro. Rend « ligne N : … », ou `nil`.
+/// Port de Flutter 2.2.97.
+public func rustDuplicateFnError(_ code: String) -> String? {
+    let bare = rustBareCode(code)
+    let text = String(utf16CodeUnits: bare, count: bare.count)
+    guard let fnDef = try? NSRegularExpression(pattern: #"\bfn\s+(?:r#)?(\w+)\s*[<(]"#) else { return nil }
+    let ns = text as NSString
+    var defs: [Int: String] = [:]
+    for m in fnDef.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+        defs[m.range.location] = ns.substring(with: m.range(at: 1))
+    }
+    guard defs.count >= 2 else { return nil }
+    let cfgMark = Array("#[cfg".utf16), innerCfg = Array("#![cfg".utf16)
+    let macroRules = Array("macro_rules!".utf16)
+    func has(_ p: [UInt16], _ s: ArraySlice<UInt16>) -> Bool {
+        guard s.count >= p.count else { return false }
+        var j = s.startIndex
+        while j <= s.endIndex - p.count {
+            if s[j] == p[0] && s[j..<(j + p.count)].elementsEqual(p) { return true }
+            j += 1
+        }
+        return false
+    }
+    // Juste avant un bloc : « nom! » (appel de macro) ou « macro_rules! nom ».
+    func macroBefore(_ i: Int) -> Bool {
+        let low = max(0, i - 80)
+        var j = i - 1
+        while j >= low && rustIsSpace(bare[j]) { j -= 1 }
+        guard j >= low else { return false }
+        if bare[j] == 33 { return j - 1 >= low && rustIsWord(bare[j - 1]) }
+        guard rustIsWord(bare[j]) else { return false }
+        while j >= low && rustIsWord(bare[j]) { j -= 1 }
+        while j >= low && rustIsSpace(bare[j]) { j -= 1 }
+        let start = j - macroRules.count + 1
+        return start >= low && bare[start...j].elementsEqual(macroRules)
+    }
+    // Pour chaque bloc ouvert : son numéro, et s'il est dans une macro.
+    var stack: [(scope: Int, inMacro: Bool)] = [(0, false)]
+    var next = 1
+    var seen: [Int: [String: (line: Int, cfg: Bool)]] = [:]
+    var line = 1
+    var lineStart = 0
+    var cfg = false
+    for i in 0..<bare.count {
+        let c = bare[i]
+        if c == 10 {
+            var a = lineStart, b = i
+            while a < b && rustIsSpace(bare[a]) { a += 1 }
+            while b > a && rustIsSpace(bare[b - 1]) { b -= 1 }
+            let t = bare[a..<b]
+            if t.starts(with: cfgMark) || t.starts(with: innerCfg) {
+                cfg = true
+            } else if t.first != 35, let last = t.last, last == 59 || last == 123 || last == 125 {
+                // Une autre déclaration (struct, use…) a consommé l'attribut.
+                cfg = false
+            }
+            line += 1
+            lineStart = i + 1
+            continue
+        }
+        if let def = defs[i] {
+            let onLine = has(cfgMark, bare[lineStart..<i])
+            let top = stack[stack.count - 1]
+            if !top.inMacro {
+                var names = seen[top.scope] ?? [:]
+                if let prev = names[def], !prev.cfg, !cfg, !onLine {
+                    return "ligne \(line) : « fn \(def) » est déjà définie ligne \(prev.line), dans le même "
+                        + "bloc (« the name `\(def)` is defined multiple times ») : garde une seule de ces "
+                        + "deux fonctions et supprime l'autre (ou renomme-la)"
+                }
+                if names[def] == nil { names[def] = (line, cfg || onLine) }
+                seen[top.scope] = names
+            }
+            cfg = false
+        }
+        if c == 123 || c == 40 || c == 91 {
+            stack.append((next, stack[stack.count - 1].inMacro || macroBefore(i)))
+            next += 1
+        } else if (c == 125 || c == 41 || c == 93) && stack.count > 1 {
+            stack.removeLast()
+        }
+    }
+    return nil
+}

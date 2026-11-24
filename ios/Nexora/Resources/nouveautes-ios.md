@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.260 — 24 novembre 2026 — Une fonction Rust écrite deux fois est repérée
+- Corrigé : quand l'agent insérait deux fois la même fonction Rust (par exemple le même test « fn test_compter_mots »), NEXORA l'acceptait alors que le fichier ne compile plus ; la CI ne le découvrait que bien plus tard.
+- Une fonction définie deux fois dans le même bloc (même module, même impl) est signalée dès l'écriture, avec les deux numéros de ligne, et l'agent ne peut pas terminer sans corriger.
+- Prudent : un même nom dans deux impl ou deux modules, les variantes sous #[cfg(…)], les fonctions écrites dans une macro, les chaînes et les commentaires ne sont jamais visés.
+
 ## 3.0.259 — 24 novembre 2026 — Un exemple de documentation Rust qui ne compile pas est repéré
 - Corrigé : pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test », le modèle pouvait écrire un exemple « /// assert_eq!(compter_mots(…), 4); » sans import. cargo test compile ces exemples à part : la fonction n'y est pas trouvée, et la CI échouait bien plus tard.
 - Un nouvel exemple de documentation qui appelle une fonction du fichier sans importer la bibliothèque est signalé dès son écriture, avec l'import exact à ajouter ; si le module n'est pas public, l'agent écrit plutôt le test dans le module « #[cfg(test)] » du fichier.
