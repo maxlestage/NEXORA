@@ -323,4 +323,63 @@ struct AgentSpecTests {
         #expect(!agent.contains("site/tests/sante_test.rs"))
         #expect(agent.contains("dans son module « #[cfg(test)] mod tests »"))
     }
+
+    // MARK: - Le test va dans le module de tests existant (parité 2.2.95)
+
+    static let moduleTree = ["site/Cargo.toml", "site/src/lib.rs", "site/src/main.rs", "site/src/contenu.rs", "site/tests/degrades.rs"]
+    static let moduleSaid = "Dans site/src/contenu.rs, fais reconnaître les points qui commencent par "
+        + "« Retiré » comme une nature à part, dans nature() et dans sans_etiquette(). Ajoute un test."
+    static let moduleSpec = "DEMANDES :\n"
+        + "1. Dans *site/src/contenu.rs*, modifier la fonction *nature()*.\n"
+        + "3. Créer un fichier de test *site/tests/retrait_test.rs* qui vérifie nature().\n\n"
+        + "CRITÈRES DE RÉUSSITE :\n"
+        + "- Le test `retrait_test.rs` doit vérifier que nature() retourne « Retiré »."
+    static let contenu = "pub fn nature(p: &str) -> &str { p }\n\n#[cfg(test)]\nmod tests_nature {\n    use super::*;\n}\n"
+
+    @Test("les fichiers à lire : ceux de src/ cités, à côté d'un nouveau test")
+    func rustSources() {
+        #expect(AgentRun.rustSourcesFor(Self.moduleSpec, Self.moduleTree) == ["site/src/contenu.rs"])
+        #expect(AgentRun.rustSourcesFor("DEMANDES :\n1. Dans site/src/contenu.rs…\n2. Compléter site/tests/degrades.rs.",
+                                        Self.moduleTree).isEmpty)
+    }
+
+    @Test("essai réel : le test va dans le module de tests existant")
+    func testModule() {
+        let out = AgentRun.preferTestModule(Self.moduleSpec, Self.moduleSaid, ["site/src/contenu.rs": Self.contenu])
+        #expect(!out.contains("site/tests/retrait_test.rs"))
+        #expect(out.contains("site/src/contenu.rs (dans son module « #[cfg(test)] » existant, avec les autres tests"))
+        #expect(out.contains("module de tests de site/src/contenu.rs"))
+        #expect(!out.contains("retrait_test.rs"))
+        #expect(out.contains("1. Dans *site/src/contenu.rs*, modifier"))
+    }
+
+    @Test("module de tests : ce qui doit rester ne change pas")
+    func testModuleKept() {
+        let spec = Self.moduleSpec
+        #expect(AgentRun.preferTestModule(spec, Self.moduleSaid, ["site/src/contenu.rs": "pub fn nature() {}\n"]) == spec)
+        #expect(AgentRun.preferTestModule(spec, Self.moduleSaid + " Mets-le dans retrait_test.rs.",
+                                          ["site/src/contenu.rs": Self.contenu]) == spec)
+        #expect(AgentRun.preferTestModule(spec, Self.moduleSaid,
+                                          ["site/src/contenu.rs": Self.contenu, "site/src/lib.rs": Self.contenu]) == spec)
+        let other = "DEMANDES :\n1. Créer outil/tests/a.rs."
+        #expect(AgentRun.preferTestModule(other, Self.moduleSaid, ["site/src/contenu.rs": Self.contenu]) == other)
+    }
+
+    @Test("module de tests : dans une vraie session, même loin dans un gros dépôt")
+    func testModuleInSession() async {
+        let llm = ScriptLLM(["OBJECTIF : Reconnaître « Retiré » dans nature().\n\n" + Self.moduleSpec])
+        llm.whenEmpty = "```json\n{\"tool\":\"finish\",\"args\":{\"summary\":\"fin\"}}\n```"
+        // Plus de 300 fichiers avant le site : la liste montrée au traducteur est
+        // raccourcie, site/src/contenu.rs n'y est pas.
+        var files: [String: String] = [:]
+        for i in 0..<400 { files["app/lib/f\(i).dart"] = "x" }
+        for f in Self.moduleTree { files[f] = "x" }
+        files["site/src/contenu.rs"] = Self.contenu
+        let run = makeRun(llm, hub: repoHub(files), owner: "o", repo: "r", task: Self.moduleSaid, compile: true)
+        await run.run()
+        #expect(llm.count >= 2)
+        let agent = llm.messages(1).map { $0["content"] ?? "" }.joined(separator: "\n") + llm.prompt(1)
+        #expect(!agent.contains("retrait_test.rs"))
+        #expect(agent.contains("module « #[cfg(test)] » existant"))
+    }
 }

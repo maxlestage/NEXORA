@@ -68,13 +68,20 @@ extension AgentRun {
             if !spec.contains("OBJECTIF") && !cut { return "" }
             if !Self.specComplete(spec, cut: cut) { continue }
             let listed = Array(tree.prefix(300))
+            let said = (before + [text]).joined(separator: "\n")
+            // Les repères Rust voient tout le dépôt, pas seulement les 300 premiers
+            // fichiers montrés au traducteur.
+            var fixed = Self.fixRustTestPaths(spec, tree)
+            // Les fichiers Rust de la demande, lus pour savoir s'ils ont déjà leur
+            // module de tests.
+            var sources: [String: String] = [:]
+            for src in Self.rustSourcesFor(fixed, tree) {
+                if let found = try? await current(src), let code = found.0 { sources[src] = code }
+            }
+            fixed = Self.preferTestModule(fixed, said, sources)
             return Self.withTestLayout(
                 Self.keepUserPaths(
-                    Self.markGuesses(
-                        Self.fixRustTestPaths(spec, listed),
-                        (before + [text]).joined(separator: "\n"),
-                        listed
-                    ),
+                    Self.markGuesses(fixed, said, listed),
                     text,
                     listed
                 ),
@@ -193,6 +200,56 @@ extension AgentRun {
             }
             return "\(main) (dans son module « #[cfg(test)] mod tests », pas dans \(root)tests/ qui ne voit pas le programme)"
         }
+    }
+
+    nonisolated static let rustSourceRe = DRegex(#"(?<![\w/.-])((?:[\w.-]+/)*)src/(?:[\w-]+/)*[\w-]+\.rs(?![\w/])"#)
+
+    /// Les fichiers Rust de src/ cités par la traduction (et présents dans le dépôt)
+    /// à côté d'un NOUVEAU fichier de tests/ : à lire pour `preferTestModule`.
+    public nonisolated static func rustSourcesFor(_ spec: String, _ tree: [String]) -> [String] {
+        let files = Set(tree.map { $0.trim() })
+        let fresh = rustTestPathRe.allMatches(spec).filter { !files.contains($0.text) }
+        if fresh.isEmpty { return [] }
+        var out: [String] = []
+        for m in rustSourceRe.allMatches(spec) where files.contains(m.text) && !out.contains(m.text)
+            && fresh.contains(where: { $0[1] == m[1] }) {
+            out.append(m.text)
+        }
+        return Array(out.prefix(4))
+    }
+
+    /// Un NOUVEAU fichier de tests/ que la traduction invente (l'utilisateur ne l'a
+    /// pas nommé) alors que le fichier modifié a déjà son module « #[cfg(test)] » :
+    /// le test va dans ce module, avec les autres. Essai réel : pour « fais
+    /// reconnaître « Retiré » dans nature() (contenu.rs)… Ajoute un test », la
+    /// traduction supposait site/tests/retrait_test.rs ; l'agent y écrivait un test
+    /// qui ne compilait pas et perdait ses étapes sur l'import. `sources` : le
+    /// contenu des fichiers de src/ cités. Rien ne change si plusieurs fichiers
+    /// modifiés ont un module de tests (ambigu), ou si aucun n'en a.
+    public nonisolated static func preferTestModule(_ spec: String, _ said: String, _ sources: [String: String]) -> String {
+        let heard = said.lowercased()
+        // Les fichiers remplacés : leur nom seul (dans les critères) devient le
+        // module de tests, lui aussi.
+        var moved: [(String, String)] = []
+        let out = rustTestPathRe.replaceAllMapped(spec) { m in
+            let path = m.text
+            let root = m[1] ?? ""
+            let base = path.dsplit("/").last ?? path
+            if heard.contains(path.lowercased()) || heard.contains(base.lowercased()) { return path }
+            let withTests = sources.keys.sorted().filter {
+                $0.hasPrefix("\(root)src/") && sources[$0]!.contains("#[cfg(test)]")
+            }
+            guard withTests.count == 1, let target = withTests.first else { return path }
+            if !moved.contains(where: { $0.0 == base }) { moved.append((base, target)) }
+            return "\(target) (dans son module « #[cfg(test)] » existant, avec les autres tests, "
+                + "edit_file ; pas de nouveau fichier dans \(root)tests/)"
+        }
+        var done = out
+        for (name, target) in moved {
+            done = DRegex("(?<![\\w/.-])\(DRegex.escape(name))(?![\\w/])")
+                .replaceAllMapped(done) { _ in "module de tests de \(target)" }
+        }
+        return done
     }
 
     nonisolated static let pathLike = DRegex(#"(?<![\w/.-])((?:[\w.-]+/)*[\w-]+\.[A-Za-z][A-Za-z0-9]{0,5})(?![\w/])"#)
