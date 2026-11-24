@@ -1639,14 +1639,42 @@ extension AgentRun {
     /// Quand la CI du dépôt passe `dart format --set-exit-if-changed`, elle échoue
     /// alors sans dire quoi changer (« Changed lib/x.dart »). Le modèle est prévenu
     /// dès l'écriture, avec les lignes à couper (une fois par fichier).
+    /// Une indentation que `dart format` refusera est signalée de même (une fois
+    /// par fichier, port de Flutter 2.2.99).
     func formatPitfalls(_ p: String, _ text: String) async -> String {
-        guard p.hasSuffix(".dart"), !longWarned.contains(p) else { return "" }
+        guard p.hasSuffix(".dart"), !(longWarned.contains(p) && indentWarned.contains(p)) else { return "" }
         guard await checksDartFormat(p) else { return "" }
         let before: String? = (try? await original(p)) ?? nil
-        let width = await pageWidth(p)
-        guard let hint = Self.dartFormatHint(p, text, before: before, width: width) else { return "" }
-        longWarned.insert(p)
-        return hint
+        var out = ""
+        if !longWarned.contains(p) {
+            let width = await pageWidth(p)
+            if let hint = Self.dartFormatHint(p, text, before: before, width: width) {
+                longWarned.insert(p)
+                out += hint
+            }
+        }
+        if !indentWarned.contains(p), let hint = Self.dartIndentHint(p, text, before: before) {
+            indentWarned.insert(p)
+            out += hint
+        }
+        return out
+    }
+
+    /// En essai réel, un « RegExp( » coupé par l'agent gardait ses arguments au
+    /// niveau de la ligne d'ouverture et sa fermeture « ).firstMatch(t); » deux
+    /// espaces trop à gauche : `dart format --set-exit-if-changed` refusait le
+    /// fichier sans dire pourquoi. L'avertissement donne chaque ligne et
+    /// l'indentation attendue, ou `nil` (lignes d'origine jamais visées).
+    public nonisolated static func dartIndentHint(_ path: String, _ text: String,
+                                                  before: String? = nil) -> String? {
+        if !path.hasSuffix(".dart") { return nil }
+        let found = dartIndentProblems(text, old: Set(before?.dsplit("\n") ?? []))
+        if found.isEmpty { return nil }
+        return "\n\nATTENTION : la CI de ce dépôt vérifie « dart format » et "
+            + "refusera \(path), mal indenté :\n" + found.joined(separator: "\n") + "\n"
+            + "Corrige maintenant avec edit_file : à l'intérieur d'un « ( » qui "
+            + "finit une ligne, 2 espaces de plus que cette ligne ; la ligne qui "
+            + "commence par « ) » revient au niveau de la ligne d'ouverture."
     }
 
     /// La largeur de ligne de `dart format` pour [p] : `formatter: page_width` du

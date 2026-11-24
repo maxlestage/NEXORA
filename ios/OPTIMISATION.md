@@ -2116,10 +2116,19 @@ mémoire 32k tokens, consigne 3 000 car.
   de correction, tout l'historique renvoyé) ; après : passe du premier coup. Barres utiles,
   chaînes brutes, commentaires, lignes d'origine : jamais touchés. Tests : 746 → 748.
 
-## Prochain passage : INTERFACE (sinon parité 2.2.99)
-2.2.98 portée (3.0.261). Parité Flutter en retard : 2.2.99 à 2.2.111 non portées ; en
+- 3.0.262 (parité 2.2.99, passage INTERFACE sans défaut signalé) : `dartIndentProblems`
+  (DartCheck) et `dartIndentHint` (AgentRun+Checks), appelés par `formatPitfalls` quand la
+  CI vérifie `dart format` — une ligne écrite par l'agent à l'intérieur d'un « ( » qui
+  finit la ligne précédente sans 2 espaces de plus, ou une fermeture « ) » moins indentée
+  que son ouverture, est signalée dès l'écriture (une fois par fichier, `indentWarned`).
+  Avant : CI rouge sans explication (un aller-retour de correction, tout l'historique
+  renvoyé) ; après : corrigé à l'étape suivante. « ? : », chaînes « .x( », textes sur
+  plusieurs lignes, commentaires et lignes d'origine : jamais visés. Tests : 748 → 752.
+
+## Prochain passage : TOKENS (sinon parité 2.2.100)
+2.2.99 portée (3.0.262). Parité Flutter en retard : 2.2.100 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.262) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.263) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

@@ -57,8 +57,8 @@ struct DartFormatHintTests {
         #expect(AgentRun.dartFormatHint("src/main.rs", Self.written) == nil)
     }
 
-    func session(_ files: [String: String], writes: Int = 1) async -> ScriptLLM {
-        let w = act(["tool": "write_file", "args": ["path": "app/lib/chat.dart", "content": Self.written]])
+    func session(_ files: [String: String], writes: Int = 1, content: String = written) async -> ScriptLLM {
+        let w = act(["tool": "write_file", "args": ["path": "app/lib/chat.dart", "content": content]])
         let llm = ScriptLLM(Array(repeating: w, count: writes))
         llm.whenEmpty = act(["tool": "finish", "args": ["summary": "fin"]])
         var all = files
@@ -88,5 +88,97 @@ struct DartFormatHintTests {
         let wide = await session([".github/workflows/ci.yml": Self.ci,
                                   "app/analysis_options.yaml": "formatter:\n  page_width: 100\n"])
         #expect(!wide.last(1).contains("caractères au plus par ligne"))
+    }
+
+    // Indentation refusée par dart format (port de Flutter 2.2.99) : le « RegExp( »
+    // réellement écrit pour « fais renvoyer le titre d'une page d'erreur HTML ».
+    static let badIndent = "String errorFromBody(String body) {\n"
+        + "  final t = body.trim();\n"
+        + "  if (t.startsWith('<html')) {\n"
+        + "    final titleMatch = RegExp(\n"
+        + "    r'<title>(.*?)</title>',\n"
+        + "    caseSensitive: false,\n"
+        + "    dotAll: true,\n"
+        + "  ).firstMatch(t);\n"
+        + "    if (titleMatch != null) return titleMatch.group(1)!;\n"
+        + "  }\n"
+        + "  return t;\n"
+        + "}\n"
+
+    static let goodIndent = "String errorFromBody(String body) {\n"
+        + "  final t = body.trim();\n"
+        + "  if (t.startsWith('<html')) {\n"
+        + "    final titleMatch = RegExp(\n"
+        + "      r'<title>(.*?)</title>',\n"
+        + "      caseSensitive: false,\n"
+        + "      dotAll: true,\n"
+        + "    ).firstMatch(t);\n"
+        + "    if (titleMatch != null) return titleMatch.group(1)!;\n"
+        + "  }\n"
+        + "  return t;\n"
+        + "}\n"
+
+    @Test("essai réel : arguments et fermeture mal indentés")
+    func realIndent() {
+        let found = dartIndentProblems(Self.badIndent)
+        #expect(found.count == 2)
+        #expect(found.first?.hasPrefix("ligne 5 : 4 espaces") == true)
+        #expect(found.first?.contains("il en faut 6") == true)
+        #expect(found.last?.hasPrefix("ligne 8 : « ) »") == true)
+        #expect(found.last?.contains("4 espaces (et non 2)") == true)
+        #expect(dartIndentProblems(Self.goodIndent).isEmpty)
+    }
+
+    @Test("ce que dart format écrit ainsi n'est pas signalé")
+    func formatterIndent() {
+        let code = "void f(\n"
+            + "  String q, {\n"
+            + "  required int n,\n"
+            + "}) {\n"
+            + "  final a = ok\n"
+            + "      ? g(\n"
+            + "          1,\n"
+            + "        )\n"
+            + "      : 2;\n"
+            + "  final b = list\n"
+            + "      .where(\n"
+            + "        (x) => x > 1,\n"
+            + "      )\n"
+            + "      .toList();\n"
+            + "  test('un long titre '\n"
+            + "      'sur deux lignes', (\n"
+            + "    WidgetTester tester,\n"
+            + "  ) async {});\n"
+            + "  if ( // commentaire\n"
+            + "  a) {}\n"
+            + "  final c = h(\n"
+            + "    '\'\'\n"
+            + "texte\n"
+            + "'\'\',\n"
+            + "  );\n"
+            + "  final d = [\n"
+            + "    1,\n"
+            + "  ];\n"
+            + "}\n"
+        #expect(dartIndentProblems(code).isEmpty)
+    }
+
+    @Test("les lignes du fichier d'origine ne sont pas visées")
+    func indentOnlyAgentLines() {
+        let old = Set(Self.badIndent.components(separatedBy: "\n"))
+        #expect(dartIndentProblems(Self.badIndent, old: old).isEmpty)
+        #expect(AgentRun.dartIndentHint("app/lib/a.dart", Self.badIndent, before: Self.badIndent) == nil)
+        #expect(AgentRun.dartIndentHint("src/main.rs", Self.badIndent) == nil)
+    }
+
+    @Test("CI avec dart format : indentation signalée dès l'écriture ; sinon rien")
+    func indentInSession() async {
+        let llm = await session([".github/workflows/ci.yml": Self.ci], content: Self.badIndent)
+        #expect(llm.last(1).contains("enregistré en brouillon"))
+        #expect(llm.last(1).contains("mal indenté"))
+        #expect(llm.last(1).contains("ligne 8 : « ) »"))
+        let plain = await session([:], content: Self.badIndent)
+        #expect(plain.last(1).contains("enregistré en brouillon"))
+        #expect(!plain.last(1).contains("mal indenté"))
     }
 }
