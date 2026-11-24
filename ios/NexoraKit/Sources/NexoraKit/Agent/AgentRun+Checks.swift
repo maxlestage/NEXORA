@@ -1488,6 +1488,115 @@ extension AgentRun {
             + "edit_file."
     }
 
+    // MARK: - Exemples de documentation Rust (doctests)
+
+    /// Les exemples de documentation (```) d'un fichier Rust : (corps, première
+    /// ligne) de chaque bloc que `cargo test` compile comme un doctest. Les blocs
+    /// ```ignore, ```text, ```compile_fail ou d'un autre langage ne sont pas
+    /// compilés : ils sont laissés de côté.
+    nonisolated static func rustDocExamples(_ content: String) -> [(String, Int)] {
+        let doc = DRegex(#"^\s*//[/!](?![/!])\s?(.*)$"#)
+        let fenceRe = DRegex(#"^\s*(```+|~~~+)\s*(.*)$"#)
+        let compiled: Set<String> = ["", "rust", "no_run", "should_panic", "test_harness"]
+        var out: [(String, Int)] = []
+        let lines = content.dsplit("\n")
+        var body: String?
+        var keep = false
+        var start = 0
+        for (i, line) in lines.enumerated() {
+            guard let m = doc.firstMatch(line) else {
+                body = nil
+                continue
+            }
+            let t = m[1] ?? ""
+            if let fence = fenceRe.firstMatch(t) {
+                if body == nil {
+                    body = ""
+                    start = i + 1
+                    // Les étiquettes du bloc (« rust,no_run »…) : toutes compilées ?
+                    keep = (fence[2] ?? "").split(whereSeparator: { $0 == "," || $0.isWhitespace })
+                        .map { String($0).trim().lowercased() }
+                        .allSatisfy { compiled.contains($0) || $0.hasPrefix("edition") }
+                } else {
+                    if keep, let b = body { out.append((b, start)) }
+                    body = nil
+                }
+                continue
+            }
+            if body != nil {
+                // « # ligne » : cachée dans la documentation, mais compilée.
+                body! += (t.hasPrefix("# ") ? t.sub(2) : (t == "#" ? "" : t)) + "\n"
+            }
+        }
+        return out
+    }
+
+    /// Un exemple de documentation ajouté dans un fichier src/ d'une bibliothèque
+    /// Rust : `cargo test` le compile à part comme un doctest, où rien du crate
+    /// n'est importé. Essai réel (Flutter 2.2.96) : pour « ajoute compter_mots()
+    /// dans site/src/contenu.rs, avec un test », le modèle écrivait
+    /// « /// assert_eq!(compter_mots("…"), 4); » sans aucun import ; accepté sans
+    /// un mot, le doctest ne compilait pas et la CI l'aurait découvert bien plus tard.
+    ///
+    /// Signalé : un nouvel exemple qui appelle une fonction du fichier sans jamais
+    /// nommer la bibliothèque (ni la définir lui-même). Rend l'avertissement à
+    /// donner au modèle, ou `nil`.
+    public nonisolated static func rustDocTestHint(_ path: String, _ content: String, before: String? = nil, cargo: String? = nil, libRs: String? = nil) -> String? {
+        if !path.hasSuffix(".rs") { return nil }
+        let src = path.lastIndexOf("src/")
+        if src < 0 || (src > 0 && path.at(src - 1) != "/") { return nil }
+        let examples = rustDocExamples(content)
+        if examples.isEmpty { return nil }
+        let old = Set((before.map(rustDocExamples) ?? []).map { $0.0.trim() })
+        let name = cargo.flatMap(rustCrateName)
+        let defRe = DRegex(#"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)"#)
+        var defined = Set<String>()
+        for l in content.dsplit("\n") where !l.trimLeft().hasPrefix("//") {
+            for m in defRe.allMatches(l) { if let f = m[1] { defined.insert(f) } }
+        }
+        // Un import d'un autre crate que la bibliothèque standard (une façade qui la
+        // réexporte, une variante du crate…) : on ne juge pas.
+        let otherUse = DRegex(#"(?m)^\s*(?:pub\s+)?use\s+(?:::)?(?!(?:std|core|alloc)\b)\w+\s*::"#)
+        for (body, line) in examples {
+            if old.contains(body.trim()) || body.contains("extern crate") { continue }
+            if let name, DRegex("\\b\(name)\\b").hasMatch(body) { continue }
+            if otherUse.hasMatch(body) { continue }
+            let own = Set(fnDef.allMatches(body).compactMap { $0[1] })
+            var missing: [String] = []
+            for m in callRe.allMatches(body) {
+                if let f = m[1], defined.contains(f), !own.contains(f), !missing.contains(f) { missing.append(f) }
+            }
+            if missing.isEmpty { continue }
+            // Le chemin du module : src/a/b.rs → a::b, src/a/mod.rs → a.
+            var mod = path.sub(src + 4, path.len - 3)
+            // Les programmes (main.rs, src/bin/) n'ont pas de doctests.
+            if mod == "main" || mod.hasPrefix("bin/") { return nil }
+            if mod.hasSuffix("/mod") { mod = mod.sub(0, mod.len - 4) }
+            let root = mod == "lib"
+            let modPath = root ? "" : mod.replaceAll("/", "::") + "::"
+            let top = root ? "" : (mod.dsplit("/").first ?? mod)
+            let isPublic = root || libRs == nil
+                || DRegex("\\bpub\\s+mod\\s+\(top)\\b").hasMatch(libRs!)
+                || DRegex("\\bpub\\s+use\\s+\(top)\\b").hasMatch(libRs!)
+            let fn = missing[0]
+            let crate = name ?? "nom_du_crate"
+            let hint = name == nil
+                ? " (le nom de la bibliothèque : celui de [lib] ou [package] dans Cargo.toml, tirets remplacés par « _ »)"
+                : ""
+            let fix = isPublic
+                ? "Ajoute en tête du bloc « use \(crate)::\(modPath)\(fn); »\(hint) (la fonction doit être pub), ou bien retire"
+                : "Le module « \(top) » n'est pas public (pas de « pub mod \(top) » dans src/lib.rs) : un doctest ne peut pas l'importer. Retire"
+            return "\n\nATTENTION : l'exemple de documentation (bloc ``` vers la "
+                + "ligne \(line) de \(path)) est compilé et lancé par cargo test comme un "
+                + "doctest, à part de la bibliothèque : rien n'y est importé, et "
+                + "« \(missing.joined(separator: "(), "))() » n'y sera pas trouvé (« cannot find "
+                + "function ») : la CI échouera. \(fix) l'exemple (ou marque-le "
+                + "```ignore) et écris le test dans le module « #[cfg(test)] mod "
+                + "tests » du fichier (avec « use super::*; »). Corrige maintenant."
+        }
+        return nil
+    }
+
     // MARK: - Erreurs certaines dans un brouillon
 
     /// Les erreurs certaines repérées dans un brouillon, signalées tout de suite au
@@ -1500,7 +1609,16 @@ extension AgentRun {
         }
         if !p.hasSuffix(".rs") { return "" }
         let syntax = await syntaxPitfalls(p, text)
-        if !Self.rustTest.hasMatch(p) { return syntax }
+        if !Self.rustTest.hasMatch(p) {
+            let src = p.lastIndexOf("src/")
+            if src < 0 || (src > 0 && p.at(src - 1) != "/") { return syntax }
+            let root = p.sub(0, src)
+            let (libRs, _) = try await current(root + "src/lib.rs")
+            guard let libRs else { return syntax }
+            let (cargo, _) = try await current(root + "Cargo.toml")
+            let before = try await original(p)
+            return syntax + (Self.rustDocTestHint(p, text, before: before, cargo: cargo, libRs: libRs) ?? "")
+        }
         let i = p.lastIndexOf("tests/")
         let (cargo, _) = try await current(p.sub(0, i) + "Cargo.toml")
         let (mainRs, _) = try await current(p.sub(0, i) + "src/main.rs")

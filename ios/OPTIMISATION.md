@@ -2091,10 +2091,20 @@ mémoire 32k tokens, consigne 3 000 car.
   l'import (tout l'historique renvoyé à chacune) ; après : passe du premier coup.
   Tests : 728 → 732 (AgentSpecTests, dont une session sur un dépôt de 400+ fichiers).
 
-## Prochain passage : TOKENS (sinon parité 2.2.96)
-2.2.95 portée (3.0.258). Parité Flutter en retard : 2.2.96 à 2.2.111 non portées ; en
+- 3.0.259 (parité 2.2.96, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `rustDocTestHint` et `rustDocExamples` (AgentRun+Checks, appelés par `pitfalls` pour un
+  fichier src/ d'un crate qui a un src/lib.rs) — un NOUVEL exemple de documentation
+  compilé (```, rust, no_run…) qui appelle une fonction du fichier sans nommer la
+  bibliothèque est signalé dès son écriture, avec l'import exact (ou, module privé, le
+  module « #[cfg(test)] »). Avant : doctest qui ne compile pas, découvert par la CI (un
+  aller-retour de correction, tout l'historique renvoyé) ; après : corrigé à l'étape
+  suivante. Exemples déjà présents, ignore/text/compile_fail, main.rs, src/bin/ et imports
+  d'un autre crate : jamais visés. Tests : 732 → 741 (RustDocTestHintTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.97)
+2.2.96 portée (3.0.259). Parité Flutter en retard : 2.2.97 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.259) : TOKENS, puis INTERFACE ;
+Passage suivant (3.0.260) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

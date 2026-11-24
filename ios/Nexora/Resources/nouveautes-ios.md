@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.259 — 24 novembre 2026 — Un exemple de documentation Rust qui ne compile pas est repéré
+- Corrigé : pour « ajoute compter_mots() dans site/src/contenu.rs, avec un test », le modèle pouvait écrire un exemple « /// assert_eq!(compter_mots(…), 4); » sans import. cargo test compile ces exemples à part : la fonction n'y est pas trouvée, et la CI échouait bien plus tard.
+- Un nouvel exemple de documentation qui appelle une fonction du fichier sans importer la bibliothèque est signalé dès son écriture, avec l'import exact à ajouter ; si le module n'est pas public, l'agent écrit plutôt le test dans le module « #[cfg(test)] » du fichier.
+- Prudent : les exemples déjà présents, les blocs ignore, text ou compile_fail, les programmes (main.rs, src/bin/) et les exemples qui importent un autre crate ne sont jamais visés.
+
 ## 3.0.258 — 24 novembre 2026 — Le test va avec les autres tests du fichier
 - Corrigé : pour « fais reconnaître « Retiré » dans nature() (site/src/contenu.rs)… Ajoute un test », la demande traduite inventait un nouveau fichier site/tests/retrait_test.rs, où l'agent écrivait un test qui ne pouvait pas compiler.
 - Quand le fichier modifié a déjà son module de tests (#[cfg(test)]), la demande traduite y place maintenant le nouveau test, avec les autres : il passe du premier coup.
