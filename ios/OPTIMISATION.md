@@ -2132,10 +2132,17 @@ mémoire 32k tokens, consigne 3 000 car.
   à réécrire (tout l'historique renvoyé à chacune) ; après : l'agent termine. Tests :
   752 → 755 (SameRewriteTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.101)
-2.2.100 portée (3.0.263). Parité Flutter en retard : 2.2.101 à 2.2.111 non portées ; en
+- 3.0.264 (parité 2.2.101, passage INTERFACE sans défaut signalé) : `squashForSearch`
+  (AgentRun+Files) — la recherche élargie de search_code n'ignore plus que les espaces,
+  « _ » et « - » (avant : tout sauf a-z0-9, donc « send("   " » cherchait « send » et
+  rendait des lignes sans rapport). Avant : bruit lu comme résultat, étapes perdues (tout
+  l'historique renvoyé à chacune) ; après : « introuvable », l'agent change d'approche.
+  Tests : 755 → 758 (SearchSquashTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.102)
+2.2.101 portée (3.0.264). Parité Flutter en retard : 2.2.102 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.264) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.265) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
