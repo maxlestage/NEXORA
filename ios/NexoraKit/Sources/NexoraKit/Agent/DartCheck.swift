@@ -329,3 +329,162 @@ public func dartIndentProblems(_ code: String, old: Set<String> = [], max: Int =
 
 private let dartIndentAfterRe = DRegex(#"[;{},(\[]$"#)
 private let dartIdentCharRe = DRegex(#"[\w$]"#)
+
+/// Une déclaration écrite à l'intérieur du bloc d'une autre, ou `nil` (port de
+/// Flutter 2.2.104).
+///
+/// En essai réel, pour « ajoute une fonction publique summarizeDiff dans
+/// diff.dart », le modèle a collé la nouvelle fonction juste avant la « } » qui
+/// fermait lineDiff, après son `return`. Les accolades restaient équilibrées :
+/// rien ne le signalait, mais summarizeDiff devenait une fonction locale,
+/// invisible du reste du code (tests qui ne compilent pas, CI en échec).
+///
+/// Ne vise qu'une ligne au tout début (sans indentation) qui déclare une
+/// fonction, une classe, un enum, une extension ou un typedef, alors qu'une
+/// accolade « { » reste ouverte : un code formaté n'en a jamais. Les textes sur
+/// plusieurs lignes et les commentaires sont ignorés. Rend « ligne N (« … ») : … ».
+public func dartNestedDeclarationError(_ code: String) -> String? {
+    if dartSyntaxError(code) != nil { return nil }
+    let t = Array(code.utf16)
+    let n = t.count
+    let lines = code.components(separatedBy: "\n")
+    // Les « { » ouvertes au début de chaque ligne (nil : la ligne commence dans
+    // un texte, un commentaire /* */, des parenthèses ou une interpolation).
+    var opened = [[Int]?](repeating: nil, count: lines.count)
+    var stack: [DartFrame] = []
+    var line = 0
+    func isIdent(_ i: Int) -> Bool {
+        guard i >= 0, i < n else { return false }
+        let c = t[i]
+        return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95 || c == 36
+    }
+    func starts(_ p: String, _ i: Int) -> Bool {
+        let u = Array(p.utf16)
+        guard i + u.count <= n else { return false }
+        return t[i..<(i + u.count)].elementsEqual(u)
+    }
+    func mark() {
+        guard line < opened.count else { return }
+        if stack.allSatisfy({ $0.quote == nil && $0.open == "{" }) {
+            opened[line] = stack.map(\.line)
+        }
+    }
+
+    mark()
+    var i = 0
+    while i < n {
+        let c = t[i]
+        let top = stack.last
+        if c == 10 { // \n
+            line += 1
+            if top == nil || top?.quote == nil { mark() }
+            i += 1
+            continue
+        }
+        if let top, let q = top.quote {
+            if !top.raw && c == 92 { // \
+                if i + 1 < n && t[i + 1] == 10 { line += 1 }
+                i += 2
+                continue
+            }
+            if !top.raw && c == 36 && i + 1 < n && t[i + 1] == 123 { // ${
+                stack.append(.code("${", line))
+                i += 2
+                continue
+            }
+            let qu = q.utf16.first ?? 0
+            if c == qu {
+                if !top.triple {
+                    stack.removeLast()
+                } else if starts(q + q + q, i) {
+                    stack.removeLast()
+                    i += 2
+                }
+            }
+            i += 1
+            continue
+        }
+        if c == 47 && i + 1 < n && t[i + 1] == 47 { // //
+            var end = i
+            while end < n && t[end] != 10 { end += 1 }
+            if end >= n { break }
+            i = end
+            continue
+        }
+        if c == 47 && i + 1 < n && t[i + 1] == 42 { // /*
+            var depth = 1
+            var j = i + 2
+            while j < n && depth > 0 {
+                if starts("/*", j) {
+                    depth += 1
+                    j += 2
+                } else if starts("*/", j) {
+                    depth -= 1
+                    j += 2
+                } else {
+                    if t[j] == 10 { line += 1 }
+                    j += 1
+                }
+            }
+            if depth > 0 { return nil }
+            i = j
+            continue
+        }
+        if c == 39 || c == 34 { // ' "
+            let q = c == 39 ? "'" : "\""
+            let raw = i > 0 && t[i - 1] == 114 && !isIdent(i - 2) // r'…'
+            let triple = starts(q + q + q, i)
+            stack.append(.string(q, triple: triple, raw: raw, line: line))
+            i += triple ? 3 : 1
+            continue
+        }
+        if c == 40 || c == 91 || c == 123 { // ( [ {
+            stack.append(.code(c == 40 ? "(" : c == 91 ? "[" : "{", line))
+            i += 1
+            continue
+        }
+        if (c == 41 || c == 93 || c == 125) && !stack.isEmpty { stack.removeLast() }
+        i += 1
+    }
+    func cut(_ s: String) -> String { s.count > 100 ? String(s.prefix(100)) + "…" : s }
+    for l in 0..<lines.count {
+        guard let open = opened[l], let first = open.first, first < lines.count else { continue }
+        let text = lines[l]
+        guard dartTopLevelDeclaration(text) else { continue }
+        let outer = lines[first].trimmingCharacters(in: .whitespaces)
+        return "ligne \(l + 1) (« \(cut(text.trimmingCharacters(in: .whitespaces))) ») : cette déclaration est "
+            + "écrite à l'intérieur de « \(cut(outer)) » (ligne \(first + 1)), "
+            + "dont l'accolade « { » n'est pas encore fermée à cet endroit : elle "
+            + "n'est donc pas visible du reste du code. Déplace-la après la « } » "
+            + "qui ferme ce bloc, au niveau des autres déclarations"
+    }
+    return nil
+}
+
+/// Une ligne sans indentation qui déclare une fonction (avec son corps « { » ou
+/// « => »), une classe, un enum, un mixin, une extension ou un typedef.
+func dartTopLevelDeclaration(_ line: String) -> Bool {
+    guard let f = line.unicodeScalars.first, !CharacterSet.whitespacesAndNewlines.contains(f) else { return false }
+    let ns = line as NSString
+    let range = NSRange(location: 0, length: ns.length)
+    if let kind = try? NSRegularExpression(
+        pattern: #"^(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(?:class|enum|mixin|extension|typedef)\s+[A-Za-z_$]"#
+    ), kind.firstMatch(in: line, range: range) != nil {
+        return true
+    }
+    guard let fnRx = try? NSRegularExpression(
+        pattern: #"^(?:[A-Za-z_$][A-Za-z0-9_$.]*(?:<[^()]*>)?\??\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:<[^()]*>)?\s*\("#
+    ), let fn = fnRx.firstMatch(in: line, range: range) else { return false }
+    let keywords: Set<String> = [
+        "if", "for", "while", "switch", "catch", "return", "await", "assert",
+        "super", "this", "do", "else", "try", "throw", "new", "const", "late",
+    ]
+    if keywords.contains(ns.substring(with: fn.range(at: 1))) { return false }
+    guard let wordRx = try? NSRegularExpression(pattern: #"^[A-Za-z_$][A-Za-z0-9_$]*"#),
+          let w = wordRx.firstMatch(in: line, range: range) else { return false }
+    let first = ns.substring(with: w.range)
+    if keywords.contains(first) || first == "var" || first == "final" { return false }
+    var end = line
+    while let last = end.last, last == " " || last == "\t" || last == "\r" { end.removeLast() }
+    return end.hasSuffix("{") || end.contains(") =>") || end.contains(")=>")
+}

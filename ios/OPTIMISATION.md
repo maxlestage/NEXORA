@@ -2146,11 +2146,19 @@ mémoire 32k tokens, consigne 3 000 car.
   résumé et la pull request affirmaient un résultat jamais constaté ; après : seul ce qui est
   fait reste. Tests : 768 → 774 (UnverifiedClaimsTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.104)
-2.2.103 portée (3.0.266). Parité Flutter en retard : 2.2.104 à 2.2.111 non
+- 3.0.267 (parité 2.2.104, passage INTERFACE sans défaut signalé) :
+  `dartNestedDeclarationError` (DartCheck), ajouté à `syntaxError` des fichiers .dart — une
+  déclaration sans indentation (fonction, classe, enum, extension, typedef) écrite alors
+  qu'une « { » reste ouverte est signalée dès l'écriture, et bloque finish comme toute
+  erreur de syntaxe. Avant : fonction devenue locale, CI en échec, session relancée (tout
+  l'historique renvoyé) ; après : corrigée en une étape. Tests : 774 → 778
+  (DartNestedDeclarationTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.105)
+2.2.104 portée (3.0.267). Parité Flutter en retard : 2.2.105 à 2.2.111 non
 portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non portés
 non plus : `_asciiCasePitfalls` et `_lintPitfalls`, versions plus récentes.)
-Passage suivant (3.0.267) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.268) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
