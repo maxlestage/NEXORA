@@ -490,7 +490,7 @@ extension AgentRun {
                     continue
                 }
                 if let finish {
-                    summary = dstrOr(finish.args["summary"])
+                    summary = stripUnverifiedClaims(dstrOr(finish.args["summary"]))
                     commitMessage = dstrOr(finish.args["commit_message"], task).trim()
                     add(AgentStep(.done, summary.isEmpty ? "Terminé." : summary))
                     finished = true

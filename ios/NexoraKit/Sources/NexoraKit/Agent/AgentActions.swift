@@ -474,6 +474,96 @@ public func unfinishedWorkIn(_ summary: String) -> String? {
     unfinishedWork.firstMatch(summary)?.text
 }
 
+/// Une affirmation de résultat que l'agent ne peut pas avoir constatée : il n'a
+/// aucun moyen de lancer les tests ni la CI (NEXORA la suit après l'envoi).
+let unverifiedClaim = DRegex(
+    "\\b(tous les |toutes les |les |mes |ces |nos )?tests?( unitaires)? "
+        + "(passent|réussissent|sont (tous )?(au )?verts?|ont (tous )?réussi|"
+        + "(sont|restent) (tous )?ok)\\b|"
+        + "\\b(la )?ci (reste|est|sera|restera|demeure|passe) (toujours |bien )?"
+        + "(verte|au vert|ok)\\b|\\bci (verte|au vert)\\b|"
+        + "\\b(le code|tout|ça|cela) compile( (sans erreur|correctement|bien))?\\b|"
+        + "\\ball (the )?tests? (pass|passed|are passing)\\b|"
+        + "\\btests? (are )?(passing|green)\\b|\\bci (is |stays |remains )?green\\b",
+    caseSensitive: false
+)
+
+/// Ce qui, devant l'affirmation, en fait un but et non un constat (« pour que
+/// la CI reste verte », « vérifie que les tests passent »).
+private let claimPurpose = DRegex(
+    "\\b(pour|afin)\\s+(que|qu'|qu’|de)|s'assurer|s’assurer|vérifi|garanti|"
+        + "\\bsi\\b|\\bdevrai|\\bdoivent\\b|\\bdoit\\b|\\bso that\\b|\\bensure|\\bshould\\b|"
+        + "\\bmake sure\\b|\\bto\\s+(keep|make)\\b",
+    caseSensitive: false
+)
+private let claimSentenceEnd = DRegex("(?<=[.!?])\\s+")
+private let claimLoneBullet = DRegex("^\\s*([-*•]|\\d+[.)])\\s*$")
+private let claimFinalPunct = DRegex("[.!?]+$")
+private let claimClauseSep = DRegex("\\s*[;,]\\s*|\\s+[—–-]\\s+|\\s+(et|and|puis)\\s+")
+
+/// Découpe `s` aux correspondances de `re` : les morceaux et les séparateurs.
+private func splitKeeping(_ s: String, _ re: DRegex) -> (parts: [String], seps: [String]) {
+    var parts: [String] = []
+    var seps: [String] = []
+    var last = 0
+    for m in re.allMatches(s) {
+        parts.append(s.sub(last, m.start))
+        seps.append(m.text)
+        last = m.end
+    }
+    parts.append(s.sub(last))
+    return (parts, seps)
+}
+
+/// Le résumé de fin sans les phrases qui affirment un résultat invérifiable
+/// (« Tous les tests passent et la CI reste verte. ») : l'agent n'a rien
+/// exécuté, et ce résumé part dans la pull request. Le vrai résultat de la CI
+/// est donné par NEXORA après l'envoi. Le reste du résumé est gardé tel quel.
+public func stripUnverifiedClaims(_ summary: String) -> String {
+    var out: [String] = []
+    for line in summary.dsplit("\n") {
+        var kept: [String] = []
+        var changed = false
+        for s in splitKeeping(line, claimSentenceEnd).parts {
+            let cut = withoutClaims(s)
+            if cut != s { changed = true }
+            if !cut.trim().isEmpty { kept.append(cut) }
+        }
+        if !changed {
+            out.append(line)
+            continue
+        }
+        let text = kept.joined(separator: " ")
+        // Une puce ou un numéro restés seuls disparaissent avec leur phrase.
+        if text.trim().isEmpty || claimLoneBullet.hasMatch(text) { continue }
+        out.append(text)
+    }
+    return out.joined(separator: "\n").trim()
+}
+
+/// Une phrase sans ses propositions qui affirment un résultat invérifiable
+/// (« Label modifié ; tous les tests passent. » → « Label modifié. »). Une
+/// affirmation qui est un but (« pour que la CI reste verte ») est gardée.
+private func withoutClaims(_ sentence: String) -> String {
+    guard let first = unverifiedClaim.firstMatch(sentence),
+          !claimPurpose.hasMatch(sentence.sub(0, first.start)) else { return sentence }
+    let trimmed = sentence.trimRight()
+    let end = claimFinalPunct.firstMatch(trimmed)?.text ?? ""
+    let body = trimmed.sub(0, trimmed.len - end.len)
+    let (parts, seps) = splitKeeping(body, claimClauseSep)
+    var buf = ""
+    var keptAny = false
+    for (i, p) in parts.enumerated() {
+        if let m = unverifiedClaim.firstMatch(p), !claimPurpose.hasMatch(p.sub(0, m.start)) { continue }
+        if p.trim().isEmpty { continue }
+        if keptAny { buf += seps[i - 1] }
+        buf += p
+        keptAny = true
+    }
+    if !keptAny { return "" }
+    return buf.trim() + (end.isEmpty ? "." : end)
+}
+
 private let toolSynonyms: [String: String] = [
     "read": "read_file", "open_file": "read_file", "view": "read_file", "cat": "read_file",
     "view_file": "read_file", "edit": "edit_file", "multiedit": "edit_file",
