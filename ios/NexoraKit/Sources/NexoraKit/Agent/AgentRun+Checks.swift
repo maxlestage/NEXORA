@@ -1783,7 +1783,7 @@ extension AgentRun {
 
     /// L'erreur de syntaxe certaine d'un fichier Dart ou Rust, ou `nil`.
     public nonisolated static func syntaxError(_ path: String, _ content: String) -> String? {
-        if path.hasSuffix(".dart") { return dartSyntaxError(content) }
+        if path.hasSuffix(".dart") { return dartSyntaxError(content) ?? dartNestedDeclarationError(content) }
         if path.hasSuffix(".rs") { return rustSyntaxError(content) ?? rustDuplicateFnError(content) }
         return nil
     }

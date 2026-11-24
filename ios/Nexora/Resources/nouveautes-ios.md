@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.267 — 25 novembre 2026 — Une fonction collée dans le corps d'une autre est repérée
+- Corrigé : l'agent collait parfois une nouvelle fonction Dart juste avant la « } » qui fermait une autre fonction. Les accolades restaient équilibrées et rien n'était signalé, mais la nouvelle fonction devenait invisible du reste du code : tests qui ne compilent pas, CI en échec.
+- L'agent est maintenant prévenu dès l'écriture, avec la ligne de la déclaration mal placée et celle du bloc qui la contient, et il doit la déplacer avant de terminer.
+- Prudent : seule une déclaration sans indentation (fonction, classe, enum, extension, typedef) dans une accolade encore ouverte est visée ; textes et commentaires sont ignorés.
+
 ## 3.0.266 — 24 novembre 2026 — Le résumé de l'agent n'affirme plus des tests qu'il n'a pas lancés
 - Corrigé : l'agent pouvait finir par « Tous les tests passent et la CI reste verte » sans avoir rien lancé, et cette phrase partait telle quelle dans le résumé et la pull request.
 - Ces affirmations (tests qui passent, CI verte, code qui compile) sont maintenant retirées du résumé de fin : le vrai résultat est celui de la CI, que NEXORA suit après l'envoi.
