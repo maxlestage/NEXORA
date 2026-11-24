@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.253 — 24 novembre 2026 — Une action à une accolade près n'est plus perdue
+- Corrigé : quand le modèle oubliait une accolade ou un crochet juste avant une autre fermeture (« }]} » au lieu de « }}]} »), NEXORA répondait « je n'ai pas trouvé d'action » et le contenu du fichier à écrire était perdu.
+- La fermeture oubliée est maintenant remise : l'action est faite, son contenu intact, sans tour de plus.
+- Les accolades et crochets écrits dans le code ne sont jamais touchés ; une réponse vraiment incomplète reste refusée.
+
 ## 3.0.252 — 24 novembre 2026 — L'agent ajoute du code en fin de fichier sans perdre d'étapes
 - Corrigé : quand le modèle demandait d'ajouter à la fin d'un fichier sans envoyer le texte, l'agent répondait « il manque le texte » et des étapes étaient perdues. Le texte est maintenant attendu, puis ajouté à la fin, le reste du fichier gardé.
 - La ligne juste après la dernière compte comme un ajout à la fin, avec ou sans le texte dans la même action.
