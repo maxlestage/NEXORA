@@ -1141,10 +1141,41 @@ extension AgentRun {
         return " dans \(target)"
     }
 
+    /// Une recherche (search_code, find_in_file) qui a trouvé des lignes, et non
+    /// « Aucune ligne… », une erreur ou un fichier introuvable.
+    public nonisolated static func foundSomething(_ tool: String, _ result: String) -> Bool {
+        guard tool == "search_code" || tool == "find_in_file" else { return false }
+        var body = Substring(result)
+        if body.hasPrefix("Résultat de "), let nl = body.firstIndex(of: "\n") {
+            body = body[body.index(after: nl)...]
+        }
+        let t = body.drop { $0.isWhitespace }
+        return !t.isEmpty && !t.hasPrefix("ERREUR") && !t.hasPrefix("Aucun")
+            && !t.hasPrefix("Fichier introuvable")
+    }
+
+    /// Ce que doit faire un agent dont les recherches trouvent déjà ce qui est
+    /// demandé : ne pas le recréer, faire ce qui manque, ou le dire.
+    public nonisolated static let existingHint =
+        "Une partie de la demande (ou toute la demande) EXISTE PEUT-ÊTRE DÉJÀ "
+        + "dans le code (fonction, route, page, lien, test…) : compare ce que tu as "
+        + "trouvé avec chaque point demandé. Ce qui existe déjà, ne le recrée pas "
+        + "et ne le cherche plus. Fais MAINTENANT ce qui manque encore (edit_file "
+        + "ou write_file). Si tout est déjà en place, appelle finish en expliquant "
+        + "précisément ce qui existe déjà (fichiers et lignes). Choisis une AUTRE "
+        + "action que cette recherche."
+
     /// Où en est le travail, pour un agent qui tourne en rond : ce qui est déjà fait
     /// (à ne plus chercher) et ce qui reste, avec l'action à faire tout de suite (par
     /// exemple le test demandé, et où l'écrire).
     public func progressNote() -> String {
+        if changes.isEmpty && foundExisting {
+            return "\n\nOÙ TU EN ES : aucune modification faite pour l'instant, et "
+                + "tes recherches TROUVENT ce qui est demandé dans le code. Fais "
+                + "MAINTENANT la partie de la demande qui manque encore (edit_file ou "
+                + "write_file) ; si tout existe déjà, appelle finish en expliquant ce "
+                + "qui est déjà en place (fichiers et lignes)."
+        }
         if changes.isEmpty {
             return "\n\nOÙ TU EN ES : aucune modification faite pour l'instant. Fais "
                 + "MAINTENANT la première modification demandée (edit_file ou "

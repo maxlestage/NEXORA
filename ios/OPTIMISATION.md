@@ -1983,14 +1983,23 @@ mémoire 32k tokens, consigne 3 000 car.
   puis la vraie définition). Avant : « const FAQ » introuvable au-delà de 300 fichiers,
   recherches répétées renvoyant tout l'historique. Tests : 674 → 677.
 
-## Prochain passage : TOKENS (ou parité)
-Reste de 2.2.84 à porter : note « la demande existe peut-être déjà » quand les recherches
-trouvent chaque point demandé (agent_runner.dart ≈ l. 1916), et réponse recopiée du modèle
-retirée de l'historique. Puis 2.2.85.
-Parité Flutter en retard : 2.2.84 (reste) à 2.2.111 non portées (corrections de l'agent, souvent
+- 3.0.247 (parité, agent ; passage TOKENS : pistes sûres épuisées) : fin du port de Flutter
+  2.2.84 — `AgentRun.foundSomething`, `existingHint`, `foundExisting` et `repeatNudge`
+  (AgentRun.swift, AgentRun+Checks.swift). Une recherche (search_code, find_in_file) qui
+  trouve des lignes → les relances (même action ×2+, « tu tournes en rond », OÙ TU EN ES)
+  disent « EXISTE PEUT-ÊTRE DÉJÀ : fais ce qui manque ou finish en l'expliquant » au lieu de
+  « N'EXISTE PAS ». Même action répétée : la réponse recopiée est retirée de l'historique et la
+  relance rejoint le résultat (après « — ACTION DÉJÀ FAITE — », remplaçant la relance et le
+  rappel précédents) : une copie de l'action et une relance au lieu de 3 de chaque avant
+  l'arrêt. Avant : page /faq déjà en place, session arrêtée « en boucle » sans rien dire.
+  Tests : 677 → 682 (AgentExistingTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.85)
+2.2.84 entièrement portée (3.0.247). Puis 2.2.85.
+Parité Flutter en retard : 2.2.85 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.246) : INTERFACE (sinon parité 2.2.84), puis TOKENS,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.248) : INTERFACE (sinon parité 2.2.85), puis TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

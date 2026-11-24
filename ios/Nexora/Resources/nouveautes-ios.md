@@ -5,6 +5,12 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.247 — 24 novembre 2026 — L'agent ne tourne plus en rond sur ce qui existe déjà
+
+- Corrigé : quand ce qui est demandé existait déjà (page, route, test…), l'agent le trouvait mais refaisait la même recherche, et les relances lui affirmaient que rien n'existait.
+- Quand ses recherches trouvent ce qui est demandé, l'agent fait seulement ce qui manque, ou termine en expliquant ce qui est déjà en place, avec les fichiers et les lignes.
+- Amélioré : une réponse recopiée par le modèle n'est plus renvoyée à chaque étape ; la relance rejoint le résultat de l'action, ce qui casse la boucle et économise des tokens.
+
 ## 3.0.246 — 24 novembre 2026 — L'agent trouve ce qui est défini dans un fichier voisin
 - Corrigé : une recherche élargie à tout le dépôt ne parcourait que les 300 premiers fichiers dans l'ordre du dépôt ; cherché depuis site/src/main.rs, « const FAQ » (défini dans site/src/contenu.rs) n'était jamais trouvé. Les fichiers voisins sont maintenant parcourus en premier.
 - Corrigé : rien trouvé dans le fichier visé mais trouvé ailleurs, l'agent ne lit plus « vient d'une dépendance, ne la cherche plus » suivi de la vraie définition : seule la réponse du dépôt reste.

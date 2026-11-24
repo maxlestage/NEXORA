@@ -118,6 +118,8 @@ extension AgentRun {
         // La dernière série d'actions, pour repérer une boucle.
         var lastSig: String?
         var repeats = 0
+        // La dernière série d'actions a trouvé ce qu'elle cherchait.
+        var lastFound = false
         // Les recherches et lectures déjà faites (brouillons identiques) : un agent
         // qui tourne en rond entre quelques recherches est repéré, même quand il les
         // alterne.
@@ -261,8 +263,8 @@ extension AgentRun {
                 if !work.isEmpty && sig == lastSig {
                     repeats += 1
                     Self.dropReminders(&history, keeping: reminder)
-                    history.append(LLMMessage(
-                        "user",
+                    Self.repeatNudge(
+                        &history,
                         repeats == 1
                             ? "Tu viens de refaire exactement la même action qu'au tour "
                                 + "précédent : son résultat est juste au-dessus, inutile de "
@@ -271,6 +273,11 @@ extension AgentRun {
                                 + "le fichier autour d'une ligne avec read_file et \"line\", "
                                 + "ou fais la modification). Si la demande est remplie, "
                                 + "appelle finish.\(reminder)"
+                            : lastFound
+                            ? "STOP : c'est la \(repeats + 1)e fois que tu fais cette même "
+                                + "action, et son résultat ne changera pas. Ce que tu "
+                                + "cherches EXISTE : le résultat plus haut le montre. "
+                                + "\(Self.existingHint)\(progressNote())\(reminder)"
                             : "STOP : c'est la \(repeats + 1)e fois que tu fais cette même "
                                 + "action, et son résultat ne changera pas. Ce que tu "
                                 + "cherches N'EXISTE PAS sous ce nom ou à cet endroit : un "
@@ -282,7 +289,7 @@ extension AgentRun {
                                 + "l'implique, ou appelle finish en expliquant précisément "
                                 + "ce qui n'existe pas. Choisis une AUTRE action "
                                 + "maintenant.\(progressNote())\(reminder)"
-                    ))
+                    )
                     // Ce modèle reste bloqué malgré les relances : un autre modèle
                     // disponible reprend la suite (avec tout le travail déjà fait).
                     if repeats >= 3, await switchModel(AgentReason("même action répétée en boucle")) {
@@ -330,7 +337,12 @@ extension AgentRun {
                     if stale == 5, await switchModel(AgentReason("mêmes recherches refaites en boucle")) {
                         stale = 0
                     }
-                    if stale >= 3 {
+                    if stale >= 3 && foundExisting {
+                        circling = "\n\nATTENTION : tu tournes en rond, ces recherches et "
+                            + "lectures ont DÉJÀ été faites, avec les mêmes résultats. "
+                            + "Arrête de chercher : décide avec ce que tu sais déjà. "
+                            + "\(Self.existingHint)\(progressNote())"
+                    } else if stale >= 3 {
                         circling = "\n\nATTENTION : tu tournes en rond, ces recherches et "
                             + "lectures ont DÉJÀ été faites, avec les mêmes résultats. Ce que "
                             + "tu cherches n'existe pas sous la forme supposée. Arrête de "
@@ -341,7 +353,10 @@ extension AgentRun {
                     }
                 }
                 actsSince += work.count
-                let results = Self.dedupResults(await execAll(work), history: history)
+                let raw = await execAll(work)
+                lastFound = zip(work, raw).contains { Self.foundSomething($0.tool, $1) }
+                if lastFound { foundExisting = true }
+                let results = Self.dedupResults(raw, history: history)
                 if !results.isEmpty {
                     Self.dropReminders(&history, keeping: reminder)
                     history.append(LLMMessage("user", results.joined(separator: "\n\n") + lost + circling + reminder))
