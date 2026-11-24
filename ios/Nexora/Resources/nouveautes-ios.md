@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.264 — 24 novembre 2026 — La recherche de code de l'agent ne rend plus de faux résultats
+- Corrigé : en cherchant « send("   " », la recherche élargie retirait toute la ponctuation, cherchait donc « send » et rendait des lignes sans rapport (« chargés en dollars ») présentées comme des résultats.
+- La recherche élargie n'ignore plus que ce qu'elle annonce : les espaces, « _ » et « - ». « compare versions » retrouve toujours compareVersions et compare_versions.
+- Un texte introuvable est signalé comme tel : l'agent change d'approche au lieu de lire du bruit (moins d'étapes perdues, donc moins de tokens).
+
 ## 3.0.263 — 24 novembre 2026 — Un fichier réécrit à l'identique n'est plus compté comme un changement
 - Corrigé : quand l'agent réécrivait un fichier avec exactement le même contenu, NEXORA répondait « OK, enregistré » ; l'agent croyait avoir encore du travail et perdait des étapes (et des tokens) au lieu de terminer.
 - Il reçoit maintenant « Déjà fait », avec le conseil de terminer si la demande est remplie ; les avertissements restent affichés.

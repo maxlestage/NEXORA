@@ -525,6 +525,15 @@ extension AgentRun {
         #"(^|/)(node_modules|build|dist|target|\.dart_tool|Pods|\.git|Assets\.xcassets|mipmap-[^/]+|drawable[^/]*)/"#
     )
 
+    /// Un texte sans espaces, « _ » ni « - », pour retrouver « compare versions »
+    /// dans compareVersions ou compare_versions. La ponctuation et les accents
+    /// restent : ils comptent dans ce que l'agent cherche.
+    nonisolated static func squashForSearch(_ s: String) -> String {
+        squashChars.replaceAll(s, "")
+    }
+
+    nonisolated static let squashChars = DRegex(#"[\s_\-]"#)
+
     nonisolated static func skipForSearch(_ f: String) -> Bool {
         binary.hasMatch(f) || skipDirs.hasMatch(f)
     }
@@ -755,10 +764,13 @@ extension AgentRun {
         }
         if hits.isEmpty && inOther.isEmpty {
             // « compare versions » retrouve compareVersions, compare_versions…
-            let nonAlnum = DRegex("[^a-z0-9]")
-            let squashed = nonAlnum.replaceAll(q, "")
-            if squashed.len > 2 {
-                hits = find { nonAlnum.replaceAll($0, "").contains(squashed) }
+            // Seuls les espaces, « _ » et « - » sont ignorés, comme annoncé. Essai
+            // réel : tout ce qui n'était pas a-z0-9 disparaissait, ponctuation et
+            // accents compris, et « send("   " » devenait « send » : des dizaines de
+            // lignes sans rapport présentées comme des résultats.
+            let squashed = Self.squashForSearch(q)
+            if DRegex("[a-z0-9]").allMatches(squashed).count > 2 {
+                hits = find { Self.squashForSearch($0).contains(squashed) }
                 if !hits.isEmpty { note = " (en ignorant espaces, « _ » et majuscules)" }
             }
         }
