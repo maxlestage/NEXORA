@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.252 — 24 novembre 2026 — L'agent ajoute du code en fin de fichier sans perdre d'étapes
+- Corrigé : quand le modèle demandait d'ajouter à la fin d'un fichier sans envoyer le texte, l'agent répondait « il manque le texte » et des étapes étaient perdues. Le texte est maintenant attendu, puis ajouté à la fin, le reste du fichier gardé.
+- La ligne juste après la dernière compte comme un ajout à la fin, avec ou sans le texte dans la même action.
+- Une ligne vraiment hors du fichier reçoit toujours une erreur claire, avec le nombre de lignes.
+
 ## 3.0.251 — 24 novembre 2026 — L'agent modifie des lignes par leurs numéros
 - Corrigé : quand le modèle demandait de modifier « les lignes 404 à 420 » d'un fichier sans envoyer de texte, NEXORA répondait « il manque le texte » et l'étape était perdue, parfois plusieurs fois de suite.
 - Une modification qui ne donne qu'une plage de lignes montre maintenant ces lignes au modèle, puis les remplace par le texte qu'il envoie juste après.

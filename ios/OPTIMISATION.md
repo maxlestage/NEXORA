@@ -2034,13 +2034,23 @@ mémoire 32k tokens, consigne 3 000 car.
   texte » jusqu'à 4 fois de suite, chaque essai renvoyant tout l'historique.
   Tests : 696 → 700 (AgentLineRangeTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.89)
-2.2.88 portée (3.0.251). Puis 2.2.89 (vérifier si l'insertion après une ligne / at_end
-d'edit_file y est : sinon la porter à part, elle est déjà dans le code Flutter).
-Parité Flutter en retard : 2.2.89 à 2.2.111 non portées (corrections de l'agent, souvent
-moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
-(interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.252) : INTERFACE (sinon parité 2.2.89), puis TOKENS ;
+- 3.0.252 (parité, agent ; passage INTERFACE : rien d'urgent, écrans déjà revus) : port de
+  Flutter 2.2.89 — edit_file avec « at_end » (ou `appendMode`) sans texte → `waitAppend()`
+  (awaitContent + awaitAppend : le bloc de code suivant devient un write_file at_end) ;
+  plage qui commence juste après la dernière ligne → ajout à la fin (avec texte : direct ;
+  sans : attendu) ; le refus « old vide » tient compte de `atEnd` (plus seulement
+  args.at_end). Plage plus loin → erreur inchangée. Non porté : `_awaitInsert` (insertion
+  après une ligne seule, version Flutter ultérieure). Avant : « il manque le texte » ou
+  « cette ligne n'existe pas », jusqu'à 5 étapes perdues, chacune renvoyant l'historique.
+  Tests : 700 → 704 (AgentLineRangeTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.90)
+2.2.89 portée (3.0.252). Puis 2.2.90 (fermeture « } » ou « ] » oubliée juste avant une
+autre dans le JSON d'action : la remettre ; vérifier si parseToolCalls le fait déjà).
+Parité Flutter en retard : 2.2.90 à 2.2.111 non portées ; en porter une par passage quand
+TOKENS ou INTERFACE n'ont rien. `_awaitInsert` (insertion après une ligne) reste à porter.
+(interface : écrans déjà revus, 3.0.250 et 3.0.252 sans rien d'urgent) → passage suivant
+(3.0.253) : TOKENS, puis INTERFACE ;
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
