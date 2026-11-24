@@ -72,4 +72,74 @@ struct AgentLineRangeTests {
         await run.run()
         #expect(run.draft("site/notes.md") == Self.notes.replacingOccurrences(of: "- Point numéro 9\n", with: "- Neuf\n") + "\n")
     }
+
+    // Ajout à la fin (port de Flutter 2.2.89) : « at_end » sans texte, ou la ligne
+    // juste après la dernière.
+    static let code = "int a() => 1;\nint b() => 2;\nint c() => 3;\n"
+    static let added = "int d() => 4;"
+
+    @MainActor
+    func codeRun(_ llm: ScriptLLM) -> AgentRun {
+        llm.whenEmpty = "```json\n{\"tool\":\"finish\",\"args\":{\"summary\":\"fin\"}}\n```"
+        let run = makeRun(llm, hub: repoHub(["lib/diff.dart": Self.code]), task: "Ajoute d dans diff.dart", checks: false)
+        run.specs.append("déjà compris")
+        return run
+    }
+
+    @Test("at_end sans texte : le texte suivant est ajouté à la fin")
+    @MainActor
+    func atEndThenText() async {
+        let llm = ScriptLLM([
+            "```json\n{\"tool\":\"edit_file\",\"args\":{\"path\":\"lib/diff.dart\",\"at_end\":true}}\n```",
+            "```dart\n\(Self.added)\n```",
+        ])
+        let run = codeRun(llm)
+        await run.run()
+        let second = llm.messages(1).last?["content"] ?? ""
+        #expect(second.contains("EN ATTENTE du texte à AJOUTER à la fin de lib/diff.dart"))
+        #expect(!second.contains("il manque le texte"))
+        #expect(run.draft("lib/diff.dart")?.hasPrefix(Self.code) == true)
+        #expect(run.draft("lib/diff.dart")?.contains(Self.added) == true)
+    }
+
+    @Test("la ligne juste après la dernière, avec le texte : ajout à la fin")
+    @MainActor
+    func nextLineWithText() async {
+        let llm = ScriptLLM([
+            "```json\n{\"tool\":\"edit_file\",\"args\":{\"path\":\"lib/diff.dart\",\"line_start\":4,\"line_end\":4,\"new\":\"\(Self.added)\"}}\n```",
+        ])
+        let run = codeRun(llm)
+        await run.run()
+        #expect(run.draft("lib/diff.dart")?.hasPrefix(Self.code) == true)
+        #expect(run.draft("lib/diff.dart")?.contains(Self.added) == true)
+    }
+
+    @Test("la ligne juste après la dernière, sans texte : attendu puis ajouté")
+    @MainActor
+    func nextLineThenText() async {
+        let llm = ScriptLLM([
+            "```json\n{\"tool\":\"edit_file\",\"args\":{\"path\":\"lib/diff.dart\",\"line_start\":4,\"line_end\":4}}\n```",
+            "```dart\n\(Self.added)\n```",
+        ])
+        let run = codeRun(llm)
+        await run.run()
+        let second = llm.messages(1).last?["content"] ?? ""
+        #expect(second.contains("EN ATTENTE du texte à AJOUTER"))
+        #expect(!second.contains("n'existe pas"))
+        #expect(run.draft("lib/diff.dart")?.hasPrefix(Self.code) == true)
+        #expect(run.draft("lib/diff.dart")?.contains(Self.added) == true)
+    }
+
+    @Test("une ligne bien au-delà de la fin : toujours une erreur claire")
+    @MainActor
+    func farBeyondEnd() async {
+        let llm = ScriptLLM([
+            "```json\n{\"tool\":\"edit_file\",\"args\":{\"path\":\"lib/diff.dart\",\"line_start\":9,\"line_end\":9,\"new\":\"x\"}}\n```",
+        ])
+        let run = codeRun(llm)
+        await run.run()
+        let second = llm.messages(1).last?["content"] ?? ""
+        #expect(second.contains("lib/diff.dart a 3 lignes, la ligne 9 n'existe pas"))
+        #expect(run.draft("lib/diff.dart") == nil)
+    }
 }

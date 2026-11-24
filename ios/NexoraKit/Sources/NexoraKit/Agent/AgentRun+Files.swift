@@ -1061,6 +1061,23 @@ extension AgentRun {
             // et recevait chaque fois « il manque le texte ».
             let (spanStart, spanEnd, _) = Self.readSpan(call.args)
             var ranged = false
+            // « Ajouter à la fin » (at_end, ou une plage qui commence juste après la
+            // dernière ligne) : un ajout, pas un remplacement.
+            var atEnd = Self.appendMode(call.args)
+            // Ajout demandé sans texte : le texte est attendu au tour suivant (essai
+            // réel : {"path", "at_end": true} seul recevait « il manque le texte »).
+            func waitAppend() -> String {
+                awaitContent = p
+                awaitAppend = true
+                return "EN ATTENTE du texte à AJOUTER à la fin de \(p) (edit_file est "
+                    + "arrivé sans texte). Réponds MAINTENANT avec, seul, ce texte à "
+                    + "ajouter (pas tout le fichier) dans un bloc de code (```), sans "
+                    + "bloc JSON : il sera ajouté à la fin, le reste du fichier est "
+                    + "gardé. Pour insérer ailleurs, utilise plutôt edit_file avec \"old\" "
+                    + "(la ligne exacte après laquelle insérer) et \"new\"."
+            }
+            let spanned = spanStart.map { s in spanEnd.map { $0 >= s } ?? false } ?? false
+            if !spanned && atEnd && oldText == nil && newText == nil { return waitAppend() }
             if let spanStart, let spanEnd, spanEnd >= spanStart {
                 ranged = true
                 // Un seul texte avec une plage : il remplace ces lignes.
@@ -1073,29 +1090,37 @@ extension AgentRun {
                     guard let text else { return problem ?? "ERREUR : \(p) introuvable." }
                     var lines = text.components(separatedBy: "\n")
                     if text.endsWith("\n") { lines.removeLast() }
-                    guard spanStart >= 1 && spanStart <= lines.count else {
+                    // La ligne juste après la dernière : le modèle veut ajouter à la fin
+                    // (essai réel : « lignes 135 à 135 » d'un fichier de 134 lignes).
+                    if spanStart == lines.count + 1 && !lines.isEmpty {
+                        guard newText != nil else { return waitAppend() }
+                        oldText = ""
+                        atEnd = true
+                    } else if spanStart < 1 || spanStart > lines.count {
                         return "ERREUR : \(p) a \(lines.count) lignes, la ligne \(spanStart) "
                             + "n'existe pas. Relis le fichier (read_file) puis recommence."
                     }
-                    let end = min(spanEnd, lines.count)
-                    let excerpt = lines[(spanStart - 1)..<end].joined(separator: "\n")
-                    if excerpt.trim().isEmpty {
-                        return "ERREUR : les lignes \(spanStart) à \(end) de \(p) sont vides. "
-                            + "Mets \"old\" (la ligne exacte après laquelle insérer) et \"new\" "
-                            + "(cette ligne suivie de l'ajout) dans args."
+                    if oldText == nil {
+                        let end = min(spanEnd, lines.count)
+                        let excerpt = lines[(spanStart - 1)..<end].joined(separator: "\n")
+                        if excerpt.trim().isEmpty {
+                            return "ERREUR : les lignes \(spanStart) à \(end) de \(p) sont vides. "
+                                + "Mets \"old\" (la ligne exacte après laquelle insérer) et \"new\" "
+                                + "(cette ligne suivie de l'ajout) dans args."
+                        }
+                        guard newText != nil else {
+                            awaitLines = (p, spanStart, end)
+                            let shown = (spanStart...end).map { "\($0): \(lines[$0 - 1])" }.joined(separator: "\n")
+                            return "EN ATTENTE du nouveau texte des lignes \(spanStart) à \(end) "
+                                + "de \(p) (edit_file est arrivé sans texte). Les voici :\n"
+                                + "\(shown)\nRéponds MAINTENANT avec, seul, le texte qui REMPLACE "
+                                + "ces lignes en entier (sans les numéros) dans un bloc de code "
+                                + "(```), sans bloc JSON. Pour un changement plus précis, "
+                                + "utilise plutôt edit_file avec \"old\" (le passage exact) et "
+                                + "\"new\"."
+                        }
+                        oldText = excerpt
                     }
-                    guard newText != nil else {
-                        awaitLines = (p, spanStart, end)
-                        let shown = (spanStart...end).map { "\($0): \(lines[$0 - 1])" }.joined(separator: "\n")
-                        return "EN ATTENTE du nouveau texte des lignes \(spanStart) à \(end) "
-                            + "de \(p) (edit_file est arrivé sans texte). Les voici :\n"
-                            + "\(shown)\nRéponds MAINTENANT avec, seul, le texte qui REMPLACE "
-                            + "ces lignes en entier (sans les numéros) dans un bloc de code "
-                            + "(```), sans bloc JSON. Pour un changement plus précis, "
-                            + "utilise plutôt edit_file avec \"old\" (le passage exact) et "
-                            + "\"new\"."
-                    }
-                    oldText = excerpt
                 }
             }
             // Un seul bloc : c'est le texte à ajouter (à la fin du fichier).
@@ -1123,7 +1148,7 @@ extension AgentRun {
             }
             // old vide sur un fichier de code : sûrement pas « à la toute fin ».
             let doc = DRegex(#"(\.(md|markdown|txt|rst|log)$|changelog|readme)"#, caseSensitive: false).hasMatch(p)
-            if oldText.isEmpty && !text.trim().isEmpty && !doc && !isTrue(call.args["at_end"]) {
+            if oldText.isEmpty && !text.trim().isEmpty && !doc && !atEnd {
                 return "ERREUR : \"old\" vide ajouterait le texte à la toute FIN de \(p), ce "
                     + "qui est rarement le bon endroit dans du code. Pour insérer à un "
                     + "endroit précis : trouve-le (find_in_file), mets dans \"old\" la ligne "
