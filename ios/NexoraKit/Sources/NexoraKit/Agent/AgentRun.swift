@@ -128,6 +128,9 @@ public final class AgentRun {
     /// Les fichiers Dart déjà signalés pour leurs lignes trop longues (une seule fois
     /// chacun : pas de boucle si le modèle n'y arrive pas).
     @ObservationIgnored var longWarned: Set<String> = []
+    /// Les fichiers Dart déjà prévenus d'une indentation que `dart format`
+    /// refusera (une fois chacun, comme les lignes trop longues).
+    @ObservationIgnored var indentWarned: Set<String> = []
     /// Par dépôt (préfixe de son dossier) : sa CI vérifie-t-elle `dart format` ?
     @ObservationIgnored var formatChecked: [String: Bool] = [:]
     /// Ce que la session a consommé : tokens envoyés et reçus, et dollars (quand

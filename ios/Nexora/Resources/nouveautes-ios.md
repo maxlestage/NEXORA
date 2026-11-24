@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.262 — 24 novembre 2026 — L'agent est prévenu d'une indentation que dart format refusera
+- Corrigé : quand le modèle coupait un « RegExp( » sur plusieurs lignes en laissant ses arguments au niveau de la ligne d'ouverture et la fermeture « ) » trop à gauche, rien n'était dit : « dart format » en CI refusait le fichier sans expliquer pourquoi.
+- Quand la CI du dépôt vérifie le format Dart, l'agent est prévenu dès l'écriture, avec chaque ligne mal indentée et le nombre d'espaces attendu : la correction se fait à l'étape suivante, sans aller-retour avec la CI (moins de tokens).
+- Prudent : seules les lignes écrites par l'agent sont vérifiées, et les tournures que le formateur aligne autrement (« ? : », chaînes d'appels « .x( », textes sur plusieurs lignes) ne sont jamais visées.
+
 ## 3.0.261 — 24 novembre 2026 — Le Dart de l'agent n'échappe plus les guillemets pour rien
 - Corrigé : dans un test Dart, l'agent écrivait parfois '{\"message\": \"…\"}'. Ces barres obliques ne servent à rien et « flutter analyze » les refuse : la CI échouait pour un détail d'écriture.
 - La barre oblique inutile devant un guillemet de l'autre sorte est maintenant retirée dès le brouillon ; le texte reste exactement le même.
