@@ -306,3 +306,39 @@ public func nearestPassage(_ text: String, _ old: String) -> String? {
     let to = min(max(at + span + 1, 0), lines.count)
     return (from..<to).map { "\($0 + 1): \(lines[$0])" }.joined(separator: "\n")
 }
+
+/// La première ligne de `replacement` qui n'est qu'un commentaire de remplissage
+/// (« // ... existing code », « # rest of the file », « // reste du code inchangé »…)
+/// absent de `old` et du fichier ; `nil` s'il n'y en a pas (port de Flutter 2.2.91).
+/// edit_file ne remplace que `old` : ce commentaire serait écrit tel quel et le code
+/// qu'il représente resterait à part.
+func placeholderLine(_ replacement: String, _ old: String, _ text: String) -> String? {
+    let known = Set("\(old)\n\(text)".dsplit("\n").map { $0.trim() })
+    for line in replacement.dsplit("\n") {
+        let t = line.trim()
+        if t.isEmpty || known.contains(t) { continue }
+        guard let m = commentTextRegex.firstMatch(t), let body = m.groups[1] else { continue }
+        if fillerCommentRegex.hasMatch(body.trim().lowercased()) { return line }
+    }
+    return nil
+}
+
+/// Le texte d'une ligne qui n'est qu'un commentaire (//, #, /* */, <!-- -->), hors
+/// commentaires de documentation (///, //!) et attributs Rust (#[…]).
+private let commentTextRegex = DRegex(#"^(?://(?![/!])|#(?![\[!])|/\*+|<!--)\s*(.*?)\s*(?:\*+/|-->)?$"#)
+
+/// Le contenu d'un commentaire de remplissage, et rien d'autre. Une phrase qui
+/// continue (« ... and compare it ») n'en est pas un.
+private let fillerCommentRegex = DRegex(
+    #"^(?:(?:\.{3,}|…)\s*$|(?:\.{3,}|…)?\s*\(?\s*(?:"#
+    + #"(?:the\s+)?(?:existing|unchanged|remaining|previous|other|original|more|"#
+    + #"same)\s+(?:\w+\s+)?(?:code|file|functions?|body|implementation|tests?|"#
+    + #"lines?|methods?|routes?|fields?|content|imports?|handlers?|cases?|logic)"#
+    + #"|(?:the\s+)?rest\s+of\s+(?:the\s+)?(?:\w+\s+)?(?:code|file|functions?|body|"#
+    + #"implementation|tests?|class|module|methods?|routes?)"#
+    + #"|(?:le\s+|la\s+)?(?:reste|suite)\s+(?:du|de\s+la|des)\s+(?:code|fichier|"#
+    + #"fonctions?|tests?|lignes?)"#
+    + #"|(?:le\s+)?(?:code|contenu|corps)\s+(?:existant|inchangé|précédent)"#
+    + #")(?:\s+(?:here|unchanged|remains?|stays?|as\s+before|goes|ici|inchangée?s?|"#
+    + #"existante?s?|comme\s+avant|\.{3,}|…))*\s*\)?\s*(?:\.{3,}|…)?[.;:]?$)"#
+)

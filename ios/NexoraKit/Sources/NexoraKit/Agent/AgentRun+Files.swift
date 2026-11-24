@@ -1160,6 +1160,20 @@ extension AgentRun {
                 return "Déjà fait : ce texte est déjà à la fin de \(p) (rien n'a été "
                     + "ajouté une deuxième fois). Si la demande est remplie, appelle finish."
             }
+            // Un commentaire « // ... existing code » à la place du code gardé : il
+            // serait écrit tel quel et le code qu'il représente resterait à part
+            // (essai réel : le corps d'une fonction orphelin, le fichier ne compilait plus).
+            if !doc, let filler = placeholderLine(newText, oldText, text) {
+                return "ERREUR : rien n'est modifié. \"new\" contient « \(filler.trim()) », "
+                    + "un commentaire qui tient la place de code existant : edit_file "
+                    + "remplace seulement \"old\" par \"new\", ce commentaire serait écrit "
+                    + "tel quel et le code qu'il est censé représenter resterait à part "
+                    + "(le fichier ne compilerait plus). Écris en entier ce qui doit être "
+                    + "dans \"new\". Pour AJOUTER du code (une fonction, un test) : mets "
+                    + "dans \"old\" une ligne qui le suit (par exemple la première ligne "
+                    + "de la fonction suivante, « async fn … { », ou « } » avec \"line\"), "
+                    + "et dans \"new\" le nouveau code suivi de cette même ligne."
+            }
             let edited = applyEdit(
                 text, oldText, newText, all: isTrue(call.args["all"]),
                 near: asInt(call.args["line"]) ?? asInt(call.args["near"]) ?? (ranged ? spanStart : nil)
