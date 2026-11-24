@@ -5,6 +5,10 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.248 — 24 novembre 2026 — L'agent ne s'arrête plus sur une réflexion qui tourne en rond
+- Corrigé : un modèle dont la réflexion tournait en boucle jusqu'à sa limite renvoyait trois réponses vides, et la session s'arrêtait sans finir.
+- Les deux relances après une réponse vide demandent maintenant une réflexion courte et tirent la réponse autrement, ce qui casse la boucle ; la première demande de chaque étape garde vos réglages.
+
 ## 3.0.247 — 24 novembre 2026 — L'agent ne tourne plus en rond sur ce qui existe déjà
 
 - Corrigé : quand ce qui est demandé existait déjà (page, route, test…), l'agent le trouvait mais refaisait la même recherche, et les relances lui affirmaient que rien n'existait.

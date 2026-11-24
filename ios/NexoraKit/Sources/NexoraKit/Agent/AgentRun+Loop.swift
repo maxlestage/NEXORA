@@ -164,7 +164,10 @@ extension AgentRun {
                             : "Réponds UNIQUEMENT avec le bloc JSON de ta prochaine action, "
                                 + "sans aucune réflexion."
                     ))
-                    reply = try await ask()
+                    // Mêmes réglages, même boucle : la relance réfléchit moins et
+                    // tire au sort autrement (en essai réel, la réflexion de GPT-OSS
+                    // tournait en rond jusqu'à la limite, trois fois de suite).
+                    reply = try await ask(calm: true)
                     retry += 1
                 }
                 guard let reply, !stopFlag else { break steps }
