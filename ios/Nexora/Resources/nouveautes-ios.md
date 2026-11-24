@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.251 — 24 novembre 2026 — L'agent modifie des lignes par leurs numéros
+- Corrigé : quand le modèle demandait de modifier « les lignes 404 à 420 » d'un fichier sans envoyer de texte, NEXORA répondait « il manque le texte » et l'étape était perdue, parfois plusieurs fois de suite.
+- Une modification qui ne donne qu'une plage de lignes montre maintenant ces lignes au modèle, puis les remplace par le texte qu'il envoie juste après.
+- Une plage avec le nouveau texte remplace directement ces lignes ; une plage hors du fichier reçoit une erreur claire, avec le nombre de lignes. Quand l'ancien passage est donné, il reste la référence.
+
 ## 3.0.250 — 24 novembre 2026 — L'agent repère le Rust qui ne compile pas
 - Le code Rust écrit par l'agent est maintenant relu à chaque modification, comme le Dart : accolade, parenthèse ou crochet en trop ou jamais fermé, chaîne jamais fermée. Le modèle est prévenu tout de suite, avec la ligne.
 - L'avertissement montre aussi où le décalage commence (la première fermeture mal alignée), pour corriger au bon endroit du premier coup.

@@ -1055,6 +1055,49 @@ extension AgentRun {
             }
             var oldText = arg(["old", "old_string", "old_text", "search", "find"])
             var newText = arg(["new", "new_string", "new_text", "replace", "replacement", "content", "text", "append"])
+            // Une plage de lignes (line_start/line_end…) sans passage exact : ces
+            // lignes sont celles à remplacer. Essai réel : le modèle envoyait
+            // {"path", "line_start": 404, "line_end": 420} seul, quatre fois de suite,
+            // et recevait chaque fois « il manque le texte ».
+            let (spanStart, spanEnd, _) = Self.readSpan(call.args)
+            var ranged = false
+            if let spanStart, let spanEnd, spanEnd >= spanStart {
+                ranged = true
+                // Un seul texte avec une plage : il remplace ces lignes.
+                if newText == nil, let o = oldText {
+                    newText = o
+                    oldText = nil
+                }
+                if oldText == nil {
+                    let (text, problem) = try await current(p)
+                    guard let text else { return problem ?? "ERREUR : \(p) introuvable." }
+                    var lines = text.components(separatedBy: "\n")
+                    if text.endsWith("\n") { lines.removeLast() }
+                    guard spanStart >= 1 && spanStart <= lines.count else {
+                        return "ERREUR : \(p) a \(lines.count) lignes, la ligne \(spanStart) "
+                            + "n'existe pas. Relis le fichier (read_file) puis recommence."
+                    }
+                    let end = min(spanEnd, lines.count)
+                    let excerpt = lines[(spanStart - 1)..<end].joined(separator: "\n")
+                    if excerpt.trim().isEmpty {
+                        return "ERREUR : les lignes \(spanStart) à \(end) de \(p) sont vides. "
+                            + "Mets \"old\" (la ligne exacte après laquelle insérer) et \"new\" "
+                            + "(cette ligne suivie de l'ajout) dans args."
+                    }
+                    guard newText != nil else {
+                        awaitLines = (p, spanStart, end)
+                        let shown = (spanStart...end).map { "\($0): \(lines[$0 - 1])" }.joined(separator: "\n")
+                        return "EN ATTENTE du nouveau texte des lignes \(spanStart) à \(end) "
+                            + "de \(p) (edit_file est arrivé sans texte). Les voici :\n"
+                            + "\(shown)\nRéponds MAINTENANT avec, seul, le texte qui REMPLACE "
+                            + "ces lignes en entier (sans les numéros) dans un bloc de code "
+                            + "(```), sans bloc JSON. Pour un changement plus précis, "
+                            + "utilise plutôt edit_file avec \"old\" (le passage exact) et "
+                            + "\"new\"."
+                    }
+                    oldText = excerpt
+                }
+            }
             // Un seul bloc : c'est le texte à ajouter (à la fin du fichier).
             if newText == nil, let o = oldText {
                 newText = o
@@ -1094,7 +1137,7 @@ extension AgentRun {
             }
             let edited = applyEdit(
                 text, oldText, newText, all: isTrue(call.args["all"]),
-                near: asInt(call.args["line"]) ?? asInt(call.args["near"])
+                near: asInt(call.args["line"]) ?? asInt(call.args["near"]) ?? (ranged ? spanStart : nil)
             )
             guard let result = edited.0 else { return "ERREUR : \(edited.1)" }
             changes.set(p, tidyCode(p, result, before: orig(p) ?? text))

@@ -2022,12 +2022,25 @@ mémoire 32k tokens, consigne 3 000 car.
   fichier .rs de site/ signalé. Avant : accolade en trop vue seulement par la CI, puis tours
   de réparation renvoyant tout l'historique. Tests : 691 → 696 (RustCheckTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.88)
-2.2.87 portée (3.0.250). Puis 2.2.88.
-Parité Flutter en retard : 2.2.88 à 2.2.111 non portées (corrections de l'agent, souvent
+- 3.0.251 (parité, agent ; passage TOKENS : pistes sûres épuisées, rien à plus de 2 %) :
+  port du cœur de Flutter 2.2.88 — edit_file avec une plage (`readSpan` : line_start/
+  line_end, lines « 4-6 »…) sans « old » : plage seule → lignes numérotées montrées,
+  `awaitLines` (AgentRun.swift), et le bloc de code de la réponse suivante devient un
+  edit_file de la plage (AgentRun+Loop.swift) ; plage + un seul texte → remplacée
+  directement ; plage hors du fichier → « a N lignes, la ligne X n'existe pas » ; « old »
+  donné → inchangé (la plage sert seulement de `near`). Non portés (versions Flutter
+  ultérieures) : ajout « at_end » sans texte pour edit_file, insertion après une ligne
+  (`_awaitInsert`), plage juste après la dernière ligne = ajout. Avant : « il manque le
+  texte » jusqu'à 4 fois de suite, chaque essai renvoyant tout l'historique.
+  Tests : 696 → 700 (AgentLineRangeTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.89)
+2.2.88 portée (3.0.251). Puis 2.2.89 (vérifier si l'insertion après une ligne / at_end
+d'edit_file y est : sinon la porter à part, elle est déjà dans le code Flutter).
+Parité Flutter en retard : 2.2.89 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.251) : TOKENS (sinon parité 2.2.88), puis INTERFACE ;
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.252) : INTERFACE (sinon parité 2.2.89), puis TOKENS ;
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
