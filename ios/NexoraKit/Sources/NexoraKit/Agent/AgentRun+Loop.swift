@@ -192,6 +192,17 @@ extension AgentRun {
                 let appending = awaitAppend
                 awaitContent = nil
                 awaitAppend = false
+                // Le nouveau texte des lignes montrées après un edit_file qui ne
+                // donnait qu'une plage : elles sont remplacées.
+                if let range = awaitLines {
+                    awaitLines = nil
+                    if let content = pendingContent(reply) {
+                        calls = [ToolCall("edit_file", [
+                            "path": range.0, "line_start": range.1, "line_end": range.2,
+                            "new": content.endsWith("\n") ? String(content.dropLast()) : content,
+                        ])]
+                    }
+                }
                 // Le contenu attendu n'est pas arrivé : l'agent le saura (il croyait
                 // souvent le fichier écrit et passait à la suite).
                 var lost = ""

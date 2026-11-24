@@ -173,6 +173,9 @@ public final class AgentRun {
     var awaitContent: String?
     /// Ce contenu attendu s'ajoute à la fin du fichier (write_file en mode ajout).
     var awaitAppend = false
+    /// Les lignes d'un `edit_file` arrivé avec seulement une plage de lignes
+    /// (chemin, début, fin) : leur nouveau texte est attendu dans la réponse suivante.
+    var awaitLines: (String, Int, Int)?
 
     /// La version d'origine des fichiers lus ou modifiés (`nil` : fichier nouveau).
     public var originals: [String: String?] = [:]
