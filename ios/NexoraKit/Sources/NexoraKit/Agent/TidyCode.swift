@@ -60,8 +60,9 @@ func dartLints(_ text: String, before: String?) -> String {
         let e = t.indexOf("\n", at)
         return !old.contains(t.sub(a, e < 0 ? s.count : e))
     }
+    let (interpolations, escapes) = dartStrings(s)
     var cuts: [(Int, Int)] = []
-    for at in dartInterpolations(s) {
+    for at in interpolations {
         // « ${nom} » : un identifiant seul entre les accolades…
         var k = at + 2
         guard k < s.count, isIdentStart(s[k]) else { continue }
@@ -73,9 +74,18 @@ func dartLints(_ text: String, before: String?) -> String {
         if end < s.count, isWordChar(s[end]) || s[end] == 36 { continue }
         if mine(at) { cuts.append((at, end)) }
     }
+    // `'{\"a\": 1}'` : un guillemet de l'autre sorte n'a pas besoin de « \ »
+    // (« unnecessary_string_escapes », essai réel dans un test écrit par
+    // l'agent). La barre oblique est retirée, le texte reste le même.
+    for at in escapes where mine(at) { cuts.append((at, at + 1)) }
+    cuts.sort { $0.0 < $1.0 }
     var u = s
     for (a, e) in cuts.reversed() {
-        u.replaceSubrange(a..<e, with: [36] + s[(a + 2)..<(e - 1)])
+        if e == a + 1 {
+            u.remove(at: a)
+        } else {
+            u.replaceSubrange(a..<e, with: [36] + s[(a + 2)..<(e - 1)])
+        }
     }
     var out = cuts.isEmpty ? text : String(decoding: u, as: UTF16.self)
     // `///` en tête, suivi d'une ligne vide ou d'un import : il ne documente
@@ -100,8 +110,10 @@ private func isIdentStart(_ c: UInt16) -> Bool {
 private func isWordChar(_ c: UInt16) -> Bool { isIdentStart(c) || (48...57).contains(c) }
 
 /// Les positions des `${` dans les textes Dart non bruts (pas dans le code, les
-/// commentaires ni les chaînes `r'…'`), interpolations imbriquées comprises.
-private func dartInterpolations(_ s: [UInt16]) -> [Int] {
+/// commentaires ni les chaînes `r'…'`), interpolations imbriquées comprises,
+/// et celles des « \ » inutiles devant un guillemet de l'autre sorte (`\"`
+/// entre `'…'` ou `'''…'''`, `\'` entre `"…"` ou `"""…"""`).
+private func dartStrings(_ s: [UInt16]) -> (interpolations: [Int], escapes: [Int]) {
     let n = s.count
     let quote: UInt16 = 39, dquote: UInt16 = 34, backslash: UInt16 = 92, newline: UInt16 = 10
     let slash: UInt16 = 47, star: UInt16 = 42, open: UInt16 = 123, close: UInt16 = 125
@@ -109,6 +121,7 @@ private func dartInterpolations(_ s: [UInt16]) -> [Int] {
         at + p.count <= n && s[at..<(at + p.count)].elementsEqual(p)
     }
     var found: [Int] = []
+    var escapes: [Int] = []
     // La pile : un texte ouvert (son délimiteur, brut ou non) ou du code
     // d'interpolation (délimiteur nil, avec sa profondeur d'accolades).
     var stack: [(q: [UInt16]?, raw: Bool, depth: Int)] = []
@@ -116,7 +129,12 @@ private func dartInterpolations(_ s: [UInt16]) -> [Int] {
     while i < n {
         if let top = stack.last, let q = top.q {
             // Dans un texte.
-            if !top.raw && s[i] == backslash { i += 2; continue }
+            if !top.raw && s[i] == backslash {
+                let other = q[0] == quote ? dquote : quote
+                if i + 1 < n && s[i + 1] == other { escapes.append(i) }
+                i += 2
+                continue
+            }
             if starts(q, i) { stack.removeLast(); i += q.count; continue }
             if !top.raw && s[i] == 36 && i + 1 < n && s[i + 1] == open {
                 found.append(i)
@@ -159,5 +177,5 @@ private func dartInterpolations(_ s: [UInt16]) -> [Int] {
         }
         i += 1
     }
-    return found
+    return (found, escapes)
 }

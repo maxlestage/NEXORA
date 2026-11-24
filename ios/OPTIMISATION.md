@@ -2109,10 +2109,17 @@ mémoire 32k tokens, consigne 3 000 car.
   l'historique renvoyé) ; après : corrigé à l'étape suivante. Blocs différents, #[cfg(…)],
   macros, chaînes et commentaires : jamais visés. Tests : 741 → 746 (RustDuplicateFnTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.98)
-2.2.97 portée (3.0.260). Parité Flutter en retard : 2.2.98 à 2.2.111 non portées ; en
+- 3.0.261 (parité 2.2.98, passage TOKENS sans piste mesurée à plus de 2 %) : `dartStrings`
+  (TidyCode, ex-`dartInterpolations`) relève aussi les « \ » inutiles devant un guillemet de
+  l'autre sorte (\" entre '…' ou '''…''', \' entre "…") ; `dartLints` les retire dans les
+  lignes écrites par l'agent. Avant : « unnecessary_string_escapes », CI rouge (un aller-retour
+  de correction, tout l'historique renvoyé) ; après : passe du premier coup. Barres utiles,
+  chaînes brutes, commentaires, lignes d'origine : jamais touchés. Tests : 746 → 748.
+
+## Prochain passage : INTERFACE (sinon parité 2.2.99)
+2.2.98 portée (3.0.261). Parité Flutter en retard : 2.2.99 à 2.2.111 non portées ; en
 porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.261) : TOKENS, puis INTERFACE ;
+Passage suivant (3.0.262) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
