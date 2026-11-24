@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.266 — 24 novembre 2026 — Le résumé de l'agent n'affirme plus des tests qu'il n'a pas lancés
+- Corrigé : l'agent pouvait finir par « Tous les tests passent et la CI reste verte » sans avoir rien lancé, et cette phrase partait telle quelle dans le résumé et la pull request.
+- Ces affirmations (tests qui passent, CI verte, code qui compile) sont maintenant retirées du résumé de fin : le vrai résultat est celui de la CI, que NEXORA suit après l'envoi.
+- Prudent : seule la partie de phrase qui affirme est retirée (« Label modifié ; tous les tests passent. » devient « Label modifié. »), et un but (« pour que la CI reste verte ») est gardé.
+
 ## 3.0.265 — 24 novembre 2026 — L'agent écrit du Rust que clippy accepte
 - Corrigé : pour un arrondi au supérieur, l'agent écrivait « (mots + 199) / 200 ». Le calcul est juste, mais « cargo clippy -- -D warnings » le refuse : la CI du dépôt échouait.
 - Quand la CI d'un dépôt passe clippy en refusant ses avertissements, l'agent est prévenu dès l'écriture, avec la ligne et la correction exacte (« mots.div_ceil(200) », « (1..=10).contains(&x) »).

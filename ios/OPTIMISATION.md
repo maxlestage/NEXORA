@@ -2139,12 +2139,18 @@ mémoire 32k tokens, consigne 3 000 car.
   l'historique renvoyé à chacune) ; après : « introuvable », l'agent change d'approche.
   Tests : 755 → 758 (SearchSquashTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.103)
-2.2.102 portée (3.0.265 : alertes clippy `manual_div_ceil` / `manual_range_contains`,
-`RustClippy.swift`, tests 758 → 768). Parité Flutter en retard : 2.2.103 à 2.2.111 non
+- 3.0.266 (parité 2.2.103, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `stripUnverifiedClaims` (AgentActions), appliqué au résumé de finish — les affirmations
+  invérifiables (tests qui passent, CI verte, code qui compile) sont retirées proposition par
+  proposition ; un but (« pour que », « vérifie que », « so that ») est gardé. Avant : le
+  résumé et la pull request affirmaient un résultat jamais constaté ; après : seul ce qui est
+  fait reste. Tests : 768 → 774 (UnverifiedClaimsTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.104)
+2.2.103 portée (3.0.266). Parité Flutter en retard : 2.2.104 à 2.2.111 non
 portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non portés
 non plus : `_asciiCasePitfalls` et `_lintPitfalls`, versions plus récentes.)
-Passage suivant (3.0.266) : TOKENS, puis INTERFACE ;
+Passage suivant (3.0.267) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
