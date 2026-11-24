@@ -36,14 +36,24 @@ public func applyEdit(_ text: String, _ old: String, _ replacement: String, all:
         if let reindented = reindentedEdit(text, old, replacement) {
             return (reindented, "1 remplacement, indentation du fichier gardée")
         }
-        let near = nearestPassage(text, old)
+        // Les « \n » écrits DANS une chaîne du fichier (« "a\nb" ») : en JSON, le
+        // modèle les envoie souvent comme de vrais retours à la ligne. En essai réel
+        // (Flutter 2.2.83), le passage n'était jamais trouvé (trois refus de suite).
+        // On les remet en « \n », dans old et dans le nouveau code.
+        let escapedOld = escapeStringNewlines(old)
+        if escapedOld != old && text.occurrences(escapedOld) > 0 {
+            let r = applyEdit(text, escapedOld, escapeStringNewlines(replacement), all: all, near: near)
+            guard let out = r.0 else { return r }
+            return (out, "\(r.1), « \\n » des chaînes gardés")
+        }
+        let closest = nearestPassage(text, old)
         return (
             nil,
             "passage introuvable. Relis le fichier (read_file avec start/end ou "
                 + "find_in_file) et recopie old exactement, espaces compris."
-                + (near == nil ? "" : "\nLe passage le plus proche dans le fichier "
+                + (closest == nil ? "" : "\nLe passage le plus proche dans le fichier "
                     + "(à recopier exactement dans old, sans les numéros de "
-                    + "ligne) :\n\(near!)")
+                    + "ligne) :\n\(closest!)")
         )
     }
     // Un passage qui revient plusieurs fois (« ]; », « } »…) : en essai réel,

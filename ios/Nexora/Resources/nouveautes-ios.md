@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.245 — 24 novembre 2026 — L'agent modifie le code qui contient des « \n »
+- Corrigé : quand le code à modifier contenait une chaîne avec des « \n » (par exemple « "User-agent: *\nAllow: /" »), le modèle les renvoyait comme de vrais retours à la ligne : le passage n'était jamais trouvé et l'agent enchaînait les refus, chacun renvoyant tout l'historique.
+- Ces retours à la ligne placés dans une chaîne sont maintenant reconnus : la modification réussit du premier coup, et les « \n » du nouveau code sont écrits comme il faut.
+- Rien ne change quand le passage est recopié exactement ; commentaires, chaînes brutes ou sur plusieurs lignes ne sont jamais touchés (vérifié sur tous les fichiers Swift, Dart et Rust du dépôt).
+
 ## 3.0.244 — 24 novembre 2026 — L'agent n'efface plus le code existant
 - Corrigé : pour « ajoute une fonction dans diff.dart », l'agent pouvait réécrire le fichier avec seulement la nouvelle fonction ; tout le reste disparaissait du brouillon, sans alerte.
 - Quand un contenu effacerait la plupart du code d'un fichier existant, rien n'est écrit : l'agent apprend quelles lignes il allait perdre et comment ajouter son code (à un endroit précis, ou à la fin).
