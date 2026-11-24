@@ -2066,11 +2066,20 @@ mémoire 32k tokens, consigne 3 000 car.
   manque le texte » / « old vide », jusqu'à 4 étapes perdues, chacune renvoyant tout
   l'historique ; après : inséré en 1 ou 2 étapes. Tests : 715 → 721 (AgentInsertAfterTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.93)
-2.2.92 portée (3.0.255). Parité Flutter en retard : 2.2.93 à 2.2.111 non portées ; en
-porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.93 = code nouveau seul
-ajouté à la fin).
-Passage suivant (3.0.256) : INTERFACE, puis TOKENS ;
+- 3.0.256 (parité 2.2.93, passage INTERFACE sans défaut signalé) : `pureAddition`
+  (AgentRun+Files) — write_file dont le contenu n'est que du code nouveau (langage de code,
+  ≤ 60 % du fichier, premier niveau, sans import, au plus 1 ligne sur 5 déjà présente, jamais
+  la première) sur un fichier qu'il raccourcirait ou effacerait → ajouté à la fin via
+  `appendToEnd` (edit_file at_end), avertissements de edit_file gardés (aussi pour
+  write_file « at_end », qui les perdait). Avant : refus, jusqu'à 4 étapes perdues (tout
+  l'historique renvoyé à chacune) ; après : ajouté du premier coup. « force », imports,
+  morceaux en retrait et documentation : inchangés. Tests : 721 → 725 (WriteAdditionTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.94)
+2.2.93 portée (3.0.256). Parité Flutter en retard : 2.2.94 à 2.2.111 non portées ; en
+porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.94 = test Rust qui ne
+compile pas repéré tout de suite).
+Passage suivant (3.0.257) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
