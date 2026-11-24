@@ -1965,11 +1965,21 @@ mémoire 32k tokens, consigne 3 000 car.
   automatique à la fin (`pureAddition`) vient d'une version ultérieure. Avant : brouillon
   amputé, CI rouge puis tours de réparation renvoyant tout l'historique. Tests : 663 → 668.
 
+- 3.0.245 (parité, agent ; passage TOKENS : pistes sûres épuisées, rien de mesuré > 2 %) :
+  port de Flutter 2.2.83 — `escapeStringNewlines` (Agent/StringNewlines.swift) et repli dans
+  `applyEdit` : un « old » dont les « \n » d'une chaîne ont été envoyés en vrais retours
+  à la ligne est retrouvé (old et new remis en « \n »), résumé « …, « \n » des chaînes
+  gardés ». Différences avec Flutter : chaînes brutes Swift #"…"#, interpolation \(…), et
+  « "${" » / « "${{" » entre guillemets doubles traités comme du texte (sinon 3 fichiers
+  Swift du dépôt étaient modifiés à tort). Test : sans effet sur tous les .swift/.dart/.rs
+  du dépôt. Avant : trois refus de suite, chacun renvoyant tout l'historique.
+  Tests : 668 → 674.
+
 ## Prochain passage : INTERFACE (ou parité)
-Parité Flutter en retard : 2.2.83 à 2.2.111 non portées (corrections de l'agent, souvent
+Parité Flutter en retard : 2.2.84 à 2.2.111 non portées (corrections de l'agent, souvent
 moins de tours donc moins de tokens) ; en porter une par passage quand TOKENS n'a rien.
 (interface faite en 3.0.236 : ligne des Routines pour VoiceOver ; avant, 3.0.235 : état vide
-des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.245) : TOKENS (sinon parité 2.2.83), puis INTERFACE,
+des missions cloud ; plus d'état vide à traiter) → passage suivant (3.0.246) : INTERFACE (sinon parité 2.2.84), puis TOKENS,
 mais les pistes sûres sont épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon passer à l'interface sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
