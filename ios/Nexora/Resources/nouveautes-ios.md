@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.246 — 24 novembre 2026 — L'agent trouve ce qui est défini dans un fichier voisin
+- Corrigé : une recherche élargie à tout le dépôt ne parcourait que les 300 premiers fichiers dans l'ordre du dépôt ; cherché depuis site/src/main.rs, « const FAQ » (défini dans site/src/contenu.rs) n'était jamais trouvé. Les fichiers voisins sont maintenant parcourus en premier.
+- Corrigé : rien trouvé dans le fichier visé mais trouvé ailleurs, l'agent ne lit plus « vient d'une dépendance, ne la cherche plus » suivi de la vraie définition : seule la réponse du dépôt reste.
+- Amélioré : moins de recherches répétées, donc moins de tokens par session.
+
 ## 3.0.245 — 24 novembre 2026 — L'agent modifie le code qui contient des « \n »
 - Corrigé : quand le code à modifier contenait une chaîne avec des « \n » (par exemple « "User-agent: *\nAllow: /" »), le modèle les renvoyait comme de vrais retours à la ligne : le passage n'était jamais trouvé et l'agent enchaînait les refus, chacun renvoyant tout l'historique.
 - Ces retours à la ligne placés dans une chaîne sont maintenant reconnus : la modification réussit du premier coup, et les « \n » du nouveau code sont écrits comme il faut.

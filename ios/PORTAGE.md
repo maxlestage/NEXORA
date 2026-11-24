@@ -66,5 +66,7 @@ L'app Flutter continue d'évoluer (une version 2.2.x par amélioration). La rout
 l'app Swift porte chaque nouvelle version, de la plus ancienne à la plus récente, puis met à
 jour cette ligne.
 
-Dernière version Flutter portée : **2.2.83** (à porter ensuite : 2.2.84 et suivantes,
+Dernière version Flutter portée : **2.2.83**, et 2.2.84 en partie (recherche élargie : voisins
+d'abord, « Rien dans … » ; restent la note « la demande existe peut-être déjà » et la réponse
+recopiée retirée de l'historique) (à porter ensuite : le reste de 2.2.84, puis 2.2.85 et suivantes,
 `git log --oneline -- app/lib`).

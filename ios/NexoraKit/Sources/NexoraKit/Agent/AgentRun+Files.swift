@@ -529,13 +529,20 @@ extension AgentRun {
         let here = await grepIn(query, prefix)
         // Peu de résultats dans un dossier : la définition est souvent ailleurs.
         if !prefix.isEmpty && here.1 <= 2 {
-            let all = await grepIn(query, "")
+            let all = await grepIn(query, "", near: prefix)
             // Introuvable ici comme ailleurs : la réponse sur tout le dépôt (un nom
             // à créer est signalé comme tel, pas seulement « dans ce dossier »).
             if here.1 == 0 && all.1 == 0
                 && (Self.isNewName(query)
                     || (Self.definedName(query) != nil && !here.0.hasPrefix("Aucune définition"))) {
                 return all.0
+            }
+            // Rien ici, mais trouvé ailleurs : seule la réponse du dépôt compte. Essai
+            // réel : « class Conversation » cherché dans chat_state.dart répondait
+            // d'abord « vient d'une dépendance, ne la cherche plus », puis la vraie
+            // définition (models/chat.dart) ; l'agent, perdu, tournait en rond.
+            if here.1 == 0 && all.1 > 0 {
+                return "Rien dans \(prefix). Dans tout le dépôt :\n\(all.0)"
             }
             if all.1 > here.1 {
                 return "\(here.0)\n\nDans tout le dépôt (pas seulement \(prefix)) :\n\(all.0)"
@@ -544,7 +551,30 @@ extension AgentRun {
         return here.0
     }
 
-    func grepIn(_ query: String, _ prefix: String) async -> (String, Int) {
+    /// L'ordre de parcours d'un fichier pour une recherche (plus petit = plus tôt),
+    /// hors fichiers déjà lus : 1 le dossier de `near`, 2 un nom qui contient un des
+    /// `words`, 3 le même dossier de premier niveau que `near` (le même projet :
+    /// site/, app/…), 4 le reste.
+    public nonisolated static func searchRank(_ file: String, _ words: [String], _ near: String) -> Int {
+        let n = near.hasSuffix("/") ? String(near.dropLast()) : near
+        // site/src/main.rs → site/src/ ; site/src → site/src/ ; site → site/.
+        let dir: String
+        if n.isEmpty {
+            dir = ""
+        } else if let slash = n.lastIndex(of: "/"), n[n.index(after: slash)...].contains(".") {
+            dir = String(n[...slash])
+        } else {
+            dir = n + "/"
+        }
+        let top = n.isEmpty ? "" : (n.split(separator: "/").first.map { $0 + "/" } ?? "")
+        if !dir.isEmpty && file.hasPrefix(dir) { return 1 }
+        let low = file.lowercased()
+        if words.contains(where: { low.contains($0) }) { return 2 }
+        if !top.isEmpty && file.hasPrefix(top) { return 3 }
+        return 4
+    }
+
+    func grepIn(_ query: String, _ prefix: String, near: String = "") async -> (String, Int) {
         var allSet = Set<String>()
         var all: [String] = []
         for f in await files() + changes.entries.filter({ $0.value != nil }).map(\.key)
@@ -555,11 +585,15 @@ extension AgentRun {
         let q = query.lowercased()
         let words = q.components(separatedBy: .whitespacesAndNewlines).filter { $0.len > 1 }
         // D'abord les fichiers déjà lus, puis ceux dont le nom évoque la recherche.
+        // Pour une recherche élargie, les voisins du fichier visé passent avant : en
+        // essai réel, « const FAQ » cherché depuis site/src/main.rs ne trouvait jamais
+        // site/src/contenu.rs, au-delà des 300 premiers fichiers du dépôt (app/…
+        // d'abord), et l'agent tournait en rond.
+        var ranks: [String: Int] = [:]
+        for f in files { ranks[f] = Self.searchRank(f, words, near) }
         func rank(_ f: String) -> Int {
             if changes.contains(f) || orig(f) != nil { return 0 }
-            let low = f.lowercased()
-            if words.contains(where: { low.contains($0) }) { return 1 }
-            return 2
+            return ranks[f] ?? 4
         }
         files = files.enumerated().sorted { a, b in
             let ra = rank(a.element), rb = rank(b.element)
