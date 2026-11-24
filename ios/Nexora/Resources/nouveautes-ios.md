@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.265 — 24 novembre 2026 — L'agent écrit du Rust que clippy accepte
+- Corrigé : pour un arrondi au supérieur, l'agent écrivait « (mots + 199) / 200 ». Le calcul est juste, mais « cargo clippy -- -D warnings » le refuse : la CI du dépôt échouait.
+- Quand la CI d'un dépôt passe clippy en refusant ses avertissements, l'agent est prévenu dès l'écriture, avec la ligne et la correction exacte (« mots.div_ceil(200) », « (1..=10).contains(&x) »).
+- Prudent : seules les lignes écrites par l'agent sont vérifiées, et chaque alerte n'est donnée qu'une fois. Moins d'allers-retours avec la CI, donc moins de tokens.
+
 ## 3.0.264 — 24 novembre 2026 — La recherche de code de l'agent ne rend plus de faux résultats
 - Corrigé : en cherchant « send("   " », la recherche élargie retirait toute la ponctuation, cherchait donc « send » et rendait des lignes sans rapport (« chargés en dollars ») présentées comme des résultats.
 - La recherche élargie n'ignore plus que ce qu'elle annonce : les espaces, « _ » et « - ». « compare versions » retrouve toujours compareVersions et compare_versions.

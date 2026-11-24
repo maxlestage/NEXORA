@@ -133,6 +133,11 @@ public final class AgentRun {
     @ObservationIgnored var indentWarned: Set<String> = []
     /// Par dépôt (préfixe de son dossier) : sa CI vérifie-t-elle `dart format` ?
     @ObservationIgnored var formatChecked: [String: Bool] = [:]
+    /// Les tournures déjà signalées à clippy (`chemin:ligne`), pour ne pas répéter
+    /// le même avertissement si le modèle n'y arrive pas.
+    @ObservationIgnored var clippyWarned: Set<String> = []
+    /// Par dépôt : sa CI passe-t-elle `cargo clippy` avec `-D warnings` ?
+    @ObservationIgnored var clippyChecked: [String: Bool] = [:]
     /// Ce que la session a consommé : tokens envoyés et reçus, et dollars (quand
     /// le prix du modèle est connu). Mis à jour à chaque réponse, affiché en direct.
     public internal(set) var spentIn = 0

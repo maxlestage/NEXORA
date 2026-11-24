@@ -1608,6 +1608,11 @@ extension AgentRun {
             return syntax + (await formatPitfalls(p, text))
         }
         if !p.hasSuffix(".rs") { return "" }
+        return try await rustPitfalls(p, text) + (await clippyPitfalls(p, text))
+    }
+
+    /// Les erreurs certaines d'un brouillon Rust : syntaxe, tests et doctests.
+    func rustPitfalls(_ p: String, _ text: String) async throws -> String {
         let syntax = await syntaxPitfalls(p, text)
         if !Self.rustTest.hasMatch(p) {
             let src = p.lastIndexOf("src/")
