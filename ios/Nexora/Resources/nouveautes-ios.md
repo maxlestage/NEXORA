@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.257 — 24 novembre 2026 — Un test Rust qui ne compile pas est repéré tout de suite
+- Corrigé : un test Rust du dossier tests/ écrit avec « use super::*; » en tête était accepté sans rien dire, alors qu'il ne peut pas compiler ; la CI l'aurait découvert bien plus tard.
+- Il est maintenant signalé dès son écriture, avec la bonne façon d'importer la bibliothèque (« use nom_du_crate::… ») ou de mettre le test dans le module de tests du fichier testé.
+- Prudent : un super:: dans un module du fichier, dans une macro, un test qui lance le programme ou les tests de src/ ne sont jamais visés.
+
 ## 3.0.256 — 24 novembre 2026 — Une fonction ajoutée n'est plus refusée
 - Corrigé : quand le modèle écrivait un fichier avec seulement sa nouvelle fonction, NEXORA refusait (tout le reste aurait été effacé) et il fallait jusqu'à quatre étapes pour retrouver comment l'ajouter.
 - Quand ce texte n'est que du code nouveau (une fonction, un test, sans import ni ligne déjà dans le fichier), il est maintenant ajouté à la fin du fichier, et le code existant est gardé.

@@ -1349,7 +1349,7 @@ extension AgentRun {
     public nonisolated static func rustTestHint(_ path: String, _ content: String, cargo: String? = nil, mainRs: String? = nil, libRs: String? = nil) -> String? {
         if !rustTest.hasMatch(path) { return nil }
         let crate = cargo.flatMap(rustCrateName)
-        let both = [rustCrateHint(path, content, crate), rustBinHint(path, content, mainRs, libRs: libRs, crate: crate)].compactMap { $0 }
+        let both = [rustCrateHint(path, content, crate), rustSuperHint(path, content, crate), rustBinHint(path, content, mainRs, libRs: libRs, crate: crate)].compactMap { $0 }
         return both.isEmpty ? nil : both.joined()
     }
 
@@ -1393,6 +1393,79 @@ extension AgentRun {
                 ? "dans son module « #[cfg(test)] mod tests » existant (avec les autres tests, edit_file)"
                 : "dans un module « #[cfg(test)] mod tests { use super::*; … } » à la fin du fichier")
             + ", puis supprime \(path) (delete_file). Fais-le maintenant."
+    }
+
+    nonisolated static let rustStrings = DRegex(#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])'"#)
+    nonisolated static let rustModOpen = DRegex(#"\b(mod\s+\w+|macro_rules!\s*\w+)\s*\{"#)
+    nonisolated static let rustSuper = DRegex(#"\bsuper::"#)
+
+    /// `super::` dans un test d'intégration Rust (dossier tests/) : ce fichier est
+    /// la racine de son propre crate. Essai réel : pour « ajoute un test » de
+    /// nature(), le modèle écrivait site/tests/contenu.rs avec « use super::*; » en
+    /// tête ; accepté sans un mot, le test ne pouvait pas compiler (« too many
+    /// leading super keywords ») et la CI l'aurait découvert bien plus tard.
+    ///
+    /// Signalé : un `super::` hors de tout module du fichier (erreur certaine), ou
+    /// un « mod tests { use super::*; } » dans un fichier qui n'importe jamais la
+    /// bibliothèque. Un `super::` dans une macro, un module à soi, un test qui lance
+    /// le programme ou les tests de src/ ne sont jamais visés.
+    nonisolated static func rustSuperHint(_ path: String, _ content: String, _ name: String?) -> String? {
+        // Chaque accolade ouverte : 0 (bloc), 1 (module), 2 (macro).
+        var mods: [Int] = []
+        var top: String?
+        var inner: String?
+        let brace = UInt16(UInt8(ascii: "{")), close = UInt16(UInt8(ascii: "}"))
+        for raw in content.dsplit("\n") {
+            let l = raw.trim()
+            if l.hasPrefix("//") { continue }
+            let code = rustStrings.replaceAll(l, "\"\"")
+            if rustSuper.hasMatch(code) && !mods.contains(2) {
+                if !mods.contains(1) {
+                    if top == nil { top = l }
+                } else if inner == nil {
+                    inner = l
+                }
+            }
+            let open = rustModOpen.firstMatch(code)
+            for (i, c) in code.utf16.enumerated() {
+                if c == brace {
+                    if let open, i == open.end - 1 {
+                        mods.append((open[1] ?? "").hasPrefix("mod") ? 1 : 2)
+                    } else {
+                        mods.append(0)
+                    }
+                } else if c == close && !mods.isEmpty {
+                    mods.removeLast()
+                }
+            }
+        }
+        let use = name.map { "« use \($0)::… » (par exemple « use \($0)::module::fonction; »)" }
+            ?? ("le nom de la bibliothèque (celui de [lib] ou [package] dans "
+                + "Cargo.toml, tirets remplacés par « _ »)")
+        let fix = ", rends publics les éléments testés (pub mod, pub fn), et "
+            + "n'enveloppe pas les tests dans « mod tests ». Ou bien mets ces tests "
+            + "dans le module « #[cfg(test)] mod tests » du fichier testé (dans "
+            + "src/, où « use super::*; » est juste) et supprime ce fichier "
+            + "(delete_file). Corrige maintenant."
+        if let top {
+            return "\n\nATTENTION : \(path) est un test d'intégration Rust (dossier "
+                + "tests/) : il est compilé à part, comme la racine de son propre "
+                + "crate. « \(top) » ne compilera pas (super:: n'y désigne aucun "
+                + "module : « too many leading super keywords »). Importe la "
+                + "bibliothèque avec \(use)\(fix)"
+        }
+        guard let inner, let name else { return nil }
+        // Le fichier importe la bibliothèque, ou teste le programme lui-même
+        // (CARGO_BIN_EXE, Command) : super::* y est juste.
+        if DRegex("\\b\(name)\\b").hasMatch(content) || content.contains("CARGO_BIN_EXE")
+            || content.contains("Command") {
+            return nil
+        }
+        return "\n\nATTENTION : \(path) est un test d'intégration Rust (dossier "
+            + "tests/) : il est compilé à part, et n'importe jamais la bibliothèque. "
+            + "« \(inner) » n'y donne accès qu'à ce fichier : aucune fonction du "
+            + "crate ne sera trouvée, et le test ne compilera pas. Importe la "
+            + "bibliothèque avec \(use)\(fix)"
     }
 
     nonisolated static func rustCrateHint(_ path: String, _ content: String, _ name: String?) -> String? {

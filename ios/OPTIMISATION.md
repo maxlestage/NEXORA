@@ -2074,12 +2074,18 @@ mémoire 32k tokens, consigne 3 000 car.
   write_file « at_end », qui les perdait). Avant : refus, jusqu'à 4 étapes perdues (tout
   l'historique renvoyé à chacune) ; après : ajouté du premier coup. « force », imports,
   morceaux en retrait et documentation : inchangés. Tests : 721 → 725 (WriteAdditionTests).
+- 3.0.257 (parité 2.2.94, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `rustSuperHint` (AgentRun+Checks, appelé par `rustTestHint`) — un test de tests/ avec
+  `super::` hors de tout module, ou un « mod tests { use super::*; } » qui n'importe jamais
+  la bibliothèque, est signalé dès son écriture (import « use nom_du_crate::… » ou tests
+  dans src/). Avant : accepté, échec découvert par la CI (un aller-retour de correction,
+  tout l'historique renvoyé) ; après : corrigé à l'étape suivante. Macros, modules à soi,
+  Command/CARGO_BIN_EXE et src/ : jamais visés. Tests : 725 → 728 (RustSuperHintTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.94)
-2.2.93 portée (3.0.256). Parité Flutter en retard : 2.2.94 à 2.2.111 non portées ; en
-porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.94 = test Rust qui ne
-compile pas repéré tout de suite).
-Passage suivant (3.0.257) : TOKENS, puis INTERFACE ;
+## Prochain passage : INTERFACE (sinon parité 2.2.95)
+2.2.94 portée (3.0.257). Parité Flutter en retard : 2.2.95 à 2.2.111 non portées ; en
+porter une par passage quand TOKENS ou INTERFACE n'ont rien.
+Passage suivant (3.0.258) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
