@@ -194,6 +194,17 @@ extension AgentRun {
                 awaitAppend = false
                 // Le nouveau texte des lignes montrées après un edit_file qui ne
                 // donnait qu'une plage : elles sont remplacées.
+                // Le texte à insérer après la ligne montrée (edit_file avec un seul
+                // numéro de ligne et sans texte).
+                if let insert = awaitInsert {
+                    awaitInsert = nil
+                    if let content = pendingContent(reply) {
+                        calls = [ToolCall("edit_file", [
+                            "path": insert.0, "insert_after": insert.1,
+                            "new": content.endsWith("\n") ? String(content.dropLast()) : content,
+                        ])]
+                    }
+                }
                 if let range = awaitLines {
                     awaitLines = nil
                     if let content = pendingContent(reply) {

@@ -176,6 +176,9 @@ public final class AgentRun {
     /// Les lignes d'un `edit_file` arrivé avec seulement une plage de lignes
     /// (chemin, début, fin) : leur nouveau texte est attendu dans la réponse suivante.
     var awaitLines: (String, Int, Int)?
+    /// Un `edit_file` arrivé avec un seul numéro de ligne et sans texte (chemin,
+    /// ligne) : le texte à insérer après cette ligne est attendu dans la réponse suivante.
+    var awaitInsert: (String, Int)?
 
     /// La version d'origine des fichiers lus ou modifiés (`nil` : fichier nouveau).
     public var originals: [String: String?] = [:]

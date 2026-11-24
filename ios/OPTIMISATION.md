@@ -2059,11 +2059,18 @@ mémoire 32k tokens, consigne 3 000 car.
   épuisement ; après : refus avec la bonne méthode, réussite à l'étape suivante. Aucun
   fichier Swift/Dart/Rust du dépôt n'est visé. Tests : 710 → 715 (PlaceholderEditTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.92)
-2.2.91 portée (3.0.254). Parité Flutter en retard : 2.2.92 à 2.2.111 non portées ; en
-porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.92 = numéro de ligne seul
-→ insertion après la ligne, `_awaitInsert` ; 2.2.93 = code nouveau seul ajouté à la fin).
-Passage suivant (3.0.255) : TOKENS, puis INTERFACE ;
+- 3.0.255 (parité 2.2.92, passage TOKENS sans piste > 2 %) : `insertAfter` (AgentRun+Files)
+  et `awaitInsert` — edit_file avec un seul numéro de ligne (« line », « insert_after »,
+  « after_line ») et sans passage à remplacer insère après cette ligne ; sans texte, montre
+  les lignes autour et attend le texte au tour suivant (comme `awaitLines`). Avant : « il
+  manque le texte » / « old vide », jusqu'à 4 étapes perdues, chacune renvoyant tout
+  l'historique ; après : inséré en 1 ou 2 étapes. Tests : 715 → 721 (AgentInsertAfterTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.93)
+2.2.92 portée (3.0.255). Parité Flutter en retard : 2.2.93 à 2.2.111 non portées ; en
+porter une par passage quand TOKENS ou INTERFACE n'ont rien (2.2.93 = code nouveau seul
+ajouté à la fin).
+Passage suivant (3.0.256) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

@@ -57,6 +57,58 @@ extension AgentRun {
         } + unreadable.map { "(Dépôt \($0.0) illisible : \($0.1))" }).joined(separator: "\n")
     }
 
+    /// Insère `added` après la ligne `after` de `p` (0 : au début). Sans texte, montre
+    /// les lignes autour et attend le texte dans la réponse suivante. Rend `nil` pour un
+    /// fichier qui n'existe pas encore avec un texte : il est créé comme par un "old" vide.
+    func insertAfter(_ p: String, _ after: Int, _ added: String?) async throws -> String? {
+        let (text, problem) = try await current(p)
+        guard let text else { return added != nil ? nil : problem ?? "ERREUR : \(p) introuvable." }
+        var lines = text.components(separatedBy: "\n")
+        let ends = text.endsWith("\n")
+        if ends { lines.removeLast() }
+        // La ligne juste après la dernière : un ajout à la fin.
+        let at = after == lines.count + 1 ? lines.count : after
+        if at < 0 || at > lines.count {
+            return "ERREUR : \(p) a \(lines.count) lignes, la ligne \(after) "
+                + "n'existe pas. Relis le fichier (read_file) puis recommence."
+        }
+        guard let added else {
+            awaitInsert = (p, at)
+            let from = max(1, at - 2), to = min(lines.count, at + 2)
+            let shown = from <= to ? (from...to).map { "\($0): \(lines[$0 - 1])" }.joined(separator: "\n") : ""
+            return "EN ATTENTE du texte à INSÉRER après la ligne \(at) de \(p) "
+                + "(edit_file est arrivé avec un numéro de ligne, sans texte)."
+                + (shown.isEmpty ? "" : " Les lignes autour :\n\(shown)\n")
+                + "Réponds MAINTENANT avec, seul, le texte à insérer après la ligne \(at) "
+                + "(pas tout le fichier, sans les numéros) dans un bloc de code (```), "
+                + "sans bloc JSON : rien d'autre ne change. Pour REMPLACER des lignes, "
+                + "utilise plutôt edit_file avec \"line_start\" et \"line_end\"."
+        }
+        if added.trim().isEmpty {
+            return "ERREUR : le texte à insérer après la ligne \(at) de \(p) est vide."
+        }
+        let doc = DRegex(#"(\.(md|markdown|txt|rst|log)$|changelog|readme)"#, caseSensitive: false).hasMatch(p)
+        if !doc, let filler = placeholderLine(added, "", text) {
+            return "ERREUR : rien n'est modifié. Le texte à insérer contient "
+                + "« \(filler.trim()) », un commentaire qui tient la place de code "
+                + "existant : il serait écrit tel quel. Écris en entier le code à insérer."
+        }
+        let body = added.endsWith("\n") ? String(added.dropLast()) : added
+        let inserted = body.components(separatedBy: "\n")
+        let out = Array(lines.prefix(at)) + inserted + Array(lines.dropFirst(at))
+        let edited = out.joined(separator: "\n") + (ends || lines.isEmpty ? "\n" : "")
+        changes.set(p, tidyCode(p, edited, before: orig(p) ?? text))
+        notifyChanged()
+        let first = at + 1, last = at + inserted.count
+        func line(_ i: Int) -> String { i >= 1 && i <= out.count ? "\(i): \(out[i - 1])" : "" }
+        let context = [line(at), "… (lignes \(first) à \(last) : le texte inséré)", line(last + 1)]
+            .filter { !$0.isEmpty }.joined(separator: "\n")
+        return "OK, \(p) modifié en brouillon : \(inserted.count) ligne(s) "
+            + "insérée(s) après la ligne \(at) (lignes \(first) à \(last)). Juste autour :\n"
+            + "\(context)\nVérifie que c'est le bon endroit (pas au milieu d'une "
+            + "fonction). Le reste du fichier est inchangé.\(try await pitfalls(p))"
+    }
+
     /// Le texte actuel d'un fichier : le brouillon s'il y en a un, sinon la version du
     /// dépôt (entière, gardée en mémoire). Rend (`nil`, explication) sinon.
     func current(_ p: String) async throws -> (String?, String?) {
@@ -1078,6 +1130,19 @@ extension AgentRun {
             }
             let spanned = spanStart.map { s in spanEnd.map { $0 >= s } ?? false } ?? false
             if !spanned && atEnd && oldText == nil && newText == nil { return waitAppend() }
+            // Un seul numéro de ligne, sans passage à remplacer : un AJOUT après cette
+            // ligne. Essai réel : {"path", "line": 600} seul, trois fois de suite, puis
+            // {"line": 600, "old": "", "new": …} ; chaque fois « il manque le texte » ou
+            // « old vide », et quatre étapes perdues.
+            let (_, _, aroundLine) = Self.readSpan(call.args)
+            let blankOld = oldText.map { $0.trim().isEmpty || ["\"\"", "''", "``"].contains($0.trim()) } ?? false
+            let insertLine = asInt(jv(call.args["insert_after"]) ?? jv(call.args["after_line"]))
+                ?? (!spanned && !atEnd && ((oldText == nil && newText == nil) || (blankOld && newText != nil))
+                    ? aroundLine : nil)
+            if let insertLine, !spanned {
+                if let done = try await insertAfter(p, insertLine, newText) { return done }
+                oldText = ""
+            }
             if let spanStart, let spanEnd, spanEnd >= spanStart {
                 ranged = true
                 // Un seul texte avec une plage : il remplace ces lignes.
