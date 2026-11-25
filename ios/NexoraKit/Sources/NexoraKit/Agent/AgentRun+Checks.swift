@@ -1609,6 +1609,7 @@ extension AgentRun {
         }
         if !p.hasSuffix(".rs") { return "" }
         return try await rustPitfalls(p, text) + (await clippyPitfalls(p, text))
+            + (await asciiCasePitfalls(p, text))
     }
 
     /// Les erreurs certaines d'un brouillon Rust : syntaxe, tests et doctests.

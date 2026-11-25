@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.268 — 25 novembre 2026 — Les majuscules accentuées ne sont plus oubliées
+- Corrigé : en Rust, quand l'agent passait chaque lettre par to_ascii_lowercase puis cherchait 'à', 'é'…, « À » n'était jamais reconnu (slug("Àlà") rendait "la") et son propre test échouait.
+- L'agent est maintenant prévenu dès l'écriture, avec la ligne fautive et la correction (to_lowercase, ou les majuscules ajoutées au match) : une session relancée de moins.
+- Prudent : rien n'est signalé quand le code passe déjà par to_lowercase ou écrit les majuscules ; textes, commentaires et lignes d'origine sont ignorés.
+
 ## 3.0.267 — 25 novembre 2026 — Une fonction collée dans le corps d'une autre est repérée
 - Corrigé : l'agent collait parfois une nouvelle fonction Dart juste avant la « } » qui fermait une autre fonction. Les accolades restaient équilibrées et rien n'était signalé, mais la nouvelle fonction devenait invisible du reste du code : tests qui ne compilent pas, CI en échec.
 - L'agent est maintenant prévenu dès l'écriture, avec la ligne de la déclaration mal placée et celle du bloc qui la contient, et il doit la déplacer avant de terminer.

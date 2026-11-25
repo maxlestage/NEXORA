@@ -2154,11 +2154,20 @@ mémoire 32k tokens, consigne 3 000 car.
   l'historique renvoyé) ; après : corrigée en une étape. Tests : 774 → 778
   (DartNestedDeclarationTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.105)
-2.2.104 portée (3.0.267). Parité Flutter en retard : 2.2.105 à 2.2.111 non
-portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non portés
-non plus : `_asciiCasePitfalls` et `_lintPitfalls`, versions plus récentes.)
-Passage suivant (3.0.268) : TOKENS, puis INTERFACE ;
+- 3.0.268 (parité 2.2.105, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `rustAsciiCaseProblem` (RustAsciiCase) et `asciiCasePitfalls`, appelés par `pitfalls`
+  des fichiers .rs (une fois par fichier, `caseWarned`) — un `to_ascii_lowercase` suivi de
+  lettres accentuées en minuscules ('é') dont la majuscule n'est écrite nulle part est
+  signalé dès l'écriture. Avant : « À » jamais reconnu, test de l'agent en échec, session
+  relancée (tout l'historique renvoyé) ; après : corrigé à l'étape suivante. to_lowercase
+  présent, majuscules écrites, chaînes, commentaires, ß et lignes d'origine : jamais visés.
+  Tests : 778 → 782 (RustAsciiCaseTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.106)
+2.2.105 portée (3.0.268). Parité Flutter en retard : 2.2.106 à 2.2.111 non
+portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non porté
+non plus : `_lintPitfalls`, version plus récente.)
+Passage suivant (3.0.269) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
