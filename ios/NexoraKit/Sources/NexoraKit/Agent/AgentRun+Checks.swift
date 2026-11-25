@@ -1605,7 +1605,7 @@ extension AgentRun {
         guard let text = draft(p) else { return "" }
         if p.hasSuffix(".dart") {
             let syntax = await syntaxPitfalls(p, text)
-            return syntax + (await formatPitfalls(p, text))
+            return syntax + (await formatPitfalls(p, text)) + (await lintPitfalls(p, text))
         }
         if !p.hasSuffix(".rs") { return "" }
         return try await rustPitfalls(p, text) + (await clippyPitfalls(p, text))
@@ -1664,6 +1664,85 @@ extension AgentRun {
             out += hint
         }
         return out
+    }
+
+    /// En essai réel, pour « coupe les titres rapides à 40 caractères… Ajoute des
+    /// tests unitaires », le modèle écrivait dans son test
+    /// « String.fromCharCodes(…) + ' b' » : `flutter analyze` le refuse
+    /// (prefer_interpolation_to_compose_strings) et la CI aurait échoué. Le modèle
+    /// est prévenu dès l'écriture, avec les lignes et la correction (port de
+    /// Flutter 2.2.109, une fois par fichier).
+    func lintPitfalls(_ p: String, _ text: String) async -> String {
+        guard p.hasSuffix(".dart"), !concatWarned.contains(p), await checksDartLints(p) else { return "" }
+        let before: String? = (try? await original(p)) ?? nil
+        guard let hint = Self.dartConcatHint(p, text, before: before) else { return "" }
+        concatWarned.insert(p)
+        return hint
+    }
+
+    /// L'avertissement pour les « + » qui collent un texte littéral, dans les lignes
+    /// écrites par l'agent (celles du fichier d'origine ne comptent pas), ou `nil`.
+    public nonisolated static func dartConcatHint(_ path: String, _ text: String,
+                                                  before: String? = nil) -> String? {
+        if !path.hasSuffix(".dart") { return nil }
+        let found = dartConcatProblems(text, old: Set(before?.dsplit("\n") ?? []))
+        if found.isEmpty { return nil }
+        return "\n\nATTENTION : la CI de ce dépôt passe « flutter analyze », qui "
+            + "refusera \(path) (prefer_interpolation_to_compose_strings : un texte "
+            + "collé avec « + ») :\n" + found.joined(separator: "\n") + "\n"
+            + "Corrige maintenant avec edit_file : une interpolation à la place du "
+            + "« + » (« x + ' b' » devient « '$x b' », « f(x) + '…' » devient "
+            + "« '${f(x)}…' »). Le texte obtenu reste exactement le même."
+    }
+
+    nonisolated static let analyzeRe = DRegex(#"flutter\s+analyze(?![^\n]*--no-fatal-infos)"#)
+    nonisolated static let fatalInfosRe = DRegex(#"dart\s+analyze[^\n]*--fatal-infos"#)
+    nonisolated static let concatRuleOffRe = DRegex(#"prefer_interpolation_to_compose_strings\s*:\s*(false|ignore)"#)
+    nonisolated static let concatRuleOnRe = DRegex(#"(?m)prefer_interpolation_to_compose_strings\s*(:\s*(true|error|warning|info))?\s*$"#)
+
+    /// Un workflow dont l'analyse Dart échoue aussi sur les simples remarques
+    /// (« info ») : `flutter analyze`, ou `dart analyze --fatal-infos`.
+    public nonisolated static func dartAnalyzeRefusesInfos(_ workflow: String) -> Bool {
+        analyzeRe.hasMatch(workflow) || fatalInfosRe.hasMatch(workflow)
+    }
+
+    /// Le dossier de [p] analysé par la CI refuse-t-il ces « + » ? Oui quand un
+    /// workflow lance `flutter analyze` (ou `dart analyze --fatal-infos`) et que le
+    /// analysis_options.yaml le plus proche suit les règles recommandées
+    /// (flutter_lints, lints) sans couper celle-ci.
+    func checksDartLints(_ p: String) async -> Bool {
+        guard let where_ = resolve(p) else { return false }
+        let prefix = multi ? mountOf(where_.0) + "/" : ""
+        let all = await files()
+        let set = Set(all)
+        var options: String?
+        var dir = p
+        while options == nil {
+            let i = dir.lastIndexOf("/")
+            dir = i < 0 ? "" : dir.sub(0, i)
+            let f = (dir.isEmpty ? "" : dir + "/") + "analysis_options.yaml"
+            if set.contains(f) { options = f }
+            if dir.isEmpty { break }
+        }
+        guard let options else { return false }
+        if let known = lintChecked[options] { return known }
+        let rules: String = ((try? await current(options))?.0 ?? nil) ?? ""
+        let on = !Self.concatRuleOffRe.hasMatch(rules)
+            && (rules.contains("flutter_lints") || rules.contains("package:lints/recommended")
+                || Self.concatRuleOnRe.hasMatch(rules))
+        var analyzed = false
+        if on {
+            for f in all where f.hasPrefix(prefix + ".github/workflows/")
+                && (f.hasSuffix(".yml") || f.hasSuffix(".yaml")) {
+                let w: String? = (try? await current(f))?.0 ?? nil
+                if let w, Self.dartAnalyzeRefusesInfos(w) {
+                    analyzed = true
+                    break
+                }
+            }
+        }
+        lintChecked[options] = on && analyzed
+        return on && analyzed
     }
 
     /// En essai réel, un « RegExp( » coupé par l'agent gardait ses arguments au

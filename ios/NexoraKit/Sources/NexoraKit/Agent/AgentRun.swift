@@ -133,6 +133,12 @@ public final class AgentRun {
     @ObservationIgnored var indentWarned: Set<String> = []
     /// Par dépôt (préfixe de son dossier) : sa CI vérifie-t-elle `dart format` ?
     @ObservationIgnored var formatChecked: [String: Bool] = [:]
+    /// Les fichiers Dart déjà prévenus d'un « + » qui colle un texte (une fois
+    /// chacun, comme les lignes trop longues).
+    @ObservationIgnored var concatWarned: Set<String> = []
+    /// Par analysis_options.yaml : `flutter analyze` refusera-t-il les « + » qui
+    /// collent un texte (prefer_interpolation_to_compose_strings) ?
+    @ObservationIgnored var lintChecked: [String: Bool] = [:]
     /// Les tournures déjà signalées à clippy (`chemin:ligne`), pour ne pas répéter
     /// le même avertissement si le modèle n'y arrive pas.
     @ObservationIgnored var clippyWarned: Set<String> = []
