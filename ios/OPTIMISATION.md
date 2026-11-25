@@ -2205,12 +2205,13 @@ mémoire 32k tokens, consigne 3 000 car.
   inexistante, recherches répétées jusqu'à l'arrêt (tout l'historique renvoyé à chaque
   fois) ; après : nom réel choisi à l'étape suivante. Tests : 800 → 804 (SearchSplitNameTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.111)
-2.2.110 portée (3.0.273). Parité Flutter en retard : 2.2.111 non portée (recherche :
-« Rien dans ce fichier » puis ce qui est trouvé ailleurs, sans « vient d'une dépendance »).
+## Prochain passage : TOKENS (sinon parité 2.2.112)
+2.2.111 vérifiée le 25 novembre 2026 : déjà portée en 3.0.246 (`grepScoped`, « Rien dans
+<fichier>. Dans tout le dépôt », test « class Conversation » dans AgentFilesTests) ; aucun
+commit de version. Flutter est à 2.2.111 (pubspec) : rien de plus à porter pour l'instant.
 Passage suivant (3.0.274) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
-d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
+d'une session de 40 étapes (bancs TokenBench), sinon rien (aucun commit).
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
 github, pitfalls, `max_tokens`, images, titres ni `jobLog`. Saisies de l'app toutes déjà
 contrôlées : ne plus les rechercher.
