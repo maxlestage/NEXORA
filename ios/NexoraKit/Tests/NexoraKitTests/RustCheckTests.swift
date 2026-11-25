@@ -87,7 +87,9 @@ struct RustCheckTests {
         let e = try #require(rustSyntaxError(Self.broken))
         #expect(e.contains("ferme quelque chose qui n'a jamais été ouvert"))
         #expect(e.hasPrefix("ligne 22 "))
-        #expect(e.contains("le décalage commence sans doute ligne 14 (« }; »), alignée autrement que la ligne 4"))
+        // Code laissé hors de sa fonction : la « } » fermée trop tôt est désignée (2.2.107).
+        #expect(e.contains("le décalage commence sans doute ligne 11 (« 'é'"))
+        #expect(e.contains("la « } » de la ligne 10 juste avant"))
         #expect(rustSyntaxError("fn f() {\n    g(1];\n}\n")?.contains("« ] »") == true)
         #expect(rustSyntaxError("fn f() {\n    g(1);\n")?.contains("jamais fermé") == true)
         #expect(rustSyntaxError("let s = \"sans fin;\n")?.contains("chaîne") == true)

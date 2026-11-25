@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.270 — 25 novembre 2026 — Une accolade de trop est montrée là où elle casse le code
+- Corrigé : quand l'agent fermait un bloc trop tôt pour y coller son propre code (un test au milieu d'un autre), l'alerte montrait la toute dernière ligne du fichier, loin de l'endroit cassé.
+- L'alerte désigne maintenant la première ligne laissée dehors et la « } » qui a fermé le bloc trop tôt, en Rust comme en Dart, avec la correction à faire : moins d'allers-retours, donc moins de tokens.
+- Prudent : seule l'explication change, quand l'erreur est déjà certaine.
+
 ## 3.0.269 — 25 novembre 2026 — Un brouillon cassé n'est plus oublié en route
 - Corrigé : quand l'agent laissait un fichier qui ne compile pas (une « } » de trop, un test coupé en deux), l'avertissement n'était donné qu'une fois puis disparaissait ; l'agent cherchait ailleurs jusqu'à l'arrêt.
 - Le rappel revient maintenant à chaque point d'étape et dès que l'agent tourne en rond, avec la ligne fautive, en tête des priorités.
