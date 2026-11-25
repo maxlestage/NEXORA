@@ -2181,11 +2181,19 @@ mémoire 32k tokens, consigne 3 000 car.
   ailleurs (tout l'historique renvoyé) ; après : endroit cassé montré dès l'écriture.
   Tests : 785 → 789 (BraceHintTests ; RustCheckTests mis à jour comme côté Flutter).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.108)
-2.2.107 portée (3.0.270). Parité Flutter en retard : 2.2.108 à 2.2.111 non
+- 3.0.271 (parité 2.2.108, passage INTERFACE sans défaut signalé) : `parseToolCalls`
+  (Agent/AgentActions.swift) — les arguments écrits à côté de « tool » (hors `actionMeta`,
+  « name » égal à l'outil exclu) sont repris, « args » prime ; un bloc qui est lui-même une
+  action n'est plus pris pour le contenu attendu (sauf fichier .json/.jsonl, `jsonTarget`).
+  Avant : test écrit dans le fichier de code (JSON), fichier sans chemin, session relancée
+  (tout l'historique renvoyé) ; après : chaque action faite, contenu manquant redemandé.
+  Tests : 789 → 793 (SiblingArgsTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.109)
+2.2.108 portée (3.0.271). Parité Flutter en retard : 2.2.109 à 2.2.111 non
 portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non porté
 non plus : `_lintPitfalls`, version plus récente.)
-Passage suivant (3.0.271) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.272) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil

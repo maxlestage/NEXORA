@@ -357,6 +357,15 @@ public func parseToolCalls(_ input: String) -> [ToolCall] {
             // Les arguments écrits comme un texte JSON (« "args": "{\"path\": …}" ») :
             // ils étaient perdus et l'action partait sans chemin.
             var args = argsOf(jv(a["args"]) ?? jv(a["arguments"]) ?? jv(a["parameters"]))
+            // Les arguments écrits à côté de « tool » au lieu de dans « args »
+            // (essai réel : {"tool":"write_file","args":{"path":…},"content":"…"},
+            // ou {"tool":"read_file","path":"a.dart"}) : ils étaient perdus, le
+            // fichier partait sans contenu ou sans chemin. Ce qui est dans « args » prime.
+            for (k, v) in a where !actionMeta.contains(k) && jv(v) != nil {
+                // « name » peut être le nom de l'outil ({"name": "read_file", …}).
+                if k == "name" && canonicalTool(dstr(v)) == tool { continue }
+                if args[k] == nil { args[k] = v }
+            }
             let index = tools.count
             // Le contenu sous un autre nom (« contents », « code », « text »…).
             if tool == "write_file" && jv(args["content"]) == nil {
@@ -384,6 +393,15 @@ public func parseToolCalls(_ input: String) -> [ToolCall] {
     func block(_ b: String) -> String { b.endsWith("\n") ? b.sub(0, b.len - 1) : b }
     for b in blocks {
         if b.start < afterIndex { continue }
+        // Un bloc qui est lui-même une action n'est pas le contenu attendu (essai
+        // réel : le JSON d'un second write_file, celui du test, devenait le contenu
+        // du premier fichier, et le test n'était jamais écrit). Sauf pour un fichier
+        // JSON, qui peut contenir n'importe quel objet.
+        if let (i, _) = needs.first, !jsonTarget(argsList[i]), let cand = wanted(tryLooseJSON(b.body)),
+           b.lang == "json" || b.body.trimLeft().hasPrefix("{") {
+            if fromBlock { take(cand, first: false) }
+            continue
+        }
         if !needs.isEmpty {
             let (i, key) = needs.removeFirst()
             argsList[i][key] = key == "content" ? b.body : block(b.body)
@@ -406,6 +424,19 @@ public func parseToolCalls(_ input: String) -> [ToolCall] {
         }
     }
     return tools.indices.map { ToolCall(tools[$0], argsList[$0], thought: thoughts[$0], goal: goals[$0]) }
+}
+
+/// Les clés d'une action qui ne sont pas des arguments de l'outil.
+private let actionMeta: Set<String> = [
+    "tool", "args", "arguments", "parameters", "input", "thought", "demande", "goal",
+    "actions", "action", "function", "tool_name", "type", "id",
+]
+
+/// Le contenu attendu va dans un fichier JSON (où un objet « tool » est un contenu
+/// possible).
+private func jsonTarget(_ args: [String: Any]) -> Bool {
+    let path = (jv(args["path"]).map { dstr($0) } ?? "").lowercased()
+    return path.hasSuffix(".json") || path.hasSuffix(".jsonl")
 }
 
 /// Un bloc de code qui est une action (JSON avec "tool" ou "actions").
