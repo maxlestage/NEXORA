@@ -138,6 +138,9 @@ public final class AgentRun {
     @ObservationIgnored var clippyWarned: Set<String> = []
     /// Par dépôt : sa CI passe-t-elle `cargo clippy` avec `-D warnings` ?
     @ObservationIgnored var clippyChecked: [String: Bool] = [:]
+    /// Les fichiers Rust déjà prévenus d'un `to_ascii_lowercase` qui oublie les
+    /// majuscules accentuées (une fois chacun).
+    @ObservationIgnored var caseWarned: Set<String> = []
     /// Ce que la session a consommé : tokens envoyés et reçus, et dollars (quand
     /// le prix du modèle est connu). Mis à jour à chaque réponse, affiché en direct.
     public internal(set) var spentIn = 0
