@@ -21,6 +21,7 @@ public func rustSyntaxError(_ code: String) -> String? {
     let n = t.count
     let lines = code.components(separatedBy: "\n")
     var stack: [(open: UInt16, line: Int)] = []
+    var closers: [Int] = []
     var line = 1
     func shown(_ l: Int) -> String {
         let text = l - 1 < lines.count ? lines[l - 1].trimmingCharacters(in: .whitespaces) : ""
@@ -150,11 +151,15 @@ public func rustSyntaxError(_ code: String) -> String? {
         if c == 41 || c == 93 || c == 125 {
             let cs = String(utf16CodeUnits: [c], count: 1)
             guard let top = stack.last else {
-                return withSuspect(at(
+                let error = at(
                     line,
                     "« \(cs) » ferme quelque chose qui n'a jamais été ouvert "
                         + "(accolade ou parenthèse en trop, ou code recopié en double)"
-                ))
+                )
+                // Du code laissé hors de sa fonction, avant le premier décalage
+                // d'alignement : c'est le meilleur indice.
+                let note = c == 125 ? orphanNote(lines, closers, suspect ?? line) : nil
+                return note.map { "\(error) ; \($0)" } ?? withSuspect(error)
             }
             let want = rustCloser(top.open)
             if cs != want {
@@ -162,6 +167,7 @@ public func rustSyntaxError(_ code: String) -> String? {
                 return at(line, "« \(cs) » ferme « \(os) » ouvert ligne \(top.line) (attendu : « \(want) »)")
             }
             stack.removeLast()
+            if c == 125 { closers.append(line) }
             let first = line - 1 < lines.count ? lines[line - 1].drop { $0 == " " || $0 == "\t" } : ""
             if suspect == nil && top.line != line && first.hasPrefix(cs) && indent(line) != indent(top.line) {
                 suspect = line

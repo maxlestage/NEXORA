@@ -31,6 +31,7 @@ public func dartSyntaxError(_ code: String) -> String? {
     let t = U16(code)
     let n = t.count
     var stack: [DartFrame] = []
+    var closers: [Int] = []
     var line = 1
     func at(_ l: Int, _ why: String) -> String {
         let lines = code.dsplit("\n")
@@ -125,12 +126,15 @@ public func dartSyntaxError(_ code: String) -> String? {
         }
         if c == ")" || c == "]" || c == "}" {
             guard let top else {
-                return at(line, "« \(c) » ferme quelque chose qui n'a jamais été ouvert")
+                let error = at(line, "« \(c) » ferme quelque chose qui n'a jamais été ouvert")
+                let note = c == "}" ? orphanNote(code.components(separatedBy: "\n"), closers, line) : nil
+                return note.map { "\(error) ; \($0)" } ?? error
             }
             let want = top.open == "(" ? ")" : top.open == "[" ? "]" : "}"
             if c != want {
                 return at(line, "« \(c) » ferme « \(top.open) » ouvert ligne \(top.line) (attendu : « \(want) »)")
             }
+            if top.open == "{" { closers.append(line) }
             stack.removeLast()
             i += 1
             continue

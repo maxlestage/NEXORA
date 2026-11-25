@@ -2018,7 +2018,7 @@ mémoire 32k tokens, consigne 3 000 car.
   fermée) → « ATTENTION … ne compilera pas, ligne N », avec « le décalage commence sans
   doute ligne M » (première fermeture mal alignée sur sa ligne d'ouverture), et finish
   refusé (deux fois au plus, `brokenDart` couvre aussi .rs). `orphanNote` (brace_hint.dart)
-  et `rustDuplicateFnError` viennent de versions ultérieures : non portés. Test : aucun
+  porté en 3.0.270 ; `rustDuplicateFnError` (version ultérieure) : non porté. Test : aucun
   fichier .rs de site/ signalé. Avant : accolade en trop vue seulement par la CI, puis tours
   de réparation renvoyant tout l'historique. Tests : 691 → 696 (RustCheckTests).
 
@@ -2172,11 +2172,20 @@ mémoire 32k tokens, consigne 3 000 car.
   corrigé en tête des priorités. Rien d'ajouté quand tout compile. Tests : 782 → 785
   (BrokenReminderTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.107)
-2.2.106 portée (3.0.269). Parité Flutter en retard : 2.2.107 à 2.2.111 non
+- 3.0.270 (parité 2.2.107, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `orphanNote` / `orphanAfterClose` (Agent/BraceHint.swift), appelés par `dartSyntaxError`
+  et `rustSyntaxError` sur une « } » jamais ouverte — la première ligne plus indentée que
+  la « } » seule qui la précède (suites d'expression, else, commentaires exclus) est
+  désignée avec cette « } » fermée trop tôt ; en Rust, l'indice d'alignement n'est plus
+  donné que sans code orphelin. Avant : alerte sur la dernière ligne du fichier, recherches
+  ailleurs (tout l'historique renvoyé) ; après : endroit cassé montré dès l'écriture.
+  Tests : 785 → 789 (BraceHintTests ; RustCheckTests mis à jour comme côté Flutter).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.108)
+2.2.107 portée (3.0.270). Parité Flutter en retard : 2.2.108 à 2.2.111 non
 portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non porté
 non plus : `_lintPitfalls`, version plus récente.)
-Passage suivant (3.0.270) : TOKENS, puis INTERFACE ;
+Passage suivant (3.0.271) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
