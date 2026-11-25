@@ -2189,11 +2189,19 @@ mémoire 32k tokens, consigne 3 000 car.
   (tout l'historique renvoyé) ; après : chaque action faite, contenu manquant redemandé.
   Tests : 789 → 793 (SiblingArgsTests).
 
-## Prochain passage : TOKENS (sinon parité 2.2.109)
-2.2.108 portée (3.0.271). Parité Flutter en retard : 2.2.109 à 2.2.111 non
-portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non porté
-non plus : `_lintPitfalls`, version plus récente.)
-Passage suivant (3.0.272) : TOKENS, puis INTERFACE ;
+- 3.0.272 (parité 2.2.109, passage TOKENS sans piste mesurée à plus de 2 %) :
+  `dartConcatProblems` (Agent/DartConcat.swift) et `lintPitfalls` / `checksDartLints`
+  (AgentRun+Checks), appelés par `pitfalls` des fichiers .dart (une fois par fichier,
+  `concatWarned`) — quand un workflow lance `flutter analyze` (ou `dart analyze
+  --fatal-infos`) et que le analysis_options.yaml le plus proche suit flutter_lints/lints
+  sans couper la règle, un « + » qui colle un texte littéral est signalé dès l'écriture
+  avec la correction. Avant : CI en échec, session relancée (tout l'historique renvoyé) ;
+  après : corrigé à l'étape suivante. Tests : 793 → 800 (DartConcatTests).
+
+## Prochain passage : INTERFACE (sinon parité 2.2.110)
+2.2.109 portée (3.0.272, `_lintPitfalls` compris). Parité Flutter en retard : 2.2.110 et
+2.2.111 non portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien.
+Passage suivant (3.0.273) : INTERFACE, puis TOKENS ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
