@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.269 — 25 novembre 2026 — Un brouillon cassé n'est plus oublié en route
+- Corrigé : quand l'agent laissait un fichier qui ne compile pas (une « } » de trop, un test coupé en deux), l'avertissement n'était donné qu'une fois puis disparaissait ; l'agent cherchait ailleurs jusqu'à l'arrêt.
+- Le rappel revient maintenant à chaque point d'étape et dès que l'agent tourne en rond, avec la ligne fautive, en tête des priorités.
+- Prudent : rien n'est ajouté quand les brouillons compilent, et une erreur déjà présente dans le dépôt d'origine n'est jamais reprochée à l'agent.
+
 ## 3.0.268 — 25 novembre 2026 — Les majuscules accentuées ne sont plus oubliées
 - Corrigé : en Rust, quand l'agent passait chaque lettre par to_ascii_lowercase puis cherchait 'à', 'é'…, « À » n'était jamais reconnu (slug("Àlà") rendait "la") et son propre test échouait.
 - L'agent est maintenant prévenu dès l'écriture, avec la ligne fautive et la correction (to_lowercase, ou les majuscules ajoutées au match) : une session relancée de moins.
