@@ -534,6 +534,16 @@ extension AgentRun {
 
     nonisolated static let squashChars = DRegex(#"[\s_\-]"#)
 
+    /// Un nom de code écrit d'un seul tenant, qui ne serait pas un mot ordinaire :
+    /// des majuscules au milieu (`getUser`), un « _ » (`get_user`) ou un « $ ».
+    nonisolated static func codeName(_ s: String) -> Bool {
+        codeNameShape.hasMatch(s) && codeNameMark.hasMatch(s)
+    }
+
+    nonisolated static let codeNameShape = DRegex(#"^[A-Za-z_$][\w$]*$"#)
+    nonisolated static let codeNameMark = DRegex(#"^.+[A-Z]|[_$]"#)
+    nonisolated static let dashUnderscore = DRegex(#"[_\-]"#)
+
     nonisolated static func skipForSearch(_ f: String) -> Bool {
         binary.hasMatch(f) || skipDirs.hasMatch(f)
     }
@@ -740,6 +750,7 @@ extension AgentRun {
         // correspondances passent d'abord ; sans aucune, il est prévenu que le nom
         // n'existe pas.
         var inOther: [String] = []
+        var split = false
         if !hits.isEmpty && DRegex("^[a-z0-9_]{3,}$").hasMatch(q) {
             let whole = find({ $0.contains(q) }, keep: { Self.wholeWord($0, q) })
             if whole.count < hits.count {
@@ -771,7 +782,20 @@ extension AgentRun {
             let squashed = Self.squashForSearch(q)
             if DRegex("[a-z0-9]").allMatches(squashed).count > 2 {
                 hits = find { Self.squashForSearch($0).contains(squashed) }
-                if !hits.isEmpty { note = " (en ignorant espaces, « _ » et majuscules)" }
+                if !hits.isEmpty {
+                    note = " (en ignorant espaces, « _ » et majuscules)"
+                    // Un nom de code (« getUser ») retrouvé seulement en mots séparés
+                    // (« String get user ») : ce nom n'existe pas. Essai réel : « 1 ligne
+                    // contient getUser » faisait croire à une méthode getUser ; l'agent
+                    // l'appelait dans son test (qui ne compilait pas), puis refaisait la
+                    // même recherche jusqu'à l'arrêt.
+                    if Self.codeName(query.trim()) && !hits.contains(where: { h in
+                        let body = h.range(of: ": ").map { String(h[$0.upperBound...]) } ?? h
+                        return Self.dashUnderscore.replaceAll(body.lowercased(), "").contains(squashed)
+                    }) {
+                        split = true
+                    }
+                }
             }
         }
         let names = Array(all.filter { f in
@@ -869,6 +893,14 @@ extension AgentRun {
                 0
             )
         }
+        let lead = split
+            ? "Aucune ligne ne contient le nom « \(query) » : il n'existe pas "
+                + "(\(texts.count) fichiers parcourus). \(hits.count) ligne(s) "
+                + "ont seulement les mêmes lettres en mots séparés\(note). "
+                + "N'écris pas « \(query) » dans le code : prends un nom qui "
+                + "existe vraiment (dans ces lignes ou ailleurs), ou crée-le si "
+                + "la demande le dit"
+            : "\(hits.count) ligne(s) contiennent « \(query) »\(note)"
         // Peu de résultats : le code autour de chacun, pour savoir quoi modifier.
         if hits.count <= 6 {
             var shown: [String] = []
@@ -882,7 +914,7 @@ extension AgentRun {
                 shown.append("\(m[1]!) :\n" + (from...to).map { k in "\(k == n ? ">" : " ")\(k + 1): \(lines[k])" }.joined(separator: "\n"))
             }
             return (
-                "\(hits.count) ligne(s) contiennent « \(query) »\(note), avec le code "
+                "\(lead), avec le code "
                     + "autour :\n\(shown.joined(separator: "\n\n"))"
                     + (names.isEmpty ? "" : "\nFichiers dont le nom correspond : \(names.joined(separator: ", "))")
                     + limited,
@@ -890,7 +922,7 @@ extension AgentRun {
             )
         }
         return (
-            "\(hits.count) ligne(s) contiennent « \(query) »\(note) :\n"
+            "\(lead) :\n"
                 + Self.groupHits(Array(hits.prefix(80)))
                 + (hits.count > 80 ? "\n… (\(hits.count - 80) de plus : précise \"path\")" : "")
                 + (names.isEmpty ? "" : "\nFichiers dont le nom correspond : \(names.joined(separator: ", "))")
@@ -1129,7 +1161,15 @@ extension AgentRun {
             let re = DRegex(try: DRegex(#"^\(\?i\)"#).replaceFirst(pattern, ""), caseSensitive: false)
                 ?? DRegex(DRegex.escape(pattern), caseSensitive: false)
             let lines = text.dsplit("\n")
-            let at = lines.indices.filter { re.hasMatch(lines[$0]) }
+            var at = lines.indices.filter { re.hasMatch(lines[$0]) }
+            // Le texte exact, quand l'expression régulière ne trouve rien. Essai réel :
+            // « if (res.statusCode >= 400) » était lu comme une expression (les
+            // parenthèses y forment un groupe) et ne trouvait jamais la ligne, pourtant
+            // présente deux fois ; l'agent relisait tout le fichier.
+            if at.isEmpty {
+                let plain = pattern.lowercased()
+                at = lines.indices.filter { lines[$0].lowercased().contains(plain) }
+            }
             if at.isEmpty { return "Aucune ligne ne contient « \(pattern) » dans \(p)." }
             func show(_ i: Int, hit: Bool = false) -> String {
                 "\(hit ? ">" : " ")\(i + 1): \(lines[i].len > 300 ? lines[i].sub(0, 300) + "…" : lines[i])"
