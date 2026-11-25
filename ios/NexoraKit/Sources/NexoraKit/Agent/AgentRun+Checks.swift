@@ -1776,6 +1776,19 @@ extension AgentRun {
         return out
     }
 
+    /// Le rappel d'un brouillon Dart ou Rust qui ne compilera pas, remis dans les
+    /// relances (point d'étape, recherches en rond) : l'avertissement donné une seule
+    /// fois, juste après l'écriture, disparaît quand l'historique est raccourci. Essai
+    /// réel : une « } » de trop coupait un test en deux, l'avertissement était oublié
+    /// au point d'étape et le modèle cherchait ailleurs jusqu'à l'arrêt (port de
+    /// Flutter 2.2.106).
+    func brokenNote() async -> String {
+        let broken = await brokenDart()
+        if broken.isEmpty { return "" }
+        return "\n\nAVANT TOUT : tes brouillons ne compilent plus, corrige-les "
+            + "d'abord (c'est le plus urgent).\(broken.joined())"
+    }
+
     /// L'avertissement à donner au modèle pour un fichier Dart qui ne compilera pas,
     /// ou `nil`.
     public nonisolated static func dartSyntaxHint(_ path: String, _ content: String) -> String? {

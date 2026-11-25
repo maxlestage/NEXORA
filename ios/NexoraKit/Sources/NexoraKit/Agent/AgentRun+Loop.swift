@@ -376,6 +376,7 @@ extension AgentRun {
                             + "manque si la demande l'implique), ou appelle finish en "
                             + "expliquant précisément ce qui n'existe pas.\(progressNote())"
                     }
+                    if stale >= 3 { circling += await brokenNote() }
                 }
                 actsSince += work.count
                 let raw = await execAll(work)
@@ -502,12 +503,13 @@ extension AgentRun {
                 extraRounds += 1
                 add(AgentStep(.thought, "\(maxSteps) étapes utilisées : je fais le point et je continue (\(extraRounds)/\(Self.maxExtraRounds))."))
                 Self.dropReminders(&history, keeping: reminder)
+                let broken = await brokenNote()
                 history.append(LLMMessage(
                     "user",
                     "Tu as utilisé \(maxSteps) étapes sans terminer. Fais le point : ce qui "
                         + "est fait, ce qui reste, et le chemin le plus direct pour finir. Si tu "
                         + "tournes en rond, change d'approche (autre fichier, autre méthode, "
-                        + "solution plus simple). Puis continue jusqu'au bout.\(reminder)"
+                        + "solution plus simple). Puis continue jusqu'au bout.\(broken)\(reminder)"
                 ))
                 Self.compactHistory(&history, batch: Self.compactBatch)
                 again = true

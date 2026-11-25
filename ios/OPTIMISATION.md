@@ -2163,11 +2163,20 @@ mémoire 32k tokens, consigne 3 000 car.
   présent, majuscules écrites, chaînes, commentaires, ß et lignes d'origine : jamais visés.
   Tests : 778 → 782 (RustAsciiCaseTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.106)
-2.2.105 portée (3.0.268). Parité Flutter en retard : 2.2.106 à 2.2.111 non
+- 3.0.269 (parité 2.2.106, passage INTERFACE sans défaut signalé) : `brokenNote`
+  (AgentRun+Checks), ajouté au message du point d'étape et à l'alerte « tu tournes en
+  rond » (AgentRun+Loop) — tant qu'un brouillon .dart ou .rs ne compile pas (et compilait
+  dans le dépôt), « AVANT TOUT : tes brouillons ne compilent plus » et l'avertissement de
+  chaque fichier sont remis. Avant : avertissement oublié après le raccourcissement de
+  l'historique, recherches jusqu'à l'arrêt (tout l'historique renvoyé à chacune) ; après :
+  corrigé en tête des priorités. Rien d'ajouté quand tout compile. Tests : 782 → 785
+  (BrokenReminderTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.107)
+2.2.106 portée (3.0.269). Parité Flutter en retard : 2.2.107 à 2.2.111 non
 portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien. (Non porté
 non plus : `_lintPitfalls`, version plus récente.)
-Passage suivant (3.0.269) : INTERFACE, puis TOKENS ;
+Passage suivant (3.0.270) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
