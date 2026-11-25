@@ -5,6 +5,11 @@
      le vérifie. Les nouveautés communes avec l'app Flutter (2.x) restent dans
      app/assets/nouveautes.md et s'affichent aussi. -->
 
+## 3.0.273 — 25 novembre 2026 — La recherche ne fait plus croire à un nom qui n'existe pas
+- Corrigé : l'agent cherchait « getUser » et la recherche répondait « 1 ligne contient getUser » à cause de « String get user » ; il appelait alors une méthode inexistante dans son test.
+- Un nom de code retrouvé seulement en mots séparés est maintenant annoncé comme absent, avec la consigne de prendre un nom qui existe vraiment ; « getToken » trouve toujours « get_token ».
+- Corrigé : la recherche dans un fichier retrouve un texte exact comme « if (res.statusCode >= 400) », que les parenthèses faisaient rater.
+
 ## 3.0.272 — 25 novembre 2026 — L'agent est prévenu d'un texte collé que flutter analyze refusera
 - Corrigé : en essai réel, l'agent écrivait dans un test « String.fromCharCodes(…) + ' b' ». « flutter analyze » le refuse : la CI aurait échoué pour un détail d'écriture.
 - Quand la CI du dépôt passe « flutter analyze » avec les règles recommandées, l'agent est prévenu dès l'écriture, avec chaque ligne fautive et la correction (« x + ' b' » devient « '$x b' »).

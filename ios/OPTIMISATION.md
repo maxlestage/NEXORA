@@ -2198,10 +2198,17 @@ mémoire 32k tokens, consigne 3 000 car.
   avec la correction. Avant : CI en échec, session relancée (tout l'historique renvoyé) ;
   après : corrigé à l'étape suivante. Tests : 793 → 800 (DartConcatTests).
 
-## Prochain passage : INTERFACE (sinon parité 2.2.110)
-2.2.109 portée (3.0.272, `_lintPitfalls` compris). Parité Flutter en retard : 2.2.110 et
-2.2.111 non portées ; en porter une par passage quand TOKENS ou INTERFACE n'ont rien.
-Passage suivant (3.0.273) : INTERFACE, puis TOKENS ;
+- 3.0.273 (parité 2.2.110, passage INTERFACE sans défaut précis signalé) :
+  `codeName` (AgentRun+Files) — un nom de code (« getUser ») retrouvé seulement en mots
+  séparés par la recherche élargie est annoncé absent (`split`) ; find_in_file retombe sur
+  le texte exact quand l'expression régulière ne trouve rien. Avant : appel d'une méthode
+  inexistante, recherches répétées jusqu'à l'arrêt (tout l'historique renvoyé à chaque
+  fois) ; après : nom réel choisi à l'étape suivante. Tests : 800 → 804 (SearchSplitNameTests).
+
+## Prochain passage : TOKENS (sinon parité 2.2.111)
+2.2.110 portée (3.0.273). Parité Flutter en retard : 2.2.111 non portée (recherche :
+« Rien dans ce fichier » puis ce qui est trouvé ailleurs, sans « vient d'une dépendance »).
+Passage suivant (3.0.274) : TOKENS, puis INTERFACE ;
 pistes tokens sûres épuisées : ne garder qu'une piste MESURÉE à plus de 2 % du coût
 d'une session de 40 étapes (bancs TokenBench), sinon parité sans rien forcer.
 Ne pas relire `ciAsked`/`testsAsked`/`broken` (écartés), find_in_file, use_skill, outil
